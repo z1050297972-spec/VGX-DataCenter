@@ -24,6 +24,7 @@ M0 和 M1 所需的决策全部关闭，两份 spec 可以直接交给 `/to-spec
 - [实时可视化路线](issues/06-live-viz-route.md)：推荐在机器人上跑 foxglove_bridge 和自写的 `viz_relay`，把话题规整到 `/viz/*`；工作站自托管 Lichtblick，用 iframe 嵌进 React 页面。Wi-Fi 上只走 TCP，不走 DDS。备选是 Rerun。R1 Lite 头部相机是 H.264，需要改装成 CompressedVideo 才能显示。
 - [平台统一的 LeRobot 版本](issues/07-lerobot-version.md)：推荐以 v3.0 为唯一规范格式，配 lerobot 0.6.1（必须同时锁定库版本）；v2.1 只作为按需导出的派生格式，因为 openpi、GR00T、Galaxea、智元自家的训练代码只读 v2.1。
 - [盘点导航层的 70 份 JSON](issues/01-nav-json-inventory.md)：schema 稳定，84 条链接与 `links[]` 一一对应，无断链。但有三处与 0002 不符：`按格式` 视图可以只是数据集的一部分，不一定是副本（2 例）；智元的 3 个目录被删除后 JSON 没有同步；`解压样本/` 在系统盘上放了 224 GB 真实数据。更正写在 0005。假导航层样本选了 5 个数据集。
+- [交互形态与前端路线](issues/02-interaction-frontend.md)：只做 Web，另留一个最小的运维命令入口；Vite + React + TS 单页应用，由 FastAPI 同进程托管（ADR 0001）。监听 `0.0.0.0`，多人账号（管理员、成员），操作日志和登录日志保留 30 天、只有管理员能看。记录同时存账号的内部编号和名字，所以账号随时可删。M0–M4 只走 HTTP，推送用约 1 秒轮询。账号和日志进 M0；备份另开「备份方案」票。
 
 ## Not yet specified
 
@@ -38,4 +39,5 @@ M0 和 M1 所需的决策全部关闭，两份 spec 可以直接交给 `/to-spec
 - **hf-mirror 下载机制调研、下载流程与入库到导航层**：只影响 M2 内部的做法，M2 开工时另开新图。
 - **实时预览 spike**：属于 M5 内部，M5 开工时另开新图。本图只定路线（「实时可视化路线」）和映射是否共用（「RobotProfile 是否共用」）。
 - **录制状态机**：属于 M6 内部，M6 开工时另开新图。
+- **平台的 HTTPS**：只有 M5 会受影响（非 localhost 的浏览器解不了 H.264），M5 开图时再定。本图只定 M0–M4 走 HTTP、前端地址一律写相对路径（「交互形态与前端路线」）。
 - **模型训练、数据标注**：不在平台范围内。

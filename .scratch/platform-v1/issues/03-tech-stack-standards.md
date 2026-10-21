@@ -19,6 +19,7 @@ Blocked by: 02
   - 两边都汇总进 `make check`，并接到 pre-commit 上。
 - **函数契约模板**：docstring 六项的固定格式（0003 第七节）；前端函数和组件对应的契约要求。
 - **新增依赖的审批流程**：后端和前端各怎么走。
+- **「交互形态与前端路线」留下的选型**：前端已定为 Vite + React + TypeScript 单页应用，源码在 `src/web/`。还要定：路由、数据获取、组件库用什么；OpenAPI 生成 TS 类型用什么工具；运维命令入口用什么写（Typer 还是标准库 argparse）；口令哈希和登录会话用什么库。
 - **lerobot 的依赖方式**：平台运行时直接依赖 lerobot，还是只在测试里拿它当格式判定的基准。lerobot 0.6.x 要求 Python 3.12，而且库版本必须锁定，见「[平台统一的 LeRobot 版本](07-lerobot-version.md)」。
 
 **完成标准**：以上各项都有结论。技术栈写成 ADR；`docs/standards/CODING_STANDARDS.md` 的条目要点写在本票 Answer 里，正文在 M0 成文（从 `docs/standards/engineering-control/` 派生）。
