@@ -23,6 +23,7 @@ M0 和 M1 所需的决策全部关闭，两份 spec 可以直接交给 `/to-spec
 
 - [实时可视化路线](issues/06-live-viz-route.md)：推荐在机器人上跑 foxglove_bridge 和自写的 `viz_relay`，把话题规整到 `/viz/*`；工作站自托管 Lichtblick，用 iframe 嵌进 React 页面。Wi-Fi 上只走 TCP，不走 DDS。备选是 Rerun。R1 Lite 头部相机是 H.264，需要改装成 CompressedVideo 才能显示。
 - [平台统一的 LeRobot 版本](issues/07-lerobot-version.md)：推荐以 v3.0 为唯一规范格式，配 lerobot 0.6.1（必须同时锁定库版本）；v2.1 只作为按需导出的派生格式，因为 openpi、GR00T、Galaxea、智元自家的训练代码只读 v2.1。
+- [盘点导航层的 70 份 JSON](issues/01-nav-json-inventory.md)：schema 稳定，84 条链接与 `links[]` 一一对应，无断链。但有三处与 0002 不符：`按格式` 视图可以只是数据集的一部分，不一定是副本（2 例）；智元的 3 个目录被删除后 JSON 没有同步；`解压样本/` 在系统盘上放了 224 GB 真实数据。更正写在 0005。假导航层样本选了 5 个数据集。
 
 ## Not yet specified
 

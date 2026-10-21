@@ -18,4 +18,13 @@ Blocked by: 03
 - **文件归属**：后端在 `src/`、`tests/`；React 前端代码放在哪个目录，是否同样由 Codex 写。
 - **沙箱与依赖**：`workspace-write` 沙箱没有网络，新增依赖由谁、在什么时候安装。
 
+## 负责人初步意见
+
+- 2026-10-21：执行工作交给 Codex（GPT），Claude 只负责审核和管理。范围不限于实现工单，走图时 AFK 的执行（task、research 票）也要派出去。已写进 `CLAUDE.md`。
+- 由此要补定的点：
+  - 非代码任务的派工提示模板
+  - 沙箱模式（只读的活用 `read-only`）
+  - research 票需要联网时 Codex 能不能做
+  - Claude 对调研、盘点结果复核到什么程度
+
 **完成标准**：以上各项都有结论，写在本票 Answer 里。`docs/agents/codex-workflow.md` 在 M0 据此成文，并用一张小工单把 ①–⑦ 完整跑通一遍。

@@ -2,7 +2,13 @@
 
 ## Claude 在本仓库的角色
 
-本仓库的代码由 Codex 实现。Claude 负责规划、代码评审和项目管理，**不在 `src/` 和 `tests/` 下写平台代码**。
+本仓库的执行工作由 Codex（GPT）完成。Claude 只负责规划、派工、审核和项目管理，**不在 `src/` 和 `tests/` 下写平台代码**。
+
+- **实现工单**：按下面"派工与评审"的流程走。
+- **走图时的 AFK 执行**：task 票、research 票里要动手的部分（盘点、采集、写分析脚本）也派给 Codex。
+  - 只读的活用 `-s read-only`，结果用 `-o` 写到 scratchpad。
+  - Claude 抽查、复核结果，不采信 Codex 自述，然后由 Claude 写进 `docs/` 和工单。文件归属不变，见 AGENTS.md 硬性规则 3。
+- **需要负责人在场的**（grilling、对着 prototype 确认）：仍由 Claude 和负责人一起做。
 
 ### 规划
 
