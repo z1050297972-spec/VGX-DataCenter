@@ -1,0 +1,4 @@
+interface:
+  display_name: "工程可控开发"
+  short_description: "用需求契约、小步实现、诊断信息和验证证据，让 AI 开发过程可控"
+  default_prompt: "请使用 $engineering-control 实现下面的需求，让我能看懂关键规则、失败原因和验收证据："

@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+*.egg-info/
+dist/
+build/
+
+# 本地运行产物
+*.log
+.env
+*.sqlite
+*.sqlite3
+*.db
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+
+# 数据永远不进仓库（数据只在存储根与导航层）
+*.mcap
+*.parquet
+*.mp4
+*.tar
+*.tar.gz
