@@ -29,4 +29,11 @@ Blocked by: 07, 13
 
 补充（来自「[技术栈与工程规范](03-tech-stack-standards.md)」）：平台运行时不依赖 lerobot（ADR 0003）。需要 lerobot 的工作都做成工具，以子进程方式运行，"调用方式"一项按这个前提展开。
 
-**完成标准**：以上各项都有结论，并用 mcap2lerobot 写一份清单草样来验证；用 R1_lite_table_withdrawing 的 MCAP 和 LeRobot 两个版本，写一条血缘记录草样。结论写成 ADR；术语写进 `GLOSSARY.md`。本票加调 `algorithm-engineering`。
+补充（来自「[可观测性与报错规范](09-observability.md)」，ADR 0004）：
+- **上报协议**：工具库里的工具都要接入，按平台的诊断格式上报进度、诊断、条目结果、致命错误和结束摘要。事件种类和字段已在那张票定好。本票要定：
+  - 清单里怎么声明支持哪个版本的上报协议；
+  - 改不了的第三方脚本（例如 lerobot 官方的转换脚本）配的包装脚本放在哪里。
+- **不经交互运行**：工具必须能不经交互地运行，例如 mcap2lerobot 需要确认时，非终端下不加 `--yes` 会直接报错。命令模板据此写。
+- **分工**：mcap2lerobot 的上报模式、通道的具体实现，都在 M3 落地，本票不做。
+
+**完成标准**：以上各项都有结论，并用 mcap2lerobot 写一份清单草样来验证，草样要包含上报协议这一项；用 R1_lite_table_withdrawing 的 MCAP 和 LeRobot 两个版本，写一条血缘记录草样。结论写成 ADR；术语写进 `GLOSSARY.md`。本票加调 `algorithm-engineering`。
