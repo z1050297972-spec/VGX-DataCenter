@@ -13,6 +13,8 @@
 | 调研 | `docs/research/<主题>.md` | `/research` | research 决策票完成时 | 长期参考；每条结论附出处 |
 | 构建计划 | `.scratch/m<N>-<名>/`（`spec.md` + `issues/NN-*.md` 实现工单） | `/to-spec`、`/to-tickets` | 每个里程碑开始时 | 里程碑完成后关闭 |
 | 函数级文档 | 代码里的 docstring（不另写 md） | 实现阶段 | 写函数契约骨架时 | 和代码同步修改 |
+| API 文档 | FastAPI 根据代码自动生成的 OpenAPI（不手写） | 实现阶段 | 随代码 | 和代码同步 |
+| 手册 | `docs/manual/<名>.md`：导航层手册、使用手册、运维手册 | Claude | 导航层手册随数据集相关的决策票更新；使用手册和运维手册在每个里程碑验收时补写 | 长期有效，随功能更新 |
 | 规范 | `docs/standards/`、`AGENTS.md`、自动检查 | 负责人、`/retro` | 每次复盘后 | 持续演进 |
 | 协作配置 | `docs/agents/` | `/setup-matt-pocock-skills`、Claude | 一次性写好，按需更新 | 持续演进 |
 | 派工与评审记录 | 对应工单文件末尾的 `## Comments` | Claude | 每次派工或评审后 | 跟随工单 |
@@ -20,6 +22,7 @@
 ## 命名
 
 - `brief/` 和 `adr/` 下的文件用四位序号加中文短名，例如 `0004-NAS接入后的存储变化.md`。
+- `manual/` 下的文件只用中文名，不加序号，例如 `导航层手册.md`。
 - 工单和决策票用两位序号加英文 slug，例如 `03-plan-link.md`，遵循本地 tracker 的约定（`docs/agents/issue-tracker.md`）。
 - 一个里程碑对应一个目录：`.scratch/m0-foundation/`、`.scratch/m1-datasets/`……
 
