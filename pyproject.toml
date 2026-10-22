@@ -1,0 +1,23 @@
+[project]
+name = "rdp"
+# uv_build 不支持动态版本，按本票 A1 要求使用静态版本。
+version = "0.1.0"
+description = "机器人数据管理平台"
+# ADR 0002 固定 Python 3.12，避免开发、检查和运行时使用不同的次版本。
+requires-python = "==3.12.*"
+# A1 只提供最小包；后续依赖由 Claude 用 uv add 写入。
+dependencies = []
+
+[build-system]
+# 工单 D1 已批准 uv_build：与 uv 同源，仅用于构建，支持本包的 editable 安装。
+# 按派工指定的 uv 0.13.5 设置下限；上限将构建后端限定在 0.13 系列。
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.40.2",
+    "import-linter>=2.15",
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+]
