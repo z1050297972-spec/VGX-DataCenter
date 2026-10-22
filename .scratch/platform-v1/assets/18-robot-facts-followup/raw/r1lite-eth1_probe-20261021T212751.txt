@@ -1,0 +1,237 @@
+
+===== 工作站侧 kind=r1lite target=nvidia@192.168.0.229 probe=eth1_probe.sh [2026-10-21 21:27:51.552812845 -0600] =====
+
+$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+enp4s0           DOWN           
+wlp3s0           UP             192.168.0.180/24 fd00:3::2df8:8b6:7bb3:e608/64 fd00:3::89e8:7ad7:724:5ce4/64 fe80::80f2:9bf5:890d:1a38/64 
+tailscale0       UNKNOWN        100.82.81.44/32 fd7a:115c:a1e0::8e31:512d/128 fe80::9498:4a6e:9885:c6b2/64 
+br-82c001c9d81e  UP             172.18.0.1/16 fe80::e802:a7ff:fe8b:95a3/64 
+br-d848fb79423b  UP             172.20.0.1/16 fe80::3cce:34ff:fee3:8c1/64 
+docker0          DOWN           172.17.0.1/16 
+veth793666b@if2  UP             fe80::8c6d:aeff:feb7:8e69/64 
+veth6b18b31@if2  UP             fe80::cc0b:e9ff:fedb:c48/64 
+veth38f13f3@if2  UP             fe80::44a7:55ff:fe3e:3bde/64 
+veth46866fb@if2  UP             fe80::c873:f0ff:fe5c:59b4/64 
+veth8c61f8a@if2  UP             fe80::88d3:1cff:fe46:2f26/64 
+vethabd357a@if2  UP             fe80::5c3a:4dff:fee4:8495/64 
+veth8d236cb@if2  UP             fe80::ccca:1aff:fe6b:947/64 
+Meta             UNKNOWN        198.18.0.1/30 fdfe:dcba:9876::1/126 fe80::f724:d1f5:88f:b1d9/64 
+[rc=0]
+
+$ ip route get 192.168.0.229
+192.168.0.229 dev wlp3s0 src 192.168.0.180 uid 1001 
+    cache 
+[rc=0]
+
+$ nmcli -t -f ACTIVE,SSID,CHAN,FREQ,RATE,SIGNAL device wifi list --rescan no 2>/dev/null | grep "^yes"
+yes:104:11:2462 MHz:1170 Mbit/s:88
+[rc=0]
+
+$ for i in enp4s0 wlp3s0; do printf "%s operstate=%s speed=%s\n" "$i" "$(cat /sys/class/net/$i/operstate 2>/dev/null)" "$(cat /sys/class/net/$i/speed 2>/dev/null)"; done
+enp4s0 operstate=down speed=-1
+wlp3s0 operstate=up speed=
+[rc=0]
+
+$ timedatectl 2>&1 | grep -iE "synchronized|NTP service|Time zone"
+                Time zone: America/Cambridge_Bay (MDT, -0600)
+System clock synchronized: yes
+              NTP service: active
+[rc=0]
+
+===== 延迟：ping 20 次 [2026-10-21 21:27:51.618018853 -0600] =====
+
+$ ping -c 20 -i 0.2 192.168.0.229
+PING 192.168.0.229 (192.168.0.229) 56(84) bytes of data.
+64 bytes from 192.168.0.229: icmp_seq=1 ttl=64 time=158 ms
+64 bytes from 192.168.0.229: icmp_seq=2 ttl=64 time=3.83 ms
+64 bytes from 192.168.0.229: icmp_seq=3 ttl=64 time=68.8 ms
+64 bytes from 192.168.0.229: icmp_seq=4 ttl=64 time=3.49 ms
+64 bytes from 192.168.0.229: icmp_seq=5 ttl=64 time=3.75 ms
+64 bytes from 192.168.0.229: icmp_seq=6 ttl=64 time=2.60 ms
+64 bytes from 192.168.0.229: icmp_seq=7 ttl=64 time=6.65 ms
+64 bytes from 192.168.0.229: icmp_seq=8 ttl=64 time=190 ms
+64 bytes from 192.168.0.229: icmp_seq=9 ttl=64 time=3.37 ms
+64 bytes from 192.168.0.229: icmp_seq=10 ttl=64 time=91.9 ms
+64 bytes from 192.168.0.229: icmp_seq=11 ttl=64 time=2.16 ms
+64 bytes from 192.168.0.229: icmp_seq=12 ttl=64 time=3.21 ms
+64 bytes from 192.168.0.229: icmp_seq=13 ttl=64 time=7.26 ms
+64 bytes from 192.168.0.229: icmp_seq=14 ttl=64 time=5.72 ms
+64 bytes from 192.168.0.229: icmp_seq=15 ttl=64 time=4.62 ms
+64 bytes from 192.168.0.229: icmp_seq=16 ttl=64 time=2.38 ms
+64 bytes from 192.168.0.229: icmp_seq=17 ttl=64 time=2.59 ms
+64 bytes from 192.168.0.229: icmp_seq=18 ttl=64 time=3.92 ms
+64 bytes from 192.168.0.229: icmp_seq=19 ttl=64 time=2.77 ms
+64 bytes from 192.168.0.229: icmp_seq=20 ttl=64 time=2.50 ms
+
+--- 192.168.0.229 ping statistics ---
+20 packets transmitted, 20 received, 0% packet loss, time 3815ms
+rtt min/avg/max/mdev = 2.161/28.498/190.047/54.043 ms
+[rc=0]
+
+===== 建立 SSH 主连接（在这里输入一次密码） [2026-10-21 21:27:55.440034717 -0600] =====
+
+===== 时钟偏差：机器人时间 - 工作站时间（取 5 次里往返最短的一次） [2026-10-21 21:27:58.956600357 -0600] =====
+rtt=0.302892s offset=0.163232s
+rtt=0.019427s offset=0.024881s
+rtt=0.017526s offset=0.023686s
+rtt=0.026014s offset=0.027851s
+rtt=0.125718s offset=0.076432s
+采用：offset=0.023686s（误差约 ±0.008763s）
+
+===== 远程采集 eth1_probe.sh（约 5–15 分钟） [2026-10-21 21:27:59.474672651 -0600] =====
+
+===== 开始 eth1_probe（第 1 版） [2026-10-22 11:27:59.513 +0800] =====
+
+===== 开机时间 [2026-10-22 11:27:59.515 +0800] =====
+
+$ uptime -s; uptime
+2026-10-22 09:34:38
+ 11:27:59 up  1:53, 15 users,  load average: 14.64, 15.36, 14.90
+[rc=0]
+
+$ journalctl --list-boots --no-pager 2>&1 | tail -n 6
+ 0 352cfd1b7cca4c71be97553b91d1a411 Wed 2023-11-22 04:57:17 CST—Thu 2026-10-22 11:27:59 CST
+[rc=0]
+
+$ last -x reboot shutdown 2>&1 | head -n 10
+reboot   system boot  5.15.136-rt-tegr Wed Nov 22 04:57   still running
+reboot   system boot  5.15.136-rt-tegr Wed Nov 22 04:57   still running
+reboot   system boot  5.15.136-rt-tegr Wed Nov 22 04:57   still running
+reboot   system boot  5.15.136-rt-tegr Wed Nov 22 04:57   still running
+reboot   system boot  5.15.136-rt-tegr Wed Nov 22 04:57   still running
+reboot   system boot  5.15.136-rt-tegr Wed Nov 22 04:57   still running
+reboot   system boot  5.15.136-rt-tegr Wed Nov 22 04:57   still running
+reboot   system boot  5.15.136-rt-tegr Wed Nov 22 04:57   still running
+reboot   system boot  5.15.136-rt-tegr Wed Nov 22 04:57   still running
+reboot   system boot  5.15.136-rt-tegr Wed Nov 22 04:57   still running
+[rc=0]
+
+===== eth1 是什么网卡 [2026-10-22 11:27:59.533 +0800] =====
+
+$ ip -br link show eth1; ip -br addr show eth1
+eth1             UP             64:62:66:00:fd:09 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+eth1             UP             10.42.0.238/24 fe80::3ab2:5d7c:4b67:e1af/64 
+[rc=0]
+
+$ readlink -f /sys/class/net/eth1/device; basename "$(readlink -f /sys/class/net/eth1/device/driver)"
+/sys/devices/platform/bus@0/141a0000.pcie/pci0005:00/0005:00:00.0/0005:01:00.0
+igc
+[rc=0]
+
+$ udevadm info -q property -p /sys/class/net/eth1 2>&1 | grep -E "^(ID_BUS|ID_VENDOR|ID_MODEL|ID_NET_DRIVER|ID_PATH|ID_USB_DRIVER)="
+ID_BUS=pci
+ID_PATH=platform-141a0000.pcie-pci-0005:01:00.0
+ID_NET_DRIVER=igc
+[rc=0]
+
+$ command -v ethtool >/dev/null && ethtool eth1 2>&1 | grep -E "Speed|Duplex|Auto-negotiation|Link detected"
+	Speed: 1000Mb/s
+	Duplex: Full
+	Auto-negotiation: on
+	Link detected: yes
+[rc=0]
+
+===== 本次开机以来的链路计数 [2026-10-22 11:27:59.561 +0800] =====
+
+$ for k in operstate carrier carrier_changes carrier_up_count carrier_down_count speed duplex; do printf "%s=%s\n" "$k" "$(cat /sys/class/net/eth1/$k 2>/dev/null)"; done
+operstate=up
+carrier=1
+carrier_changes=2
+carrier_up_count=1
+carrier_down_count=1
+speed=1000
+duplex=full
+[rc=0]
+
+$ ip -s link show eth1
+4: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+    link/ether 64:62:66:00:fd:09 brd ff:ff:ff:ff:ff:ff
+    RX:  bytes packets errors dropped  missed   mcast           
+     495990581 1173594      0       0       0      22 
+    TX:  bytes packets errors dropped carrier collsns           
+     534234198 2338968      0       0       0       0 
+    altname enP5p1s0
+[rc=0]
+
+===== eth1 对端（主臂电脑） [2026-10-22 11:27:59.588 +0800] =====
+
+$ ip neigh show dev eth1
+10.42.0.1 lladdr fe:74:81:11:f2:e4 REACHABLE
+[rc=0]
+
+$ nmcli -t -f GENERAL.DEVICE,GENERAL.STATE,GENERAL.CONNECTION,IP4.ADDRESS,IP4.GATEWAY,DHCP4.OPTION device show eth1 2>&1 | grep -vE "DHCP4.OPTION.*(requested|next_server)" | head -n 30
+GENERAL.DEVICE:eth1
+GENERAL.STATE:100 (connected)
+GENERAL.CONNECTION:Profile 1
+IP4.ADDRESS[1]:10.42.0.238/24
+IP4.GATEWAY:10.42.0.1
+DHCP4.OPTION[1]:broadcast_address = 10.42.0.255
+DHCP4.OPTION[2]:dhcp_lease_time = 3600
+DHCP4.OPTION[3]:dhcp_server_identifier = 10.42.0.1
+DHCP4.OPTION[4]:domain_name_servers = 10.42.0.1
+DHCP4.OPTION[5]:expiry = 1792643205
+DHCP4.OPTION[6]:host_name = miivii-tegra
+DHCP4.OPTION[7]:ip_address = 10.42.0.238
+DHCP4.OPTION[26]:routers = 10.42.0.1
+DHCP4.OPTION[27]:subnet_mask = 255.255.255.0
+[rc=0]
+
+$ ping -c 3 -W 1 10.42.0.1
+PING 10.42.0.1 (10.42.0.1) 56(84) bytes of data.
+64 bytes from 10.42.0.1: icmp_seq=1 ttl=64 time=0.236 ms
+64 bytes from 10.42.0.1: icmp_seq=2 ttl=64 time=0.263 ms
+64 bytes from 10.42.0.1: icmp_seq=3 ttl=64 time=0.112 ms
+
+--- 10.42.0.1 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2044ms
+rtt min/avg/max/mdev = 0.112/0.203/0.263/0.065 ms
+[rc=0]
+
+===== 内核日志里的 eth1（近 2 天） [2026-10-22 11:28:01.675 +0800] =====
+
+$ journalctl -k --since "2 days ago" --no-pager -o short-iso 2>&1 | grep -iE "eth1|link (is )?(up|down)|r8152|r8169|igb|ax88" | tail -n 60
+2026-10-22T09:34:54+0800 miivii-tegra kernel: igc 0005:01:00.0 eth1: renamed from ets0
+2026-10-22T09:34:58+0800 miivii-tegra kernel: nvethernet 2310000.ethernet eth0: Link is Up - 100Mbps/Full - flow control off
+2026-10-22T09:34:58+0800 miivii-tegra kernel: igc 0005:01:00.0 eth1: NIC Link is Up 1000 Mbps Full Duplex, Flow Control: RX/TX
+2026-10-22T09:34:58+0800 miivii-tegra kernel: IPv6: ADDRCONF(NETDEV_CHANGE): eth1: link becomes ready
+[rc=0]
+
+$ dmesg -T 2>&1 | grep -iE "eth1|link (is )?(up|down)" | tail -n 30
+[rc=0]
+
+===== NetworkManager 日志里的 eth1（近 2 天） [2026-10-22 11:28:01.692 +0800] =====
+
+$ journalctl -u NetworkManager --since "2 days ago" --no-pager -o short-iso 2>&1 | grep -iE "eth1|10\.42\.0\." | tail -n 80
+2026-10-22T09:34:54+0800 miivii-tegra NetworkManager[624]: <info>  [1792632894.9525] manager: (eth1): new Ethernet device (/org/freedesktop/NetworkManager/Devices/5)
+2026-10-22T09:34:55+0800 miivii-tegra NetworkManager[624]: <info>  [1792632895.4599] device (eth1): state change: unmanaged -> unavailable (reason 'managed', sys-iface-state: 'external')
+2026-10-22T09:34:58+0800 miivii-tegra NetworkManager[624]: <info>  [1792632898.3541] device (eth1): carrier: link connected
+2026-10-22T09:34:58+0800 miivii-tegra NetworkManager[624]: <info>  [1792632898.3545] device (eth1): state change: unavailable -> disconnected (reason 'carrier-changed', sys-iface-state: 'managed')
+2026-10-22T09:34:58+0800 miivii-tegra NetworkManager[624]: <info>  [1792632898.3942] device (eth1): Activation: starting connection 'Profile 1' (eec729f0-add1-4a72-b0dd-75c3ab00d479)
+2026-10-22T09:34:58+0800 miivii-tegra NetworkManager[624]: <info>  [1792632898.3943] device (eth1): state change: disconnected -> prepare (reason 'none', sys-iface-state: 'managed')
+2026-10-22T09:34:58+0800 miivii-tegra NetworkManager[624]: <info>  [1792632898.3946] device (eth1): state change: prepare -> config (reason 'none', sys-iface-state: 'managed')
+2026-10-22T09:34:58+0800 miivii-tegra NetworkManager[624]: <info>  [1792632898.3953] device (eth1): state change: config -> ip-config (reason 'none', sys-iface-state: 'managed')
+2026-10-22T09:34:58+0800 miivii-tegra NetworkManager[624]: <info>  [1792632898.4292] dhcp4 (eth1): activation: beginning transaction (timeout in 45 seconds)
+2026-10-22T09:35:00+0800 miivii-tegra NetworkManager[624]: <info>  [1792632900.4374] dhcp4 (eth1): state changed new lease, address=10.42.0.238
+2026-10-22T09:35:00+0800 miivii-tegra NetworkManager[624]: <info>  [1792632900.4398] device (eth1): state change: ip-config -> ip-check (reason 'none', sys-iface-state: 'managed')
+2026-10-22T09:35:00+0800 miivii-tegra NetworkManager[624]: <info>  [1792632900.4447] device (eth1): state change: ip-check -> secondaries (reason 'none', sys-iface-state: 'managed')
+2026-10-22T09:35:00+0800 miivii-tegra NetworkManager[624]: <info>  [1792632900.4453] device (eth1): state change: secondaries -> activated (reason 'none', sys-iface-state: 'managed')
+2026-10-22T09:35:00+0800 miivii-tegra NetworkManager[624]: <info>  [1792632900.4462] policy: set 'Profile 1' (eth1) as default for IPv4 routing and DNS
+2026-10-22T09:35:00+0800 miivii-tegra NetworkManager[624]: <info>  [1792632900.4473] device (eth1): Activation: successful, device activated.
+2026-10-22T10:04:54+0800 miivii-tegra NetworkManager[624]: <info>  [1792634694.9120] dhcp4 (eth1): state changed new lease, address=10.42.0.238
+2026-10-22T10:24:05+0800 miivii-tegra NetworkManager[624]: <info>  [1792635845.0231] policy: set 'Profile 1' (eth1) as default for IPv4 routing and DNS
+2026-10-22T10:31:44+0800 miivii-tegra NetworkManager[624]: <info>  [1792636304.8753] dhcp4 (eth1): state changed new lease, address=10.42.0.238
+2026-10-22T10:59:51+0800 miivii-tegra NetworkManager[624]: <info>  [1792637991.8759] dhcp4 (eth1): state changed new lease, address=10.42.0.238
+2026-10-22T11:26:45+0800 miivii-tegra NetworkManager[624]: <info>  [1792639605.8693] dhcp4 (eth1): state changed new lease, address=10.42.0.238
+[rc=0]
+
+===== 结束 [2026-10-22 11:28:01.703 +0800] =====
+[remote rc=0]
+
+===== 吞吐：机器人 → 工作站，经 SSH 拉 100 MiB 零字节，3 次 [2026-10-21 21:28:01.717271862 -0600] =====
+第 1 次：104857600 字节，6.78 秒，123.8 Mbit/s
+第 2 次：104857600 字节，3.90 秒，215.3 Mbit/s
+第 3 次：104857600 字节，4.17 秒，201.0 Mbit/s
+注：SSH 加密会占用机器人 CPU，所以这里测到的是下限。
+
+===== 完成，输出在 /tmp/claude-1001/-home-shawn----robot-data-platform/d9765374-5fda-447d-a403-94569c0f9b33/scratchpad/robot-facts/out/r1lite-eth1_probe-20261021T212751.txt [2026-10-21 21:28:16.578256887 -0600] =====

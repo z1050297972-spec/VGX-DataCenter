@@ -1,0 +1,1019 @@
+
+===== 工作站侧 kind=r1lite target=nvidia@192.168.0.229 [2026-10-21 06:04:52.684902055 -0600] =====
+
+$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+enp4s0           DOWN           
+wlp3s0           UP             192.168.0.180/24 fd00:3::ce25:4892:4e8b:e960/64 fd00:3::89e8:7ad7:724:5ce4/64 fe80::80f2:9bf5:890d:1a38/64 
+tailscale0       UNKNOWN        100.82.81.44/32 fd7a:115c:a1e0::8e31:512d/128 fe80::9498:4a6e:9885:c6b2/64 
+br-82c001c9d81e  UP             172.18.0.1/16 fe80::e802:a7ff:fe8b:95a3/64 
+br-d848fb79423b  UP             172.20.0.1/16 fe80::3cce:34ff:fee3:8c1/64 
+docker0          DOWN           172.17.0.1/16 
+veth793666b@if2  UP             fe80::8c6d:aeff:feb7:8e69/64 
+veth6b18b31@if2  UP             fe80::cc0b:e9ff:fedb:c48/64 
+veth38f13f3@if2  UP             fe80::44a7:55ff:fe3e:3bde/64 
+veth46866fb@if2  UP             fe80::c873:f0ff:fe5c:59b4/64 
+veth8c61f8a@if2  UP             fe80::88d3:1cff:fe46:2f26/64 
+vethabd357a@if2  UP             fe80::5c3a:4dff:fee4:8495/64 
+veth8d236cb@if2  UP             fe80::ccca:1aff:fe6b:947/64 
+Meta             UNKNOWN        198.18.0.1/30 fdfe:dcba:9876::1/126 fe80::f724:d1f5:88f:b1d9/64 
+[rc=0]
+
+$ ip route get 192.168.0.229
+192.168.0.229 dev wlp3s0 src 192.168.0.180 uid 1001 
+    cache 
+[rc=0]
+
+$ nmcli -t -f ACTIVE,SSID,CHAN,FREQ,RATE,SIGNAL device wifi list --rescan no 2>/dev/null | grep "^yes"
+yes:104:11:2462 MHz:1170 Mbit/s:91
+[rc=0]
+
+$ for i in enp4s0 wlp3s0; do printf "%s operstate=%s speed=%s\n" "$i" "$(cat /sys/class/net/$i/operstate 2>/dev/null)" "$(cat /sys/class/net/$i/speed 2>/dev/null)"; done
+enp4s0 operstate=down speed=-1
+wlp3s0 operstate=up speed=
+[rc=0]
+
+$ timedatectl 2>&1 | grep -iE "synchronized|NTP service|Time zone"
+                Time zone: America/Cambridge_Bay (MDT, -0600)
+System clock synchronized: yes
+              NTP service: active
+[rc=0]
+
+===== 延迟：ping 20 次 [2026-10-21 06:04:52.713547381 -0600] =====
+
+$ ping -c 20 -i 0.2 192.168.0.229
+PING 192.168.0.229 (192.168.0.229) 56(84) bytes of data.
+64 bytes from 192.168.0.229: icmp_seq=1 ttl=64 time=97.5 ms
+64 bytes from 192.168.0.229: icmp_seq=2 ttl=64 time=1.78 ms
+64 bytes from 192.168.0.229: icmp_seq=3 ttl=64 time=2.62 ms
+64 bytes from 192.168.0.229: icmp_seq=4 ttl=64 time=5.73 ms
+64 bytes from 192.168.0.229: icmp_seq=5 ttl=64 time=2.57 ms
+64 bytes from 192.168.0.229: icmp_seq=6 ttl=64 time=1.62 ms
+64 bytes from 192.168.0.229: icmp_seq=7 ttl=64 time=1.83 ms
+64 bytes from 192.168.0.229: icmp_seq=8 ttl=64 time=4.11 ms
+64 bytes from 192.168.0.229: icmp_seq=9 ttl=64 time=2.01 ms
+64 bytes from 192.168.0.229: icmp_seq=10 ttl=64 time=2.68 ms
+64 bytes from 192.168.0.229: icmp_seq=11 ttl=64 time=2.58 ms
+64 bytes from 192.168.0.229: icmp_seq=12 ttl=64 time=2.09 ms
+64 bytes from 192.168.0.229: icmp_seq=13 ttl=64 time=2.32 ms
+64 bytes from 192.168.0.229: icmp_seq=14 ttl=64 time=3.58 ms
+64 bytes from 192.168.0.229: icmp_seq=15 ttl=64 time=2.68 ms
+64 bytes from 192.168.0.229: icmp_seq=16 ttl=64 time=3.66 ms
+64 bytes from 192.168.0.229: icmp_seq=17 ttl=64 time=1.68 ms
+64 bytes from 192.168.0.229: icmp_seq=18 ttl=64 time=1.57 ms
+64 bytes from 192.168.0.229: icmp_seq=19 ttl=64 time=1.67 ms
+64 bytes from 192.168.0.229: icmp_seq=20 ttl=64 time=2.71 ms
+
+--- 192.168.0.229 ping statistics ---
+20 packets transmitted, 20 received, 0% packet loss, time 3817ms
+rtt min/avg/max/mdev = 1.574/7.350/97.518/20.709 ms
+[rc=0]
+
+===== 建立 SSH 主连接（在这里输入一次密码） [2026-10-21 06:04:56.537592301 -0600] =====
+
+===== 时钟偏差：机器人时间 - 工作站时间（取 5 次里往返最短的一次） [2026-10-21 06:05:02.29656761 -0600] =====
+rtt=0.422515s offset=0.224304s
+rtt=0.019408s offset=0.023168s
+rtt=0.018753s offset=0.021769s
+rtt=0.017637s offset=0.022437s
+rtt=0.090300s offset=0.058219s
+采用：offset=0.022437s（误差约 ±0.008818s）
+
+===== 远程采集 robot_probe.sh（约 5–15 分钟） [2026-10-21 06:05:02.623161093 -0600] =====
+
+===== 开始 kind=r1lite [2026-10-21 20:05:02.888 +0800] =====
+
+===== 身份 [2026-10-21 20:05:02.890 +0800] =====
+
+$ hostname
+miivii-tegra
+[rc=0]
+
+$ id
+uid=1000(nvidia) gid=1000(nvidia) groups=1000(nvidia),4(adm),27(sudo),29(audio),44(video),104(render),135(gdm),996(weston-launch)
+[rc=0]
+
+$ ip -br link
+lo               UNKNOWN        00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> 
+eth0             UP             4c:bb:47:e4:ed:82 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+eth1             DOWN           64:62:66:00:fd:09 <NO-CARRIER,BROADCAST,MULTICAST,UP> 
+can0             DOWN           <NOARP,ECHO> 
+wlan0            UP             90:74:ae:0d:97:2d <BROADCAST,MULTICAST,UP,LOWER_UP> 
+can1             DOWN           <NOARP,ECHO> 
+l4tbr0           DOWN           3e:c7:e7:79:f3:87 <BROADCAST,MULTICAST> 
+usb0             DOWN           c2:6b:3b:71:f1:51 <NO-CARRIER,BROADCAST,MULTICAST,UP> 
+usb1             DOWN           c2:6b:3b:71:f1:53 <NO-CARRIER,BROADCAST,MULTICAST,UP> 
+docker0          DOWN           02:42:dd:b7:d2:7f <NO-CARRIER,BROADCAST,MULTICAST,UP> 
+br-34c013db497f  DOWN           02:42:58:44:0c:25 <NO-CARRIER,BROADCAST,MULTICAST,UP> 
+[rc=0]
+
+$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+eth0             UP             192.168.2.150/24 fe80::4ebb:47ff:fee4:ed82/64 
+eth1             DOWN           
+can0             DOWN           
+wlan0            UP             192.168.0.229/24 fd00:3::38bf:2a9a:b753:c17c/64 fd00:3::61:5cbe:26f4:375/64 fe80::e711:55bf:6ba3:996f/64 
+can1             DOWN           
+l4tbr0           DOWN           
+usb0             DOWN           
+usb1             DOWN           
+docker0          DOWN           172.17.0.1/16 
+br-34c013db497f  DOWN           172.18.0.1/16 
+[rc=0]
+
+$ ip route
+default via 192.168.0.1 dev wlan0 proto dhcp metric 600 
+169.254.0.0/16 dev docker0 scope link metric 1000 linkdown 
+172.17.0.0/16 dev docker0 proto kernel scope link src 172.17.0.1 linkdown 
+172.18.0.0/16 dev br-34c013db497f proto kernel scope link src 172.18.0.1 linkdown 
+192.168.0.0/24 dev wlan0 proto kernel scope link src 192.168.0.229 metric 600 
+192.168.2.0/24 dev eth0 proto kernel scope link src 192.168.2.150 metric 100 
+[rc=0]
+
+$ tr -d "\0" < /sys/firmware/devicetree/base/model 2>/dev/null; echo
+NVIDIA Jetson AGX Orin Developer Kit
+[rc=0]
+
+$ tr -d "\0" < /sys/firmware/devicetree/base/serial-number 2>/dev/null; echo
+1420226006057
+[rc=0]
+
+$ for f in sys_vendor product_name product_version product_serial board_vendor board_name board_serial; do printf "%s=" "$f"; cat "/sys/class/dmi/id/$f" 2>/dev/null || echo "(不可读或不存在)"; done
+sys_vendor=NVIDIA
+product_name=NVIDIA Jetson AGX Orin Developer Kit
+product_version=Not Specified
+product_serial=(不可读或不存在)
+board_vendor=NVIDIA
+board_name=Jetson
+board_serial=(不可读或不存在)
+[rc=0]
+
+$ cat /etc/nv_tegra_release 2>/dev/null
+# R36 (release), REVISION: 3.0, GCID: 36191598, BOARD: generic, EABI: aarch64, DATE: Mon May  6 17:34:21 UTC 2024
+# KERNEL_VARIANT: oot
+TARGET_USERSPACE_LIB_DIR=nvidia
+TARGET_USERSPACE_LIB_DIR_PATH=usr/lib/aarch64-linux-gnu/nvidia
+[rc=0]
+
+$ ss -ltn 2>/dev/null | head -40
+State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess
+LISTEN 0      4096         0.0.0.0:111        0.0.0.0:*          
+LISTEN 0      10         127.0.0.1:35600      0.0.0.0:*          
+LISTEN 0      5            0.0.0.0:5520       0.0.0.0:*          
+LISTEN 0      4096   127.0.0.53%lo:53         0.0.0.0:*          
+LISTEN 0      128          0.0.0.0:22         0.0.0.0:*          
+LISTEN 0      10         127.0.0.1:37600      0.0.0.0:*          
+LISTEN 0      4096            [::]:111           [::]:*          
+LISTEN 0      128             [::]:22            [::]:*          
+LISTEN 0      4096               *:3000             *:*          
+[rc=0]
+
+$ grep -hiE "^\s*(Port|PasswordAuthentication|PubkeyAuthentication)\b" /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null
+[rc=2]
+
+$ ls -la ~/.ssh 2>/dev/null; wc -l ~/.ssh/authorized_keys 2>/dev/null
+total 16
+drwx------  2 nvidia nvidia 4096 Jul 23 13:47 .
+drwxr-x--- 29 nvidia nvidia 4096 Aug 26 17:13 ..
+-rw-------  1 nvidia nvidia 2098 Aug 24 16:54 known_hosts
+-rw-------  1 nvidia nvidia 1120 Jul 23 13:47 known_hosts.old
+[rc=1]
+
+===== 网络（机器人侧） [2026-10-21 20:05:02.940 +0800] =====
+
+$ nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device 2>/dev/null
+wlan0:wifi:connected:104
+eth0:ethernet:connected:netplan-eth0
+br-34c013db497f:bridge:connected (externally):br-34c013db497f
+docker0:bridge:connected (externally):docker0
+p2p-dev-wlan0:wifi-p2p:disconnected:
+eth1:ethernet:unavailable:
+l4tbr0:bridge:unmanaged:
+can0:can:unmanaged:
+can1:can:unmanaged:
+usb0:ethernet:unmanaged:
+usb1:ethernet:unmanaged:
+lo:loopback:unmanaged:
+[rc=0]
+
+$ nmcli -t -f ACTIVE,SSID,BSSID,CHAN,FREQ,RATE,SIGNAL,SECURITY device wifi list --rescan no 2>/dev/null | grep "^yes"
+yes:104:50\:DA\:9E\:15\:B9\:51:11:2462 MHz:270 Mbit/s:97:WPA2
+[rc=0]
+
+$ command -v iw >/dev/null && iw dev
+phy#0
+	Interface wlan0
+		ifindex 5
+		wdev 0x1
+		addr 90:74:ae:0d:97:2d
+		ssid 104
+		type managed
+		channel 11 (2462 MHz), width: 40 MHz, center1: 2452 MHz
+		txpower 25.00 dBm
+[rc=0]
+
+$ for i in /sys/class/net/*; do n=${i##*/}; [ -d "$i/wireless" ] && command -v iw >/dev/null && iw dev "$n" link; done
+Connected to 50:da:9e:15:b9:51 (on wlan0)
+	SSID: 104
+	freq: 2462
+	RX: 16943270 bytes (28587 packets)
+	TX: 1159961 bytes (10989 packets)
+	signal: -37 dBm
+	rx bitrate: 324.0 MBit/s VHT-MCS 8 40MHz VHT-NSS 2
+	tx bitrate: 400.0 MBit/s VHT-MCS 9 40MHz short GI VHT-NSS 2
+[rc=0]
+
+$ for i in /sys/class/net/*; do printf "%s operstate=%s speed=%s\n" "${i##*/}" "$(cat "$i/operstate" 2>/dev/null)" "$(cat "$i/speed" 2>/dev/null)"; done
+br-34c013db497f operstate=down speed=-1
+can0 operstate=down speed=
+can1 operstate=down speed=
+docker0 operstate=down speed=-1
+eth0 operstate=up speed=100
+eth1 operstate=down speed=-1
+l4tbr0 operstate=down speed=
+lo operstate=unknown speed=
+usb0 operstate=down speed=
+usb1 operstate=down speed=
+wlan0 operstate=up speed=
+[rc=0]
+
+===== 算力与系统 [2026-10-21 20:05:03.085 +0800] =====
+
+$ uname -a
+Linux miivii-tegra 5.15.136-rt-tegra #1 SMP PREEMPT_RT Thu Apr 3 13:18:01 CST 2025 aarch64 aarch64 aarch64 GNU/Linux
+[rc=0]
+
+$ cat /etc/os-release
+PRETTY_NAME="Ubuntu 22.04.4 LTS"
+NAME="Ubuntu"
+VERSION_ID="22.04"
+VERSION="22.04.4 LTS (Jammy Jellyfish)"
+VERSION_CODENAME=jammy
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=jammy
+[rc=0]
+
+$ lscpu
+Architecture:                       aarch64
+CPU op-mode(s):                     32-bit, 64-bit
+Byte Order:                         Little Endian
+CPU(s):                             8
+On-line CPU(s) list:                0-7
+Vendor ID:                          ARM
+Model name:                         Cortex-A78AE
+Model:                              1
+Thread(s) per core:                 1
+Core(s) per cluster:                4
+Socket(s):                          -
+Cluster(s):                         2
+Stepping:                           r0p1
+CPU max MHz:                        2188.8000
+CPU min MHz:                        115.2000
+BogoMIPS:                           62.50
+Flags:                              fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm lrcpc dcpop asimddp uscat ilrcpc flagm paca pacg
+L1d cache:                          512 KiB (8 instances)
+L1i cache:                          512 KiB (8 instances)
+L2 cache:                           2 MiB (8 instances)
+L3 cache:                           4 MiB (2 instances)
+NUMA node(s):                       1
+NUMA node0 CPU(s):                  0-7
+Vulnerability Gather data sampling: Not affected
+Vulnerability Itlb multihit:        Not affected
+Vulnerability L1tf:                 Not affected
+Vulnerability Mds:                  Not affected
+Vulnerability Meltdown:             Not affected
+Vulnerability Mmio stale data:      Not affected
+Vulnerability Retbleed:             Not affected
+Vulnerability Spec rstack overflow: Not affected
+Vulnerability Spec store bypass:    Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:           Mitigation; __user pointer sanitization
+Vulnerability Spectre v2:           Mitigation; CSV2, BHB
+Vulnerability Srbds:                Not affected
+Vulnerability Tsx async abort:      Not affected
+[rc=0]
+
+$ free -h
+               total        used        free      shared  buff/cache   available
+Mem:            29Gi       1.9Gi        26Gi        30Mi       1.5Gi        27Gi
+Swap:           14Gi          0B        14Gi
+[rc=0]
+
+$ df -hT -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/nvme0n1p1 ext4  938G  386G  505G  44% /
+[rc=0]
+
+$ uptime
+ 20:05:03 up  2:22,  1 user,  load average: 1.62, 1.91, 2.12
+[rc=0]
+
+$ top -bn1 -o %CPU 2>/dev/null | head -30
+top - 20:05:03 up  2:22,  1 user,  load average: 1.62, 1.91, 2.12
+Tasks: 570 total,   3 running, 567 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  0.6 us,  5.2 sy,  0.0 ni, 93.5 id,  0.0 wa,  0.0 hi,  0.6 si,  0.0 st
+MiB Mem :  30698.6 total,  27215.7 free,   1924.9 used,   1558.1 buff/cache
+MiB Swap:  15349.3 total,  15349.3 free,      0.0 used.  28413.4 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 139619 nvidia    20   0   20780   3808   2948 R  11.1   0.0   0:00.04 top
+     59 root      -2   0       0      0      0 S   5.6   0.0   0:03.10 rcuc/6
+    687 root      rt   0       0      0      0 R   5.6   0.0  10:39.26 sugov:0
+    689 root      rt   0       0      0      0 S   5.6   0.0  10:46.14 sugov:4
+      1 root      20   0  168500  11920   7432 S   0.0   0.0   0:04.51 systemd
+      2 root      20   0       0      0      0 S   0.0   0.0   0:00.05 kthreadd
+      3 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 rcu_gp
+      4 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 rcu_par+
+      5 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 slub_fl+
+      6 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 netns
+      7 root      20   0       0      0      0 I   0.0   0.0   0:00.28 kworker+
+      8 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     10 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 mm_perc+
+     11 root      20   0       0      0      0 S   0.0   0.0   0:00.00 rcu_tas+
+     12 root      20   0       0      0      0 S   0.0   0.0   0:00.00 rcu_tas+
+     13 root      20   0       0      0      0 S   0.0   0.0   0:00.00 rcu_tas+
+     14 root      20   0       0      0      0 S   0.0   0.0   0:35.90 ksoftir+
+     15 root      -2   0       0      0      0 I   0.0   0.0   0:05.56 rcu_pre+
+     16 root      -2   0       0      0      0 S   0.0   0.0   0:00.00 rcub/0
+     17 root      -2   0       0      0      0 S   0.0   0.0   0:02.63 rcuc/0
+     18 root      rt   0       0      0      0 S   0.0   0.0   0:00.01 migrati+
+     19 root      -2   0       0      0      0 S   0.0   0.0   0:01.31 irq_wor+
+     20 root      20   0       0      0      0 S   0.0   0.0   0:00.00 cpuhp/0
+[rc=0]
+
+$ command -v nvidia-smi >/dev/null && nvidia-smi
+Wed Oct 21 20:05:03 2026       
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 540.3.0                Driver Version: N/A          CUDA Version: 12.2     |
+|-----------------------------------------+----------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
+|                                         |                      |               MIG M. |
+|=========================================+======================+======================|
+|   0  Orin (nvgpu)                  N/A  | N/A              N/A |                  N/A |
+| N/A   N/A  N/A               N/A /  N/A | Not Supported        |     N/A          N/A |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+                                                                                         
++---------------------------------------------------------------------------------------+
+| Processes:                                                                            |
+|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
+|        ID   ID                                                             Usage      |
+|=======================================================================================|
+|  No running processes found                                                           |
++---------------------------------------------------------------------------------------+
+[rc=0]
+
+$ command -v tegrastats >/dev/null && timeout 3 tegrastats --interval 1000
+10-21-2026 20:05:04 RAM 2040/30699MB (lfb 2x4MB) SWAP 0/15349MB (cached 0MB) CPU [0%@729,7%@729,3%@729,3%@729,7%@729,1%@729,1%@729,1%@729] GR3D_FREQ 0% cpu@40.593C tboard@31.375C soc2@37.968C tdiode@32.75C soc0@39.218C gpu@37.5C tj@40.437C soc1@38.968C VDD_GPU_SOC 1967mW/1967mW VDD_CPU_CV 737mW/737mW VIN_SYS_5V0 4852mW/4852mW VDDQ_VDD2_1V8AO 496mW/496mW
+10-21-2026 20:05:05 RAM 2040/30699MB (lfb 2x4MB) SWAP 0/15349MB (cached 0MB) CPU [3%@2188,6%@2188,2%@2188,0%@2188,9%@729,1%@729,1%@729,1%@729] GR3D_FREQ 0% cpu@40.562C tboard@31.375C soc2@38.031C tdiode@32.875C soc0@39.281C gpu@37.5C tj@40.718C soc1@39.093C VDD_GPU_SOC 1967mW/1967mW VDD_CPU_CV 737mW/737mW VIN_SYS_5V0 4852mW/4852mW VDDQ_VDD2_1V8AO 496mW/496mW
+[rc=124]
+
+$ ls /dev | grep -iE "nvhost-msenc|nvenc|v4l2-nvenc|video|dri"; ls /dev/dri 2>/dev/null
+dri
+v4l2-nvenc
+video0
+video1
+video10
+video11
+video12
+video13
+video14
+video15
+video16
+video17
+video18
+video19
+video2
+video3
+video4
+video5
+video6
+video7
+video8
+video9
+by-path
+card0
+renderD128
+[rc=0]
+
+$ command -v ffmpeg >/dev/null && { ffmpeg -hide_banner -version | head -1; ffmpeg -hide_banner -encoders 2>/dev/null | grep -iE "264|265|hevc|av1|vp9"; }
+[rc=1]
+
+$ command -v gst-inspect-1.0 >/dev/null && gst-inspect-1.0 2>/dev/null | grep -iE "h264|h265|x264|openh264|nvv4l2|vaapi|enc"
+adpcmenc:  adpcmenc: ADPCM encoder
+aes:  aesenc: aesenc
+alaw:  alawenc: A Law audio encoder
+amrnb:  amrnbenc: AMR-NB audio encoder
+aom:  av1enc: AV1 Encoder
+audiolatency:  audiolatency: AudioLatency
+audiovisualizers:  spectrascope: Frequency spectrum scope
+bz2:  bz2enc: BZ2 encoder
+closedcaption:  line21encoder: Line 21 CC Encoder
+coretracers:  latency (GstTracerFactory)
+dtls:  dtlsenc: DTLS Encoder
+dtls:  dtlssrtpenc: DTLS-SRTP Encoder
+dvbsubenc:  dvbsubenc: DVB subtitle encoder
+encoding:  encodebin: Encoder Bin
+encoding:  encodebin2: Encoder Bin
+flac:  flacenc: FLAC audio encoder
+gsm:  gsmenc: GSM audio encoder
+jpeg:  jpegenc: JPEG image encoder
+kate:  kateenc: Kate stream encoder
+lame:  lamemp3enc: L.A.M.E. mp3 encoder
+ldac:  ldacenc: Bluetooth LDAC audio encoder
+libav:  avdec_h264: libav H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 decoder
+libav:  avdec_h265: libav HEVC (High Efficiency Video Coding) decoder
+libav:  avdec_mts2: libav MS Expression Encoder Screen decoder
+libav:  avenc_a64multi: libav Multicolor charset for Commodore 64 encoder
+libav:  avenc_a64multi5: libav Multicolor charset for Commodore 64, extended with 5th color (colram) encoder
+libav:  avenc_aac: libav AAC (Advanced Audio Coding) encoder
+libav:  avenc_ac3: libav ATSC A/52A (AC-3) encoder
+libav:  avenc_ac3_fixed: libav ATSC A/52A (AC-3) encoder
+libav:  avenc_adpcm_adx: libav SEGA CRI ADX ADPCM encoder
+libav:  avenc_adpcm_argo: libav ADPCM Argonaut Games encoder
+libav:  avenc_adpcm_ima_alp: libav ADPCM IMA High Voltage Software ALP encoder
+libav:  avenc_adpcm_ima_amv: libav ADPCM IMA AMV encoder
+libav:  avenc_adpcm_ima_apm: libav ADPCM IMA Ubisoft APM encoder
+libav:  avenc_adpcm_ima_qt: libav ADPCM IMA QuickTime encoder
+libav:  avenc_adpcm_ima_ssi: libav ADPCM IMA Simon & Schuster Interactive encoder
+libav:  avenc_adpcm_ima_wav: libav ADPCM IMA WAV encoder
+libav:  avenc_adpcm_ms: libav ADPCM Microsoft encoder
+libav:  avenc_adpcm_swf: libav ADPCM Shockwave Flash encoder
+libav:  avenc_adpcm_yamaha: libav ADPCM Yamaha encoder
+libav:  avenc_alac: libav ALAC (Apple Lossless Audio Codec) encoder
+libav:  avenc_alias_pix: libav Alias/Wavefront PIX image encoder
+libav:  avenc_amv: libav AMV Video encoder
+libav:  avenc_apng: libav APNG (Animated Portable Network Graphics) image encoder
+libav:  avenc_aptx: libav aptX (Audio Processing Technology for Bluetooth) encoder
+libav:  avenc_aptx_hd: libav aptX HD (Audio Processing Technology for Bluetooth) encoder
+libav:  avenc_asv1: libav ASUS V1 encoder
+libav:  avenc_asv2: libav ASUS V2 encoder
+libav:  avenc_avrp: libav Avid 1:1 10-bit RGB Packer encoder
+libav:  avenc_avui: libav Avid Meridien Uncompressed encoder
+libav:  avenc_bmp: libav BMP (Windows and OS/2 bitmap) encoder
+libav:  avenc_cfhd: libav GoPro CineForm HD encoder
+libav:  avenc_cinepak: libav Cinepak encoder
+libav:  avenc_cljr: libav Cirrus Logic AccuPak encoder
+libav:  avenc_comfortnoise: libav RFC 3389 comfort noise generator encoder
+libav:  avenc_dca: libav DCA (DTS Coherent Acoustics) encoder
+libav:  avenc_dnxhd: libav VC3/DNxHD encoder
+libav:  avenc_dpx: libav DPX (Digital Picture Exchange) image encoder
+libav:  avenc_dvvideo: libav DV (Digital Video) encoder
+libav:  avenc_eac3: libav ATSC A/52 E-AC-3 encoder
+libav:  avenc_exr: libav OpenEXR image encoder
+libav:  avenc_ffv1: libav FFmpeg video codec #1 encoder
+libav:  avenc_ffvhuff: libav Huffyuv FFmpeg variant encoder
+libav:  avenc_fits: libav Flexible Image Transport System encoder
+libav:  avenc_flashsv: libav Flash Screen Video encoder
+libav:  avenc_flashsv2: libav Flash Screen Video Version 2 encoder
+libav:  avenc_flv: libav FLV / Sorenson Spark / Sorenson H.263 (Flash Video) encoder
+libav:  avenc_g722: libav G.722 ADPCM encoder
+libav:  avenc_g723_1: libav G.723.1 encoder
+libav:  avenc_g726: libav G.726 ADPCM encoder
+libav:  avenc_g726le: libav G.726 little endian ADPCM ("right-justified") encoder
+libav:  avenc_h261: libav H.261 encoder
+libav:  avenc_h263: libav H.263 / H.263-1996 encoder
+libav:  avenc_h263p: libav H.263+ / H.263-1998 / H.263 version 2 encoder
+libav:  avenc_h264_omx: libav OpenMAX IL H.264 video encoder encoder
+libav:  avenc_hap: libav Vidvox Hap encoder
+libav:  avenc_huffyuv: libav Huffyuv / HuffYUV encoder
+libav:  avenc_jpeg2000: libav JPEG 2000 encoder
+libav:  avenc_jpegls: libav JPEG-LS encoder
+libav:  avenc_ljpeg: libav Lossless JPEG encoder
+libav:  avenc_magicyuv: libav MagicYUV video encoder
+libav:  avenc_mjpeg: libav MJPEG (Motion JPEG) encoder
+libav:  avenc_mlp: libav MLP (Meridian Lossless Packing) encoder
+libav:  avenc_mp2: libav MP2 (MPEG audio layer 2) encoder
+libav:  avenc_mp2fixed: libav MP2 fixed point (MPEG audio layer 2) encoder
+libav:  avenc_mpeg1video: libav MPEG-1 video encoder
+libav:  avenc_mpeg2video: libav MPEG-2 video encoder
+libav:  avenc_mpeg4: libav MPEG-4 part 2 encoder
+libav:  avenc_mpeg4_omx: libav OpenMAX IL MPEG-4 video encoder encoder
+libav:  avenc_msmpeg4: libav MPEG-4 part 2 Microsoft variant version 3 encoder
+libav:  avenc_msmpeg4v2: libav MPEG-4 part 2 Microsoft variant version 2 encoder
+libav:  avenc_msvideo1: libav Microsoft Video-1 encoder
+libav:  avenc_nellymoser: libav Nellymoser Asao encoder
+libav:  avenc_opus: libav Opus encoder
+libav:  avenc_pam: libav PAM (Portable AnyMap) image encoder
+libav:  avenc_pbm: libav PBM (Portable BitMap) image encoder
+libav:  avenc_pcm_vidc: libav PCM Archimedes VIDC encoder
+libav:  avenc_pcx: libav PC Paintbrush PCX image encoder
+libav:  avenc_pfm: libav PFM (Portable FloatMap) image encoder
+libav:  avenc_pgm: libav PGM (Portable GrayMap) image encoder
+libav:  avenc_pgmyuv: libav PGMYUV (Portable GrayMap YUV) image encoder
+libav:  avenc_png: libav PNG (Portable Network Graphics) image encoder
+libav:  avenc_ppm: libav PPM (Portable PixelMap) image encoder
+libav:  avenc_prores: libav Apple ProRes encoder
+libav:  avenc_prores_aw: libav Apple ProRes encoder
+libav:  avenc_prores_ks: libav Apple ProRes (iCodec Pro) encoder
+libav:  avenc_qtrle: libav QuickTime Animation (RLE) video encoder
+libav:  avenc_r10k: libav AJA Kona 10-bit RGB Codec encoder
+libav:  avenc_real_144: libav RealAudio 1.0 (14.4K) encoder
+libav:  avenc_roq_dpcm: libav id RoQ DPCM encoder
+libav:  avenc_roqvideo: libav id RoQ video encoder
+libav:  avenc_rpza: libav QuickTime video (RPZA) encoder
+libav:  avenc_rv10: libav RealVideo 1.0 encoder
+libav:  avenc_rv20: libav RealVideo 2.0 encoder
+libav:  avenc_s302m: libav SMPTE 302M encoder
+libav:  avenc_sbc: libav SBC (low-complexity subband codec) encoder
+libav:  avenc_sgi: libav SGI image encoder
+libav:  avenc_snow: libav Snow encoder
+libav:  avenc_sonic: libav Sonic encoder
+libav:  avenc_sonicls: libav Sonic lossless encoder
+libav:  avenc_speedhq: libav NewTek SpeedHQ encoder
+libav:  avenc_sunrast: libav Sun Rasterfile image encoder
+libav:  avenc_svq1: libav Sorenson Vector Quantizer 1 / Sorenson Video 1 / SVQ1 encoder
+libav:  avenc_targa: libav Truevision Targa image encoder
+libav:  avenc_tiff: libav TIFF image encoder
+libav:  avenc_truehd: libav TrueHD encoder
+libav:  avenc_tta: libav TTA (True Audio) encoder
+libav:  avenc_utvideo: libav Ut Video encoder
+libav:  avenc_vc2: libav SMPTE VC-2 encoder
+libav:  avenc_wavpack: libav WavPack encoder
+libav:  avenc_wmav1: libav Windows Media Audio 1 encoder
+libav:  avenc_wmav2: libav Windows Media Audio 2 encoder
+libav:  avenc_wmv1: libav Windows Media Video 7 encoder
+libav:  avenc_wmv2: libav Windows Media Video 8 encoder
+libav:  avenc_xbm: libav XBM (X BitMap) image encoder
+libav:  avenc_xface: libav X-face image encoder
+libav:  avenc_xwd: libav XWD (X Window Dump) image encoder
+libav:  avenc_zmbv: libav Zip Motion Blocks Video encoder
+libav:  avmux_wav: libav WAV / WAVE (Waveform Audio) muxer (not recommended, use wavenc instead)
+libav:  avmux_yuv4mpegpipe: libav YUV4MPEG pipe muxer (not recommended, use y4menc instead)
+mpeg2enc:  mpeg2enc: mpeg2enc video encoder
+mulaw:  mulawenc: Mu Law audio encoder
+multifile:  imagesequencesrc: Image Sequence Source
+nvjpeg:  nvjpegenc: JPEG image encoder
+nvv4l2camerasrc:  nvv4l2camerasrc: NvV4l2CameraSrc
+nvvideo4linux2:  nvv4l2av1enc: V4L2 AV1 Encoder
+nvvideo4linux2:  nvv4l2decoder: NVIDIA v4l2 video decoder
+nvvideo4linux2:  nvv4l2h264enc: V4L2 H.264 Encoder
+nvvideo4linux2:  nvv4l2h265enc: V4L2 H.265 Encoder
+nvvideo4linux2:  nvv4l2vp9enc: V4L2 VP9 Encoder
+openaptx:  openaptxenc: Bluetooth aptX/aptX-HD audio encoder using libopenaptx
+opengl:  gldifferencematte: Gstreamer OpenGL DifferenceMatte
+openh264:  openh264dec: OpenH264 video decoder
+openh264:  openh264enc: OpenH264 video encoder
+openjpeg:  openjpegenc: OpenJPEG JPEG2000 encoder
+opus:  opusenc: Opus audio encoder
+png:  pngenc: PNG image encoder
+pnm:  pnmenc: PNM image encoder
+removesilence:  removesilence: RemoveSilence
+rtp:  rtph264depay: RTP H264 depayloader
+rtp:  rtph264pay: RTP H264 payloader
+rtp:  rtph265depay: RTP H265 depayloader
+rtp:  rtph265pay: RTP H265 payloader
+rtp:  rtpredenc: Redundant Audio Data (RED) Encoder
+rtp:  rtpulpfecenc: RTP FEC Encoder
+rtpmanager:  rtpst2022-1-fecenc: SMPTE 2022-1 FEC encoder
+sbc:  sbcenc: Bluetooth SBC audio encoder
+sctp:  sctpenc: SCTP Encoder
+siren:  sirenenc: Siren Encoder element
+speex:  speexenc: Speex audio encoder
+srtp:  srtpenc: SRTP encoder
+subenc:  srtenc: Srt encoder
+subenc:  webvttenc: WebVTT encoder
+theora:  theoraenc: Theora video encoder
+twolame:  twolamemp2enc: TwoLAME mp2 encoder
+typefindfunctions: video/x-h264: h264, x264, 264
+typefindfunctions: video/x-h265: h265, x265, 265
+uvch264:  uvch264deviceprovider (GstDeviceProviderFactory)
+uvch264:  uvch264mjpgdemux: UVC H264 MJPG Demuxer
+uvch264:  uvch264src: UVC H264 Source
+videoparsersbad:  h264parse: H.264 parser
+videoparsersbad:  h265parse: H.265 parser
+voaacenc:  voaacenc: AAC audio encoder
+voamrwbenc:  voamrwbenc: AMR-WB audio encoder
+vorbis:  vorbisenc: Vorbis audio encoder
+vpx:  vp8enc: On2 VP8 Encoder
+vpx:  vp9enc: On2 VP9 Encoder
+wavenc:  wavenc: WAV audio muxer
+wavpack:  wavpackenc: Wavpack audio encoder
+webp:  webpenc: WEBP image encoder
+x264:  x264enc: x264 H.264 Encoder
+x265:  x265enc: x265enc
+y4menc:  y4menc: YUV4MPEG video encoder
+[rc=0]
+
+$ python3 --version; ls -d ~/miniconda3/envs/* ~/anaconda3/envs/* ~/miniforge3/envs/* ~/mambaforge/envs/* 2>/dev/null
+Python 3.10.12
+[rc=2]
+
+$ command -v docker >/dev/null && docker ps --format "{{.Names}}\t{{.Image}}\t{{.Status}}" 2>&1 | head -20
+permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.46/containers/json": dial unix /var/run/docker.sock: connect: permission denied
+[rc=0]
+
+===== 进程与服务 [2026-10-21 20:05:08.781 +0800] =====
+
+$ ps -eo pid,user,etimes,pcpu,pmem,args --sort=-pcpu | head -45 | cut -c1-300
+    PID USER     ELAPSED %CPU %MEM COMMAND
+    689 root        8550  7.5  0.0 [sugov:4]
+    687 root        8550  7.4  0.0 [sugov:0]
+   1365 root        8547  4.0  0.2 /opt/todesk/bin/ToDesk_Service
+   7492 nvidia      8338  2.6  0.8 /opt/todesk/bin/ToDesk
+     82 root        8558  0.8  0.0 [irq/127-3c00000]
+   1284 root        8548  0.7  0.0 [irq/200-eth0.vm]
+ 139529 nvidia         6  0.6  0.0 bash -s -- r1lite
+     53 root        8558  0.5  0.0 [ksoftirqd/5]
+     67 root        8558  0.5  0.0 [ksoftirqd/7]
+ 139509 nvidia         6  0.5  0.0 sshd: nvidia@notty
+     14 root        8558  0.4  0.0 [ksoftirqd/0]
+     32 root        8558  0.4  0.0 [ksoftirqd/2]
+     39 root        8558  0.4  0.0 [ksoftirqd/3]
+     60 root        8558  0.4  0.0 [ksoftirqd/6]
+    650 root        8550  0.4  0.0 /bin/bash /usr/local/bin/miivii_5G.sh
+     25 root        8558  0.2  0.0 [ksoftirqd/1]
+     43 root        8558  0.2  0.0 [irq_work/4]
+     46 root        8558  0.2  0.0 [ksoftirqd/4]
+   7051 root        8341  0.2  0.1 /usr/lib/xorg/Xorg vt2 -displayfd 3 -auth /run/user/1000/gdm/Xauthority -nolisten tcp -background none -noreset -keeptty -novtswitch -verbose 3
+   7235 nvidia      8340  0.2  0.9 /usr/bin/gnome-shell
+  10297 nvidia      8239  0.2  0.5 /usr/bin/python3 /usr/bin/update-manager --no-update --no-focus-on-map
+ 129602 nvidia       633  0.2  0.2 /usr/bin/nautilus --gapplication-service
+     22 root        8558  0.1  0.0 [irq_work/1]
+   1281 root        8548  0.1  0.0 [nvgpu_channel_p]
+   6815 root        8350  0.1  0.0 /lib/systemd/systemd-udevd
+ 139377 root          12  0.1  0.0 sshd: nvidia [priv]
+      1 root        8558  0.0  0.0 /sbin/init 2
+      2 root        8558  0.0  0.0 [kthreadd]
+      3 root        8558  0.0  0.0 [rcu_gp]
+      4 root        8558  0.0  0.0 [rcu_par_gp]
+      5 root        8558  0.0  0.0 [slub_flushwq]
+      6 root        8558  0.0  0.0 [netns]
+      7 root        8558  0.0  0.0 [kworker/0:0-cgroup_destroy]
+      8 root        8558  0.0  0.0 [kworker/0:0H-kblockd]
+     10 root        8558  0.0  0.0 [mm_percpu_wq]
+     11 root        8558  0.0  0.0 [rcu_tasks_kthre]
+     12 root        8558  0.0  0.0 [rcu_tasks_rude_]
+     13 root        8558  0.0  0.0 [rcu_tasks_trace]
+     15 root        8558  0.0  0.0 [rcu_preempt]
+     16 root        8558  0.0  0.0 [rcub/0]
+     17 root        8558  0.0  0.0 [rcuc/0]
+     18 root        8558  0.0  0.0 [migration/0]
+     19 root        8558  0.0  0.0 [irq_work/0]
+     20 root        8558  0.0  0.0 [cpuhp/0]
+[rc=0]
+
+$ ps -eo pid,user,etimes,args | grep -iE "ros|bridge|record|bag|mcap|collect|lerobot|foxglove|zenoh|camera|hdas|galaxea|autolife|shm" | grep -v grep | cut -c1-300
+[rc=0]
+
+$ systemctl list-units --type=service --state=running --no-pager --plain 2>/dev/null | head -80
+UNIT                          LOAD   ACTIVE SUB     DESCRIPTION
+accounts-daemon.service       loaded active running Accounts Service
+auditd.service                loaded active running Security Auditing Service
+avahi-daemon.service          loaded active running Avahi mDNS/DNS-SD Stack
+bluetooth.service             loaded active running Bluetooth service
+chrony.service                loaded active running chrony, an NTP client/server
+colord.service                loaded active running Manage, Install and Generate Color Profiles
+containerd.service            loaded active running containerd container runtime
+cron.service                  loaded active running Regular background program processing daemon
+dbus.service                  loaded active running D-Bus System Message Bus
+docker.service                loaded active running Docker Application Container Engine
+gdm.service                   loaded active running GNOME Display Manager
+GmslServer.service            loaded active running MIIVII GmslServer
+haveged.service               loaded active running Entropy Daemon based on the HAVEGE algorithm
+irqbalance.service            loaded active running irqbalance daemon
+kerneloops.service            loaded active running Tool to automatically collect and submit kernel crash signatures
+miivii-autostarter.service    loaded active running MIIVII specific script
+miivii-customer.service       loaded active running Miivii Customer Service Script
+miivii-websettings.service    loaded active running "bringup miivii settings"
+miivii_5g.service             loaded active running miivii_5G_services
+ModemManager.service          loaded active running Modem Manager
+networkd-dispatcher.service   loaded active running Dispatcher daemon for systemd-networkd
+NetworkManager.service        loaded active running Network Manager
+nv-tee-supplicant.service     loaded active running OP-TEE Client Supplicant
+nvargus-daemon.service        loaded active running Argus daemon
+nvfancontrol.service          loaded active running nvfancontrol service
+nvphs.service                 loaded active running PHS daemon
+nvs-service.service           loaded active running NVS-SERVICE Embedded Sensor HAL Daemon
+polkit.service                loaded active running Authorization Manager
+power-profiles-daemon.service loaded active running Power Profiles daemon
+rpcbind.service               loaded active running RPC bind portmap service
+rsyslog.service               loaded active running System Logging Service
+rtkit-daemon.service          loaded active running RealtimeKit Scheduling Policy Service
+seatd.service                 loaded active running Seat management daemon
+serial-getty@ttyAMA0.service  loaded active running Serial Getty on ttyAMA0
+serial-getty@ttyGS0.service   loaded active running Serial Getty on ttyGS0
+serial-getty@ttyTCU0.service  loaded active running Serial Getty on ttyTCU0
+smartmontools.service         loaded active running Self Monitoring and Reporting Technology (SMART) Daemon
+ssh.service                   loaded active running OpenBSD Secure Shell server
+switcheroo-control.service    loaded active running Switcheroo Control Proxy service
+system_manager_daemon.service loaded active running System Manager Daemon Service
+systemd-journald.service      loaded active running Journal Service
+systemd-logind.service        loaded active running User Login Management
+systemd-resolved.service      loaded active running Network Name Resolution
+systemd-udevd.service         loaded active running Rule-based Manager for Device Events and Files
+todeskd.service               loaded active running ToDesk Daemon Service
+udisks2.service               loaded active running Disk Manager
+upower.service                loaded active running Daemon for power management
+user@1000.service             loaded active running User Manager for UID 1000
+wpa_supplicant.service        loaded active running WPA supplicant
+
+LOAD   = Reflects whether the unit definition was properly loaded.
+ACTIVE = The high-level unit activation state, i.e. generalization of SUB.
+SUB    = The low-level unit activation state, values depend on unit type.
+49 loaded units listed.
+[rc=0]
+
+$ systemctl list-unit-files --no-pager --plain 2>/dev/null | grep -iE "ros|robot|collect|lerobot|galaxea|autolife|camera|bridge|hdas"
+[rc=1]
+
+$ crontab -l 2>&1 | grep -v "^#"
+no crontab for nvidia
+[rc=0]
+
+$ tmux ls 2>&1; screen -ls 2>&1
+error connecting to /tmp/tmux-1000/default (No such file or directory)
+main: line 275: screen: command not found
+[rc=127]
+
+$ ls -la /dev/shm | head -40
+total 120
+drwxrwxrwt  2 root root   1080 Oct 21 17:46 .
+drwxr-xr-x 19 root root   9300 Oct 21 17:54 ..
+-rw-rw-rw-  1 root root    696 Oct 21 17:44 gmsl_camera_async_queue
+-rw-rw-rw-  1 root root 197055 Oct 21 17:44 ipc_test_0
+-rw-rw-rw-  1 root root 197055 Oct 21 17:44 ipc_test_a_0
+-rw-rw-rw-  1 root root 197055 Oct 21 17:44 ipc_test_b_0
+-rw-rw-rw-  1 root root 197055 Oct 21 17:44 ipc_test_c_0
+-rw-rw-rw-  1 root root 197055 Oct 21 17:44 itc_test_0
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvmap_sciipc_1
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvmap_sciipc_3
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscibuf_ipc_A_B
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscibuf_ipc_A_D
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscibuf_ipc_B_C
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscibuf_ipc_B_E
+-rw-rw-rw-  1 root root 197055 Oct 21 17:44 nvscibuf_itc_0
+-rw-r-----  1 root root      0 Oct 21 17:44 nvsciipc_init
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscistream_0
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscistream_2
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscistream_4
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscistream_6
+-rw-rw-rw-  1 root root 197055 Oct 21 17:44 nvscistream_itc_0
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscisync_a_0
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscisync_b_0
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscisync_c_0
+-rw-rw-rw-  1 root root 786879 Oct 21 17:44 nvscisync_d_0
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.ipc_test_0
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.ipc_test_a_0
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.ipc_test_b_0
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.ipc_test_c_0
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.itc_test_0
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.nvmap_sciipc_1
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.nvmap_sciipc_3
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.nvscibuf_ipc_A_B
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.nvscibuf_ipc_A_D
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.nvscibuf_ipc_B_C
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.nvscibuf_ipc_B_E
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.nvscibuf_itc_0
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.nvscistream_0
+-rw-rw-rw-  1 root root     32 Oct 21 17:44 sem.nvscistream_2
+[rc=0]
+
+===== 时钟 [2026-10-21 20:05:10.234 +0800] =====
+
+$ timedatectl 2>&1
+               Local time: Wed 2026-10-21 20:05:10 CST
+           Universal time: Wed 2026-10-21 12:05:10 UTC
+                 RTC time: Wed 2026-10-21 12:05:11
+                Time zone: Asia/Shanghai (CST, +0800)
+System clock synchronized: yes
+              NTP service: active
+          RTC in local TZ: no
+[rc=0]
+
+$ command -v chronyc >/dev/null && { chronyc tracking; chronyc sources; } 2>&1
+Reference ID    : 6FE6BDAE (111.230.189.174)
+Stratum         : 3
+Ref time (UTC)  : Wed Oct 21 12:02:14 2026
+System time     : 0.000101823 seconds fast of NTP time
+Last offset     : +0.000037873 seconds
+RMS offset      : 0.000386802 seconds
+Frequency       : 8.885 ppm slow
+Residual freq   : -0.003 ppm
+Skew            : 0.441 ppm
+Root delay      : 0.007978902 seconds
+Root dispersion : 0.020947235 seconds
+Update interval : 1038.3 seconds
+Leap status     : Normal
+MS Name/IP address         Stratum Poll Reach LastRx Last sample               
+===============================================================================
+^- prod-ntp-3.ntp4.ps5.cano>     2  10   377   748   +392us[ +437us] +/-  173ms
+^- prod-ntp-5.ntp4.ps5.cano>     2  10   377   819   -491us[ -445us] +/-  168ms
+^- prod-ntp-5.ntp4.ps5.cano>     2  10   337   821    +70ms[  +70ms] +/-  166ms
+^- prod-ntp-4.ntp1.ps5.cano>     2   9   377   21m  -6253us[-5812us] +/-  166ms
+^* 111.230.189.174               2  10   357   175    -21us[  +17us] +/-   42ms
+^- tick.ntp.infomaniak.ch        1  10   357   677    +46ms[  +46ms] +/-  142ms
+^+ 114.66.25.29                  2   9   367   373  +9728us[+9768us] +/-   46ms
+^- ntp5.flashdance.cx            2  10   371   167    +75ms[  +75ms] +/-  179ms
+[rc=0]
+
+===== ROS 运行环境（取自正在运行的 ROS 进程，只打印 ROS/DDS 相关变量） [2026-10-21 20:05:10.663 +0800] =====
+（当前用户下没有读到带 AMENT_PREFIX_PATH 的进程；ROS 栈可能以 root 或其他用户运行，或尚未启动）
+
+===== 复现 ROS 环境：~/.bashrc 里的 ROS 相关行 + 运行中节点的变量 [2026-10-21 20:05:10.976 +0800] =====
+
+$ grep -nE "^\s*(source|\.)\s+\S*setup\.(bash|sh)|^\s*export\s+(ROS_|RMW_|CYCLONEDDS_|FASTRTPS_|FASTDDS_|ZENOH_)" ~/.bashrc 2>/dev/null
+122:source /opt/ros/humble/setup.bash
+130:export FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml
+[rc=0]
+
+$ printenv | grep -E "^(ROS_|RMW_|CYCLONEDDS_|FASTRTPS_|FASTDDS_|ZENOH_)" | grep -v "^ROS_LOG_DIR" | sort
+FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml
+ROS_DISTRO=humble
+ROS_LOCALHOST_ONLY=0
+ROS_PYTHON_VERSION=3
+ROS_VERSION=2
+[rc=0]
+
+$ ls /opt/ros 2>/dev/null
+humble
+[rc=0]
+
+$ if [ -n "$CYCLONEDDS_URI" ]; then f=${CYCLONEDDS_URI#file://}; if [ -f "$f" ]; then cat "$f"; else echo "$CYCLONEDDS_URI"; fi; fi
+[rc=0]
+
+===== ros2 daemon 初始状态 [2026-10-21 20:05:11.259 +0800] =====
+The daemon is not running
+
+===== 节点与话题 [2026-10-21 20:05:11.916 +0800] =====
+
+$ ros2 node list --no-daemon --spin-time 5 2>&1
+[rc=0]
+/parameter_events [rcl_interfaces/msg/ParameterEvent]
+/rosout [rcl_interfaces/msg/Log]
+共 2 个话题
+（话题几乎为空：多半是 ROS_DOMAIN_ID / RMW 与机器人上的节点不一致，见上面的运行环境）
+
+===== 录制产物：近 60 天的 mcap / rosbag2（按修改时间倒序） [2026-10-21 20:05:23.371 +0800] =====
+共 231 个
+2026-10-11 15:18	814160050	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011151735482_RAW/RBB60624A002_20261011151735482_RAW.mcap
+2026-10-11 15:17	860364767	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011151623282_RAW/RBB60624A002_20261011151623282_RAW.mcap
+2026-10-11 15:15	954486275	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011151444185_RAW/RBB60624A002_20261011151444185_RAW.mcap
+2026-10-11 15:14	854818066	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011151323389_RAW/RBB60624A002_20261011151323389_RAW.mcap
+2026-10-11 15:13	907393613	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011151208688_RAW/RBB60624A002_20261011151208688_RAW.mcap
+2026-10-11 14:35	947291067	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011143443144_RAW/RBB60624A002_20261011143443144_RAW.mcap
+2026-10-11 14:34	982446858	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011143326751_RAW/RBB60624A002_20261011143326751_RAW.mcap
+2026-10-11 14:33	969876012	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011143203748_RAW/RBB60624A002_20261011143203748_RAW.mcap
+2026-10-11 14:30	1256387908	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011142900551_RAW/RBB60624A002_20261011142900551_RAW.mcap
+2026-10-11 14:28	960557449	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011142740755_RAW/RBB60624A002_20261011142740755_RAW.mcap
+2026-10-11 14:27	1032495219	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011142616859_RAW/RBB60624A002_20261011142616859_RAW.mcap
+2026-10-11 14:26	980365446	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011142455859_RAW/RBB60624A002_20261011142455859_RAW.mcap
+2026-10-11 14:24	1190774654	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011142309763_RAW/RBB60624A002_20261011142309763_RAW.mcap
+2026-10-11 14:22	1278267576	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011142107766_RAW/RBB60624A002_20261011142107766_RAW.mcap
+2026-10-11 14:20	1414160141	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011141901070_RAW/RBB60624A002_20261011141901070_RAW.mcap
+2026-10-11 14:18	1152043871	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011141724069_RAW/RBB60624A002_20261011141724069_RAW.mcap
+2026-10-11 14:17	1313573938	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011141538573_RAW/RBB60624A002_20261011141538573_RAW.mcap
+2026-10-11 14:15	1353582345	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011141337276_RAW/RBB60624A002_20261011141337276_RAW.mcap
+2026-10-11 14:11	1196703853	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011141028879_RAW/RBB60624A002_20261011141028879_RAW.mcap
+2026-10-11 14:09	1431320951	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011140824383_RAW/RBB60624A002_20261011140824383_RAW.mcap
+2026-10-11 13:12	1051748629	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011131123765_RAW/RBB60624A002_20261011131123765_RAW.mcap
+2026-10-11 13:10	1225414117	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011130920869_RAW/RBB60624A002_20261011130920869_RAW.mcap
+2026-10-11 13:08	1290075577	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011130650973_RAW/RBB60624A002_20261011130650973_RAW.mcap
+2026-10-11 13:06	1351938569	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011130457576_RAW/RBB60624A002_20261011130457576_RAW.mcap
+2026-10-11 13:04	1328988718	/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011130316080_RAW/RBB60624A002_20261011130316080_RAW.mcap
+
+$ ls -la "/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011151735482_RAW" | head -30
+total 795092
+drwxrwxr-x  2 nvidia nvidia      4096 Oct 11 15:18 .
+drwxrwxr-x 40 nvidia nvidia      4096 Oct 11 15:18 ..
+-rw-rw-r--  1 nvidia nvidia         0 Oct 11 15:18 metadata.yaml
+-rw-rw-r--  1 nvidia nvidia 814160050 Oct 11 15:18 RBB60624A002_20261011151735482_RAW.mcap
+[rc=0]
+
+$ cat "/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011151735482_RAW/metadata.yaml" 2>/dev/null | head -150
+[rc=0]
+
+$ command -v ros2 >/dev/null && timeout 90 ros2 bag info "/home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011151735482_RAW/RBB60624A002_20261011151735482_RAW.mcap" 2>&1 | head -120
+
+closing.
+
+Files:             /home/nvidia/GalaxeaDataset/20261011_table_withdrawing/RBB60624A002_20261011151735482_RAW/RBB60624A002_20261011151735482_RAW.mcap
+Bag size:          776.4 MiB
+Storage id:        mcap
+Duration:          52.141064007s
+Start:             Oct 11 2026 15:17:37.031414340 (1791703057.031414340)
+End:               Oct 11 2026 15:18:29.172478347 (1791703109.172478347)
+Messages:          265606
+Topic information: Topic: /hdas/feedback_torso | Type: sensor_msgs/msg/JointState | Count: 10428 | Serialization Format: cdr
+                   Topic: /hdas/feedback_status_arm_left | Type: hdas_msg/msg/FeedbackStatus | Count: 52 | Serialization Format: cdr
+                   Topic: /hdas/feedback_status_arm_right | Type: hdas_msg/msg/FeedbackStatus | Count: 52 | Serialization Format: cdr
+                   Topic: /hdas/feedback_left_arm_wrench | Type: geometry_msgs/msg/WrenchStamped | Count: 0 | Serialization Format: cdr
+                   Topic: /calib/head_left/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 53 | Serialization Format: cdr
+                   Topic: /controller | Type: hdas_msg/msg/ControllerSignalStamped | Count: 9960 | Serialization Format: cdr
+                   Topic: /hdas/feedback_status_torso | Type: hdas_msg/msg/FeedbackStatus | Count: 52 | Serialization Format: cdr
+                   Topic: /hdas/feedback_gripper_right | Type: sensor_msgs/msg/JointState | Count: 10436 | Serialization Format: cdr
+                   Topic: /motion_control/control_arm_right | Type: hdas_msg/msg/MotorControl | Count: 9924 | Serialization Format: cdr
+                   Topic: /hdas/feedback_chassis | Type: sensor_msgs/msg/JointState | Count: 10439 | Serialization Format: cdr
+                   Topic: /hdas/imu_torso | Type: sensor_msgs/msg/Imu | Count: 5220 | Serialization Format: cdr
+                   Topic: /motion_control/pose_floating_base | Type: geometry_msgs/msg/PoseStamped | Count: 9988 | Serialization Format: cdr
+                   Topic: /hdas/ccu_version | Type: hdas_msg/msg/Version | Count: 0 | Serialization Format: cdr
+                   Topic: /calib/arm_left/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 53 | Serialization Format: cdr
+                   Topic: /hdas/vcu_version | Type: hdas_msg/msg/Version | Count: 52 | Serialization Format: cdr
+                   Topic: /motion_target/target_speed_chassis | Type: geometry_msgs/msg/TwistStamped | Count: 9868 | Serialization Format: cdr
+                   Topic: /hdas/camera_wrist_left/aligned_depth_to_color/image_raw | Type: sensor_msgs/msg/Image | Count: 0 | Serialization Format: cdr
+                   Topic: /calib/arm_right/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 53 | Serialization Format: cdr
+                   Topic: /hdas/camera_wrist_left/color/image_raw/compressed | Type: sensor_msgs/msg/CompressedImage | Count: 1554 | Serialization Format: cdr
+                   Topic: /hdas/feedback_gripper_left | Type: sensor_msgs/msg/JointState | Count: 10447 | Serialization Format: cdr
+                   Topic: /hdas/feedback_hand_right | Type: sensor_msgs/msg/JointState | Count: 0 | Serialization Format: cdr
+                   Topic: /hdas/camera_head/left_raw/image_raw_color/compressed | Type: sensor_msgs/msg/CompressedImage | Count: 1568 | Serialization Format: cdr
+                   Topic: /motion_target/target_position_gripper_right | Type: sensor_msgs/msg/JointState | Count: 1033 | Serialization Format: cdr
+                   Topic: /hdas/tcu_version | Type: hdas_msg/msg/Version | Count: 53 | Serialization Format: cdr
+                   Topic: /motion_control/chassis_speed | Type: geometry_msgs/msg/TwistStamped | Count: 9917 | Serialization Format: cdr
+                   Topic: /motion_control/control_gripper_left | Type: hdas_msg/msg/MotorControl | Count: 23240 | Serialization Format: cdr
+                   Topic: /motion_control/control_arm_left | Type: hdas_msg/msg/MotorControl | Count: 9972 | Serialization Format: cdr
+                   Topic: /motion_control/control_chassis | Type: hdas_msg/msg/MotorControl | Count: 2605 | Serialization Format: cdr
+                   Topic: /motion_control/control_gripper_right | Type: hdas_msg/msg/MotorControl | Count: 23222 | Serialization Format: cdr
+                   Topic: /motion_target/target_joint_state_arm_right | Type: sensor_msgs/msg/JointState | Count: 9907 | Serialization Format: cdr
+                   Topic: /motion_control/control_torso | Type: hdas_msg/msg/MotorControl | Count: 9973 | Serialization Format: cdr
+                   Topic: /motion_control/pose_ee_arm_right | Type: geometry_msgs/msg/PoseStamped | Count: 10029 | Serialization Format: cdr
+                   Topic: /motion_target/target_joint_state_arm_left | Type: sensor_msgs/msg/JointState | Count: 9929 | Serialization Format: cdr
+                   Topic: /motion_target/target_joint_state_torso | Type: sensor_msgs/msg/JointState | Count: 9602 | Serialization Format: cdr
+                   Topic: /motion_target/target_position_gripper_left | Type: sensor_msgs/msg/JointState | Count: 1033 | Serialization Format: cdr
+                   Topic: /problem_diagnosis_status | Type: std_msgs/msg/String | Count: 4 | Serialization Format: cdr
+                   Topic: /hdas/right_acu_version | Type: hdas_msg/msg/Version | Count: 105 | Serialization Format: cdr
+                   Topic: /hdas/camera_head/right_raw/image_raw_color/compressed | Type: sensor_msgs/msg/CompressedImage | Count: 1570 | Serialization Format: cdr
+                   Topic: /hdas/feedback_hand_left | Type: sensor_msgs/msg/JointState | Count: 0 | Serialization Format: cdr
+                   Topic: /hdas/feedback_right_arm_wrench | Type: geometry_msgs/msg/WrenchStamped | Count: 0 | Serialization Format: cdr
+                   Topic: /motion_target/target_pose_torso | Type: geometry_msgs/msg/PoseStamped | Count: 9996 | Serialization Format: cdr
+                   Topic: /motion_control/pose_ee_arm_left | Type: geometry_msgs/msg/PoseStamped | Count: 10009 | Serialization Format: cdr
+                   Topic: /hdas/camera_wrist_right/aligned_depth_to_color/image_raw | Type: sensor_msgs/msg/Image | Count: 0 | Serialization Format: cdr
+                   Topic: /hdas/bms | Type: hdas_msg/msg/Bms | Count: 52 | Serialization Format: cdr
+                   Topic: /hdas/feedback_arm_left | Type: sensor_msgs/msg/JointState | Count: 10449 | Serialization Format: cdr
+                   Topic: /hdas/imu_chassis | Type: sensor_msgs/msg/Imu | Count: 10449 | Serialization Format: cdr
+                   Topic: /calib/joint_bias | Type: sensor_msgs/msg/JointState | Count: 53 | Serialization Format: cdr
+                   Topic: /hdas/camera_wrist_right/color/image_raw/compressed | Type: sensor_msgs/msg/CompressedImage | Count: 1548 | Serialization Format: cdr
+                   Topic: /tf_static | Type: tf2_msgs/msg/TFMessage | Count: 53 | Serialization Format: cdr
+                   Topic: /hdas/feedback_arm_right | Type: sensor_msgs/msg/JointState | Count: 10447 | Serialization Format: cdr
+                   Topic: /hdas/left_acu_version | Type: hdas_msg/msg/Version | Count: 104 | Serialization Format: cdr
+                   Topic: /calib/head_right/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 53 | Serialization Format: cdr
+
+[rc=0]
+
+===== 录制脚本线索（home 下提到 bag record / mcap 的脚本和配置） [2026-10-21 20:05:30.361 +0800] =====
+
+$ timeout 90 grep -rIlE "ros2 bag record|rosbag2_py|bag record|storage.*mcap|\.mcap" --include=*.sh --include=*.py --include=*.yaml --include=*.yml --exclude-dir=".*" --exclude-dir=site-packages --exclude-dir=node_modules --exclude-dir=pkgs --exclude-dir=build --exclude-dir=log ~ 2>/dev/null | head -30
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922163542303_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922165433475_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922144747762_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922171312048_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922150418743_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922145402051_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922165810267_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922144819162_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922165132778_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922163925495_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922163800599_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922145737948_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922150217741_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922165303774_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922145609248_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922164718685_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922170212961_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922164500689_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922150025540_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922150614234_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922164907084_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922145006958_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922150903336_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922165626271_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922150728234_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260922_stack_the_blocks/RBB60624A002_20260922164113992_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260924_stack_the_blocks/RBB60624A002_20260924135947214_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260924_stack_the_blocks/RBB60624A002_20260924144305150_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260924_stack_the_blocks/RBB60624A002_20260924140100014_RAW/metadata.yaml
+/home/nvidia/GalaxeaDataset/20260924_stack_the_blocks/RBB60624A002_20260924142831071_RAW/metadata.yaml
+[rc=0]
+
+===== 采集器部署（CB_Autolife_Data_Collector） [2026-10-21 20:05:30.389 +0800] =====
+（未找到）
+
+$ pgrep -af "shm_camera_topic_bridge|record_lerobot|start_lerobot" 2>&1
+[rc=1]
+
+===== Python 环境里的 lerobot 版本 [2026-10-21 20:05:32.151 +0800] =====
+/usr/bin/python3: importlib.metadata.PackageNotFoundError: No package metadata was found for lerobot
+
+===== LeRobot 数据集样本（最新 5 份 meta/info.json） [2026-10-21 20:05:32.315 +0800] =====
+共 0 份
+
+===== 关闭本脚本启动的 ros2 daemon [2026-10-21 20:05:33.845 +0800] =====
+
+$ ros2 daemon stop
+The daemon is not running
+[rc=0]
+
+===== 结束 [2026-10-21 20:05:34.344 +0800] =====
+[remote rc=0]
+
+===== 吞吐：机器人 → 工作站，经 SSH 拉 100 MiB 零字节，3 次 [2026-10-21 06:05:34.390469730 -0600] =====
+第 1 次：104857600 字节，8.48 秒，98.9 Mbit/s
+第 2 次：104857600 字节，6.70 秒，125.3 Mbit/s
+第 3 次：104857600 字节，7.50 秒，111.9 Mbit/s
+注：SSH 加密会占用机器人 CPU，所以这里测到的是下限。
+
+===== 完成，输出在 /tmp/claude-1001/-home-shawn----robot-data-platform/d9765374-5fda-447d-a403-94569c0f9b33/scratchpad/robot-facts/out/r1lite-20261021T060452.txt [2026-10-21 06:05:57.81070450 -0600] =====

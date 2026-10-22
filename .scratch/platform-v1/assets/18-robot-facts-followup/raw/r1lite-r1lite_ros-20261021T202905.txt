@@ -1,0 +1,3517 @@
+
+===== 工作站侧 kind=r1lite target=nvidia@192.168.0.229 probe=r1lite_ros.sh [2026-10-21 20:29:05.789604383 -0600] =====
+
+$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+enp4s0           DOWN           
+wlp3s0           UP             192.168.0.180/24 fd00:3::2df8:8b6:7bb3:e608/64 fd00:3::89e8:7ad7:724:5ce4/64 fe80::80f2:9bf5:890d:1a38/64 
+tailscale0       UNKNOWN        100.82.81.44/32 fd7a:115c:a1e0::8e31:512d/128 fe80::9498:4a6e:9885:c6b2/64 
+br-82c001c9d81e  UP             172.18.0.1/16 fe80::e802:a7ff:fe8b:95a3/64 
+br-d848fb79423b  UP             172.20.0.1/16 fe80::3cce:34ff:fee3:8c1/64 
+docker0          DOWN           172.17.0.1/16 
+veth793666b@if2  UP             fe80::8c6d:aeff:feb7:8e69/64 
+veth6b18b31@if2  UP             fe80::cc0b:e9ff:fedb:c48/64 
+veth38f13f3@if2  UP             fe80::44a7:55ff:fe3e:3bde/64 
+veth46866fb@if2  UP             fe80::c873:f0ff:fe5c:59b4/64 
+veth8c61f8a@if2  UP             fe80::88d3:1cff:fe46:2f26/64 
+vethabd357a@if2  UP             fe80::5c3a:4dff:fee4:8495/64 
+veth8d236cb@if2  UP             fe80::ccca:1aff:fe6b:947/64 
+Meta             UNKNOWN        198.18.0.1/30 fdfe:dcba:9876::1/126 fe80::f724:d1f5:88f:b1d9/64 
+[rc=0]
+
+$ ip route get 192.168.0.229
+192.168.0.229 dev wlp3s0 src 192.168.0.180 uid 1001 
+    cache 
+[rc=0]
+
+$ nmcli -t -f ACTIVE,SSID,CHAN,FREQ,RATE,SIGNAL device wifi list --rescan no 2>/dev/null | grep "^yes"
+yes:104:11:2462 MHz:1170 Mbit/s:100
+[rc=0]
+
+$ for i in enp4s0 wlp3s0; do printf "%s operstate=%s speed=%s\n" "$i" "$(cat /sys/class/net/$i/operstate 2>/dev/null)" "$(cat /sys/class/net/$i/speed 2>/dev/null)"; done
+enp4s0 operstate=down speed=-1
+wlp3s0 operstate=up speed=
+[rc=0]
+
+$ timedatectl 2>&1 | grep -iE "synchronized|NTP service|Time zone"
+                Time zone: America/Cambridge_Bay (MDT, -0600)
+System clock synchronized: yes
+              NTP service: active
+[rc=0]
+
+===== 延迟：ping 20 次 [2026-10-21 20:29:05.817347250 -0600] =====
+
+$ ping -c 20 -i 0.2 192.168.0.229
+PING 192.168.0.229 (192.168.0.229) 56(84) bytes of data.
+64 bytes from 192.168.0.229: icmp_seq=1 ttl=64 time=191 ms
+64 bytes from 192.168.0.229: icmp_seq=2 ttl=64 time=2.02 ms
+64 bytes from 192.168.0.229: icmp_seq=3 ttl=64 time=1.87 ms
+64 bytes from 192.168.0.229: icmp_seq=4 ttl=64 time=3.58 ms
+64 bytes from 192.168.0.229: icmp_seq=5 ttl=64 time=1.60 ms
+64 bytes from 192.168.0.229: icmp_seq=6 ttl=64 time=9.30 ms
+64 bytes from 192.168.0.229: icmp_seq=7 ttl=64 time=2.41 ms
+64 bytes from 192.168.0.229: icmp_seq=8 ttl=64 time=2.23 ms
+64 bytes from 192.168.0.229: icmp_seq=9 ttl=64 time=1.59 ms
+64 bytes from 192.168.0.229: icmp_seq=10 ttl=64 time=1.97 ms
+64 bytes from 192.168.0.229: icmp_seq=11 ttl=64 time=2.09 ms
+64 bytes from 192.168.0.229: icmp_seq=12 ttl=64 time=30.2 ms
+64 bytes from 192.168.0.229: icmp_seq=13 ttl=64 time=214 ms
+64 bytes from 192.168.0.229: icmp_seq=14 ttl=64 time=7.08 ms
+64 bytes from 192.168.0.229: icmp_seq=15 ttl=64 time=9.39 ms
+64 bytes from 192.168.0.229: icmp_seq=16 ttl=64 time=10.6 ms
+64 bytes from 192.168.0.229: icmp_seq=17 ttl=64 time=2.31 ms
+64 bytes from 192.168.0.229: icmp_seq=18 ttl=64 time=2.93 ms
+64 bytes from 192.168.0.229: icmp_seq=19 ttl=64 time=2.52 ms
+64 bytes from 192.168.0.229: icmp_seq=20 ttl=64 time=2.38 ms
+
+--- 192.168.0.229 ping statistics ---
+20 packets transmitted, 20 received, 0% packet loss, time 3820ms
+rtt min/avg/max/mdev = 1.588/25.033/213.733/59.535 ms, pipe 2
+[rc=0]
+
+===== 建立 SSH 主连接（在这里输入一次密码） [2026-10-21 20:29:09.643298824 -0600] =====
+
+===== 时钟偏差：机器人时间 - 工作站时间（取 5 次里往返最短的一次） [2026-10-21 20:29:16.150474424 -0600] =====
+rtt=0.611848s offset=0.233466s
+rtt=0.404323s offset=0.126261s
+rtt=0.304427s offset=0.176345s
+rtt=0.017960s offset=0.033936s
+rtt=0.016332s offset=0.033188s
+采用：offset=0.033188s（误差约 ±0.008166s）
+
+===== 远程采集 r1lite_ros.sh（约 5–15 分钟） [2026-10-21 20:29:17.531819937 -0600] =====
+
+===== 开始 r1lite_ros（第 3 版） [2026-10-22 10:29:17.594 +0800] =====
+
+===== 网络与发现服务器 [2026-10-22 10:29:17.595 +0800] =====
+
+$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+eth0             UP             192.168.2.150/24 fe80::4ebb:47ff:fee4:ed82/64 
+wlan0            UP             192.168.0.229/24 fd00:3::8f7:3574:158c:9ab7/64 fd00:3::ff9e:9f5c:351c:20c4/64 fe80::44e7:c25f:db17:6941/64 
+eth1             UP             10.42.0.238/24 fe80::3ab2:5d7c:4b67:e1af/64 
+can0             UP             
+can1             UP             
+l4tbr0           DOWN           
+usb0             DOWN           
+usb1             DOWN           
+br-34c013db497f  DOWN           172.18.0.1/16 
+docker0          DOWN           172.17.0.1/16 
+[rc=0]
+
+$ ip route
+default via 192.168.0.1 dev wlan0 proto dhcp metric 600 
+default via 10.42.0.1 dev eth1 proto dhcp metric 20101 
+10.42.0.0/24 dev eth1 proto kernel scope link src 10.42.0.238 metric 101 
+169.254.0.0/16 dev br-34c013db497f scope link metric 1000 linkdown 
+172.17.0.0/16 dev docker0 proto kernel scope link src 172.17.0.1 linkdown 
+172.18.0.0/16 dev br-34c013db497f proto kernel scope link src 172.18.0.1 linkdown 
+192.168.0.0/24 dev wlan0 proto kernel scope link src 192.168.0.229 metric 600 
+192.168.2.0/24 dev eth0 proto kernel scope link src 192.168.2.150 metric 100 
+[rc=0]
+
+$ ip route get $(sed -n 's#.*<address>\(.*\)</address>.*#\1#p' /opt/galaxea/find_server/super_client_profile.xml | head -1)
+local 10.42.0.238 dev lo src 10.42.0.238 uid 1000 
+    cache <local> 
+[rc=0]
+
+$ ss -uapn 2>/dev/null | grep -E ':(11811|7400)\b' | sed -E 's/ +/ /g' | cut -c1-200
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("rds_ros_monitor",pid=57042,fd=16))
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("python3",pid=56357,fd=26)) 
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("moca_main_node",pid=56742,fd=16)) 
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("robot_state_pub",pid=56744,fd=16))
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("data_collection",pid=56198,fd=16))
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("rqt",pid=55735,fd=42)) 
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("realsense2_came",pid=56069,fd=17))
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("realsense2_came",pid=56067,fd=17))
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("static_transfor",pid=56071,fd=16))
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("signal_camera_n",pid=55851,fd=24))
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("HDAS",pid=55845,fd=16)) 
+UNCONN 0 0 0.0.0.0:7400 0.0.0.0:* users:(("homogeneous_con",pid=55821,fd=16))
+UNCONN 0 0 0.0.0.0:11811 0.0.0.0:* users:(("fast-discovery-",pid=54891,fd=15))
+[rc=0]
+
+$ stat -c "%y %n" ~/.bashrc /opt/galaxea/find_server/super_client_profile.xml
+2026-07-23 13:50:32.049001858 +0800 /home/nvidia/.bashrc
+2026-08-05 15:01:44.772509554 +0800 /opt/galaxea/find_server/super_client_profile.xml
+[rc=0]
+
+$ sed -n 110,140p ~/.bashrc
+# sources /etc/bash.bashrc).
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+export PATH=/usr/local/cuda-12.2/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda-12.2/lib64:$LD_LIBRARY_PATH
+
+# >>> fishros initialize >>>
+source /opt/ros/humble/setup.bash
+# <<< fishros initialize <<<
+
+# ROS and VR environment variables
+#export VR_IP=0.0.0.0
+#export ROS_IP=192.168.1.151
+#export ROS_DOMAIN_ID=51
+#export ROS_LOCALHOST_ONLY=1
+export FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml
+
+## Galaxea AI pre-script
+source ~/.glx_pre.sh
+source ~/.glx/glx_pre.sh
+
+[rc=0]
+
+===== 启动方式：robot_startup.sh、prestart、会话清单 [2026-10-22 10:29:17.662 +0800] =====
+
+$ head -120 /home/nvidia/galaxea/sdk/startup_config/share/startup_config/script/robot_startup.sh
+#!/bin/bash
+export START_DIR=$(cd $(dirname "$0") && pwd)/boot
+# echo "[cmd] export START_DIR=$START_DIR"
+FILE="/tmp/start_type.log"
+
+if [ "$1" = "boot" ]; then
+  clean_path="${2%/}"
+  dir_name="${clean_path##*/}"
+  START_TYPE="${dir_name%.d}"
+  
+  if [ ! -f "$FILE" ]; then
+    touch "$FILE"  
+  fi
+  echo "$START_TYPE" > $FILE
+  ${START_DIR}/sessions.sh  "$1" "$2"
+elif [ "$1" = "kill" ]; then
+  tmux kill-server
+  sleep 3
+  ros2 daemon stop
+else
+  echo "help:"
+  echo "use $0 boot or kill"
+fi
+[rc=0]
+
+$ cat /home/nvidia/galaxea/sdk/startup_config/share/startup_config/script/prestart/prestart_prepare.sh 2>/dev/null | head -80
+#!/bin/bash
+
+export PROJECT_ROOT_DIR=$(cd $(dirname "$0") && pwd)/../../../../../../..
+echo "[cmd] export PROJECT_ROOT_DIR=${PROJECT_ROOT_DIR}"
+
+source /opt/ros/humble/setup.bash
+source ${PROJECT_ROOT_DIR}/setup.bash
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/logger/Linux-aarch64/lib
+
+export MAP_DIR=/home/nvidia/galaxea/maps
+export CALIB_DIR=/home/nvidia/galaxea/calib/robot_calibration.json
+
+echo '***' | sudo -S jetson_clocks || echo "sudo jetson_clocks execute failed"
+
+if [ -f "/opt/galaxea/galaxeaKey/keys.env" ]; then
+    source "/opt/galaxea/galaxeaKey/keys.env"
+fi
+
+[rc=0]
+
+$ ls -la /home/nvidia/galaxea/sdk/startup_config/share/startup_config/sessions.d/ATCStandard/R1LITEBody.d/
+total 36
+drwxr-xr-x  2 root   root   4096 Sep 22 16:01 .
+drwxr-xr-x 14 root   root   4096 Sep 22 16:01 ..
+-rwxr-xr-x  1 nvidia nvidia  210 Sep 12 16:36 ehi_gateway.yaml
+-rwxr-xr-x  1 nvidia nvidia  411 Sep 12 16:36 hdas.yaml
+-rwxr-xr-x  1 nvidia nvidia  351 Sep 12 16:36 mobiman.yaml
+-rwxr-xr-x  1 nvidia nvidia  216 Sep 12 16:36 ros2_discovery.yaml
+-rwxr-xr-x  1 nvidia nvidia  292 Sep 12 16:36 system.yaml
+-rwxr-xr-x  1 nvidia nvidia  226 Sep 12 16:36 teleop.yaml
+-rwxr-xr-x  1 nvidia nvidia  478 Sep 12 16:36 tools.yaml
+[rc=0]
+
+$ for f in /home/nvidia/galaxea/sdk/startup_config/share/startup_config/sessions.d/ATCStandard/R1LITEBody.d/*; do echo "--- $f"; head -c 3000 "$f"; echo; done
+--- /home/nvidia/galaxea/sdk/startup_config/share/startup_config/sessions.d/ATCStandard/R1LITEBody.d/ehi_gateway.yaml
+session_name: ehi_gateway
+start_directory: ${START_DIR}/modules/others
+windows:
+- window_name: ehi_gateway
+  layout: even-horizontal
+  panes:
+  - shell_command:
+      - sleep 10
+      - ./start_ehi_gateway.sh
+
+
+--- /home/nvidia/galaxea/sdk/startup_config/share/startup_config/sessions.d/ATCStandard/R1LITEBody.d/hdas.yaml
+session_name: hdas
+start_directory: ${START_DIR}/modules/hdas
+windows:
+- window_name: HDAS
+  layout: even-horizontal
+  panes:
+  - shell_command:
+      - sleep 2
+      - ./start_hdas_r1lite.sh
+
+- window_name: signal_camera|realsense
+  layout: even-horizontal
+  panes:
+  - shell_command:
+      - sleep 3
+      - ./start_signal_camera_head.sh
+  - shell_command:
+      - sleep 5
+      - ./start_realsense_camera.sh
+
+--- /home/nvidia/galaxea/sdk/startup_config/share/startup_config/sessions.d/ATCStandard/R1LITEBody.d/mobiman.yaml
+session_name: mobiman
+start_directory: ${START_DIR}/modules/mobiman
+windows:
+- window_name: moca
+  layout: even-horizontal
+  panes:
+  - shell_command:
+      - sleep 10
+      - ./start_moca.sh 
+  - shell_command:
+      - sleep 10
+      - ./start_r1_lite_relaxed_ik.sh left
+  - shell_command:
+      - sleep 10
+      - ./start_r1_lite_relaxed_ik.sh right
+--- /home/nvidia/galaxea/sdk/startup_config/share/startup_config/sessions.d/ATCStandard/R1LITEBody.d/ros2_discovery.yaml
+session_name: ros_discovery
+start_directory: ${START_DIR}/modules/system
+windows:
+- window_name: ros2_discovery
+  layout: even-horizontal
+  panes:
+  - shell_command:
+      - sleep 1
+      - ./start_discover_server.sh
+--- /home/nvidia/galaxea/sdk/startup_config/share/startup_config/sessions.d/ATCStandard/R1LITEBody.d/system.yaml
+session_name: system
+start_directory: ${START_DIR}/modules/system
+windows:
+- window_name: system_manager|system_monitor
+  layout: even-horizontal
+  panes:
+  - shell_command:
+      - sleep 5
+      - ./start_system_manager.sh
+  - shell_command:
+      - sleep 10
+      - ./start_robot_monitor.sh
+--- /home/nvidia/galaxea/sdk/startup_config/share/startup_config/sessions.d/ATCStandard/R1LITEBody.d/teleop.yaml
+session_name: r1lite_teleop
+start_directory: ${START_DIR}/modules/teleop
+windows:
+- window_name: r1lite_teleop
+  layout: even-horizontal
+  panes:
+  - shell_command:
+      - sleep 5
+      - ./start_r1litet_homogeneous_teleop.sh
+--- /home/nvidia/galaxea/sdk/startup_config/share/startup_config/sessions.d/ATCStandard/R1LITEBody.d/tools.yaml
+session_name: tools
+start_directory: ${START_DIR}/modules/tools
+windows:
+- window_name: data_collection
+  layout: even-horizontal
+  panes:
+  - shell_command:
+      - sleep 10
+      - ./start_data_collection.sh
+
+- window_name: problem_diagnosis
+  layout: even-horizontal
+  panes:
+  - shell_command:
+      - sleep 20
+      - ./start_monitor.sh
+
+- window_name: thread_monitor
+  layout: even-horizontal
+  panes:
+  - shell_command:
+      - sleep 20
+      #- ./start_thread_monitor.sh
+[rc=0]
+
+===== 录制配置（data_collection config.json，敏感字段已打码） [2026-10-22 10:29:17.679 +0800] =====
+
+$ ls -la /home/nvidia/galaxea/sdk/data_collection/lib/data_collection/config/
+total 20
+drwxr-xr-x 5 root root 4096 Sep 22 16:01 .
+drwxr-xr-x 3 root root 4096 Sep 22 16:01 ..
+drwxr-xr-x 2 root root 4096 Sep 22 16:01 default
+drwxr-xr-x 2 root root 4096 Sep 22 16:01 kengo
+drwxr-xr-x 2 root root 4096 Sep 22 16:01 model_test
+[rc=0]
+# /home/nvidia/galaxea/sdk/data_collection/lib/data_collection/config/default/config.json
+{
+ "save_folder": ""
+}
+
+
+===== global_params.yaml 的 datacol 段（敏感字段已打码） [2026-10-22 10:29:17.730 +0800] =====
+# /home/nvidia/galaxea/sdk/startup_config/share/startup_config/config/global_params.yaml
+{
+ "datacol": {
+  "static": {
+   "enable_tos_uploading": true,
+   "enable_delete_function": true,
+   "config_dir": "config/default",
+   "data_save_dir": "~/GalaxeaDataset",
+   "tos_region": "cn-beijing",
+   "tos_bucket": "edp"
+  },
+  "dynamic": {
+   "register_interval": 60,
+   "network_timeout_s": 5,
+   "max_retries": 3,
+   "retry_delay_s": 5,
+   "upload_check_delay_s": 15,
+   "tos_part_size_mb": 5
+  }
+ }
+}
+
+
+===== 头部相机配置 /config/signal_camera.yaml（敏感字段已打码） [2026-10-22 10:29:17.826 +0800] =====
+（不存在：/config/signal_camera.yaml）
+
+===== 各 tmux 窗口最近 25 行（节点日志） [2026-10-22 10:29:17.828 +0800] =====
+
+--- ehi_gateway:0.0 ehi_gateway
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.subscribers: 摄像头订阅接入 WebRTC: left_wrist（无会话时跳过帧复制）                                                                                         
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.subscribers: 订阅成功: left_wrist_camera <- /hdas/camera_wrist_left/color/image_raw/compressed [CompressedImage]                                             
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.subscribers: 摄像头订阅接入 WebRTC: right_wrist（无会话时跳过帧复制）                                                                                        
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.subscribers: 订阅成功: right_wrist_camera <- /hdas/camera_wrist_right/color/image_raw/compressed [CompressedImage]                                           
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.subscribers: 订阅统计: 成功 7, 禁用 0, 失败 0                                                                                                                
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.node: ROS spin 线程已启动                                                                                                                                    
+[WARN] [1792635987.517012278] [ehi_gateway_node]: New publisher discovered on topic '/hdas/camera_wrist_left/color/image_raw/compressed', offering incompatible QoS. No messages will be received from it. Last incompatible
+[WARN] [1792635987.518671139] [ehi_gateway_node]: New publisher discovered on topic '/hdas/camera_wrist_right/color/image_raw/compressed', offering incompatible QoS. No messages will be received from it. Last incompatibl
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.node: 创建服务客户端: start_data_collection -> /start_data_collection                                                                                        
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.subscribers: 创建服务客户端成功: start_data_collection -> /start_data_collection                                                                             
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.node: 创建服务客户端: stop_data_collection -> /stop_data_collection                                                                                          
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.subscribers: 创建服务客户端成功: stop_data_collection -> /stop_data_collection                                                                               
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.node: 创建服务客户端: delete_data_collection -> /delete_data_collection                                                                                      
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.subscribers: 创建服务客户端成功: delete_data_collection -> /delete_data_collection                                                                           
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.node: 创建服务客户端: get_edp_config_data_collection -> /get_edp_config_data_collection                                                                      
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.subscribers: 创建服务客户端成功: get_edp_config_data_collection -> /get_edp_config_data_collection                                                           
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.subscribers: 服务客户端统计: 成功 4, 禁用 0, 失败 0                                                                                                          
+2026-10-22 10:26:27 [INFO] ehi_gateway.ros.subscribers: 注意：服务客户端需要 executor 运行后才能连接到服务端                                                                                           
+2026-10-22 10:26:27 [INFO] ehi_gateway.main: ROS2 初始化完成                                                                                                                                            
+2026-10-22 10:26:27 [INFO] ehi_gateway.main: ROS2 节点已就绪                                                                                                                                            
+2026-10-22 10:26:27 [INFO] ehi_gateway.main: Gateway 已启动，模式=robot，等待连接...                                                                                                                    
+INFO:     Application startup complete.                                                                                                                                                                 
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)                                                                                                                                 
+[WARN] [1792635987.831158903] [ehi_gateway_node]: New publisher discovered on topic '/hdas/camera_wrist_left/color/image_raw/compressed', offering incompatible QoS. No messages will be received from it. Last incompatible
+[WARN] [1792635987.845864395] [ehi_gateway_node]: New publisher discovered on topic '/hdas/camera_wrist_right/color/image_raw/compressed', offering incompatible QoS. No messages will be received from it. Last incompatibl
+
+--- hdas:0.0 HDAS
+[taskset-1] [10:26:17.516 I(RCOMMON)] (CppApp:p55845|t55847): thread name has been sucessfully set to torso_read.                                                                                       
+[taskset-1] [10:26:17.516 I(RCOMMON)] (CppApp:p55845|t55847): thread name has been sucessfully set to left_arm_read.                                                                                    
+[taskset-1] [10:26:17.516 I(RCOMMON)] (CppApp:p55845|t55847): thread name has been sucessfully set to right_arm_read.                                                                                   
+[taskset-1] [10:26:17.516 I(RCOMMON)] (CppApp:p55845|t55847): thread name has been sucessfully set to torso_imu_read.                                                                                   
+[taskset-1] [10:26:17.517 W(RCOMMON)] (CppApp:p55845|t55847): thread name right_arm_temp_read is too long, will be truncated!                                                                           
+[taskset-1] [10:26:17.517 W(RCOMMON)] (CppApp:p55845|t55847): thread name left_gripper_read is too long, will be truncated!                                                                             
+[taskset-1] [10:26:17.517 W(RCOMMON)] (CppApp:p55845|t55847): thread name right_gripper_read is too long, will be truncated!                                                                            
+[taskset-1] [10:26:17.517 W(RCOMMON)] (CppApp:p55845|t55847): thread name left_arm_version_read is too long, will be truncated!                                                                         
+[taskset-1] [10:26:17.517 I(RCOMMON)] (CppApp:p55845|t55847): Setting gripper is_ee2=1 for product=r1lite                                                                                               
+[taskset-1] [10:26:17.518 W(RCOMMON)] (CppApp:p55845|t55847): thread name right_arm_version_read is too long, will be truncated!                                                                        
+[taskset-1] [10:26:17.518 W(RCOMMON)] (CppApp:p55845|t55847): thread name left_arm_temp_read is too long, will be truncated!                                                                            
+[taskset-1] [10:26:17.518 W(RCOMMON)] (CppApp:p55845|t55847): thread name tcu_version_read is too long, will be truncated!                                                                              
+[taskset-1] [10:26:17.536 I(RCOMMON)] (CppApp:p55845|t55847): init dispatcher                                                                                                                           
+[taskset-1] [10:26:17.536 I(RCOMMON)] (CppApp:p55845|t55847): Attempting to connect to CAN port: can0                                                                                                   
+[taskset-1] [10:26:17.546 I(RCOMMON)] (CppApp:p55845|t55847): Setting up interface: can0                                                                                                                
+[taskset-1] [10:26:17.546 I(RCOMMON)] (CppApp:p55845|t55847): Successfully bound to CAN interface                                                                                                       
+[taskset-1] [10:26:17.546 I(RCOMMON)] (CppApp:p55845|t55847): CAN-FD mode enabled                                                                                                                       
+[taskset-1] [10:26:17.546 I(RCOMMON)] (CppApp:p55845|t55847): CAN socket assigned to stream                                                                                                             
+[taskset-1] [10:26:17.546 I(RCOMMON)] (CppApp:p55845|t55847): Starting async read process                                                                                                               
+[taskset-1] [10:26:17.546 I(RCOMMON)] (CppApp:p55845|t55847): CombineFeedbackQueues thread started                                                                                                      
+[taskset-1] [10:26:17.546 I(RCOMMON)] (CppApp:p55845|t55847): startDispatch thread started                                                                                                              
+[taskset-1] [10:26:17.549 I(RCOMMON)] (CppApp:p55845|t55847): thread name has been sucessfully set to dispatch_thread.                                                                                  
+[taskset-1] [10:26:17.549 I(RCOMMON)] (CppApp:p55845|t55847): thread name has been sucessfully set to combine_thread.                                                                                   
+[taskset-1] [10:26:17.549 I(RCOMMON)] (CppApp:p55845|t55847): combine thread started                                                                                                                    
+[taskset-1] [10:26:17.549 I(RCOMMON)] (CppApp:p55845|t55847): Starting io_service                                                                                                                       
+
+--- hdas:1.0 signal_camera|realsense
+[signal_camera_node-1]                                                                             
+[signal_camera_node-1] [10:26:17.613 I(RCOMMON)] (CppApp:p55851|t55851): Device /dev/video0 init ok                                                                                                    
+[signal_camera_node-1]                                                                             
+[signal_camera_node-1] [10:26:17.721 I(RCOMMON)] (CppApp:p55851|t55851): cam0: H264 CBR bitrate = 15000000 bps (15.0 Mbps)                                                                             
+[signal_camera_node-1] NvMMLiteOpen : Block : BlockType = 4                                        
+[signal_camera_node-1] ===== NvVideo: NVENC =====                                                  
+[signal_camera_node-1] NvMMLiteBlockCreate : Block : BlockType = 4                                 
+[signal_camera_node-1] Opening in BLOCKING MODE                                                    
+[signal_camera_node-1] 875967048                                                                   
+[signal_camera_node-1] 842091854                                                                   
+[signal_camera_node-1] H264: Profile = 100 Level = 51                                              
+[signal_camera_node-1] [10:26:17.821 I(RCOMMON)] (CppApp:p55851|t55851): Camera Device /dev/video0 init success!                                                                                       
+[signal_camera_node-1] NVMEDIA: Need to set EMC bandwidth : 2872000                                
+[signal_camera_node-1] NvMMLiteOpen : Block : BlockType = 4                                        
+[signal_camera_node-1] ===== NvVideo: NVENC =====                                                  
+[signal_camera_node-1] NvMMLiteBlockCreate : Block : BlockType = 4                                 
+[signal_camera_node-1] Opening in BLOCKING MODE                                                    
+[signal_camera_node-1] 875967048                                                                   
+[signal_camera_node-1] 842091854                                                                   
+[signal_camera_node-1] H264: Profile = 100 Level = 51                                              
+[signal_camera_node-1] [10:26:17.910 I(RCOMMON)] (CppApp:p55851|t55851): cam0: capture thread started (mode=h264).                                                                                     
+[signal_camera_node-1] [10:26:17.910 I(RCOMMON)] (CppApp:p55851|t55851): cam1: capture thread started (mode=h264).                                                                                     
+[signal_camera_node-1] NVMEDIA: Need to set EMC bandwidth : 2872000                                
+[signal_camera_node-1] NvVideo: bBlitMode is set to TRUE                                           
+[signal_camera_node-1] NvVideo: bBlitMode is set to TRUE                                           
+
+--- hdas:1.1 signal_camera|realsense
+[realsense2_camera_node-2] [INFO] [1792635980.328460569] [hdas.camera_wrist_right]: JSON file is not provided                                                                                           
+[realsense2_camera_node-2] [INFO] [1792635980.328494490] [hdas.camera_wrist_right]: Device Name: Intel RealSense D405                                                                                   
+[realsense2_camera_node-2] [INFO] [1792635980.328518170] [hdas.camera_wrist_right]: Device Serial No: 260422271913                                                                                      
+[realsense2_camera_node-2] [INFO] [1792635980.328540698] [hdas.camera_wrist_right]: Device physical port: /sys/devices/platform/bus@0/3610000.usb/usb2/2-2/2-2.3/2-2.3:1.0/video4linux/video14          
+[realsense2_camera_node-2] [INFO] [1792635980.328562490] [hdas.camera_wrist_right]: Device FW version: 5.13.0.55                                                                                        
+[realsense2_camera_node-2] [INFO] [1792635980.328579450] [hdas.camera_wrist_right]: Device Product ID: 0x0B5B                                                                                           
+[realsense2_camera_node-2] [INFO] [1792635980.328594074] [hdas.camera_wrist_right]: Sync Mode: Off  
+[realsense2_camera_node-1] [WARN] [1792635980.492116958] [hdas.camera_wrist_left]: re-enable the stream for the change to take effect.                                                                  
+[realsense2_camera_node-1] [WARN] [1792635980.492947812] [hdas.camera_wrist_left]: re-enable the stream for the change to take effect.                                                                  
+[realsense2_camera_node-1] [INFO] [1792635980.493677962] [hdas.camera_wrist_left]: Set ROS param depth_module.infra_profile to default: 848x480x30                                                      
+[realsense2_camera_node-1] [WARN] [1792635980.494077261] [hdas.camera_wrist_left]: re-enable the color stream for the change to take effect.                                                            
+[realsense2_camera_node-2] [WARN] [1792635980.509668007] [hdas.camera_wrist_right]: re-enable the stream for the change to take effect.                                                                 
+[realsense2_camera_node-2] [WARN] [1792635980.510385197] [hdas.camera_wrist_right]: re-enable the stream for the change to take effect.                                                                 
+[realsense2_camera_node-2] [INFO] [1792635980.511026962] [hdas.camera_wrist_right]: Set ROS param depth_module.infra_profile to default: 848x480x30                                                     
+[realsense2_camera_node-2] [WARN] [1792635980.511422741] [hdas.camera_wrist_right]: re-enable the color stream for the change to take effect.                                                           
+[realsense2_camera_node-1] [INFO] [1792635980.513819656] [hdas.camera_wrist_left]: Stopping Sensor: Depth Module                                                                                        
+[realsense2_camera_node-2] [INFO] [1792635980.530045991] [hdas.camera_wrist_right]: Stopping Sensor: Depth Module                                                                                       
+[realsense2_camera_node-1] [INFO] [1792635980.769109179] [hdas.camera_wrist_left]: Starting Sensor: Depth Module                                                                                        
+[realsense2_camera_node-1] [INFO] [1792635980.789546012] [hdas.camera_wrist_left]: Open profile: stream_type: Color(0), Format: BGR8, Width: 1280, Height: 720, FPS: 30                                 
+[realsense2_camera_node-2] [INFO] [1792635980.795307785] [hdas.camera_wrist_right]: Starting Sensor: Depth Module                                                                                       
+[realsense2_camera_node-2] [INFO] [1792635980.815252933] [hdas.camera_wrist_right]: Open profile: stream_type: Color(0), Format: BGR8, Width: 1280, Height: 720, FPS: 30                                
+[realsense2_camera_node-1] [INFO] [1792635980.831400004] [hdas.camera_wrist_left]: RealSense Node Is Up!                                                                                                
+[realsense2_camera_node-2] [INFO] [1792635980.848288873] [hdas.camera_wrist_right]: RealSense Node Is Up!                                                                                               
+[realsense2_camera_node-1] [WARN] [1792635987.694173156] [hdas.camera_wrist_left]: New subscription discovered on topic '/hdas/camera_wrist_left/color/image_raw/compressed', requesting incompatible QoS. No messages will 
+[realsense2_camera_node-2] [WARN] [1792635987.694383206] [hdas.camera_wrist_right]: New subscription discovered on topic '/hdas/camera_wrist_right/color/image_raw/compressed', requesting incompatible QoS. No messages wil
+
+--- mobiman:0.0 moca
+[moca_main_node-1] [10:29:13.501 E(MOCA)] (mocaAdapter:p56742|t56742): [JointControllerReflexx] left_arm[1] command -0.000000 clamped to joint limit 0.017453                                                               
+[moca_main_node-1] [10:29:13.642 I(MOCA)] (mocaAdapter:p56742|t56742): [JOINT-DIAG] cycles=32629 ctrl_rate=199.6Hz tgt_changes=6592 tgt_rate=40.3Hz RML_WORKING=14573 RML_FINAL=18056 bbox_reject=0                         
+[moca_main_node-1]                                                
+[moca_main_node-1] [10:29:13.642 I(MOCA)] (mocaAdapter:p56742|t56742): [JOINT-DIAG] | torso T:-0.8253,1.5909,0.9161, C:-0.8253,1.5909,0.9161, err=0.00000 | arm_left T:0.0000,-0.0000,0.0000,0.0000,0.0000,0.0000, C:0.0000,
+[moca_main_node-1]                                                
+[moca_main_node-1] [10:29:14.501 E(MOCA)] (mocaAdapter:p56742|t56742): [JointControllerReflexx] left_arm[1] command -0.000000 clamped to joint limit 0.017453                                                               
+[moca_main_node-1] [10:29:14.646 I(MOCA)] (mocaAdapter:p56742|t56742): [JOINT-DIAG] cycles=32830 ctrl_rate=199.6Hz tgt_changes=6646 tgt_rate=40.4Hz RML_WORKING=14664 RML_FINAL=18166 bbox_reject=0                         
+[moca_main_node-1]                                                
+[moca_main_node-1] [10:29:14.647 I(MOCA)] (mocaAdapter:p56742|t56742): [JOINT-DIAG] | torso T:-0.8253,1.5909,0.9161, C:-0.8253,1.5909,0.9161, err=0.00000 | arm_left T:0.0000,-0.0000,0.0000,0.0000,0.0000,0.0000, C:0.0000,
+[moca_main_node-1]                                                
+[moca_main_node-1] [10:29:15.501 E(MOCA)] (mocaAdapter:p56742|t56742): [JointControllerReflexx] left_arm[1] command -0.000000 clamped to joint limit 0.017453                                                               
+[moca_main_node-1] [10:29:15.646 I(MOCA)] (mocaAdapter:p56742|t56742): [JOINT-DIAG] cycles=33030 ctrl_rate=199.6Hz tgt_changes=6694 tgt_rate=40.4Hz RML_WORKING=14755 RML_FINAL=18275 bbox_reject=0                         
+[moca_main_node-1]                                                
+[moca_main_node-1] [10:29:15.647 I(MOCA)] (mocaAdapter:p56742|t56742): [JOINT-DIAG] | torso T:-0.8253,1.5909,0.9161, C:-0.8253,1.5909,0.9161, err=0.00000 | arm_left T:0.0000,-0.0000,0.0000,0.0000,0.0000,0.0000, C:0.0000,
+[moca_main_node-1]                                                
+[moca_main_node-1] [10:29:16.501 E(MOCA)] (mocaAdapter:p56742|t56742): [JointControllerReflexx] left_arm[1] command -0.000000 clamped to joint limit 0.017453                                                               
+[moca_main_node-1] [10:29:16.651 I(MOCA)] (mocaAdapter:p56742|t56742): [JOINT-DIAG] cycles=33231 ctrl_rate=199.6Hz tgt_changes=6746 tgt_rate=40.5Hz RML_WORKING=14847 RML_FINAL=18384 bbox_reject=0                         
+[moca_main_node-1]                                                
+[moca_main_node-1] [10:29:16.651 I(MOCA)] (mocaAdapter:p56742|t56742): [JOINT-DIAG] | torso T:-0.8253,1.5909,0.9161, C:-0.8253,1.5909,0.9161, err=0.00000 | arm_left T:0.0000,-0.0000,0.0000,0.0000,0.0000,0.0000, C:0.0000,
+[moca_main_node-1]                                                
+[moca_main_node-1] [10:29:17.501 E(MOCA)] (mocaAdapter:p56742|t56742): [JointControllerReflexx] left_arm[1] command -0.000000 clamped to joint limit 0.017453                                                               
+[moca_main_node-1] [10:29:17.651 I(MOCA)] (mocaAdapter:p56742|t56742): [JOINT-DIAG] cycles=33431 ctrl_rate=199.6Hz tgt_changes=6790 tgt_rate=40.5Hz RML_WORKING=14925 RML_FINAL=18506 bbox_reject=0                         
+[moca_main_node-1]                                                
+[moca_main_node-1] [10:29:17.652 I(MOCA)] (mocaAdapter:p56742|t56742): [JOINT-DIAG] | torso T:-0.8253,1.5909,0.9161, C:-0.8253,1.5909,0.9161, err=0.00000 | arm_left T:0.0000,-0.0000,0.0000,0.0000,0.0000,0.0000, C:0.0000,
+[moca_main_node-1]                                                
+
+--- mobiman:0.1 moca
+ sleep 10                                                                                           
+ ./start_r1_lite_relaxed_ik.sh left                                                                 
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/mobiman$  sleep 10                         
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/mobiman$  ./start_r1_lite_relaxed_ik.sh left                                                                                      
+[cmd] export PROJECT_ROOT_DIR=/home/nvidia/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/mobiman/../../../../../../..                                                                                 
+[sudo] password for nvidia: Package 'mobiman' not found: "package 'mobiman' not found, searching: ['/home/nvidia/galaxea/sdk/system_manager', '/home/nvidia/galaxea/sdk/vla_msg', '/home/nvidia/galaxea/sdk/teleoperation_ro
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/mobiman$                                   
+
+--- mobiman:0.2 moca
+ sleep 10                                                         
+ ./start_r1_lite_relaxed_ik.sh right                              
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/mobiman$  sleep 10                         
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/mobiman$  ./start_r1_lite_relaxed_ik.sh right                                                                                     
+[cmd] export PROJECT_ROOT_DIR=/home/nvidia/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/mobiman/../../../../../../..                                                                                 
+[sudo] password for nvidia: Package 'mobiman' not found: "package 'mobiman' not found, searching: ['/home/nvidia/galaxea/sdk/system_manager', '/home/nvidia/galaxea/sdk/vla_msg', '/home/nvidia/galaxea/sdk/teleoperation_ro
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/mobiman$                                   
+
+--- r1lite_teleop:0.0 r1lite_teleop
+[homogeneous_controller_node-1] [10:26:25.390 W(TELE)] (t55821): [IndependentIKSolver] No EE solved this cycle.                                                                                         
+[homogeneous_controller_node-1]                                                                                                                                                                         
+[homogeneous_controller_node-1] [WARN] [1792635985.495889633] [homogeneous_teleoperation]: [HomogeneousTeleoperation] Waiting for torso initialization (need /motion_control/pose_floating_base + /hdas/feedback_torso)...  
+[homogeneous_controller_node-1] [10:26:25.906 W(TELE)] (t55821): [IndependentIKSolver] No EE solved this cycle.                                                                                         
+[homogeneous_controller_node-1]                                                                                                                                                                         
+[homogeneous_controller_node-1] [10:26:26.406 W(TELE)] (t55821): [IndependentIKSolver] No EE solved this cycle.                                                                                         
+[homogeneous_controller_node-1]                                                                                                                                                                         
+[homogeneous_controller_node-1] [10:26:26.906 W(TELE)] (t55821): [IndependentIKSolver] No EE solved this cycle.                                                                                         
+[homogeneous_controller_node-1]                                                                                                                                                                         
+[homogeneous_controller_node-1] [10:26:27.406 W(TELE)] (t55821): [IndependentIKSolver] No EE solved this cycle.                                                                                         
+[homogeneous_controller_node-1]                                                                                                                                                                         
+[homogeneous_controller_node-1] [10:26:27.906 W(TELE)] (t55821): [IndependentIKSolver] No EE solved this cycle.                                                                                         
+[homogeneous_controller_node-1]                                                                                                                                                                         
+[homogeneous_controller_node-1] [10:26:28.406 W(TELE)] (t55821): [IndependentIKSolver] No EE solved this cycle.                                                                                         
+[homogeneous_controller_node-1]                                                                                                                                                                         
+[homogeneous_controller_node-1] [WARN] [1792635988.495895864] [homogeneous_teleoperation]: [HomogeneousTeleoperation] Waiting for torso initialization (need /motion_control/pose_floating_base + /hdas/feedback_torso)...  
+[homogeneous_controller_node-1] [10:26:28.906 W(TELE)] (t55821): [IndependentIKSolver] No EE solved this cycle.                                                                                         
+[homogeneous_controller_node-1]                                                                                                                                                                         
+[homogeneous_controller_node-1] [10:26:29.406 W(TELE)] (t55821): [IndependentIKSolver] No EE solved this cycle.                                                                                         
+[homogeneous_controller_node-1]                                                                                                                                                                         
+[homogeneous_controller_node-1] [10:26:29.906 W(TELE)] (t55821): [IndependentIKSolver] No EE solved this cycle.                                                                                         
+[homogeneous_controller_node-1]                                                                                                                                                                         
+[homogeneous_controller_node-1] [10:26:30.151 I(TELE)] (t55821): [IndependentIKSolver] resetTargetsFromCurrentState: targets set from feedback FK.                                                      
+[homogeneous_controller_node-1]                                                                                                                                                                         
+[homogeneous_controller_node-1] [INFO] [1792635990.156310526] [homogeneous_teleoperation]: [HomogeneousTeleoperation] Torso initialized: pos=(0.077, -0.001, 0.638), joy_active=1                       
+
+--- ros_discovery:0.0 ros2_discovery
+ sleep 1                                                                                                                                                                                                
+ ./start_discover_server.sh                                                                                                                                                                             
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system$  sleep 1                                                                                              
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system$  ./start_discover_server.sh                                                                           
+[cmd] export PROJECT_ROOT_DIR=/home/nvidia/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system/../../../../../../..                                                              
+[sudo] password for nvidia: Discovery Server mode detected (FASTRTPS_DEFAULT_PROFILES_FILE is set).                                                                                                     
+Starting discovery server...                                                                                                                                                                            
+### Server is running ###                                                                                                                                                                               
+  Participant Type:   SERVER                                                                                                                                                                            
+  Security:           NO                                                                                                                                                                                
+  Server ID:          0                                                                                                                                                                                 
+  Server GUID prefix: 44.53.00.5f.45.50.52.4f.53.49.4d.41                                                                                                                                               
+  Server Addresses:   UDPv4:[0.0.0.0]:11811                                                                                                                                                             
+
+--- system:0.0 system_manager|system_monitor
+ sleep 5                                                                                                                                                                                                
+ ./start_system_manager.sh                                                                                                                                                                              
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system$  sleep 5                                                                                             
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system$  ./start_system_manager.sh                                                                           
+[cmd] export PROJECT_ROOT_DIR=/home/nvidia/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system/../../../../../../..                                                             
+[sudo] password for nvidia: SYSMGR_AGNET_IP is not set, use default value 127.0.0.1                
+file 'system_manager.py' was not found in the share directory of package 'system_manager' which is at '/home/nvidia/galaxea/sdk/system_manager/share/system_manager'                                   
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system$  
+
+--- system:0.1 system_manager|system_monitor
+ sleep 10                                                                                           
+ ./start_robot_monitor.sh                                                                           
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system$  sleep 10                                                                                             
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system$  ./start_robot_monitor.sh                                                                             
+[cmd] export PROJECT_ROOT_DIR=/home/nvidia/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system/../../../../../../..                                                              
+[sudo] password for nvidia: python3: can't open file '/home/nvidia/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system/../../../../../../../greenwave_monitor/lib/greenwave_monitor/configure_greenwa
+Package 'greenwave_monitor' not found                                                               
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/system$   
+
+--- tools:0.0 data_collection
+[taskset-1] [10:28:23.327 I(RCOMMON)] (data_collection:p56198|t56198): Starting data uploading thread                                                                                                   
+[taskset-1]                                                                                                                                                                                             
+[taskset-1] [10:28:23.329 I(RCOMMON)] (data_collection:p56198|t56198): Starting data registering thread                                                                                                 
+[taskset-1]                                                                                                                                                                                             
+[taskset-1] [INFO] [1792636103.335511711] [data_collection_node]: === Starting scheduled uploading ===                                                                                                  
+[taskset-1] [10:28:23.335 I(RCOMMON)] (data_collection:p56198|t56198): === Starting scheduled uploading ===                                                                                             
+[taskset-1]                                                                                                                                                                                             
+[taskset-1] [10:28:23.335 I(RCOMMON)] (data_collection:p56198|t56198): Starting uploading_main process                                                                                                  
+[taskset-1]                                                                                                                                                                                             
+[taskset-1] [INFO] [1792636103.340682022] [data_collection_node]: === Starting scheduled registering ===                                                                                                
+[taskset-1] [10:28:23.340 I(RCOMMON)] (data_collection:p56198|t56198): === Starting scheduled registering ===                                                                                           
+[taskset-1]                                                                                                                                                                                             
+[taskset-1] [INFO] [1792636103.343775517] [data_collection_node]: register_on_tos to EDP                                                                                                                
+[taskset-1] [10:28:23.343 I(RCOMMON)] (data_collection:p56198|t56198): Starting register_on_tos to EDP                                                                                                  
+[taskset-1]                                                                                                                                                                                             
+[taskset-1] [ERROR] [1792636103.539807618] [data_collection_node]: 发送未上传文件数量失败: 'latin-1' codec can't encode characters in position 7-14: ordinal not in range(256)                          
+[taskset-1] [10:28:23.540 E(RCOMMON)] (data_collection:p56198|t56198): key = C010100, value = UPLOAD_DATA_FILE_FAILED                                                                                   
+[taskset-1]                                                                                                                                                                                             
+[taskset-1] [ERROR] [1792636103.565881958] [data_collection_node]: 发送未上传文件数量失败: 'latin-1' codec can't encode characters in position 7-14: ordinal not in range(256)                          
+[taskset-1] [10:28:23.566 E(RCOMMON)] (data_collection:p56198|t56198): key = C010100, value = UPLOAD_DATA_FILE_FAILED                                                                                   
+[taskset-1]                                                                                                                                                                                             
+[taskset-1] [10:28:45.651 W(RCOMMON)] (data_collection:p56198|t56198): problem_diagnosis_status: topic:/motion_target/target_position_gripper_left, msg:abnormal frequency, freq: 0, range:19-21        
+[taskset-1]                                                                                                                                                                                             
+[taskset-1] [10:29:12.675 W(RCOMMON)] (data_collection:p56198|t56198): problem_diagnosis_status: topic:/motion_target/target_position_gripper_left, msg:abnormal frequency, freq: 0, range:19-21        
+[taskset-1]                                                                                                                                                                                             
+
+--- tools:1.0 problem_diagnosis
+[rds_ros_monitor_node-1] 机器硬件错误码检测未出现异常(Robot Hardware no error) !!!                                                                                                                      
+[rds_ros_monitor_node-1] ------------------------话题帧率信息(topic_frequency_msg)---------------------------                                                                                           
+[rds_ros_monitor_node-1] 检测中请等待(Please wait while testing).......                                                                                                                                 
+[rds_ros_monitor_node-1] topic_name: /motion_target/target_position_gripper_left 没有输出或频率过低(no msg or low frequency)                                                                            
+[rds_ros_monitor_node-1] topic_name: /motion_target/target_joint_state_arm_right freq: 199.328, range:180-220  频率正常(normal frequency)                                                               
+[rds_ros_monitor_node-1] topic_name: /motion_target/target_joint_state_arm_left freq: 199.334, range:180-220  频率正常(normal frequency)                                                                
+[rds_ros_monitor_node-1] topic_name: /motion_target/target_speed_chassis freq: 199.334, range:180-220  频率正常(normal frequency)                                                                       
+[rds_ros_monitor_node-1] topic_name: /motion_target/target_position_gripper_left freq: 0, range:19-21  频率异常(abnormal frequency)                                                                     
+[rds_ros_monitor_node-1] topic_name: /motion_control/control_gripper_right freq: 498.674, range:432-528  频率正常(normal frequency)                                                                     
+[rds_ros_monitor_node-1] topic_name: /motion_control/control_gripper_left freq: 498.67, range:432-528  频率正常(normal frequency)                                                                       
+[rds_ros_monitor_node-1] topic_name: /hdas/camera_head/left_raw/image_raw_color/compressed freq: 30.0002, range:29-31  频率正常(normal frequency)                                                       
+[rds_ros_monitor_node-1] topic_name: /hdas/camera_wrist_left/color/image_raw/compressed freq: 29.9986, range:29-31  频率正常(normal frequency)                                                          
+[rds_ros_monitor_node-1] topic_name: /motion_target/target_position_gripper_right freq: 19.9321, range:19-21  频率正常(normal frequency)                                                                
+[rds_ros_monitor_node-1] topic_name: /hdas/feedback_arm_left freq: 200.014, range:180-220  频率正常(normal frequency)                                                                                   
+[rds_ros_monitor_node-1] topic_name: /hdas/feedback_arm_right freq: 200.003, range:180-220  频率正常(normal frequency)                                                                                  
+[rds_ros_monitor_node-1] topic_name: /hdas/feedback_torso freq: 200.011, range:180-220  频率正常(normal frequency)                                                                                      
+[rds_ros_monitor_node-1] topic_name: /hdas/camera_head/right_raw/image_raw_color/compressed freq: 29.9997, range:29-31  频率正常(normal frequency)                                                      
+[rds_ros_monitor_node-1] topic_name: /hdas/feedback_gripper_right freq: 199.994, range:180-220  频率正常(normal frequency)                                                                              
+[rds_ros_monitor_node-1] topic_name: /hdas/camera_wrist_right/color/image_raw/compressed freq: 29.9981, range:29-31  频率正常(normal frequency)                                                         
+[rds_ros_monitor_node-1] topic_name: /hdas/feedback_chassis freq: 200.068, range:180-220  频率正常(normal frequency)                                                                                    
+[rds_ros_monitor_node-1] topic_name: /hdas/feedback_gripper_left freq: 200.01, range:180-220  频率正常(normal frequency)                                                                                
+[rds_ros_monitor_node-1] topic_name: /motion_control/control_arm_left freq: 199.993, range:150-250  频率正常(normal frequency)                                                                          
+[rds_ros_monitor_node-1] topic_name: /motion_control/control_arm_right freq: 199.993, range:150-250  频率正常(normal frequency)                                                                         
+[rds_ros_monitor_node-1] ------------------------硬件错误码信息(hardware_error_code_msg)---------------------------                                                                                     
+[rds_ros_monitor_node-1] 检测中请等待(Please wait while testing).......                                                                                                                                 
+
+--- tools:2.0 thread_monitor
+ sleep 20                                                                                                                                                                                               
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/tools$  sleep 20                                                                                              
+nvidia@miivii-tegra:~/galaxea/sdk/startup_config/share/startup_config/script/boot/modules/tools$                                                                                                        
+
+===== 复制节点环境 [2026-10-22 10:29:17.960 +0800] =====
+环境取自 pid=56198
+
+===== ros2 daemon 初始状态 [2026-10-22 10:29:17.999 +0800] =====
+The daemon is not running
+
+===== 尝试发现方式（第一种看到 >2 个话题的胜出） [2026-10-22 10:29:18.825 +0800] =====
+[A 节点原样环境（XML 指向 10.42.0.238）] 话题数=100
+采用：A 节点原样环境（XML 指向 10.42.0.238）
+
+$ printenv | grep -E "^(ROS_|RMW_|FASTRTPS|FASTDDS)" | grep -v "^ROS_LOG_DIR" | sort
+FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml
+ROS_DISTRO=humble
+ROS_LOCALHOST_ONLY=0
+ROS_PYTHON_VERSION=3
+ROS_VERSION=2
+[rc=0]
+
+===== 节点与话题 [2026-10-22 10:29:36.632 +0800] =====
+
+$ ros2 node list --no-daemon --spin-time 8 2>&1
+/HDAS
+/data_collection_node
+/ehi_gateway_node
+/gello_joint_state_publisher
+/hdas/camera_wrist_left
+/hdas/camera_wrist_right
+/homogeneous_teleoperation
+/joycon_left
+/joycon_right
+/moca_adapter
+/rds_ros_monitor
+/robot_state_publisher
+/rqt_gui_cpp_node_55735
+/signal_camera
+/static_transform_publisher_QFtfrngNZ88G3hEw
+/torso_monitor_node
+[rc=0]
+/calib/arm_left/camera_info [sensor_msgs/msg/CameraInfo]
+/calib/arm_right/camera_info [sensor_msgs/msg/CameraInfo]
+/calib/head_left/camera_info [sensor_msgs/msg/CameraInfo]
+/calib/head_right/camera_info [sensor_msgs/msg/CameraInfo]
+/calib/joint_bias [sensor_msgs/msg/JointState]
+/controller [hdas_msg/msg/ControllerSignalStamped]
+/data_collection/status [std_msgs/msg/String]
+/fault_code/data_collection_node [diagnostic_msgs/msg/DiagnosticStatus]
+/fault_code/hdas [diagnostic_msgs/msg/DiagnosticStatus]
+/fault_code/signal_camera_node [diagnostic_msgs/msg/DiagnosticStatus]
+/fault_code/system_global [diagnostic_msgs/msg/DiagnosticStatus]
+/hdas/bms [hdas_msg/msg/Bms]
+/hdas/camera_head/left_raw/image_raw_color/compressed [sensor_msgs/msg/CompressedImage]
+/hdas/camera_head/right_raw/image_raw_color/compressed [sensor_msgs/msg/CompressedImage]
+/hdas/camera_wrist_left/aligned_depth_to_color/camera_info [sensor_msgs/msg/CameraInfo]
+/hdas/camera_wrist_left/aligned_depth_to_color/image_raw [sensor_msgs/msg/Image]
+/hdas/camera_wrist_left/color/camera_info [sensor_msgs/msg/CameraInfo]
+/hdas/camera_wrist_left/color/image_raw [sensor_msgs/msg/Image]
+/hdas/camera_wrist_left/color/image_raw/compressed [sensor_msgs/msg/CompressedImage]
+/hdas/camera_wrist_left/color/image_raw/compressedDepth [sensor_msgs/msg/CompressedImage]
+/hdas/camera_wrist_left/color/metadata [realsense2_camera_msgs/msg/Metadata]
+/hdas/camera_wrist_left/extrinsics/depth_to_color [realsense2_camera_msgs/msg/Extrinsics]
+/hdas/camera_wrist_right/aligned_depth_to_color/camera_info [sensor_msgs/msg/CameraInfo]
+/hdas/camera_wrist_right/aligned_depth_to_color/image_raw [sensor_msgs/msg/Image]
+/hdas/camera_wrist_right/color/camera_info [sensor_msgs/msg/CameraInfo]
+/hdas/camera_wrist_right/color/image_raw [sensor_msgs/msg/Image]
+/hdas/camera_wrist_right/color/image_raw/compressed [sensor_msgs/msg/CompressedImage]
+/hdas/camera_wrist_right/color/image_raw/compressedDepth [sensor_msgs/msg/CompressedImage]
+/hdas/camera_wrist_right/color/metadata [realsense2_camera_msgs/msg/Metadata]
+/hdas/camera_wrist_right/extrinsics/depth_to_color [realsense2_camera_msgs/msg/Extrinsics]
+/hdas/ccu_version [hdas_msg/msg/Version]
+/hdas/feedback_arm_left [sensor_msgs/msg/JointState]
+/hdas/feedback_arm_right [sensor_msgs/msg/JointState]
+/hdas/feedback_chassis [sensor_msgs/msg/JointState]
+/hdas/feedback_gripper_left [sensor_msgs/msg/JointState]
+/hdas/feedback_gripper_right [sensor_msgs/msg/JointState]
+/hdas/feedback_hand_left [sensor_msgs/msg/JointState]
+/hdas/feedback_hand_right [sensor_msgs/msg/JointState]
+/hdas/feedback_left_arm_wrench [geometry_msgs/msg/WrenchStamped]
+/hdas/feedback_right_arm_wrench [geometry_msgs/msg/WrenchStamped]
+/hdas/feedback_status_arm_left [hdas_msg/msg/FeedbackStatus]
+/hdas/feedback_status_arm_right [hdas_msg/msg/FeedbackStatus]
+/hdas/feedback_status_chassis [hdas_msg/msg/FeedbackStatus]
+/hdas/feedback_status_torso [hdas_msg/msg/FeedbackStatus]
+/hdas/feedback_torso [sensor_msgs/msg/JointState]
+/hdas/imu_chassis [sensor_msgs/msg/Imu]
+/hdas/imu_torso [sensor_msgs/msg/Imu]
+/hdas/left_acu_version [hdas_msg/msg/Version]
+/hdas/left_arm_time_feedback [hdas_msg/msg/MotorControl]
+/hdas/right_acu_version [hdas_msg/msg/Version]
+/hdas/right_arm_time_feedback [hdas_msg/msg/MotorControl]
+/hdas/tcu_version [hdas_msg/msg/Version]
+/hdas/vcu_version [hdas_msg/msg/Version]
+/hdas/write_left_arm_can_data [sensor_msgs/msg/JointState]
+/hdas/write_right_arm_can_data [sensor_msgs/msg/JointState]
+/joint_states [sensor_msgs/msg/JointState]
+/joy_left [sensor_msgs/msg/Joy]
+/joy_right [sensor_msgs/msg/Joy]
+/moca_adapter/config [std_msgs/msg/String]
+/moca_adapter/diagnosis [diagnostic_msgs/msg/DiagnosticArray]
+/motion_control/chassis_speed [geometry_msgs/msg/TwistStamped]
+/motion_control/control_arm_left [hdas_msg/msg/MotorControl]
+/motion_control/control_arm_right [hdas_msg/msg/MotorControl]
+/motion_control/control_chassis [hdas_msg/msg/MotorControl]
+/motion_control/control_gripper_left [hdas_msg/msg/MotorControl]
+/motion_control/control_gripper_right [hdas_msg/msg/MotorControl]
+/motion_control/control_torso [hdas_msg/msg/MotorControl]
+/motion_control/pose_ee_arm_left [geometry_msgs/msg/PoseStamped]
+/motion_control/pose_ee_arm_right [geometry_msgs/msg/PoseStamped]
+/motion_control/pose_floating_base [geometry_msgs/msg/PoseStamped]
+/motion_control/position_control_gripper_left [std_msgs/msg/Float32]
+/motion_control/position_control_gripper_right [std_msgs/msg/Float32]
+/motion_target/brake_mode [std_msgs/msg/Bool]
+/motion_target/chassis_acc_limit [geometry_msgs/msg/TwistStamped]
+/motion_target/interped_ee_pose_arm_left [geometry_msgs/msg/PoseStamped]
+/motion_target/interped_ee_pose_arm_right [geometry_msgs/msg/PoseStamped]
+/motion_target/interped_ee_pose_torso [geometry_msgs/msg/PoseStamped]
+/motion_target/target_joint_state_arm_left [sensor_msgs/msg/JointState]
+/motion_target/target_joint_state_arm_right [sensor_msgs/msg/JointState]
+/motion_target/target_joint_state_torso [sensor_msgs/msg/JointState]
+/motion_target/target_pose_arm_left [geometry_msgs/msg/PoseStamped]
+/motion_target/target_pose_arm_right [geometry_msgs/msg/PoseStamped]
+/motion_target/target_pose_torso [geometry_msgs/msg/PoseStamped]
+/motion_target/target_position_gripper_left [sensor_msgs/msg/JointState]
+/motion_target/target_position_gripper_right [sensor_msgs/msg/JointState]
+/motion_target/target_speed_chassis [geometry_msgs/msg/TwistStamped]
+/not_init [hdas_msg/msg/MotorTemp]
+/parameter_events [rcl_interfaces/msg/ParameterEvent]
+/problem_diagnosis_status [std_msgs/msg/String]
+/robot_description [std_msgs/msg/String]
+/rosout [rcl_interfaces/msg/Log]
+/self_collision_check_distacne_arm_left [visualization_msgs/msg/MarkerArray]
+/self_collision_check_distance_arm_right [visualization_msgs/msg/MarkerArray]
+/self_collision_check_distance_torso [visualization_msgs/msg/MarkerArray]
+/tabletop/hdas/feedback_arm_left [sensor_msgs/msg/JointState]
+/tabletop/hdas/feedback_arm_right [sensor_msgs/msg/JointState]
+/teleop_chassis_vel [std_msgs/msg/Float32]
+/tf [tf2_msgs/msg/TFMessage]
+/tf_static [tf2_msgs/msg/TFMessage]
+/vr_ip [std_msgs/msg/String]
+共 100 个话题
+
+===== 节点 /data_collection_node [2026-10-22 10:29:45.555 +0800] =====
+/data_collection_node
+  Subscribers:
+    /problem_diagnosis_status: std_msgs/msg/String
+    /vr_ip: std_msgs/msg/String
+  Publishers:
+    /data_collection/status: std_msgs/msg/String
+    /fault_code/data_collection_node: diagnostic_msgs/msg/DiagnosticStatus
+    /parameter_events: rcl_interfaces/msg/ParameterEvent
+    /rosout: rcl_interfaces/msg/Log
+  Service Servers:
+    /data_collection_node/describe_parameters: rcl_interfaces/srv/DescribeParameters
+    /data_collection_node/get_parameter_types: rcl_interfaces/srv/GetParameterTypes
+    /data_collection_node/get_parameters: rcl_interfaces/srv/GetParameters
+    /data_collection_node/list_parameters: rcl_interfaces/srv/ListParameters
+    /data_collection_node/set_parameters: rcl_interfaces/srv/SetParameters
+    /data_collection_node/set_parameters_atomically: rcl_interfaces/srv/SetParametersAtomically
+    /delete_data_collection: std_srvs/srv/Trigger
+    /get_edp_config_data_collection: std_srvs/srv/Trigger
+    /start_data_collection: std_srvs/srv/Trigger
+    /stop_data_collection: std_srvs/srv/Trigger
+  Service Clients:
+
+  Action Servers:
+
+  Action Clients:
+
+===== 节点 /signal_camera [2026-10-22 10:29:54.444 +0800] =====
+/signal_camera
+  Subscribers:
+    /parameter_events: rcl_interfaces/msg/ParameterEvent
+  Publishers:
+    /fault_code/signal_camera_node: diagnostic_msgs/msg/DiagnosticStatus
+    /hdas/camera_head/left_raw/image_raw_color/compressed: sensor_msgs/msg/CompressedImage
+    /hdas/camera_head/right_raw/image_raw_color/compressed: sensor_msgs/msg/CompressedImage
+    /parameter_events: rcl_interfaces/msg/ParameterEvent
+    /rosout: rcl_interfaces/msg/Log
+  Service Servers:
+    /signal_camera/describe_parameters: rcl_interfaces/srv/DescribeParameters
+    /signal_camera/get_parameter_types: rcl_interfaces/srv/GetParameterTypes
+    /signal_camera/get_parameters: rcl_interfaces/srv/GetParameters
+    /signal_camera/list_parameters: rcl_interfaces/srv/ListParameters
+    /signal_camera/set_parameters: rcl_interfaces/srv/SetParameters
+    /signal_camera/set_parameters_atomically: rcl_interfaces/srv/SetParametersAtomically
+  Service Clients:
+
+  Action Servers:
+
+  Action Clients:
+
+===== 节点 /hdas/camera_wrist_left [2026-10-22 10:30:03.531 +0800] =====
+/hdas/camera_wrist_left
+  Subscribers:
+    /parameter_events: rcl_interfaces/msg/ParameterEvent
+  Publishers:
+    /hdas/camera_wrist_left/aligned_depth_to_color/camera_info: sensor_msgs/msg/CameraInfo
+    /hdas/camera_wrist_left/aligned_depth_to_color/image_raw: sensor_msgs/msg/Image
+    /hdas/camera_wrist_left/color/camera_info: sensor_msgs/msg/CameraInfo
+    /hdas/camera_wrist_left/color/image_raw: sensor_msgs/msg/Image
+    /hdas/camera_wrist_left/color/image_raw/compressed: sensor_msgs/msg/CompressedImage
+    /hdas/camera_wrist_left/color/image_raw/compressedDepth: sensor_msgs/msg/CompressedImage
+    /hdas/camera_wrist_left/color/metadata: realsense2_camera_msgs/msg/Metadata
+    /hdas/camera_wrist_left/extrinsics/depth_to_color: realsense2_camera_msgs/msg/Extrinsics
+    /parameter_events: rcl_interfaces/msg/ParameterEvent
+    /rosout: rcl_interfaces/msg/Log
+    /tf_static: tf2_msgs/msg/TFMessage
+  Service Servers:
+    /hdas/camera_wrist_left/calib_config_read: realsense2_camera_msgs/srv/CalibConfigRead
+    /hdas/camera_wrist_left/calib_config_write: realsense2_camera_msgs/srv/CalibConfigWrite
+    /hdas/camera_wrist_left/describe_parameters: rcl_interfaces/srv/DescribeParameters
+    /hdas/camera_wrist_left/device_info: realsense2_camera_msgs/srv/DeviceInfo
+    /hdas/camera_wrist_left/get_parameter_types: rcl_interfaces/srv/GetParameterTypes
+    /hdas/camera_wrist_left/get_parameters: rcl_interfaces/srv/GetParameters
+    /hdas/camera_wrist_left/hw_reset: std_srvs/srv/Empty
+    /hdas/camera_wrist_left/list_parameters: rcl_interfaces/srv/ListParameters
+    /hdas/camera_wrist_left/set_parameters: rcl_interfaces/srv/SetParameters
+    /hdas/camera_wrist_left/set_parameters_atomically: rcl_interfaces/srv/SetParametersAtomically
+  Service Clients:
+
+  Action Servers:
+    /hdas/camera_wrist_left/triggered_calibration: realsense2_camera_msgs/action/TriggeredCalibration
+  Action Clients:
+
+===== 节点 /hdas/camera_wrist_right [2026-10-22 10:30:12.563 +0800] =====
+/hdas/camera_wrist_right
+  Subscribers:
+    /parameter_events: rcl_interfaces/msg/ParameterEvent
+  Publishers:
+    /hdas/camera_wrist_right/aligned_depth_to_color/camera_info: sensor_msgs/msg/CameraInfo
+    /hdas/camera_wrist_right/aligned_depth_to_color/image_raw: sensor_msgs/msg/Image
+    /hdas/camera_wrist_right/color/camera_info: sensor_msgs/msg/CameraInfo
+    /hdas/camera_wrist_right/color/image_raw: sensor_msgs/msg/Image
+    /hdas/camera_wrist_right/color/image_raw/compressed: sensor_msgs/msg/CompressedImage
+    /hdas/camera_wrist_right/color/image_raw/compressedDepth: sensor_msgs/msg/CompressedImage
+    /hdas/camera_wrist_right/color/metadata: realsense2_camera_msgs/msg/Metadata
+    /hdas/camera_wrist_right/extrinsics/depth_to_color: realsense2_camera_msgs/msg/Extrinsics
+    /parameter_events: rcl_interfaces/msg/ParameterEvent
+    /rosout: rcl_interfaces/msg/Log
+    /tf_static: tf2_msgs/msg/TFMessage
+  Service Servers:
+    /hdas/camera_wrist_right/calib_config_read: realsense2_camera_msgs/srv/CalibConfigRead
+    /hdas/camera_wrist_right/calib_config_write: realsense2_camera_msgs/srv/CalibConfigWrite
+    /hdas/camera_wrist_right/describe_parameters: rcl_interfaces/srv/DescribeParameters
+    /hdas/camera_wrist_right/device_info: realsense2_camera_msgs/srv/DeviceInfo
+    /hdas/camera_wrist_right/get_parameter_types: rcl_interfaces/srv/GetParameterTypes
+    /hdas/camera_wrist_right/get_parameters: rcl_interfaces/srv/GetParameters
+    /hdas/camera_wrist_right/hw_reset: std_srvs/srv/Empty
+    /hdas/camera_wrist_right/list_parameters: rcl_interfaces/srv/ListParameters
+    /hdas/camera_wrist_right/set_parameters: rcl_interfaces/srv/SetParameters
+    /hdas/camera_wrist_right/set_parameters_atomically: rcl_interfaces/srv/SetParametersAtomically
+  Service Clients:
+
+  Action Servers:
+    /hdas/camera_wrist_right/triggered_calibration: realsense2_camera_msgs/action/TriggeredCalibration
+  Action Clients:
+
+===== 节点 /HDAS [2026-10-22 10:30:21.533 +0800] =====
+/HDAS
+  Subscribers:
+    /motion_control/control_arm_left: hdas_msg/msg/MotorControl
+    /motion_control/control_arm_right: hdas_msg/msg/MotorControl
+    /motion_control/control_chassis: hdas_msg/msg/MotorControl
+    /motion_control/control_gripper_left: hdas_msg/msg/MotorControl
+    /motion_control/control_gripper_right: hdas_msg/msg/MotorControl
+    /motion_control/control_torso: hdas_msg/msg/MotorControl
+    /motion_control/position_control_gripper_left: std_msgs/msg/Float32
+    /motion_control/position_control_gripper_right: std_msgs/msg/Float32
+    /parameter_events: rcl_interfaces/msg/ParameterEvent
+  Publishers:
+    /calib/arm_left/camera_info: sensor_msgs/msg/CameraInfo
+    /calib/arm_right/camera_info: sensor_msgs/msg/CameraInfo
+    /calib/head_left/camera_info: sensor_msgs/msg/CameraInfo
+    /calib/head_right/camera_info: sensor_msgs/msg/CameraInfo
+    /calib/joint_bias: sensor_msgs/msg/JointState
+    /controller: hdas_msg/msg/ControllerSignalStamped
+    /fault_code/hdas: diagnostic_msgs/msg/DiagnosticStatus
+    /hdas/bms: hdas_msg/msg/Bms
+    /hdas/ccu_version: hdas_msg/msg/Version
+    /hdas/feedback_arm_left: sensor_msgs/msg/JointState
+    /hdas/feedback_arm_right: sensor_msgs/msg/JointState
+    /hdas/feedback_chassis: sensor_msgs/msg/JointState
+    /hdas/feedback_gripper_left: sensor_msgs/msg/JointState
+    /hdas/feedback_gripper_right: sensor_msgs/msg/JointState
+    /hdas/feedback_hand_left: sensor_msgs/msg/JointState
+    /hdas/feedback_hand_right: sensor_msgs/msg/JointState
+    /hdas/feedback_left_arm_wrench: geometry_msgs/msg/WrenchStamped
+    /hdas/feedback_right_arm_wrench: geometry_msgs/msg/WrenchStamped
+    /hdas/feedback_status_arm_left: hdas_msg/msg/FeedbackStatus
+    /hdas/feedback_status_arm_right: hdas_msg/msg/FeedbackStatus
+    /hdas/feedback_status_chassis: hdas_msg/msg/FeedbackStatus
+    /hdas/feedback_status_torso: hdas_msg/msg/FeedbackStatus
+    /hdas/feedback_torso: sensor_msgs/msg/JointState
+    /hdas/imu_chassis: sensor_msgs/msg/Imu
+    /hdas/imu_torso: sensor_msgs/msg/Imu
+    /hdas/left_acu_version: hdas_msg/msg/Version
+    /hdas/left_arm_time_feedback: hdas_msg/msg/MotorControl
+    /hdas/right_acu_version: hdas_msg/msg/Version
+    /hdas/right_arm_time_feedback: hdas_msg/msg/MotorControl
+    /hdas/tcu_version: hdas_msg/msg/Version
+    /hdas/vcu_version: hdas_msg/msg/Version
+    /hdas/write_left_arm_can_data: sensor_msgs/msg/JointState
+    /hdas/write_right_arm_can_data: sensor_msgs/msg/JointState
+    /not_init: hdas_msg/msg/MotorTemp
+    /parameter_events: rcl_interfaces/msg/ParameterEvent
+    /rosout: rcl_interfaces/msg/Log
+    /tf_static: tf2_msgs/msg/TFMessage
+  Service Servers:
+    /HDAS/describe_parameters: rcl_interfaces/srv/DescribeParameters
+    /HDAS/get_parameter_types: rcl_interfaces/srv/GetParameterTypes
+    /HDAS/get_parameters: rcl_interfaces/srv/GetParameters
+    /HDAS/list_parameters: rcl_interfaces/srv/ListParameters
+    /HDAS/reload_params: std_srvs/srv/Trigger
+    /HDAS/set_parameters: rcl_interfaces/srv/SetParameters
+    /HDAS/set_parameters_atomically: rcl_interfaces/srv/SetParametersAtomically
+    /function_frame_chassis_auto_calibration: hdas_msg/srv/FunctionFrame
+    /function_frame_left_arm: hdas_msg/srv/FunctionFrame
+    /function_frame_right_arm: hdas_msg/srv/FunctionFrame
+    /function_frame_torso: hdas_msg/srv/FunctionFrame
+  Service Clients:
+
+  Action Servers:
+
+  Action Clients:
+
+===== 话题 /calib/arm_left/camera_info [sensor_msgs/msg/CameraInfo] [2026-10-22 10:30:30.525 +0800] =====
+Publisher count: 1
+Node name: _NODE_NAME_UNKNOWN_
+Node namespace: _NODE_NAMESPACE_UNKNOWN_
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 1.000
+	min: 0.999s max: 1.000s std dev: 0.00038s window: 5
+-- bw（最后一次统计）
+399 B/s from 7 messages
+	Message size mean: 360 B min: 360 B max: 360 B
+-- echo --once
+header:
+  stamp:
+    sec: 0
+    nanosec: 0
+  frame_id: ''
+height: 720
+width: 1280
+distortion_model: plumb_bob
+d: '<sequence type: double, length: 5>'
+k: '<array type: double[9]>'
+r: '<array type: double[9]>'
+p: '<array type: double[12]>'
+binning_x: 0
+binning_y: 0
+roi:
+  x_offset: 0
+  y_offset: 0
+  height: 0
+  width: 0
+  do_rectify: false
+---
+
+===== 话题 /calib/arm_right/camera_info [sensor_msgs/msg/CameraInfo] [2026-10-22 10:30:43.295 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 1.000
+	min: 0.999s max: 1.001s std dev: 0.00077s window: 6
+-- bw（最后一次统计）
+361 B/s from 6 messages
+	Message size mean: 360 B min: 360 B max: 360 B
+-- echo --once
+header:
+  stamp:
+    sec: 0
+    nanosec: 0
+  frame_id: ''
+height: 720
+width: 1280
+distortion_model: plumb_bob
+d: '<sequence type: double, length: 5>'
+k: '<array type: double[9]>'
+r: '<array type: double[9]>'
+p: '<array type: double[12]>'
+binning_x: 0
+binning_y: 0
+roi:
+  x_offset: 0
+  y_offset: 0
+  height: 0
+  width: 0
+  do_rectify: false
+---
+
+===== 话题 /calib/head_left/camera_info [sensor_msgs/msg/CameraInfo] [2026-10-22 10:30:55.054 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 1.000
+	min: 1.000s max: 1.001s std dev: 0.00028s window: 7
+-- bw（最后一次统计）
+396 B/s from 7 messages
+	Message size mean: 384 B min: 384 B max: 384 B
+-- echo --once
+header:
+  stamp:
+    sec: 0
+    nanosec: 0
+  frame_id: ''
+height: 1536
+width: 1920
+distortion_model: plumb_bob
+d: '<sequence type: double, length: 8>'
+k: '<array type: double[9]>'
+r: '<array type: double[9]>'
+p: '<array type: double[12]>'
+binning_x: 0
+binning_y: 0
+roi:
+  x_offset: 0
+  y_offset: 0
+  height: 0
+  width: 0
+  do_rectify: false
+---
+
+===== 话题 /calib/head_right/camera_info [sensor_msgs/msg/CameraInfo] [2026-10-22 10:31:06.970 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 1.000
+	min: 1.000s max: 1.001s std dev: 0.00015s window: 7
+-- bw（最后一次统计）
+396 B/s from 7 messages
+	Message size mean: 384 B min: 384 B max: 384 B
+-- echo --once
+header:
+  stamp:
+    sec: 0
+    nanosec: 0
+  frame_id: ''
+height: 1536
+width: 1920
+distortion_model: plumb_bob
+d: '<sequence type: double, length: 8>'
+k: '<array type: double[9]>'
+r: '<array type: double[9]>'
+p: '<array type: double[12]>'
+binning_x: 0
+binning_y: 0
+roi:
+  x_offset: 0
+  y_offset: 0
+  height: 0
+  width: 0
+  do_rectify: false
+---
+
+===== 话题 /calib/joint_bias [sensor_msgs/msg/JointState] [2026-10-22 10:31:18.936 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 1.000
+	min: 0.999s max: 1.001s std dev: 0.00073s window: 7
+-- bw（最后一次统计）
+431 B/s from 7 messages
+	Message size mean: 404 B min: 404 B max: 404 B
+-- echo --once
+header:
+  stamp:
+    sec: 0
+    nanosec: 0
+  frame_id: ''
+name:
+- 'torso_bias1, torso_bias2, torso_bias3, arm_left_bias1, arm_left_bias2, arm_left_bias3, arm_left_bias4, arm_left_bias5, arm_left_bias6, arm_right_bias1, arm_right_bias2, arm_right_bias3, arm_right_bias4, arm_right_bias5, arm_right_bias6 '
+position:
+- 0.0236835167322477
+- 0.03743339392346688
+- 0.04721339462741579
+- 0.0006768842351352532
+- 0.08445975245381387
+- -0.08391119798733193
+- 0.02149170762185182
+- 0.0008681849380838603
+- 2.3504887294131927e-07
+- 0.006002427722497777
+- 0.06494616057937361
+- -0.06802222572757115
+- 0.029108380660227643
+- -0.002162434827932943
+- 9.411364112973071e-07
+velocity: []
+effort: []
+---
+
+===== 话题 /controller [hdas_msg/msg/ControllerSignalStamped] [2026-10-22 10:31:30.906 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+	min: 0.000s max: 0.016s std dev: 0.00194s window: 100
+failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+-- bw（最后一次统计）
+8.08 KB/s from 100 messages
+	Message size mean: 0.04 KB min: 0.04 KB max: 0.04 KB
+-- echo --once
+A message was lost!!!
+	total count change:1
+	total count: 1---
+A message was lost!!!
+	total count change:1
+	total count: 2---
+header:
+  stamp:
+    sec: 1792636302
+    nanosec: 102030387
+  frame_id: ''
+data:
+  left_x_axis: 0.0
+  left_y_axis: 0.0
+  right_x_axis: 0.0
+  right_y_axis: 0.0
+  mode: 0
+---
+
+===== 话题 /fault_code/hdas [diagnostic_msgs/msg/DiagnosticStatus] [2026-10-22 10:31:42.779 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 1.000
+	min: 0.999s max: 1.000s std dev: 0.00031s window: 7
+-- bw（最后一次统计）
+55 B/s from 7 messages
+	Message size mean: 52 B min: 52 B max: 52 B
+-- echo --once
+level: "\0"
+name: HDAS
+message: No faults
+hardware_id: HDAS
+values: '<sequence type: diagnostic_msgs/msg/KeyValue, length: 0>'
+---
+
+===== 话题 /fault_code/signal_camera_node [diagnostic_msgs/msg/DiagnosticStatus] [2026-10-22 10:31:54.775 +0800] =====
+Publisher count: 1
+Node name: signal_camera
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/fault_code/signal_camera_node]
+-- echo --once
+
+===== 话题 /hdas/bms [hdas_msg/msg/Bms] [2026-10-22 10:32:11.085 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 2
+Node name: ehi_gateway_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 1.000
+	min: 1.000s max: 1.001s std dev: 0.00030s window: 6
+-- bw（最后一次统计）
+38 B/s from 7 messages
+	Message size mean: 36 B min: 36 B max: 36 B
+-- echo --once
+header:
+  stamp:
+    sec: 1792636337
+    nanosec: 897455977
+  frame_id: ''
+voltage: 54.310001373291016
+current: 0.0
+capital: 99.80000305175781
+temperature: 25.799999237060547
+---
+
+===== 话题 /hdas/camera_head/left_raw/image_raw_color/compressed [sensor_msgs/msg/CompressedImage] [2026-10-22 10:32:22.999 +0800] =====
+Publisher count: 1
+Node name: signal_camera
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: ehi_gateway_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+	min: 0.020s max: 0.053s std dev: 0.00527s window: 100
+failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+-- bw（最后一次统计）
+1.89 MB/s from 100 messages
+	Message size mean: 0.06 MB min: 0.04 MB max: 0.13 MB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636354
+    nanosec: 537288000
+  frame_id: ''
+format: h264
+data: '<sequence type: uint8, length: 63995>'
+---
+
+===== 话题 /hdas/camera_head/right_raw/image_raw_color/compressed [sensor_msgs/msg/CompressedImage] [2026-10-22 10:32:34.810 +0800] =====
+Publisher count: 1
+Node name: signal_camera
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 1
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 30.068
+	min: 0.023s max: 0.044s std dev: 0.00457s window: 100
+-- bw（最后一次统计）
+1.87 MB/s from 100 messages
+	Message size mean: 0.06 MB min: 0.04 MB max: 0.15 MB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636366
+    nanosec: 725139000
+  frame_id: ''
+format: h264
+data: '<sequence type: uint8, length: 42345>'
+---
+
+===== 话题 /hdas/camera_wrist_left/aligned_depth_to_color/camera_info [sensor_msgs/msg/CameraInfo] [2026-10-22 10:32:46.993 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_left
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/camera_wrist_left/aligned_depth_to_color/camera_info]
+-- echo --once
+
+===== 话题 /hdas/camera_wrist_left/aligned_depth_to_color/image_raw [sensor_msgs/msg/Image] [2026-10-22 10:33:03.299 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_left
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/camera_wrist_left/aligned_depth_to_color/image_raw]
+-- echo --once
+
+===== 话题 /hdas/camera_wrist_left/color/camera_info [sensor_msgs/msg/CameraInfo] [2026-10-22 10:33:19.610 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_left
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 29.903
+	min: 0.022s max: 0.044s std dev: 0.00405s window: 100
+-- bw（最后一次统计）
+11.82 KB/s from 100 messages
+	Message size mean: 0.39 KB min: 0.39 KB max: 0.39 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636411
+    nanosec: 92153320
+  frame_id: camera_wrist_left_color_optical_frame
+height: 720
+width: 1280
+distortion_model: plumb_bob
+d: '<sequence type: double, length: 5>'
+k: '<array type: double[9]>'
+r: '<array type: double[9]>'
+p: '<array type: double[12]>'
+binning_x: 0
+binning_y: 0
+roi:
+  x_offset: 0
+  y_offset: 0
+  height: 0
+  width: 0
+  do_rectify: false
+---
+
+===== 话题 /hdas/camera_wrist_left/color/image_raw [sensor_msgs/msg/Image] [2026-10-22 10:33:31.384 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_left
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 29.668
+	min: 0.023s max: 0.063s std dev: 0.00488s window: 100
+-- bw（最后一次统计）
+82.21 MB/s from 100 messages
+	Message size mean: 2.76 MB min: 2.76 MB max: 2.76 MB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636422
+    nanosec: 959637695
+  frame_id: camera_wrist_left_color_optical_frame
+height: 720
+width: 1280
+encoding: bgr8
+is_bigendian: 0
+step: 3840
+data: '<sequence type: uint8, length: 2764800>'
+---
+
+===== 话题 /hdas/camera_wrist_left/color/image_raw/compressed [sensor_msgs/msg/CompressedImage] [2026-10-22 10:33:43.286 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_left
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 3
+Node name: ehi_gateway_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rqt_gui_cpp_node_55735
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 29.746
+	min: 0.024s max: 0.067s std dev: 0.00456s window: 100
+-- bw（最后一次统计）
+5.10 MB/s from 100 messages
+	Message size mean: 0.17 MB min: 0.17 MB max: 0.17 MB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636434
+    nanosec: 893742188
+  frame_id: camera_wrist_left_color_optical_frame
+format: bgr8; jpeg compressed bgr8
+data: '<sequence type: uint8, length: 170092>'
+---
+
+===== 话题 /hdas/camera_wrist_left/color/metadata [realsense2_camera_msgs/msg/Metadata] [2026-10-22 10:33:55.170 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_left
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 29.994
+	min: 0.026s max: 0.041s std dev: 0.00263s window: 100
+-- bw（最后一次统计）
+8.62 KB/s from 100 messages
+	Message size mean: 0.29 KB min: 0.29 KB max: 0.29 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636446
+    nanosec: 727657715
+  frame_id: camera_wrist_left_color_optical_frame
+json_data: '{"frame_number":13921,"clock_domain":"global_time","frame_timestamp":1792636446727.657715,"hw_timestamp":718872396,"time_of_arri...'
+---
+
+===== 话题 /hdas/camera_wrist_left/extrinsics/depth_to_color [realsense2_camera_msgs/msg/Extrinsics] [2026-10-22 10:34:07.004 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_left
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/camera_wrist_left/extrinsics/depth_to_color]
+-- echo --once
+rotation: '<array type: double[9]>'
+translation: '<array type: double[3]>'
+---
+
+===== 话题 /hdas/camera_wrist_right/aligned_depth_to_color/camera_info [sensor_msgs/msg/CameraInfo] [2026-10-22 10:34:18.632 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_right
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/camera_wrist_right/aligned_depth_to_color/camera_info]
+-- echo --once
+
+===== 话题 /hdas/camera_wrist_right/aligned_depth_to_color/image_raw [sensor_msgs/msg/Image] [2026-10-22 10:34:35.091 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_right
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+WARNING: topic [/hdas/camera_wrist_right/aligned_depth_to_color/image_raw] does not appear to be published yet
+-- bw（最后一次统计）
+Subscribed to [/hdas/camera_wrist_right/aligned_depth_to_color/image_raw]
+-- echo --once
+
+===== 话题 /hdas/camera_wrist_right/color/camera_info [sensor_msgs/msg/CameraInfo] [2026-10-22 10:34:51.355 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_right
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 29.705
+	min: 0.023s max: 0.061s std dev: 0.00409s window: 100
+-- bw（最后一次统计）
+11.72 KB/s from 100 messages
+	Message size mean: 0.39 KB min: 0.39 KB max: 0.39 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636502
+    nanosec: 919133057
+  frame_id: camera_wrist_right_color_optical_frame
+height: 720
+width: 1280
+distortion_model: plumb_bob
+d: '<sequence type: double, length: 5>'
+k: '<array type: double[9]>'
+r: '<array type: double[9]>'
+p: '<array type: double[12]>'
+binning_x: 0
+binning_y: 0
+roi:
+  x_offset: 0
+  y_offset: 0
+  height: 0
+  width: 0
+  do_rectify: false
+---
+
+===== 话题 /hdas/camera_wrist_right/color/image_raw [sensor_msgs/msg/Image] [2026-10-22 10:35:03.213 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_right
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 30.004
+	min: 0.022s max: 0.043s std dev: 0.00320s window: 100
+-- bw（最后一次统计）
+83.68 MB/s from 100 messages
+	Message size mean: 2.76 MB min: 2.76 MB max: 2.76 MB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636515
+    nanosec: 19805664
+  frame_id: camera_wrist_right_color_optical_frame
+height: 720
+width: 1280
+encoding: bgr8
+is_bigendian: 0
+step: 3840
+data: '<sequence type: uint8, length: 2764800>'
+---
+
+===== 话题 /hdas/camera_wrist_right/color/image_raw/compressed [sensor_msgs/msg/CompressedImage] [2026-10-22 10:35:15.352 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_right
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 3
+Node name: ehi_gateway_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rqt_gui_cpp_node_55735
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 29.979
+	min: 0.024s max: 0.047s std dev: 0.00389s window: 100
+-- bw（最后一次统计）
+5.51 MB/s from 100 messages
+	Message size mean: 0.18 MB min: 0.18 MB max: 0.18 MB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636526
+    nanosec: 987115723
+  frame_id: camera_wrist_right_color_optical_frame
+format: bgr8; jpeg compressed bgr8
+data: '<sequence type: uint8, length: 183512>'
+---
+
+===== 话题 /hdas/camera_wrist_right/color/metadata [realsense2_camera_msgs/msg/Metadata] [2026-10-22 10:35:27.283 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_right
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 29.976
+	min: 0.025s max: 0.040s std dev: 0.00215s window: 100
+-- bw（最后一次统计）
+8.69 KB/s from 100 messages
+	Message size mean: 0.29 KB min: 0.29 KB max: 0.29 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636538
+    nanosec: 687672363
+  frame_id: camera_wrist_right_color_optical_frame
+json_data: '{"frame_number":16684,"clock_domain":"global_time","frame_timestamp":1792636538687.672363,"hw_timestamp":811116841,"time_of_arri...'
+---
+
+===== 话题 /hdas/camera_wrist_right/extrinsics/depth_to_color [realsense2_camera_msgs/msg/Extrinsics] [2026-10-22 10:35:38.982 +0800] =====
+Publisher count: 1
+Node name: camera_wrist_right
+Node namespace: /hdas
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/camera_wrist_right/extrinsics/depth_to_color]
+-- echo --once
+rotation: '<array type: double[9]>'
+translation: '<array type: double[3]>'
+---
+
+===== 话题 /hdas/ccu_version [hdas_msg/msg/Version] [2026-10-22 10:35:50.801 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/ccu_version]
+-- echo --once
+
+===== 话题 /hdas/feedback_arm_left [sensor_msgs/msg/JointState] [2026-10-22 10:36:07.160 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 200.009
+	min: 0.001s max: 0.010s std dev: 0.00087s window: 100
+-- bw（最后一次统计）
+41.08 KB/s from 100 messages
+	Message size mean: 0.20 KB min: 0.20 KB max: 0.20 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636578
+    nanosec: 816501038
+  frame_id: ''
+name:
+- left_arm
+position:
+- 0.014680851063829787
+- 0.019148936170212766
+- -0.000425531914893617
+- 0.01425531914893617
+- 0.012340425531914894
+- 0.022127659574468085
+velocity:
+- -0.012
+- 0.004
+- 0.004
+- -0.004
+- 0.012
+- -0.012
+effort:
+- -0.505
+- 1.34
+- -0.8566666666666667
+- -1.1683333333333332
+- 0.25
+- -0.0016666666666666668
+---
+
+===== 话题 /hdas/feedback_arm_right [sensor_msgs/msg/JointState] [2026-10-22 10:36:19.073 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 199.911
+	min: 0.000s max: 0.014s std dev: 0.00155s window: 100
+-- bw（最后一次统计）
+40.98 KB/s from 100 messages
+	Message size mean: 0.20 KB min: 0.20 KB max: 0.20 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636590
+    nanosec: 546704390
+  frame_id: ''
+name:
+- right_arm
+position:
+- 0.01297872340425532
+- 0.00723404255319149
+- -0.0019148936170212765
+- 0.011063829787234043
+- 0.0325531914893617
+- 0.025319148936170214
+velocity:
+- -0.004
+- -0.004
+- 0.004
+- -0.004
+- 0.012
+- -0.012
+effort:
+- 0.285
+- 0.19666666666666666
+- 1.2966666666666666
+- -0.9766666666666667
+- -0.15333333333333332
+- -0.06
+---
+
+===== 话题 /hdas/feedback_chassis [sensor_msgs/msg/JointState] [2026-10-22 10:36:30.801 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 199.789
+	min: 0.003s max: 0.007s std dev: 0.00076s window: 100
+-- bw（最后一次统计）
+36.28 KB/s from 100 messages
+	Message size mean: 0.18 KB min: 0.18 KB max: 0.18 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636602
+    nanosec: 585618138
+  frame_id: ''
+name:
+- chassis
+position:
+- -0.006000000052154064
+- 0.003000000026077032
+- -0.004999999888241291
+velocity:
+- -0.0
+- -0.0
+- -0.0
+- -0.007000000216066837
+- -0.007000000216066837
+- -0.020999999716877937
+effort:
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+---
+
+===== 话题 /hdas/feedback_gripper_left [sensor_msgs/msg/JointState] [2026-10-22 10:36:42.848 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 200.003
+	min: 0.000s max: 0.017s std dev: 0.00180s window: 100
+-- bw（最后一次统计）
+18.47 KB/s from 100 messages
+	Message size mean: 0.09 KB min: 0.09 KB max: 0.09 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636614
+    nanosec: 566563651
+  frame_id: ''
+name:
+- left_gripper
+position:
+- 99.94186401367188
+velocity:
+- 0.012
+effort:
+- -0.02666666666666667
+---
+
+===== 话题 /hdas/feedback_gripper_right [sensor_msgs/msg/JointState] [2026-10-22 10:36:54.833 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 195.573
+	min: 0.000s max: 0.016s std dev: 0.00206s window: 100
+-- bw（最后一次统计）
+18.43 KB/s from 100 messages
+	Message size mean: 0.09 KB min: 0.09 KB max: 0.09 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636626
+    nanosec: 497142375
+  frame_id: ''
+name:
+- right_gripper
+position:
+- 99.64399719238281
+velocity:
+- 0.012
+effort:
+- -0.11333333333333333
+---
+
+===== 话题 /hdas/feedback_hand_left [sensor_msgs/msg/JointState] [2026-10-22 10:37:06.798 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/feedback_hand_left]
+-- echo --once
+
+===== 话题 /hdas/feedback_hand_right [sensor_msgs/msg/JointState] [2026-10-22 10:37:23.272 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/feedback_hand_right]
+-- echo --once
+
+===== 话题 /hdas/feedback_left_arm_wrench [geometry_msgs/msg/WrenchStamped] [2026-10-22 10:37:39.713 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/feedback_left_arm_wrench]
+-- echo --once
+
+===== 话题 /hdas/feedback_right_arm_wrench [geometry_msgs/msg/WrenchStamped] [2026-10-22 10:37:56.237 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+WARNING: topic [/hdas/feedback_right_arm_wrench] does not appear to be published yet
+Subscribed to [/hdas/feedback_right_arm_wrench]
+-- echo --once
+
+===== 话题 /hdas/feedback_status_arm_left [hdas_msg/msg/FeedbackStatus] [2026-10-22 10:38:12.651 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 1
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 1.000
+	min: 1.000s max: 1.000s std dev: 0.00031s window: 7
+-- bw（最后一次统计）
+229 B/s from 7 messages
+	Message size mean: 212 B min: 212 B max: 212 B
+-- echo --once
+header:
+  stamp:
+    sec: 1792636699
+    nanosec: 429449045
+  frame_id: ''
+name_id: LEFT_ARM_ERROR
+errors: '<sequence type: hdas_msg/msg/FeedbackStatusDetail, length: 7>'
+---
+
+===== 话题 /hdas/feedback_status_arm_right [hdas_msg/msg/FeedbackStatus] [2026-10-22 10:38:24.305 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 1
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 1.000
+	min: 1.000s max: 1.001s std dev: 0.00030s window: 5
+-- bw（最后一次统计）
+245 B/s from 7 messages
+	Message size mean: 212 B min: 212 B max: 212 B
+-- echo --once
+header:
+  stamp:
+    sec: 1792636675
+    nanosec: 414527168
+  frame_id: ''
+name_id: RIGHT_ARM_ERROR
+errors: '<sequence type: hdas_msg/msg/FeedbackStatusDetail, length: 7>'
+---
+
+===== 话题 /hdas/feedback_status_chassis [hdas_msg/msg/FeedbackStatus] [2026-10-22 10:38:36.321 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 0.999
+	min: 0.999s max: 1.007s std dev: 0.00251s window: 6
+-- bw（最后一次统计）
+144 B/s from 7 messages
+	Message size mean: 136 B min: 136 B max: 136 B
+-- echo --once
+header:
+  stamp:
+    sec: 1792636722
+    nanosec: 898945998
+  frame_id: ''
+name_id: VCU_ERROR
+errors: '<sequence type: hdas_msg/msg/FeedbackStatusDetail, length: 6>'
+---
+
+===== 话题 /hdas/feedback_status_torso [hdas_msg/msg/FeedbackStatus] [2026-10-22 10:38:48.136 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 1
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 1.000
+	min: 1.000s max: 1.001s std dev: 0.00050s window: 6
+-- bw（最后一次统计）
+116 B/s from 7 messages
+	Message size mean: 104 B min: 104 B max: 104 B
+-- echo --once
+header:
+  stamp:
+    sec: 1792636640
+    nanosec: 412462106
+  frame_id: ''
+name_id: TORSO_ERROR
+errors: '<sequence type: hdas_msg/msg/FeedbackStatusDetail, length: 4>'
+---
+
+===== 话题 /hdas/feedback_torso [sensor_msgs/msg/JointState] [2026-10-22 10:39:00.516 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 4
+Node name: homogeneous_teleoperation
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: torso_monitor_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 199.767
+	min: 0.000s max: 0.011s std dev: 0.00140s window: 100
+-- bw（最后一次统计）
+26.58 KB/s from 100 messages
+	Message size mean: 0.13 KB min: 0.13 KB max: 0.13 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636752
+    nanosec: 152386421
+  frame_id: ''
+name:
+- torso
+position:
+- -0.8252999782562256
+- 1.59089994430542
+- 0.916100025177002
+velocity:
+- -0.0023333332501351833
+- -0.0023333332501351833
+- -0.0023333332501351833
+effort:
+- 2.0383334159851074
+- 3.9666666984558105
+- 0.5
+---
+
+===== 话题 /hdas/imu_chassis [sensor_msgs/msg/Imu] [2026-10-22 10:39:12.413 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 200.338
+	min: 0.000s max: 0.010s std dev: 0.00143s window: 100
+-- bw（最后一次统计）
+64.64 KB/s from 100 messages
+	Message size mean: 0.32 KB min: 0.32 KB max: 0.32 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636764
+    nanosec: 916671808
+  frame_id: chassis_imu
+orientation:
+  x: 0.4247633828208786
+  y: 0.12105165489947274
+  z: -0.03574631850817089
+  w: 0.8964623618277429
+orientation_covariance: '<array type: double[9]>'
+angular_velocity:
+  x: 0.0
+  y: 0.12
+  z: -0.01
+angular_velocity_covariance: '<array type: double[9]>'
+linear_acceleration:
+  x: 0.0048
+  y: -0.0148
+  z: -0.9998
+linear_acceleration_covariance: '<array type: double[9]>'
+---
+
+===== 话题 /hdas/imu_torso [sensor_msgs/msg/Imu] [2026-10-22 10:39:25.176 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 99.983
+	min: 0.004s max: 0.015s std dev: 0.00155s window: 100
+-- bw（最后一次统计）
+32.55 KB/s from 100 messages
+	Message size mean: 0.32 KB min: 0.32 KB max: 0.32 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636777
+    nanosec: 16879209
+  frame_id: torso_imu
+orientation:
+  x: 0.7453841017912833
+  y: 0.035367810035872714
+  z: -0.6225840341181735
+  w: -0.23567091307840557
+orientation_covariance: '<array type: double[9]>'
+angular_velocity:
+  x: -0.1
+  y: 0.43
+  z: -0.09
+angular_velocity_covariance: '<array type: double[9]>'
+linear_acceleration:
+  x: 0.1332
+  y: 0.0392
+  z: 0.9938
+linear_acceleration_covariance: '<array type: double[9]>'
+---
+
+===== 话题 /hdas/left_acu_version [hdas_msg/msg/Version] [2026-10-22 10:39:37.284 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 2.000
+	min: 0.497s max: 0.503s std dev: 0.00170s window: 14
+-- bw（最后一次统计）
+105 B/s from 13 messages
+	Message size mean: 52 B min: 52 B max: 52 B
+-- echo --once
+header:
+  stamp:
+    sec: 1792636786
+    nanosec: 431576586
+  frame_id: ''
+hardware_version: v0.0.0
+software_version: v2.1.1
+control_mode: MIT
+---
+
+===== 话题 /hdas/left_arm_time_feedback [hdas_msg/msg/MotorControl] [2026-10-22 10:39:49.190 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/left_arm_time_feedback]
+-- echo --once
+
+===== 话题 /hdas/right_acu_version [hdas_msg/msg/Version] [2026-10-22 10:40:05.455 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 2.000
+	min: 0.499s max: 0.501s std dev: 0.00043s window: 12
+-- bw（最后一次统计）
+106 B/s from 13 messages
+	Message size mean: 52 B min: 52 B max: 52 B
+-- echo --once
+header:
+  stamp:
+    sec: 1792636814
+    nanosec: 914748260
+  frame_id: ''
+hardware_version: v0.0.0
+software_version: v2.1.1
+control_mode: MIT
+---
+
+===== 话题 /hdas/right_arm_time_feedback [hdas_msg/msg/MotorControl] [2026-10-22 10:40:17.220 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/right_arm_time_feedback]
+-- echo --once
+
+===== 话题 /hdas/tcu_version [hdas_msg/msg/Version] [2026-10-22 10:40:33.559 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 1.000
+	min: 1.000s max: 1.000s std dev: 0.00020s window: 6
+-- bw（最后一次统计）
+58 B/s from 7 messages
+	Message size mean: 52 B min: 52 B max: 52 B
+-- echo --once
+header:
+  stamp:
+    sec: 1792636840
+    nanosec: 414638438
+  frame_id: ''
+hardware_version: v0.0.0
+software_version: v1.1.12
+control_mode: ''
+---
+
+===== 话题 /hdas/vcu_version [hdas_msg/msg/Version] [2026-10-22 10:40:45.459 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+	min: 0.998s max: 1.001s std dev: 0.00082s window: 6
+failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+-- bw（最后一次统计）
+52 B/s from 5 messages
+	Message size mean: 52 B min: 52 B max: 52 B
+-- echo --once
+header:
+  stamp:
+    sec: 1792636852
+    nanosec: 898040208
+  frame_id: ''
+hardware_version: v0.0.0
+software_version: v1.1.16
+control_mode: ''
+---
+
+===== 话题 /hdas/write_left_arm_can_data [sensor_msgs/msg/JointState] [2026-10-22 10:40:57.345 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/write_left_arm_can_data]
+-- echo --once
+
+===== 话题 /hdas/write_right_arm_can_data [sensor_msgs/msg/JointState] [2026-10-22 10:41:13.748 +0800] =====
+Publisher count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/hdas/write_right_arm_can_data]
+-- echo --once
+
+===== 话题 /joint_states [sensor_msgs/msg/JointState] [2026-10-22 10:41:30.050 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 1
+Node name: robot_state_publisher
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 10.000
+	min: 0.099s max: 0.101s std dev: 0.00026s window: 64
+-- bw（最后一次统计）
+12.58 KB/s from 69 messages
+	Message size mean: 1.24 KB min: 1.24 KB max: 1.24 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636901
+    nanosec: 852569349
+  frame_id: ''
+name:
+- steer_motor_joint1
+- wheel_motor_joint1
+- steer_motor_joint2
+- wheel_motor_joint2
+- steer_motor_joint3
+- wheel_motor_joint3
+- torso_joint1
+- torso_joint2
+- torso_joint3
+- left_arm_joint1
+- left_arm_joint2
+- left_arm_joint3
+- left_arm_joint4
+- left_arm_joint5
+- left_arm_joint6
+- left_gripper_finger_joint1
+- left_gripper_finger_joint2
+- right_arm_joint1
+- right_arm_joint2
+- right_arm_joint3
+- right_arm_joint4
+- right_arm_joint5
+- right_arm_joint6
+- right_gripper_finger_joint1
+- right_gripper_finger_joint2
+position:
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- -0.8252999782562256
+- 1.59089994430542
+- 0.916100025177002
+- 0.0
+- 0.01745329238474369
+- 0.0
+- 0.0
+- 6.776263578034403e-20
+- 0.0
+- 0.09821428571428573
+- -0.09821428571428573
+- 0.0
+- -0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.09821428571428573
+- -0.09821428571428573
+velocity:
+- 0.0
+- 0.0
+
+===== 话题 /motion_control/chassis_speed [geometry_msgs/msg/TwistStamped] [2026-10-22 10:41:42.143 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 202.851
+	min: 0.000s max: 0.010s std dev: 0.00154s window: 100
+-- bw（最后一次统计）
+13.71 KB/s from 100 messages
+	Message size mean: 0.07 KB min: 0.07 KB max: 0.07 KB
+-- echo --once
+A message was lost!!!
+	total count change:1
+	total count: 1---
+A message was lost!!!
+	total count change:1
+	total count: 2---
+A message was lost!!!
+	total count change:1
+	total count: 3---
+A message was lost!!!
+	total count change:1
+	total count: 4---
+header:
+  stamp:
+    sec: 1792636914
+    nanosec: 51075494
+  frame_id: ''
+twist:
+  linear:
+    x: 0.0003333291825078193
+    y: -1.6666597641405528e-06
+    z: 0.0
+  angular:
+    x: 0.0
+    y: 0.0
+    z: 5.696034737322462e-06
+---
+
+===== 话题 /motion_control/control_arm_left [hdas_msg/msg/MotorControl] [2026-10-22 10:41:54.332 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 3
+Node name: HDAS
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: torso_monitor_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 199.586
+	min: 0.000s max: 0.009s std dev: 0.00082s window: 100
+-- bw（最后一次统计）
+34.22 KB/s from 100 messages
+	Message size mean: 0.17 KB min: 0.17 KB max: 0.17 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636925
+    nanosec: 857568979
+  frame_id: ''
+name: ''
+p_des: '<sequence type: float, length: 6>'
+v_des: '<sequence type: float, length: 6>'
+kp: '<sequence type: float, length: 6>'
+kd: '<sequence type: float, length: 6>'
+t_ff: '<sequence type: float, length: 6>'
+mode: 0
+---
+
+===== 话题 /motion_control/control_arm_right [hdas_msg/msg/MotorControl] [2026-10-22 10:42:06.119 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: HDAS
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+	min: 0.000s max: 0.010s std dev: 0.00171s window: 100
+failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+-- bw（最后一次统计）
+	Message size mean: 0.17 KB min: 0.17 KB max: 0.17 KB
+failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+-- echo --once
+header:
+  stamp:
+    sec: 1792636937
+    nanosec: 726452112
+  frame_id: ''
+name: ''
+p_des: '<sequence type: float, length: 6>'
+v_des: '<sequence type: float, length: 6>'
+kp: '<sequence type: float, length: 6>'
+kd: '<sequence type: float, length: 6>'
+t_ff: '<sequence type: float, length: 6>'
+mode: 0
+---
+
+===== 话题 /motion_control/control_chassis [hdas_msg/msg/MotorControl] [2026-10-22 10:42:17.971 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 50.000
+	min: 0.016s max: 0.024s std dev: 0.00114s window: 100
+-- bw（最后一次统计）
+4.40 KB/s from 100 messages
+	Message size mean: 0.09 KB min: 0.09 KB max: 0.09 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636949
+    nanosec: 525945545
+  frame_id: ''
+name: ''
+p_des: '<sequence type: float, length: 3>'
+v_des: '<sequence type: float, length: 6>'
+kp: '<sequence type: float, length: 0>'
+kd: '<sequence type: float, length: 0>'
+t_ff: '<sequence type: float, length: 0>'
+mode: 0
+---
+
+===== 话题 /motion_control/control_gripper_left [hdas_msg/msg/MotorControl] [2026-10-22 10:42:29.771 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: HDAS
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+	min: 0.001s max: 0.003s std dev: 0.00026s window: 100
+failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+-- bw（最后一次统计）
+	Message size mean: 0.07 KB min: 0.07 KB max: 0.07 KB
+failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+-- echo --once
+header:
+  stamp:
+    sec: 1792636961
+    nanosec: 519725199
+  frame_id: ''
+name: ''
+p_des: '<sequence type: float, length: 1>'
+v_des: '<sequence type: float, length: 1>'
+kp: '<sequence type: float, length: 1>'
+kd: '<sequence type: float, length: 1>'
+t_ff: '<sequence type: float, length: 1>'
+mode: 0
+---
+
+===== 话题 /motion_control/control_gripper_right [hdas_msg/msg/MotorControl] [2026-10-22 10:42:41.783 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: HDAS
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 491.626
+	min: 0.000s max: 0.010s std dev: 0.00134s window: 100
+-- bw（最后一次统计）
+35.66 KB/s from 100 messages
+	Message size mean: 0.07 KB min: 0.07 KB max: 0.07 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636973
+    nanosec: 361788904
+  frame_id: ''
+name: ''
+p_des: '<sequence type: float, length: 1>'
+v_des: '<sequence type: float, length: 1>'
+kp: '<sequence type: float, length: 1>'
+kd: '<sequence type: float, length: 1>'
+t_ff: '<sequence type: float, length: 1>'
+mode: 0
+---
+
+===== 话题 /motion_control/control_torso [hdas_msg/msg/MotorControl] [2026-10-22 10:42:53.613 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 199.956
+	min: 0.001s max: 0.010s std dev: 0.00102s window: 100
+-- bw（最后一次统计）
+22.43 KB/s from 100 messages
+	Message size mean: 0.11 KB min: 0.11 KB max: 0.11 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636985
+    nanosec: 221473932
+  frame_id: ''
+name: ''
+p_des: '<sequence type: float, length: 3>'
+v_des: '<sequence type: float, length: 3>'
+kp: '<sequence type: float, length: 3>'
+kd: '<sequence type: float, length: 3>'
+t_ff: '<sequence type: float, length: 3>'
+mode: 60
+---
+
+===== 话题 /motion_control/pose_ee_arm_left [geometry_msgs/msg/PoseStamped] [2026-10-22 10:43:05.483 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 199.978
+	min: 0.002s max: 0.008s std dev: 0.00081s window: 100
+-- bw（最后一次统计）
+16.95 KB/s from 100 messages
+	Message size mean: 0.08 KB min: 0.08 KB max: 0.08 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792636997
+    nanosec: 356199502
+  frame_id: base_link
+pose:
+  position:
+    x: 0.21366052580114897
+    y: 0.339399817391997
+    z: 0.9670297736400602
+  orientation:
+    x: 0.01000877754140003
+    y: -0.05856740317130363
+    z: 0.014117542573279362
+    w: 0.9981334473153318
+---
+
+===== 话题 /motion_control/pose_ee_arm_right [geometry_msgs/msg/PoseStamped] [2026-10-22 10:43:17.643 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 199.754
+	min: 0.002s max: 0.007s std dev: 0.00063s window: 100
+-- bw（最后一次统计）
+16.93 KB/s from 100 messages
+	Message size mean: 0.08 KB min: 0.08 KB max: 0.08 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792637009
+    nanosec: 361205339
+  frame_id: base_link
+pose:
+  position:
+    x: 0.21239168789001422
+    y: -0.32873757250974767
+    z: 0.9700452856736547
+  orientation:
+    x: 0.010996268566542755
+    y: -0.06669640949519468
+    z: 0.023551048343459936
+    w: 0.9974347192473229
+---
+
+===== 话题 /motion_control/pose_floating_base [geometry_msgs/msg/PoseStamped] [2026-10-22 10:43:29.632 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 1
+Node name: homogeneous_teleoperation
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 199.445
+	min: 0.002s max: 0.008s std dev: 0.00070s window: 100
+-- bw（最后一次统计）
+	Message size mean: 0.08 KB min: 0.08 KB max: 0.08 KB
+failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+-- echo --once
+header:
+  stamp:
+    sec: 1792637021
+    nanosec: 326194286
+  frame_id: base_link
+pose:
+  position:
+    x: 0.0772074320511052
+    y: 0.00036033
+    z: 0.6384061604859467
+  orientation:
+    x: 0.0
+    y: -0.07517903161335977
+    z: 0.0
+    w: 0.9971700523008488
+---
+
+===== 话题 /motion_control/position_control_gripper_left [std_msgs/msg/Float32] [2026-10-22 10:43:41.599 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+WARNING: topic [/motion_control/position_control_gripper_left] does not appear to be published yet
+Subscribed to [/motion_control/position_control_gripper_left]
+-- echo --once
+
+===== 话题 /motion_control/position_control_gripper_right [std_msgs/msg/Float32] [2026-10-22 10:43:57.936 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: HDAS
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+WARNING: topic [/motion_control/position_control_gripper_right] does not appear to be published yet
+-- bw（最后一次统计）
+WARNING: topic [/motion_control/position_control_gripper_right] does not appear to be published yet
+Subscribed to [/motion_control/position_control_gripper_right]
+-- echo --once
+
+===== 话题 /motion_target/brake_mode [std_msgs/msg/Bool] [2026-10-22 10:44:14.282 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+WARNING: topic [/motion_target/brake_mode] does not appear to be published yet
+Subscribed to [/motion_target/brake_mode]
+-- echo --once
+
+===== 话题 /motion_target/chassis_acc_limit [geometry_msgs/msg/TwistStamped] [2026-10-22 10:44:30.757 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+WARNING: topic [/motion_target/chassis_acc_limit] does not appear to be published yet
+-- bw（最后一次统计）
+WARNING: topic [/motion_target/chassis_acc_limit] does not appear to be published yet
+Subscribed to [/motion_target/chassis_acc_limit]
+-- echo --once
+
+===== 话题 /motion_target/interped_ee_pose_arm_left [geometry_msgs/msg/PoseStamped] [2026-10-22 10:44:47.389 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/motion_target/interped_ee_pose_arm_left]
+-- echo --once
+
+===== 话题 /motion_target/interped_ee_pose_arm_right [geometry_msgs/msg/PoseStamped] [2026-10-22 10:45:03.835 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/motion_target/interped_ee_pose_arm_right]
+-- echo --once
+
+===== 话题 /motion_target/interped_ee_pose_torso [geometry_msgs/msg/PoseStamped] [2026-10-22 10:45:20.231 +0800] =====
+Publisher count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+WARNING: topic [/motion_target/interped_ee_pose_torso] does not appear to be published yet
+Subscribed to [/motion_target/interped_ee_pose_torso]
+-- echo --once
+
+===== 话题 /motion_target/target_joint_state_arm_left [sensor_msgs/msg/JointState] [2026-10-22 10:45:36.762 +0800] =====
+Publisher count: 2
+Node name: homogeneous_teleoperation
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+	min: 0.000s max: 0.012s std dev: 0.00115s window: 100
+failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+-- bw（最后一次统计）
+16.92 KB/s from 100 messages
+	Message size mean: 0.08 KB min: 0.08 KB max: 0.08 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792637148
+    nanosec: 285613593
+  frame_id: ''
+name: []
+position:
+- 0.0
+- -0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+velocity: []
+effort: []
+---
+
+===== 话题 /motion_target/target_joint_state_arm_right [sensor_msgs/msg/JointState] [2026-10-22 10:45:48.547 +0800] =====
+Publisher count: 2
+Node name: homogeneous_teleoperation
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 3
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: torso_monitor_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 199.595
+	min: 0.002s max: 0.007s std dev: 0.00086s window: 100
+-- bw（最后一次统计）
+16.71 KB/s from 100 messages
+	Message size mean: 0.08 KB min: 0.08 KB max: 0.08 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792637160
+    nanosec: 95703947
+  frame_id: ''
+name: []
+position:
+- 0.0
+- -0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+velocity: []
+effort: []
+---
+
+===== 话题 /motion_target/target_joint_state_torso [sensor_msgs/msg/JointState] [2026-10-22 10:46:00.383 +0800] =====
+Publisher count: 2
+Node name: homogeneous_teleoperation
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+	min: 0.003s max: 0.009s std dev: 0.00105s window: 100
+failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+-- bw（最后一次统计）
+16.87 KB/s from 100 messages
+	Message size mean: 0.09 KB min: 0.09 KB max: 0.09 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792637171
+    nanosec: 893005664
+  frame_id: ''
+name: []
+position:
+- -0.8252999782562254
+- 1.5908999443054204
+- 0.9161000251769956
+velocity:
+- 1.0
+- 1.0
+- 1.0
+effort: []
+---
+
+===== 话题 /motion_target/target_pose_arm_left [geometry_msgs/msg/PoseStamped] [2026-10-22 10:46:12.175 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+WARNING: topic [/motion_target/target_pose_arm_left] does not appear to be published yet
+-- bw（最后一次统计）
+WARNING: topic [/motion_target/target_pose_arm_left] does not appear to be published yet
+Subscribed to [/motion_target/target_pose_arm_left]
+-- echo --once
+
+===== 话题 /motion_target/target_pose_arm_right [geometry_msgs/msg/PoseStamped] [2026-10-22 10:46:28.629 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+-- bw（最后一次统计）
+Subscribed to [/motion_target/target_pose_arm_right]
+-- echo --once
+
+===== 话题 /motion_target/target_pose_torso [geometry_msgs/msg/PoseStamped] [2026-10-22 10:46:45.035 +0800] =====
+Publisher count: 1
+Node name: homogeneous_teleoperation
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 1
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+	min: 0.003s max: 0.007s std dev: 0.00070s window: 100
+failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+-- bw（最后一次统计）
+	Message size mean: 0.08 KB min: 0.08 KB max: 0.08 KB
+failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+-- echo --once
+header:
+  stamp:
+    sec: 1792637216
+    nanosec: 745799486
+  frame_id: base_link
+pose:
+  position:
+    x: 0.07727699452594719
+    y: -0.00148967
+    z: 0.6383392993064859
+  orientation:
+    x: 0.0
+    y: -0.07517903161335607
+    z: 0.0
+    w: 0.9971700523008491
+---
+
+===== 话题 /motion_target/target_position_gripper_left [sensor_msgs/msg/JointState] [2026-10-22 10:46:56.997 +0800] =====
+Publisher count: 1
+Node name: homogeneous_teleoperation
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+WARNING: topic [/motion_target/target_position_gripper_left] does not appear to be published yet
+-- bw（最后一次统计）
+Subscribed to [/motion_target/target_position_gripper_left]
+-- echo --once
+
+===== 话题 /motion_target/target_position_gripper_right [sensor_msgs/msg/JointState] [2026-10-22 10:47:13.338 +0800] =====
+Publisher count: 1
+Node name: homogeneous_teleoperation
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 19.939
+	min: 0.046s max: 0.056s std dev: 0.00118s window: 100
+-- bw（最后一次统计）
+885 B/s from 100 messages
+	Message size mean: 44 B min: 44 B max: 44 B
+-- echo --once
+header:
+  stamp:
+    sec: 1792637245
+    nanosec: 468376192
+  frame_id: ''
+name: []
+position:
+- 100.0
+velocity: []
+effort: []
+---
+
+===== 话题 /motion_target/target_speed_chassis [geometry_msgs/msg/TwistStamped] [2026-10-22 10:47:25.737 +0800] =====
+Publisher count: 1
+Node name: homogeneous_teleoperation
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Subscription count: 2
+Node name: moca_adapter
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rds_ros_monitor
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 199.946
+	min: 0.000s max: 0.011s std dev: 0.00156s window: 100
+-- bw（最后一次统计）
+15.20 KB/s from 100 messages
+	Message size mean: 0.08 KB min: 0.08 KB max: 0.08 KB
+-- echo --once
+header:
+  stamp:
+    sec: 1792637257
+    nanosec: 203500886
+  frame_id: base_link
+twist:
+  linear:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  angular:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+---
+
+===== 话题 /tabletop/hdas/feedback_arm_left [sensor_msgs/msg/JointState] [2026-10-22 10:47:37.527 +0800] =====
+Publisher count: 1
+Node name: gello_joint_state_publisher
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 1
+Node name: homogeneous_teleoperation
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 187.022
+	min: 0.000s max: 0.040s std dev: 0.00381s window: 100
+-- bw（最后一次统计）
+	Message size mean: 0.31 KB min: 0.31 KB max: 0.31 KB
+failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+-- echo --once
+A message was lost!!!
+	total count change:1
+	total count: 1---
+A message was lost!!!
+	total count change:1
+	total count: 2---
+header:
+  stamp:
+    sec: 1780410618
+    nanosec: 894054173
+  frame_id: ''
+name:
+- left_arm_joint1
+- left_arm_joint2
+- left_arm_joint3
+- left_arm_joint4
+- left_arm_joint5
+- left_arm_joint6
+position:
+- 0.0
+- -0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+velocity:
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+effort:
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+---
+
+===== 话题 /tabletop/hdas/feedback_arm_right [sensor_msgs/msg/JointState] [2026-10-22 10:47:49.619 +0800] =====
+Publisher count: 1
+Node name: gello_joint_state_publisher
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+Subscription count: 1
+Node name: homogeneous_teleoperation
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+-- hz（最后一次统计）
+	min: 0.001s max: 0.076s std dev: 0.01082s window: 100
+failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+-- bw（最后一次统计）
+40.70 KB/s from 100 messages
+	Message size mean: 0.33 KB min: 0.33 KB max: 0.33 KB
+-- echo --once
+A message was lost!!!
+	total count change:1
+	total count: 1---
+A message was lost!!!
+	total count change:1
+	total count: 2---
+header:
+  stamp:
+    sec: 1780410630
+    nanosec: 964718302
+  frame_id: ''
+name:
+- right_arm_joint1
+- right_arm_joint2
+- right_arm_joint3
+- right_arm_joint4
+- right_arm_joint5
+- right_arm_joint6
+position:
+- 0.0
+- -0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+velocity:
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+effort:
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+---
+
+===== 结束 [2026-10-22 10:48:01.676 +0800] =====
+[remote rc=0]
+
+===== 吞吐：机器人 → 工作站，经 SSH 拉 100 MiB 零字节，3 次 [2026-10-21 20:48:01.743071468 -0600] =====
+第 1 次：104857600 字节，9.87 秒，85.0 Mbit/s
+第 2 次：104857600 字节，7.82 秒，107.2 Mbit/s
+第 3 次：104857600 字节，9.89 秒，84.8 Mbit/s
+注：SSH 加密会占用机器人 CPU，所以这里测到的是下限。
+
+===== 完成，输出在 /tmp/claude-1001/-home-shawn----robot-data-platform/d9765374-5fda-447d-a403-94569c0f9b33/scratchpad/robot-facts/out/r1lite-r1lite_ros-20261021T202905.txt [2026-10-21 20:48:29.343935527 -0600] =====

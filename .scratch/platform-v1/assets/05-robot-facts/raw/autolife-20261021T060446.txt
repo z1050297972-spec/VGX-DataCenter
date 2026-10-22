@@ -1,0 +1,3123 @@
+
+===== 工作站侧 kind=autolife target=ubuntu@192.168.0.134 [2026-10-21 06:04:46.505594156 -0600] =====
+
+$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+enp4s0           DOWN           
+wlp3s0           UP             192.168.0.180/24 fd00:3::ce25:4892:4e8b:e960/64 fd00:3::89e8:7ad7:724:5ce4/64 fe80::80f2:9bf5:890d:1a38/64 
+tailscale0       UNKNOWN        100.82.81.44/32 fd7a:115c:a1e0::8e31:512d/128 fe80::9498:4a6e:9885:c6b2/64 
+br-82c001c9d81e  UP             172.18.0.1/16 fe80::e802:a7ff:fe8b:95a3/64 
+br-d848fb79423b  UP             172.20.0.1/16 fe80::3cce:34ff:fee3:8c1/64 
+docker0          DOWN           172.17.0.1/16 
+veth793666b@if2  UP             fe80::8c6d:aeff:feb7:8e69/64 
+veth6b18b31@if2  UP             fe80::cc0b:e9ff:fedb:c48/64 
+veth38f13f3@if2  UP             fe80::44a7:55ff:fe3e:3bde/64 
+veth46866fb@if2  UP             fe80::c873:f0ff:fe5c:59b4/64 
+veth8c61f8a@if2  UP             fe80::88d3:1cff:fe46:2f26/64 
+vethabd357a@if2  UP             fe80::5c3a:4dff:fee4:8495/64 
+veth8d236cb@if2  UP             fe80::ccca:1aff:fe6b:947/64 
+Meta             UNKNOWN        198.18.0.1/30 fdfe:dcba:9876::1/126 fe80::f724:d1f5:88f:b1d9/64 
+[rc=0]
+
+$ ip route get 192.168.0.134
+192.168.0.134 dev wlp3s0 src 192.168.0.180 uid 1001 
+    cache 
+[rc=0]
+
+$ nmcli -t -f ACTIVE,SSID,CHAN,FREQ,RATE,SIGNAL device wifi list --rescan no 2>/dev/null | grep "^yes"
+yes:104:11:2462 MHz:1170 Mbit/s:91
+[rc=0]
+
+$ for i in enp4s0 wlp3s0; do printf "%s operstate=%s speed=%s\n" "$i" "$(cat /sys/class/net/$i/operstate 2>/dev/null)" "$(cat /sys/class/net/$i/speed 2>/dev/null)"; done
+enp4s0 operstate=down speed=-1
+wlp3s0 operstate=up speed=
+[rc=0]
+
+$ timedatectl 2>&1 | grep -iE "synchronized|NTP service|Time zone"
+                Time zone: America/Cambridge_Bay (MDT, -0600)
+System clock synchronized: yes
+              NTP service: active
+[rc=0]
+
+===== 延迟：ping 20 次 [2026-10-21 06:04:46.577657624 -0600] =====
+
+$ ping -c 20 -i 0.2 192.168.0.134
+PING 192.168.0.134 (192.168.0.134) 56(84) bytes of data.
+64 bytes from 192.168.0.134: icmp_seq=1 ttl=64 time=395 ms
+64 bytes from 192.168.0.134: icmp_seq=3 ttl=64 time=2.15 ms
+64 bytes from 192.168.0.134: icmp_seq=4 ttl=64 time=197 ms
+64 bytes from 192.168.0.134: icmp_seq=5 ttl=64 time=9.60 ms
+64 bytes from 192.168.0.134: icmp_seq=6 ttl=64 time=6.75 ms
+64 bytes from 192.168.0.134: icmp_seq=7 ttl=64 time=110 ms
+64 bytes from 192.168.0.134: icmp_seq=8 ttl=64 time=8.82 ms
+64 bytes from 192.168.0.134: icmp_seq=9 ttl=64 time=115 ms
+64 bytes from 192.168.0.134: icmp_seq=10 ttl=64 time=1.80 ms
+64 bytes from 192.168.0.134: icmp_seq=11 ttl=64 time=139 ms
+64 bytes from 192.168.0.134: icmp_seq=12 ttl=64 time=66.7 ms
+64 bytes from 192.168.0.134: icmp_seq=13 ttl=64 time=201 ms
+64 bytes from 192.168.0.134: icmp_seq=14 ttl=64 time=136 ms
+64 bytes from 192.168.0.134: icmp_seq=15 ttl=64 time=142 ms
+64 bytes from 192.168.0.134: icmp_seq=16 ttl=64 time=57.8 ms
+64 bytes from 192.168.0.134: icmp_seq=17 ttl=64 time=87.1 ms
+64 bytes from 192.168.0.134: icmp_seq=18 ttl=64 time=155 ms
+64 bytes from 192.168.0.134: icmp_seq=19 ttl=64 time=156 ms
+64 bytes from 192.168.0.134: icmp_seq=20 ttl=64 time=126 ms
+
+--- 192.168.0.134 ping statistics ---
+20 packets transmitted, 19 received, 5% packet loss, time 3818ms
+rtt min/avg/max/mdev = 1.799/111.226/394.983/92.780 ms, pipe 2
+[rc=0]
+
+===== 建立 SSH 主连接（在这里输入一次密码） [2026-10-21 06:04:51.189940857 -0600] =====
+
+===== 时钟偏差：机器人时间 - 工作站时间（取 5 次里往返最短的一次） [2026-10-21 06:04:57.808606934 -0600] =====
+rtt=0.018760s offset=0.023867s
+rtt=0.015618s offset=0.022682s
+rtt=0.015813s offset=0.022991s
+rtt=0.012873s offset=0.022215s
+rtt=0.053275s offset=0.041898s
+采用：offset=0.022215s（误差约 ±0.006437s）
+
+===== 远程采集 robot_probe.sh（约 5–15 分钟） [2026-10-21 06:04:57.949518709 -0600] =====
+
+===== 开始 kind=autolife [2026-10-21 20:04:57.992 +0800] =====
+
+===== 身份 [2026-10-21 20:04:57.993 +0800] =====
+
+$ hostname
+autolife-robot-310
+[rc=0]
+
+$ id
+uid=1001(ubuntu) gid=1001(ubuntu) groups=1001(ubuntu),4(adm),24(cdrom),27(sudo),29(audio),30(dip),44(video),46(plugdev),100(users),114(lpadmin),992(render)
+[rc=0]
+
+$ ip -br link
+lo               UNKNOWN        00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> 
+lan1             UP             c8:98:db:40:65:3b <BROADCAST,MULTICAST,UP,LOWER_UP> 
+lan0             UP             c8:98:db:40:65:35 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+wlo1             UP             44:a3:bb:c5:d3:3e <BROADCAST,MULTICAST,UP,LOWER_UP> 
+wt0              UNKNOWN        <POINTOPOINT,NOARP,UP,LOWER_UP> 
+[rc=0]
+
+$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+lan1             UP             192.168.225.36/22 fe80::ca98:dbff:fe40:653b/64 
+lan0             UP             192.168.10.2/24 fe80::ca98:dbff:fe40:6535/64 
+wlo1             UP             192.168.0.134/24 fd00:3::8435:1790:a812:2ccf/64 fd00:3::fc78:5dc5:1aa3:bea7/64 fe80::7017:5fdb:4e6e:b37e/64 
+wt0              UNKNOWN        100.98.61.96/16 fd5c:b750:9e51:a984:e36e:5667:a1e3:2474/64 
+[rc=0]
+
+$ ip route
+default via 192.168.0.1 dev wlo1 proto dhcp src 192.168.0.134 metric 600 
+default via 192.168.10.1 dev lan0 proto static metric 20050 
+default via 192.168.225.1 dev lan1 proto dhcp src 192.168.225.36 metric 20101 
+100.98.0.0/16 dev wt0 proto kernel scope link src 100.98.61.96 
+192.168.0.0/24 dev wlo1 proto kernel scope link src 192.168.0.134 metric 600 
+192.168.10.0/24 dev lan0 proto kernel scope link src 192.168.10.2 metric 50 
+192.168.224.0/22 dev lan1 proto kernel scope link src 192.168.225.36 metric 101 
+[rc=0]
+
+$ tr -d "\0" < /sys/firmware/devicetree/base/model 2>/dev/null; echo
+main: line 275: /sys/firmware/devicetree/base/model: No such file or directory
+
+[rc=0]
+
+$ tr -d "\0" < /sys/firmware/devicetree/base/serial-number 2>/dev/null; echo
+main: line 275: /sys/firmware/devicetree/base/serial-number: No such file or directory
+
+[rc=0]
+
+$ for f in sys_vendor product_name product_version product_serial board_vendor board_name board_serial; do printf "%s=" "$f"; cat "/sys/class/dmi/id/$f" 2>/dev/null || echo "(不可读或不存在)"; done
+sys_vendor=Win Element
+product_name=S800
+product_version=Default string
+product_serial=(不可读或不存在)
+board_vendor=Win Element
+board_name=Default string
+board_serial=(不可读或不存在)
+[rc=0]
+
+$ cat /etc/nv_tegra_release 2>/dev/null
+[rc=1]
+
+$ ss -ltn 2>/dev/null | head -40
+State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess
+LISTEN 0      512          0.0.0.0:3001       0.0.0.0:*          
+LISTEN 0      1024         0.0.0.0:3000       0.0.0.0:*          
+LISTEN 0      100        127.0.0.1:25004      0.0.0.0:*          
+LISTEN 0      100        127.0.0.1:25002      0.0.0.0:*          
+LISTEN 0      4096       127.0.0.1:631        0.0.0.0:*          
+LISTEN 0      128        127.0.0.1:41527      0.0.0.0:*          
+LISTEN 0      100    192.168.0.134:8443       0.0.0.0:*          
+LISTEN 0      128        127.0.0.1:43265      0.0.0.0:*          
+LISTEN 0      4096         0.0.0.0:22         0.0.0.0:*          
+LISTEN 0      4096   127.0.0.53%lo:53         0.0.0.0:*          
+LISTEN 0      64         127.0.0.1:28133      0.0.0.0:*          
+LISTEN 0      100        127.0.0.1:12004      0.0.0.0:*          
+LISTEN 0      100        127.0.0.1:12002      0.0.0.0:*          
+LISTEN 0      100          0.0.0.0:6789       0.0.0.0:*          
+LISTEN 0      4096    100.98.61.96:53         0.0.0.0:*          
+LISTEN 0      64         127.0.0.1:5345       0.0.0.0:*          
+LISTEN 0      2048         0.0.0.0:8000       0.0.0.0:*          
+LISTEN 0      200        127.0.0.1:5432       0.0.0.0:*          
+LISTEN 0      100        127.0.0.1:6080       0.0.0.0:*          
+LISTEN 0      511        127.0.0.1:38761      0.0.0.0:*          
+LISTEN 0      32         127.0.0.1:5905       0.0.0.0:*          
+LISTEN 0      511        127.0.0.1:6379       0.0.0.0:*          
+LISTEN 0      128        127.0.0.1:7004       0.0.0.0:*          
+LISTEN 0      128        127.0.0.1:7002       0.0.0.0:*          
+LISTEN 0      100        127.0.0.1:24235      0.0.0.0:*          
+LISTEN 0      511        127.0.0.1:40601      0.0.0.0:*          
+LISTEN 0      4096      127.0.0.54:53         0.0.0.0:*          
+LISTEN 0      32             [::1]:5900          [::]:*          
+LISTEN 0      511            [::1]:6379          [::]:*          
+LISTEN 0      128            [::1]:7002          [::]:*          
+LISTEN 0      128            [::1]:7004          [::]:*          
+LISTEN 0      4096            [::]:22            [::]:*          
+LISTEN 0      100             [::]:6789          [::]:*          
+LISTEN 0      4096           [::1]:631           [::]:*          
+[rc=0]
+
+$ grep -hiE "^\s*(Port|PasswordAuthentication|PubkeyAuthentication)\b" /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null
+[rc=2]
+
+$ ls -la ~/.ssh 2>/dev/null; wc -l ~/.ssh/authorized_keys 2>/dev/null
+total 20
+drwx------  2 ubuntu ubuntu 4096 Sep 21 19:53 .
+drwxr-x--- 40 ubuntu ubuntu 4096 Oct 20 21:01 ..
+-rw-------  1 ubuntu ubuntu   96 Sep 21 19:53 authorized_keys
+-rw-------  1 ubuntu ubuntu  978 Aug 10 21:31 known_hosts
+-rw-r--r--  1 ubuntu ubuntu  142 Aug 10 21:31 known_hosts.old
+1 /home/ubuntu/.ssh/authorized_keys
+[rc=0]
+
+===== 网络（机器人侧） [2026-10-21 20:04:58.022 +0800] =====
+
+$ nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device 2>/dev/null
+wlo1:wifi:connected:104_5G
+lan0:ethernet:connected:netplan-lan0
+lan1:ethernet:connected:netplan-lan1
+lo:loopback:connected (externally):lo
+wt0:wireguard:connected (externally):wt0
+p2p-dev-wlo1:wifi-p2p:disconnected:
+[rc=0]
+
+$ nmcli -t -f ACTIVE,SSID,BSSID,CHAN,FREQ,RATE,SIGNAL,SECURITY device wifi list --rescan no 2>/dev/null | grep "^yes"
+yes:104_5G:50\:DA\:9E\:15\:B9\:61:48:5240 MHz:270 Mbit/s:76:WPA2
+[rc=0]
+
+$ command -v iw >/dev/null && iw dev
+phy#0
+	Unnamed/non-netdev interface
+		wdev 0x2
+		addr 44:a3:bb:c5:d3:3f
+		type P2P-device
+	Interface wlo1
+		ifindex 4
+		wdev 0x1
+		addr 44:a3:bb:c5:d3:3e
+		ssid 104_5G
+		type managed
+		channel 48 (5240 MHz), width: 160 MHz, center1: 5250 MHz
+		txpower 22.00 dBm
+		multicast TXQ:
+			qsz-byt	qsz-pkt	flows	drops	marks	overlmt	hashcol	tx-bytes	tx-packets
+			0	0	0	0	0	0	0	0		0
+[rc=0]
+
+$ for i in /sys/class/net/*; do n=${i##*/}; [ -d "$i/wireless" ] && command -v iw >/dev/null && iw dev "$n" link; done
+Connected to 50:da:9e:15:b9:61 (on wlo1)
+	SSID: 104_5G
+	freq: 5240.0
+	RX: 145339452 bytes (662353 packets)
+	TX: 765814906 bytes (958197 packets)
+	signal: -45 dBm
+	rx bitrate: 1921.5 MBit/s 160MHz HE-MCS 9 HE-NSS 2 HE-GI 0 HE-DCM 0
+	tx bitrate: 2401.9 MBit/s 160MHz HE-MCS 11 HE-NSS 2 HE-GI 0 HE-DCM 0
+	bss flags: short-preamble short-slot-time
+	dtim period: 1
+	beacon int: 100
+[rc=1]
+
+$ for i in /sys/class/net/*; do printf "%s operstate=%s speed=%s\n" "${i##*/}" "$(cat "$i/operstate" 2>/dev/null)" "$(cat "$i/speed" 2>/dev/null)"; done
+lan0 operstate=up speed=1000
+lan1 operstate=up speed=1000
+lo operstate=unknown speed=
+wlo1 operstate=up speed=
+wt0 operstate=unknown speed=
+[rc=0]
+
+===== 算力与系统 [2026-10-21 20:04:58.070 +0800] =====
+
+$ uname -a
+Linux autolife-robot-310 6.14.0-37-generic #37~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Nov 20 10:25:38 UTC 2 x86_64 x86_64 x86_64 GNU/Linux
+[rc=0]
+
+$ cat /etc/os-release
+PRETTY_NAME="Ubuntu 24.04.3 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.3 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+[rc=0]
+
+$ lscpu
+Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           46 bits physical, 48 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  22
+On-line CPU(s) list:                     0-21
+Vendor ID:                               GenuineIntel
+Model name:                              Intel(R) Core(TM) Ultra 9 185H
+CPU family:                              6
+Model:                                   170
+Thread(s) per core:                      2
+Core(s) per socket:                      16
+Socket(s):                               1
+Stepping:                                4
+CPU(s) scaling MHz:                      80%
+CPU max MHz:                             5100.0000
+CPU min MHz:                             400.0000
+BogoMIPS:                                6144.00
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid bus_lock_detect movdiri movdir64b fsrm md_clear serialize pconfig arch_lbr ibt flush_l1d arch_capabilities
+Virtualization:                          VT-x
+L1d cache:                               544 KiB (14 instances)
+L1i cache:                               896 KiB (14 instances)
+L2 cache:                                18 MiB (9 instances)
+L3 cache:                                24 MiB (1 instance)
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-21
+Vulnerability Gather data sampling:      Not affected
+Vulnerability Ghostwrite:                Not affected
+Vulnerability Indirect target selection: Not affected
+Vulnerability Itlb multihit:             Not affected
+Vulnerability L1tf:                      Not affected
+Vulnerability Mds:                       Not affected
+Vulnerability Meltdown:                  Not affected
+Vulnerability Mmio stale data:           Not affected
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Not affected
+Vulnerability Spec rstack overflow:      Not affected
+Vulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS Not affected; BHI BHI_DIS_S
+Vulnerability Srbds:                     Not affected
+Vulnerability Tsa:                       Not affected
+Vulnerability Tsx async abort:           Not affected
+Vulnerability Vmscape:                   Mitigation; IBPB before exit to userspace
+[rc=0]
+
+$ free -h
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       9.7Gi       2.8Gi       583Mi       3.5Gi       5.4Gi
+Swap:           15Gi       1.1Gi        14Gi
+[rc=0]
+
+$ df -hT -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null
+Filesystem     Type      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p2 ext4      197G   94G   95G  50% /
+efivarfs       efivarfs  192K   92K   96K  49% /sys/firmware/efi/efivars
+/dev/nvme0n1p3 vfat      1.1G  8.7M  1.1G   1% /boot/efi
+[rc=0]
+
+$ uptime
+ 20:04:58 up  9:44,  4 users,  load average: 4.31, 3.95, 4.04
+[rc=0]
+
+$ top -bn1 -o %CPU 2>/dev/null | head -30
+top - 20:04:58 up  9:44,  4 users,  load average: 4.31, 3.95, 4.04
+Tasks: 558 total,   1 running, 557 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 14.5 us,  2.1 sy,  0.0 ni, 82.9 id,  0.4 wa,  0.0 hi,  0.0 si,  0.0 st 
+MiB Mem :  15506.3 total,   2865.0 free,   9928.6 used,   3634.5 buff/cache     
+MiB Swap:  16384.0 total,  15224.3 free,   1159.7 used.   5577.7 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+   2616 ubuntu    20   0   13.5g   1.2g 541400 S  81.8   8.0      8,13 python
+   4986 ubuntu    20   0 3514564 665736 364252 S  54.5   4.2 319:24.17 python
+   2647 ubuntu    20   0 3820000 453204 314260 S  27.3   2.9 178:34.45 python
+   4249 ubuntu    20   0 4707528 369168 325972 S  27.3   2.3 200:17.10 python
+ 478872 ubuntu    20   0 1684428 220324 140836 S  27.3   1.4  57:41.52 python3
+   2710 ubuntu    20   0 3495108 616216 347272 S  18.2   3.9 101:56.19 python
+   5563 ubuntu    20   0 3641548 726720 390404 S  18.2   4.6  80:47.77 python
+   5571 ubuntu    20   0 3641656 726736 390332 S  18.2   4.6  83:30.80 python
+   5594 ubuntu    20   0 3644956 729292 390292 S  18.2   4.6  86:24.00 python
+   4493 ubuntu    20   0   49.2g 181676 129064 S   9.1   1.1  63:41.20 chrome
+   4601 ubuntu    20   0 1392.5g 183768 102688 S   9.1   1.2  40:33.05 chrome
+   4974 ubuntu    20   0 2894852 634956 330960 S   9.1   4.0  30:38.17 python
+   5604 ubuntu    20   0 3494264 726528 390432 S   9.1   4.6  43:55.66 python
+   5664 ubuntu    20   0 4446068 639580 331552 S   9.1   4.0  73:14.52 python
+ 744448 root       0 -20       0      0      0 I   9.1   0.0   0:05.74 kworker+
+ 755992 ubuntu    20   0   14508   5788   3608 R   9.1   0.0   0:00.01 top
+      1 root      20   0   23848  13664   9532 S   0.0   0.1   0:02.32 systemd
+      2 root      20   0       0      0      0 S   0.0   0.0   0:00.02 kthreadd
+      3 root      20   0       0      0      0 S   0.0   0.0   0:00.00 pool_wo+
+      4 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+      5 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+      6 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+      7 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+[rc=0]
+
+$ command -v nvidia-smi >/dev/null && nvidia-smi
+Wed Oct 21 20:04:58 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.95.05              Driver Version: 580.95.05      CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 4090 ...    Off |   00000000:01:00.0 Off |                  N/A |
+| N/A   40C    P8              4W /  150W |      18MiB /  16376MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            2461      G   /usr/lib/xorg/Xorg                        4MiB |
++-----------------------------------------------------------------------------------------+
+[rc=0]
+
+$ command -v tegrastats >/dev/null && timeout 3 tegrastats --interval 1000
+[rc=1]
+
+$ ls /dev | grep -iE "nvhost-msenc|nvenc|v4l2-nvenc|video|dri"; ls /dev/dri 2>/dev/null
+dri
+video0
+video1
+video10
+video11
+video12
+video13
+video14
+video15
+video2
+video3
+video4
+video5
+video6
+video7
+video8
+video9
+by-path
+card1
+card2
+renderD128
+renderD129
+[rc=0]
+
+$ command -v ffmpeg >/dev/null && { ffmpeg -hide_banner -version | head -1; ffmpeg -hide_banner -encoders 2>/dev/null | grep -iE "264|265|hevc|av1|vp9"; }
+[rc=1]
+
+$ command -v gst-inspect-1.0 >/dev/null && gst-inspect-1.0 2>/dev/null | grep -iE "h264|h265|x264|openh264|nvv4l2|vaapi|enc"
+adpcmenc:  adpcmenc: ADPCM encoder
+aes:  aesenc: aesenc
+alaw:  alawenc: A Law audio encoder
+aom:  av1enc: AV1 Encoder
+audiolatency:  audiolatency: AudioLatency
+audiovisualizers:  spectrascope: Frequency spectrum scope
+avtp:  avtpcrfcheck: Clock Reference Format (CRF) Checker
+avtp:  avtpcrfsync: Clock Reference Format (CRF) Synchronizer
+bz2:  bz2enc: BZ2 encoder
+closedcaption:  line21encoder: Line 21 CC Encoder
+codec2json:  h2642json: H2642json
+codec2json:  h2652json: H2652json
+codectimestamper:  h264timestamper: H.264 timestamper
+codectimestamper:  h265timestamper: H.265 timestamper
+coretracers:  latency (GstTracerFactory)
+dtls:  dtlsenc: DTLS Encoder
+dtls:  dtlssrtpenc: DTLS-SRTP Encoder
+dvbsubenc:  dvbsubenc: DVB subtitle encoder
+encoding:  encodebin: Encoder Bin
+encoding:  encodebin2: Encoder Bin
+flac:  flacenc: FLAC audio encoder
+gsm:  gsmenc: GSM audio encoder
+jpeg:  jpegenc: JPEG image encoder
+lame:  lamemp3enc: L.A.M.E. mp3 encoder
+lc3:  lc3enc: LC3 Bluetooth Audio encoder
+ldac:  ldacenc: Bluetooth LDAC audio encoder
+libav:  avdec_h264: libav H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 decoder
+libav:  avdec_h265: libav HEVC (High Efficiency Video Coding) decoder
+libav:  avdec_mts2: libav MS Expression Encoder Screen decoder
+libav:  avenc_a64multi: libav Multicolor charset for Commodore 64 encoder
+libav:  avenc_a64multi5: libav Multicolor charset for Commodore 64, extended with 5th color (colram) encoder
+libav:  avenc_aac: libav AAC (Advanced Audio Coding) encoder
+libav:  avenc_ac3: libav ATSC A/52A (AC-3) encoder
+libav:  avenc_ac3_fixed: libav ATSC A/52A (AC-3) encoder
+libav:  avenc_adpcm_adx: libav SEGA CRI ADX ADPCM encoder
+libav:  avenc_adpcm_argo: libav ADPCM Argonaut Games encoder
+libav:  avenc_adpcm_ima_alp: libav ADPCM IMA High Voltage Software ALP encoder
+libav:  avenc_adpcm_ima_amv: libav ADPCM IMA AMV encoder
+libav:  avenc_adpcm_ima_apm: libav ADPCM IMA Ubisoft APM encoder
+libav:  avenc_adpcm_ima_qt: libav ADPCM IMA QuickTime encoder
+libav:  avenc_adpcm_ima_ssi: libav ADPCM IMA Simon & Schuster Interactive encoder
+libav:  avenc_adpcm_ima_wav: libav ADPCM IMA WAV encoder
+libav:  avenc_adpcm_ima_ws: libav ADPCM IMA Westwood encoder
+libav:  avenc_adpcm_ms: libav ADPCM Microsoft encoder
+libav:  avenc_adpcm_swf: libav ADPCM Shockwave Flash encoder
+libav:  avenc_adpcm_yamaha: libav ADPCM Yamaha encoder
+libav:  avenc_alac: libav ALAC (Apple Lossless Audio Codec) encoder
+libav:  avenc_alias_pix: libav Alias/Wavefront PIX image encoder
+libav:  avenc_amv: libav AMV Video encoder
+libav:  avenc_anull: libav null audio encoder
+libav:  avenc_apng: libav APNG (Animated Portable Network Graphics) image encoder
+libav:  avenc_aptx: libav aptX (Audio Processing Technology for Bluetooth) encoder
+libav:  avenc_aptx_hd: libav aptX HD (Audio Processing Technology for Bluetooth) encoder
+libav:  avenc_asv1: libav ASUS V1 encoder
+libav:  avenc_asv2: libav ASUS V2 encoder
+libav:  avenc_avrp: libav Avid 1:1 10-bit RGB Packer encoder
+libav:  avenc_avui: libav Avid Meridien Uncompressed encoder
+libav:  avenc_bitpacked: libav Bitpacked encoder
+libav:  avenc_bmp: libav BMP (Windows and OS/2 bitmap) encoder
+libav:  avenc_cfhd: libav GoPro CineForm HD encoder
+libav:  avenc_cinepak: libav Cinepak encoder
+libav:  avenc_cljr: libav Cirrus Logic AccuPak encoder
+libav:  avenc_comfortnoise: libav RFC 3389 comfort noise generator encoder
+libav:  avenc_dca: libav DCA (DTS Coherent Acoustics) encoder
+libav:  avenc_dfpwm: libav DFPWM1a audio encoder
+libav:  avenc_dnxhd: libav VC3/DNxHD encoder
+libav:  avenc_dpx: libav DPX (Digital Picture Exchange) image encoder
+libav:  avenc_dvvideo: libav DV (Digital Video) encoder
+libav:  avenc_eac3: libav ATSC A/52 E-AC-3 encoder
+libav:  avenc_exr: libav OpenEXR image encoder
+libav:  avenc_ffv1: libav FFmpeg video codec #1 encoder
+libav:  avenc_ffvhuff: libav Huffyuv FFmpeg variant encoder
+libav:  avenc_fits: libav Flexible Image Transport System encoder
+libav:  avenc_flashsv: libav Flash Screen Video encoder
+libav:  avenc_flashsv2: libav Flash Screen Video Version 2 encoder
+libav:  avenc_flv: libav FLV / Sorenson Spark / Sorenson H.263 (Flash Video) encoder
+libav:  avenc_g722: libav G.722 ADPCM encoder
+libav:  avenc_g723_1: libav G.723.1 encoder
+libav:  avenc_g726: libav G.726 ADPCM encoder
+libav:  avenc_g726le: libav G.726 little endian ADPCM ("right-justified") encoder
+libav:  avenc_h261: libav H.261 encoder
+libav:  avenc_h263: libav H.263 / H.263-1996 encoder
+libav:  avenc_h263p: libav H.263+ / H.263-1998 / H.263 version 2 encoder
+libav:  avenc_hap: libav Vidvox Hap encoder
+libav:  avenc_hdr: libav HDR (Radiance RGBE format) image encoder
+libav:  avenc_huffyuv: libav Huffyuv / HuffYUV encoder
+libav:  avenc_jpeg2000: libav JPEG 2000 encoder
+libav:  avenc_jpegls: libav JPEG-LS encoder
+libav:  avenc_ljpeg: libav Lossless JPEG encoder
+libav:  avenc_magicyuv: libav MagicYUV video encoder
+libav:  avenc_mjpeg: libav MJPEG (Motion JPEG) encoder
+libav:  avenc_mlp: libav MLP (Meridian Lossless Packing) encoder
+libav:  avenc_mp2: libav MP2 (MPEG audio layer 2) encoder
+libav:  avenc_mp2fixed: libav MP2 fixed point (MPEG audio layer 2) encoder
+libav:  avenc_mpeg1video: libav MPEG-1 video encoder
+libav:  avenc_mpeg2video: libav MPEG-2 video encoder
+libav:  avenc_mpeg4: libav MPEG-4 part 2 encoder
+libav:  avenc_msmpeg4: libav MPEG-4 part 2 Microsoft variant version 3 encoder
+libav:  avenc_msmpeg4v2: libav MPEG-4 part 2 Microsoft variant version 2 encoder
+libav:  avenc_msrle: libav Microsoft RLE encoder
+libav:  avenc_msvideo1: libav Microsoft Video-1 encoder
+libav:  avenc_nellymoser: libav Nellymoser Asao encoder
+libav:  avenc_opus: libav Opus encoder
+libav:  avenc_pam: libav PAM (Portable AnyMap) image encoder
+libav:  avenc_pbm: libav PBM (Portable BitMap) image encoder
+libav:  avenc_pcm_vidc: libav PCM Archimedes VIDC encoder
+libav:  avenc_pcx: libav PC Paintbrush PCX image encoder
+libav:  avenc_pfm: libav PFM (Portable FloatMap) image encoder
+libav:  avenc_pgm: libav PGM (Portable GrayMap) image encoder
+libav:  avenc_pgmyuv: libav PGMYUV (Portable GrayMap YUV) image encoder
+libav:  avenc_phm: libav PHM (Portable HalfFloatMap) image encoder
+libav:  avenc_png: libav PNG (Portable Network Graphics) image encoder
+libav:  avenc_ppm: libav PPM (Portable PixelMap) image encoder
+libav:  avenc_prores: libav Apple ProRes encoder
+libav:  avenc_prores_aw: libav Apple ProRes encoder
+libav:  avenc_prores_ks: libav Apple ProRes (iCodec Pro) encoder
+libav:  avenc_qoi: libav QOI (Quite OK Image format) image encoder
+libav:  avenc_qtrle: libav QuickTime Animation (RLE) video encoder
+libav:  avenc_r10k: libav AJA Kona 10-bit RGB Codec encoder
+libav:  avenc_real_144: libav RealAudio 1.0 (14.4K) encoder
+libav:  avenc_roq_dpcm: libav id RoQ DPCM encoder
+libav:  avenc_roqvideo: libav id RoQ video encoder
+libav:  avenc_rpza: libav QuickTime video (RPZA) encoder
+libav:  avenc_rv10: libav RealVideo 1.0 encoder
+libav:  avenc_rv20: libav RealVideo 2.0 encoder
+libav:  avenc_s302m: libav SMPTE 302M encoder
+libav:  avenc_sbc: libav SBC (low-complexity subband codec) encoder
+libav:  avenc_sgi: libav SGI image encoder
+libav:  avenc_smc: libav QuickTime Graphics (SMC) encoder
+libav:  avenc_snow: libav Snow encoder
+libav:  avenc_sonic: libav Sonic encoder
+libav:  avenc_sonicls: libav Sonic lossless encoder
+libav:  avenc_speedhq: libav NewTek SpeedHQ encoder
+libav:  avenc_sunrast: libav Sun Rasterfile image encoder
+libav:  avenc_svq1: libav Sorenson Vector Quantizer 1 / Sorenson Video 1 / SVQ1 encoder
+libav:  avenc_targa: libav Truevision Targa image encoder
+libav:  avenc_tiff: libav TIFF image encoder
+libav:  avenc_truehd: libav TrueHD encoder
+libav:  avenc_tta: libav TTA (True Audio) encoder
+libav:  avenc_utvideo: libav Ut Video encoder
+libav:  avenc_vbn: libav Vizrt Binary Image encoder
+libav:  avenc_vc2: libav SMPTE VC-2 encoder
+libav:  avenc_vnull: libav null video encoder
+libav:  avenc_wavpack: libav WavPack encoder
+libav:  avenc_wbmp: libav WBMP (Wireless Application Protocol Bitmap) image encoder
+libav:  avenc_wmav1: libav Windows Media Audio 1 encoder
+libav:  avenc_wmav2: libav Windows Media Audio 2 encoder
+libav:  avenc_wmv1: libav Windows Media Video 7 encoder
+libav:  avenc_wmv2: libav Windows Media Video 8 encoder
+libav:  avenc_xbm: libav XBM (X BitMap) image encoder
+libav:  avenc_xface: libav X-face image encoder
+libav:  avenc_xwd: libav XWD (X Window Dump) image encoder
+libav:  avenc_zmbv: libav Zip Motion Blocks Video encoder
+libav:  avmux_wav: libav WAV / WAVE (Waveform Audio) muxer (not recommended, use wavenc instead)
+libav:  avmux_yuv4mpegpipe: libav YUV4MPEG pipe muxer (not recommended, use y4menc instead)
+mpeg2enc:  mpeg2enc: mpeg2enc video encoder
+msdk:  msdkh264dec: Intel MSDK H264 decoder
+msdk:  msdkh264enc: Intel MSDK H264 encoder
+msdk:  msdkh265dec: Intel MSDK H265 decoder
+msdk:  msdkh265enc: Intel MSDK H265 encoder
+msdk:  msdkmjpegenc: Intel MSDK MJPEG encoder
+msdk:  msdkmpeg2enc: Intel MSDK MPEG2 encoder
+msdk:  msdkvp9enc: Intel MSDK VP9 encoder
+mulaw:  mulawenc: Mu Law audio encoder
+multifile:  imagesequencesrc: Image Sequence Source
+nvcodec:  nvautogpuh264enc: NVENC H.264 Video Encoder Auto GPU select Mode
+nvcodec:  nvautogpuh265enc: NVENC H.265 Video Encoder Auto GPU select Mode
+nvcodec:  nvcudah264enc: NVENC H.264 Video Encoder CUDA Mode
+nvcodec:  nvcudah265enc: NVENC H.265 Video Encoder CUDA Mode
+nvcodec:  nvh264dec: NVDEC H.264 Decoder
+nvcodec:  nvh264enc: NVENC H.264 Video Encoder
+nvcodec:  nvh265dec: NVDEC H.265 Decoder
+nvcodec:  nvh265enc: NVENC HEVC Video Encoder
+nvcodec:  nvjpegenc: NVIDIA JPEG Encoder
+openaptx:  openaptxenc: Bluetooth aptX/aptX-HD audio encoder using libopenaptx
+opengl:  gldifferencematte: Gstreamer OpenGL DifferenceMatte
+openh264:  openh264dec: OpenH264 video decoder
+openh264:  openh264enc: OpenH264 video encoder
+openjpeg:  openjpegenc: OpenJPEG JPEG2000 encoder
+opus:  opusenc: Opus audio encoder
+png:  pngenc: PNG image encoder
+pnm:  pnmenc: PNM image encoder
+qsv:  qsvav1enc: Intel Quick Sync Video AV1 Encoder
+qsv:  qsvh264dec: Intel Quick Sync Video H.264 Decoder
+qsv:  qsvh264enc: Intel Quick Sync Video H.264 Encoder
+qsv:  qsvh265dec: Intel Quick Sync Video H.265 Decoder
+qsv:  qsvh265enc: Intel Quick Sync Video H.265 Encoder
+qsv:  qsvjpegenc: Intel Quick Sync Video JPEG Encoder
+qsv:  qsvvp9enc: Intel Quick Sync Video VP9 Encoder
+removesilence:  removesilence: RemoveSilence
+rtp:  rtph264depay: RTP H264 depayloader
+rtp:  rtph264pay: RTP H264 payloader
+rtp:  rtph265depay: RTP H265 depayloader
+rtp:  rtph265pay: RTP H265 payloader
+rtp:  rtpredenc: Redundant Audio Data (RED) Encoder
+rtp:  rtpulpfecenc: RTP FEC Encoder
+rtpmanager:  rtpst2022-1-fecenc: SMPTE 2022-1 FEC encoder
+sbc:  sbcenc: Bluetooth SBC audio encoder
+sctp:  sctpenc: SCTP Encoder
+siren:  sirenenc: Siren Encoder element
+speex:  speexenc: Speex audio encoder
+srtp:  srtpenc: SRTP encoder
+subenc:  srtenc: Srt encoder
+subenc:  webvttenc: WebVTT encoder
+svtav1:  svtav1enc: SvtAv1Enc
+theora:  theoraenc: Theora video encoder
+twolame:  twolamemp2enc: TwoLAME mp2 encoder
+typefindfunctions: video/x-h264: h264, x264, 264
+typefindfunctions: video/x-h265: h265, x265, 265
+uvch264:  uvch264deviceprovider (GstDeviceProviderFactory)
+uvch264:  uvch264mjpgdemux: UVC H264 MJPG Demuxer
+uvch264:  uvch264src: UVC H264 Source
+vaapi:  vaapiav1dec: VA-API AV1 decoder
+vaapi:  vaapidecodebin: VA-API Decode Bin
+vaapi:  vaapih264dec: VA-API H264 decoder
+vaapi:  vaapih264enc: VA-API H264 encoder
+vaapi:  vaapih265dec: VA-API H265 decoder
+vaapi:  vaapih265enc: VA-API H265 encoder
+vaapi:  vaapijpegdec: VA-API JPEG decoder
+vaapi:  vaapijpegenc: VA-API JPEG encoder
+vaapi:  vaapimpeg2dec: VA-API MPEG2 decoder
+vaapi:  vaapioverlay: VA-API overlay
+vaapi:  vaapipostproc: VA-API video postprocessing
+vaapi:  vaapisink: VA-API sink
+vaapi:  vaapivp8dec: VA-API VP8 decoder
+vaapi:  vaapivp9dec: VA-API VP9 decoder
+vaapi:  vaapivp9enc: VA-API VP9 encoder
+videoparsersbad:  h264parse: H.264 parser
+videoparsersbad:  h265parse: H.265 parser
+voaacenc:  voaacenc: AAC audio encoder
+voamrwbenc:  voamrwbenc: AMR-WB audio encoder
+vorbis:  vorbisenc: Vorbis audio encoder
+vpx:  vp8enc: On2 VP8 Encoder
+vpx:  vp9enc: On2 VP9 Encoder
+vulkan:  vulkanh264dec: Vulkan H.264 decoder
+vulkan:  vulkanh265dec: Vulkan H.265 decoder
+wavenc:  wavenc: WAV audio muxer
+wavpack:  wavpackenc: Wavpack audio encoder
+webp:  webpenc: WEBP image encoder
+x264:  x264enc: x264 H.264 Encoder
+x265:  x265enc: x265enc
+y4menc:  y4menc: YUV4MPEG video encoder
+[rc=0]
+
+$ python3 --version; ls -d ~/miniconda3/envs/* ~/anaconda3/envs/* ~/miniforge3/envs/* ~/mambaforge/envs/* 2>/dev/null
+Python 3.12.3
+/home/ubuntu/miniconda3/envs/cuda_env
+/home/ubuntu/miniconda3/envs/face_detection_env
+/home/ubuntu/miniconda3/envs/lerobot
+/home/ubuntu/miniconda3/envs/robot_env
+[rc=2]
+
+$ command -v docker >/dev/null && docker ps --format "{{.Names}}\t{{.Image}}\t{{.Status}}" 2>&1 | head -20
+[rc=1]
+
+===== 进程与服务 [2026-10-21 20:05:00.834 +0800] =====
+
+$ ps -eo pid,user,etimes,pcpu,pmem,args --sort=-pcpu | head -45 | cut -c1-300
+    PID USER     ELAPSED %CPU %MEM COMMAND
+   2616 ubuntu     35075 84.3  8.0 python -m autolife_robot_vision.main
+   4986 ubuntu     35066 54.6  4.1 /home/ubuntu/miniconda3/envs/robot_env/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=38, pipe_handle=45) --multiprocessing-fork
+   4249 ubuntu     35071 34.2  2.3 /home/ubuntu/miniconda3/envs/robot_env/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=36, pipe_handle=38) --multiprocessing-fork
+   2647 ubuntu     35075 30.5  2.8 python -m autolife_robot_arm.main
+ 478872 ubuntu     13040 26.5  1.3 /usr/bin/python3 -u /home/ubuntu/.local/share/autolife-control-center-web/console.py
+   2710 ubuntu     35075 17.4  3.8 python -m autolife_robot_flow.main
+   5594 ubuntu     35041 14.7  4.5 /home/ubuntu/miniconda3/envs/robot_env/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=36, pipe_handle=200) --multiprocessing-fork
+   5571 ubuntu     35043 14.2  4.5 /home/ubuntu/miniconda3/envs/robot_env/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=36, pipe_handle=198) --multiprocessing-fork
+   5563 ubuntu     35045 13.8  4.5 /home/ubuntu/miniconda3/envs/robot_env/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=36, pipe_handle=196) --multiprocessing-fork
+   5664 ubuntu     35037 12.5  4.0 /home/ubuntu/miniconda3/envs/robot_env/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=36, pipe_handle=202) --multiprocessing-fork
+   4493 ubuntu     35070 10.8  1.1 /opt/google/chrome/chrome --type=gpu-process --ozone-platform=x11 --crashpad-handler-pid=4403 --enable-crash-reporter=, --user-data-dir=/tmp/chromium-temp --change-stack-guard-on-fork=enable --gpu-preferences=UAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAAAQAAAAAAAAAAAAAAAAAAAAAA
+   5663 ubuntu     35037  9.6  3.9 /home/ubuntu/miniconda3/envs/robot_env/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=36, pipe_handle=199) --multiprocessing-fork
+   5604 ubuntu     35039  7.5  4.5 /home/ubuntu/miniconda3/envs/robot_env/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=36, pipe_handle=203) --multiprocessing-fork
+   4601 ubuntu     35069  6.9  1.1 /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4403 --enable-crash-reporter=, --user-data-dir=/tmp/chromium-temp --allow-insecure-localhost --change-stack-guard-on-fork=enable --disable-background-timer-throttling --ozone-platform=x11 --lang=en-US
+   2674 ubuntu     35075  5.8  4.2 python -m autolife_robot_gv.main
+   4975 ubuntu     35066  5.6  4.5 /home/ubuntu/miniconda3/envs/robot_env/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=36, pipe_handle=199) --multiprocessing-fork
+   4974 ubuntu     35066  5.2  3.9 /home/ubuntu/miniconda3/envs/robot_env/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=36, pipe_handle=197) --multiprocessing-fork
+   2461 ubuntu     35076  4.1  1.0 /usr/lib/xorg/Xorg vt2 -displayfd 3 -auth /run/user/1001/gdm/Xauthority -nolisten tcp -background none -noreset -keeptty -novtswitch -verbose 3
+ 735814 ubuntu       882  3.6  5.5 /home/ubuntu/.vscode-server/cli/servers/Stable-6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1/server/node --dns-result-order=ipv4first /home/ubuntu/.vscode-server/cli/servers/Stable-6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1/server/out/bootstrap-fork --type=extensionHost -
+   4317 ubuntu     35070  2.7  3.6 python -m autolife_robot_kiosk.main
+   2835 ubuntu     35074  2.5  1.8 /usr/bin/gnome-shell
+   5249 ubuntu     35064  1.9  1.8 /usr/NX/bin/nxnode.bin
+ 744448 root         528  1.0  0.0 [kworker/u92:0-uvcvideo]
+   1892 redis      35077  0.7  0.0 /usr/bin/redis-server 127.0.0.1:6379
+ 733862 root         969  0.7  0.0 [kworker/u92:1-uvcvideo]
+ 735767 ubuntu       882  0.7  0.1 /home/ubuntu/.vscode-server/code-6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1 command-shell --cli-data-dir /home/ubuntu/.vscode-server/cli --parent-process-id 735749 --on-host=127.0.0.1 --on-port
+ 735828 ubuntu       882  0.4  1.7 /home/ubuntu/.vscode-server/cli/servers/Stable-6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1/server/node /home/ubuntu/.vscode-server/cli/servers/Stable-6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1/server/out/bootstrap-fork --type=fileWatcher
+ 719930 root        1631  0.4  0.0 [kworker/u92:3-uvcvideo]
+ 736531 ubuntu       876  0.4  2.9 /home/ubuntu/.vscode-server/cli/servers/Stable-6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1/server/node /home/ubuntu/.vscode-server/extensions/ms-python.vscode-pylance-2026.4.1/dist/server.bundle.js --cancellationReceive=file:af0cd0e10fd0badb227184548bf95fff63289cf3b0 
+ 735739 ubuntu       883  0.3  0.0 sshd: ubuntu@notty
+ 755924 ubuntu         2  0.3  0.0 bash -s -- autolife
+ 755727 root           9  0.3  0.0 sshd: ubuntu [priv]
+ 755489 root          20  0.2  0.0 [kworker/u89:0-events_unbound]
+   4499 ubuntu     35070  0.2  0.6 /opt/google/chrome/chrome --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --crashpad-handler-pid=4403 --enable-crash-reporter=, --user-data-dir=/tmp/chromium-temp --change-stack-guard-on-fork=enable --shared-f
+    513 root       35079  0.2  1.5 /usr/lib/systemd/systemd-journald
+     56 root       35085  0.2  0.0 [migration/12]
+ 324724 root       20067  0.2  0.0 [kworker/17:2-i915-unordered]
+     18 root       35085  0.1  0.0 [rcu_preempt]
+ 599042 root        7413  0.1  0.0 [kworker/u89:5-kvfree_rcu_reclaim]
+ 725601 root        1360  0.1  0.0 [kworker/u89:4-events_unbound]
+ 573012 root        8615  0.1  0.0 [kworker/u89:1-events_unbound]
+   5018 nx         35066  0.1  0.3 /usr/NX/bin/nxserver.bin --daemon
+ 685881 root        3260  0.1  0.0 [kworker/u89:3-events_unbound]
+     63 root       35085  0.1  0.0 [migration/13]
+[rc=0]
+
+$ ps -eo pid,user,etimes,args | grep -iE "ros|bridge|record|bag|mcap|collect|lerobot|foxglove|zenoh|camera|hdas|galaxea|autolife|shm" | grep -v grep | cut -c1-300
+   1427 avahi      35078 avahi-daemon: running [autolife-robot-310.local]
+   2317 ubuntu     35077 /home/ubuntu/miniconda3/bin/python /home/ubuntu/miniconda3/bin/conda run --no-capture-output -n robot_env python -m autolife_robot_arm.main
+   2318 ubuntu     35077 /home/ubuntu/.bun/bin/bun /home/ubuntu/Documents/AutolifeRobotAdmin/build/index.js
+   2319 ubuntu     35077 /home/ubuntu/Documents/autolife-relay/bin/autolife-relay --config-file /home/ubuntu/Documents/autolife-relay/conf/config.yaml
+   2320 ubuntu     35077 /home/ubuntu/miniconda3/bin/python /home/ubuntu/miniconda3/bin/conda run --no-capture-output -n robot_env python -m autolife_robot_flow.main
+   2321 ubuntu     35077 /home/ubuntu/miniconda3/bin/python /home/ubuntu/miniconda3/bin/conda run --no-capture-output -n robot_env python -m autolife_robot_gv.main
+   2325 ubuntu     35077 /home/ubuntu/miniconda3/bin/python /home/ubuntu/miniconda3/bin/conda run --no-capture-output -n robot_env python -m autolife_robot_vision.main
+   2616 ubuntu     35075 python -m autolife_robot_vision.main
+   2647 ubuntu     35075 python -m autolife_robot_arm.main
+   2674 ubuntu     35075 python -m autolife_robot_gv.main
+   2710 ubuntu     35075 python -m autolife_robot_flow.main
+   4029 ubuntu     35071 /home/ubuntu/miniconda3/bin/python /home/ubuntu/miniconda3/bin/conda run --no-capture-output -n robot_env python -m autolife_robot_kiosk.main
+   4317 ubuntu     35070 python -m autolife_robot_kiosk.main
+   4493 ubuntu     35070 /opt/google/chrome/chrome --type=gpu-process --ozone-platform=x11 --crashpad-handler-pid=4403 --enable-crash-reporter=, --user-data-dir=/tmp/chromium-temp --change-stack-guard-on-fork=enable --gpu-preferences=UAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+   4499 ubuntu     35070 /opt/google/chrome/chrome --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --crashpad-handler-pid=4403 --enable-crash-reporter=, --user-data-dir=/tmp/chromium-temp --change-stack-guard-on-fork=enable --shared-files=v8_co
+   4547 ubuntu     35069 /opt/google/chrome/chrome --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=utility --crashpad-handler-pid=4403 --enable-crash-reporter=, --user-data-dir=/tmp/chromium-temp --change-stack-guard-on-fork=enable --shared-files=v8
+   4601 ubuntu     35069 /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4403 --enable-crash-reporter=, --user-data-dir=/tmp/chromium-temp --allow-insecure-localhost --change-stack-guard-on-fork=enable --disable-background-timer-throttling --ozone-platform=x11 --lang=en-US --num-ras
+   7505 ubuntu     34964 sh /home/ubuntu/.vscode-server/cli/servers/Stable-6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1/server/bin/code-server --connection-token=*** --accept-server-license-terms --agent-host-bridge-port=41527 --agent-host-bridge-host=127.0.0.1 --start-server --enable-remote-auto-
+   7509 ubuntu     34964 /home/ubuntu/.vscode-server/cli/servers/Stable-6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1/server/node /home/ubuntu/.vscode-server/cli/servers/Stable-6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1/server/out/server-main.js --connection-token=*** --accept-server-license-terms --
+  30533 ubuntu     34001 /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4403 --enable-crash-reporter=, --user-data-dir=/tmp/chromium-temp --allow-insecure-localhost --change-stack-guard-on-fork=enable --disable-background-timer-throttling --ozone-platform=x11 --lang=en-US --num-ras
+ 470561 ubuntu     13413 /usr/bin/Xvfb :88 -screen 0 1600x1000x24 -nolisten tcp -auth /home/ubuntu/.local/share/autolife-control-center-web/Xauthority
+ 470574 ubuntu     13413 /usr/bin/x11vnc -display :88 -auth /home/ubuntu/.local/share/autolife-control-center-web/Xauthority -listen 127.0.0.1 -localhost -no6 -rfbport 5905 -forever -shared -nopw -noxdamage -gone /home/ubuntu/.local/share/autolife-control-center-web/release-input.py
+ 470575 ubuntu     13413 /usr/bin/python3 -u /home/ubuntu/.local/share/autolife-control-center-web/proxy.py
+ 478872 ubuntu     13040 /usr/bin/python3 -u /home/ubuntu/.local/share/autolife-control-center-web/console.py
+ 742698 ubuntu       605 /usr/bin/python3 -u /home/ubuntu/.local/share/autolife-control-center-web/lan_proxy.py
+ 755924 ubuntu         2 bash -s -- autolife
+[rc=0]
+
+$ systemctl list-units --type=service --state=running --no-pager --plain 2>/dev/null | head -80
+UNIT                          LOAD   ACTIVE SUB     DESCRIPTION
+accounts-daemon.service       loaded active running Accounts Service
+atd.service                   loaded active running Deferred execution scheduler
+avahi-daemon.service          loaded active running Avahi mDNS/DNS-SD Stack
+bluetooth.service             loaded active running Bluetooth service
+bolt.service                  loaded active running Thunderbolt system service
+chrony.service                loaded active running chrony, an NTP client/server
+colord.service                loaded active running Manage, Install and Generate Color Profiles
+cron.service                  loaded active running Regular background program processing daemon
+cups-browsed.service          loaded active running Make remote CUPS printers available locally
+cups.service                  loaded active running CUPS Scheduler
+dbus.service                  loaded active running D-Bus System Message Bus
+fwupd.service                 loaded active running Firmware update daemon
+gdm.service                   loaded active running GNOME Display Manager
+gnome-remote-desktop.service  loaded active running GNOME Remote Desktop
+kerneloops.service            loaded active running Tool to automatically collect and submit kernel crash signatures
+lttng-sessiond.service        loaded active running LTTng session daemon
+netbird.service               loaded active running NetBird mesh network client
+networkd-dispatcher.service   loaded active running Dispatcher daemon for systemd-networkd
+NetworkManager.service        loaded active running Network Manager
+nvidia-persistenced.service   loaded active running NVIDIA Persistence Daemon
+nxserver.service              loaded active running NoMachine Server daemon
+polkit.service                loaded active running Authorization Manager
+postgresql@18-main.service    loaded active running PostgreSQL Cluster 18-main
+power-profiles-daemon.service loaded active running Power Profiles daemon
+redis-server.service          loaded active running Advanced key-value store
+rsyslog.service               loaded active running System Logging Service
+rtkit-daemon.service          loaded active running RealtimeKit Scheduling Policy Service
+snapd.service                 loaded active running Snap Daemon
+ssh.service                   loaded active running OpenBSD Secure Shell server
+switcheroo-control.service    loaded active running Switcheroo Control Proxy service
+systemd-journald.service      loaded active running Journal Service
+systemd-logind.service        loaded active running User Login Management
+systemd-oomd.service          loaded active running Userspace Out-Of-Memory (OOM) Killer
+systemd-resolved.service      loaded active running Network Name Resolution
+systemd-udevd.service         loaded active running Rule-based Manager for Device Events and Files
+thermald.service              loaded active running Thermal Daemon Service
+udisks2.service               loaded active running Disk Manager
+unattended-upgrades.service   loaded active running Unattended Upgrades Shutdown
+upower.service                loaded active running Daemon for power management
+user@1001.service             loaded active running User Manager for UID 1001
+wpa_supplicant.service        loaded active running WPA supplicant
+
+Legend: LOAD   → Reflects whether the unit definition was properly loaded.
+        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.
+        SUB    → The low-level unit activation state, values depend on unit type.
+
+41 loaded units listed.
+[rc=0]
+
+$ systemctl list-unit-files --no-pager --plain 2>/dev/null | grep -iE "ros|robot|collect|lerobot|galaxea|autolife|camera|bridge|hdas"
+sysstat-collect.service                        static          -
+sysstat-collect.timer                          enabled         enabled
+[rc=0]
+
+$ crontab -l 2>&1 | grep -v "^#"
+no crontab for ubuntu
+[rc=0]
+
+$ tmux ls 2>&1; screen -ls 2>&1
+main: line 275: tmux: command not found
+main: line 275: screen: command not found
+[rc=127]
+
+$ ls -la /dev/shm | head -40
+total 38128
+drwxrwxrwt  2 root     root         3340 Oct 21 19:53 .
+drwxr-xr-x 24 root     root         6620 Oct 21 10:20 ..
+-rw-rw-rw-  1 ubuntu   ubuntu    4706304 Oct 21 10:20 aja-shm-debug
+-rw-------  1 ubuntu   ubuntu       1311 Oct 21 10:20 al_h30_imu_data
+-rw-------  1 ubuntu   ubuntu         20 Oct 21 10:20 al_h30_imu_meta
+-rw-------  1 ubuntu   ubuntu      33536 Oct 21 10:20 al_mic_gadget_data
+-rw-------  1 ubuntu   ubuntu         96 Oct 21 10:20 al_mic_gadget_meta
+-rw-------  1 ubuntu   ubuntu      33536 Oct 21 10:20 al_mic_pch_data
+-rw-------  1 ubuntu   ubuntu         96 Oct 21 10:20 al_mic_pch_meta
+-rw-------  1 ubuntu   ubuntu      38592 Oct 21 10:20 al_spk_pch_input_data
+-rw-------  1 ubuntu   ubuntu         96 Oct 21 10:20 al_spk_pch_input_meta
+-rw-------  1 ubuntu   ubuntu      38592 Oct 21 10:20 al_spk_pch_output_data
+-rw-------  1 ubuntu   ubuntu         96 Oct 21 10:20 al_spk_pch_output_meta
+-rw-------  1 ubuntu   ubuntu         56 Oct 21 10:21 arm_async_speed_limit_b2131faeacbc4310abfebde7d4aaea83
+-rw-------  1 ubuntu   ubuntu         20 Oct 21 10:20 arm_protection_state_45c4f11c3b0c44a6a16534c3c81e98f4
+-rw-rw-rw-  1 ubuntu   ubuntu         52 Oct 21 10:20 autolife_robot_clock
+-rw-------  1 ubuntu   ubuntu    1843200 Oct 21 10:20 camera_image_buffer_hand_left
+-rw-------  1 ubuntu   ubuntu    1843200 Oct 21 16:51 camera_image_buffer_hand_left_jpeg
+-rw-------  1 ubuntu   ubuntu    1843200 Oct 21 10:20 camera_image_buffer_hand_right
+-rw-------  1 ubuntu   ubuntu    1843200 Oct 21 15:33 camera_image_buffer_hand_right_jpeg
+-rw-------  1 ubuntu   ubuntu   12441600 Oct 21 10:20 camera_image_buffer_head_left
+-rw-------  1 ubuntu   ubuntu   12441600 Oct 21 10:20 camera_image_buffer_head_left_jpeg
+-rw-------  1 ubuntu   ubuntu   12441600 Oct 21 10:20 camera_image_buffer_head_right
+-rw-------  1 ubuntu   ubuntu   12441600 Oct 21 10:20 camera_image_buffer_head_right_jpeg
+-rw-------  1 ubuntu   ubuntu    1843200 Oct 21 10:20 camera_image_buffer_rgbd_head_color
+-rw-------  1 ubuntu   ubuntu    1228800 Oct 21 10:20 camera_image_buffer_rgbd_head_depth
+-rw-------  1 ubuntu   ubuntu         52 Oct 21 10:20 camera_intrinsics_struct_rgbd_head_color
+-rw-------  1 ubuntu   ubuntu         52 Oct 21 10:20 camera_intrinsics_struct_rgbd_head_depth
+-rw-------  1 ubuntu   ubuntu        256 Oct 21 10:20 camera_metadata_struct_hand_left
+-rw-------  1 ubuntu   ubuntu        256 Oct 21 10:20 camera_metadata_struct_hand_left_jpeg
+-rw-------  1 ubuntu   ubuntu        256 Oct 21 10:20 camera_metadata_struct_hand_right
+-rw-------  1 ubuntu   ubuntu        256 Oct 21 10:20 camera_metadata_struct_hand_right_jpeg
+-rw-------  1 ubuntu   ubuntu        256 Oct 21 10:20 camera_metadata_struct_head_left
+-rw-------  1 ubuntu   ubuntu        256 Oct 21 10:20 camera_metadata_struct_head_left_jpeg
+-rw-------  1 ubuntu   ubuntu        256 Oct 21 10:20 camera_metadata_struct_head_right
+-rw-------  1 ubuntu   ubuntu        256 Oct 21 10:20 camera_metadata_struct_head_right_jpeg
+-rw-------  1 ubuntu   ubuntu        256 Oct 21 10:20 camera_metadata_struct_rgbd_head_color
+-rw-------  1 ubuntu   ubuntu        256 Oct 21 10:20 camera_metadata_struct_rgbd_head_depth
+-rw-------  1 ubuntu   ubuntu          4 Oct 21 10:20 communication_lost_182fe133714c4f1aac8d3d5acc178950
+[rc=0]
+
+===== 时钟 [2026-10-21 20:05:01.279 +0800] =====
+
+$ timedatectl 2>&1
+               Local time: Wed 2026-10-21 20:05:01 CST
+           Universal time: Wed 2026-10-21 12:05:01 UTC
+                 RTC time: Wed 2026-10-21 12:05:01
+                Time zone: Asia/Shanghai (CST, +0800)
+System clock synchronized: yes
+              NTP service: active
+          RTC in local TZ: no
+[rc=0]
+
+$ command -v chronyc >/dev/null && { chronyc tracking; chronyc sources; } 2>&1
+Reference ID    : D21C8204 (time.nju.edu.cn)
+Stratum         : 2
+Ref time (UTC)  : Wed Oct 21 11:53:01 2026
+System time     : 0.000369451 seconds fast of NTP time
+Last offset     : +0.000126881 seconds
+RMS offset      : 0.000234091 seconds
+Frequency       : 30.918 ppm slow
+Residual freq   : +0.001 ppm
+Skew            : 0.038 ppm
+Root delay      : 0.029154444 seconds
+Root dispersion : 0.001361321 seconds
+Update interval : 1044.3 seconds
+Leap status     : Normal
+MS Name/IP address         Stratum Poll Reach LastRx Last sample               
+===============================================================================
+^- 113.141.164.39                3  10    50   73m    -20ms[  -20ms] +/-  157ms
+^+ 118.31.40.99                  2  10   377   874   +558us[ +684us] +/-   28ms
+^+ 203.107.6.88                  3  10   377   841    +65us[ +191us] +/-   36ms
+^- prod-ntp-5.ntp4.ps5.cano>     2  10   337   697    +18ms[  +18ms] +/-  148ms
+^- prod-ntp-4.ntp1.ps5.cano>     2  10   373   887    +74ms[  +74ms] +/-  168ms
+^- prod-ntp-3.ntp4.ps5.cano>     2  10   377   820  +4216us[+4343us] +/-  102ms
+^- alphyn.canonical.com          2  10   377   599  -7812us[-7812us] +/-  151ms
+^* time.nju.edu.cn               1  10   377   720  -1282us[-1155us] +/-   18ms
+^+ 119.28.183.184                2  10   347   801   -285us[ -159us] +/-   30ms
+^+ 119.28.206.193                2  10   357   829   +877us[+1003us] +/-   39ms
+^- time.cloudflare.com           3  10   377   74m    +15ms[  +15ms] +/-  116ms
+[rc=0]
+
+===== ROS 运行环境（取自正在运行的 ROS 进程，只打印 ROS/DDS 相关变量） [2026-10-21 20:05:02.879 +0800] =====
+pid=2317 cmd=/home/ubuntu/miniconda3/bin/python /home/ubuntu/miniconda3/bin/conda run --no-capture-output -n robot_env python -m autolife_robot_arm.main 
+  CYCLONEDDS_URI=<CycloneDDS><Domain><General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General></Domain></CycloneDDS> RMW_IMPLEMENTATION=rmw_cyclonedds_cpp ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET ROS_DISTRO=jazzy ROS_DOMAIN_ID=0 
+pid=478872 cmd=/usr/bin/python3 -u /home/ubuntu/.local/share/autolife-control-center-web/console.py 
+  CYCLONEDDS_URI=<CycloneDDS><Domain><General><Interfaces><NetworkInterface name="lo"/></Interfaces></General><Discovery><ParticipantIndex>auto</ParticipantIndex><MaxAutoParticipantIndex>200</MaxAutoParticipantIndex></Discovery></Domain></CycloneDDS> RMW_IMPLEMENTATION=rmw_cyclonedds_cpp ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET ROS_DISTRO=jazzy ROS_DOMAIN_ID=0 
+样本 AMENT_PREFIX_PATH:
+/home/ubuntu/ros2_ws/install/control_center_shell
+/home/ubuntu/ros2_ws/install/control_center_navigation
+/home/ubuntu/ros2_ws/install/text_voice_control
+/home/ubuntu/ros2_ws/install/multi_lidar_slam
+/home/ubuntu/ros2_ws/install/control_center_slam
+/home/ubuntu/ros2_ws/install/control_center_service_manager
+/home/ubuntu/ros2_ws/install/control_center_joint_control
+/home/ubuntu/ros2_ws/install/control_center_chassis_guard
+/opt/ros/jazzy
+
+===== 复现 ROS 环境：~/.bashrc 里的 ROS 相关行 + 运行中节点的变量 [2026-10-21 20:05:03.191 +0800] =====
+
+$ grep -nE "^\s*(source|\.)\s+\S*setup\.(bash|sh)|^\s*export\s+(ROS_|RMW_|CYCLONEDDS_|FASTRTPS_|FASTDDS_|ZENOH_)" ~/.bashrc 2>/dev/null
+179:export RMW_IMPLEMENTATION="rmw_cyclonedds_cpp"
+180:export CYCLONEDDS_URI="<CycloneDDS><Domain><General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General></Domain></CycloneDDS>"
+183:export ROS_DOMAIN_ID=0
+[rc=0]
+
+$ printenv | grep -E "^(ROS_|RMW_|CYCLONEDDS_|FASTRTPS_|FASTDDS_|ZENOH_)" | grep -v "^ROS_LOG_DIR" | sort
+CYCLONEDDS_URI=<CycloneDDS><Domain><General><Interfaces><NetworkInterface name="lo"/></Interfaces></General><Discovery><ParticipantIndex>auto</ParticipantIndex><MaxAutoParticipantIndex>200</MaxAutoParticipantIndex></Discovery></Domain></CycloneDDS>
+RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET
+ROS_DISTRO=jazzy
+ROS_DOMAIN_ID=0
+ROS_PYTHON_VERSION=3
+ROS_VERSION=2
+[rc=0]
+
+$ ls /opt/ros 2>/dev/null
+jazzy
+[rc=0]
+
+$ if [ -n "$CYCLONEDDS_URI" ]; then f=${CYCLONEDDS_URI#file://}; if [ -f "$f" ]; then cat "$f"; else echo "$CYCLONEDDS_URI"; fi; fi
+<CycloneDDS><Domain><General><Interfaces><NetworkInterface name="lo"/></Interfaces></General><Discovery><ParticipantIndex>auto</ParticipantIndex><MaxAutoParticipantIndex>200</MaxAutoParticipantIndex></Discovery></Domain></CycloneDDS>
+[rc=0]
+
+===== ros2 daemon 初始状态 [2026-10-21 20:05:03.536 +0800] =====
+The daemon is not running
+
+===== 节点与话题 [2026-10-21 20:05:03.901 +0800] =====
+
+$ ros2 node list --no-daemon --spin-time 5 2>&1
+1792584304.191930 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+/control_center_shell
+/dataset_logger_30fps_node
+/explanation_ros_handler_0_310_136313487206208
+/kiosk_bridge
+/navigation_native_ui
+/node_arm_vr_control_service_0_310
+/node_gv_sensor_service_0_310
+/node_mod_motor_left_arm_control_0_310
+/node_mod_motor_neck_control_0_310
+/node_mod_motor_right_arm_control_0_310
+/node_mod_motor_waist_leg_control_0_310
+/node_robot_action_service_0_310
+/node_robot_gv_control_0_310
+/node_robot_task_control_service_0_310
+/node_stability_service_0_310
+/vision_service_0_310
+[rc=0]
+1792584309.791810 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+/amcl_pose [geometry_msgs/msg/PoseWithCovarianceStamped]
+/connect_wifi_0_310 [std_msgs/msg/String]
+/control_center/manual_cmd_vel [geometry_msgs/msg/Twist]
+/control_center/operator_heartbeat [std_msgs/msg/String]
+/control_reset_0_310 [std_msgs/msg/String]
+/control_rtt_topic_0_310 [std_msgs/msg/String]
+/control_safe_recover_0_310 [std_msgs/msg/String]
+/control_set_left_gripper_force_ratio_0_310 [std_msgs/msg/String]
+/control_set_right_gripper_force_ratio_0_310 [std_msgs/msg/String]
+/control_topic_0_310 [std_msgs/msg/String]
+/face_detection_0_310 [std_msgs/msg/String]
+/global_relocalization/status [std_msgs/msg/String]
+/gripper_reboot_0_310 [std_msgs/msg/String]
+/initialpose [geometry_msgs/msg/PoseWithCovarianceStamped]
+/kiosk_display [std_msgs/msg/String]
+/local_plan [nav_msgs/msg/Path]
+/localization/continuity_status [std_msgs/msg/String]
+/map [nav_msgs/msg/OccupancyGrid]
+/navigation/front_scan [sensor_msgs/msg/LaserScan]
+/navigation/rear_scan [sensor_msgs/msg/LaserScan]
+/parameter_events [rcl_interfaces/msg/ParameterEvent]
+/plan [nav_msgs/msg/Path]
+/robot_action_0_310 [std_msgs/msg/String]
+/robot_navigation_0_310/cancel [std_msgs/msg/Empty]
+/robot_navigation_0_310/go [std_msgs/msg/String]
+/robot_navigation_0_310/initial_pose [std_msgs/msg/String]
+/robot_navigation_0_310/is_navigating [std_msgs/msg/Bool]
+/robot_navigation_0_310/navigate_pose [std_msgs/msg/String]
+/robot_navigation_0_310/navigating_feedback [std_msgs/msg/String]
+/robot_order [std_msgs/msg/String]
+/robot_point_cloud_topic_0_310 [std_msgs/msg/String]
+/robot_state_topic_0_310 [std_msgs/msg/String]
+/rosout [rcl_interfaces/msg/Log]
+/tf [tf2_msgs/msg/TFMessage]
+/tf_static [tf2_msgs/msg/TFMessage]
+/topic_ai_connection_0_310 [std_msgs/msg/String]
+/topic_ai_status_0_310 [std_msgs/msg/String]
+/topic_arm_current_robot_eef_pose_0_310 [std_msgs/msg/String]
+/topic_arm_current_robot_height_z_0_310 [std_msgs/msg/String]
+/topic_arm_dexteroushand_current_joints_status_0_310 [std_msgs/msg/String]
+/topic_arm_dexteroushand_target_joints_position_0_310 [std_msgs/msg/String]
+/topic_arm_gripper_target_joints_position_0_310 [std_msgs/msg/String]
+/topic_arm_gripper_target_joints_torque_0_310 [std_msgs/msg/String]
+/topic_arm_joints_clear_error_0_310 [std_msgs/msg/String]
+/topic_arm_joints_set_enable_state_0_310 [std_msgs/msg/String]
+/topic_arm_move_eef_pose_in_robot_frame_0_310 [std_msgs/msg/String]
+/topic_arm_move_eef_pose_in_vr_frame_0_310 [std_msgs/msg/String]
+/topic_arm_move_joints_trajectory_0_310 [std_msgs/msg/String]
+/topic_arm_move_up_down_z_0_310 [std_msgs/msg/String]
+/topic_arm_move_whole_body_joints_by_planning_0_310 [std_msgs/msg/String]
+/topic_arm_robot_action_0_310 [std_msgs/msg/String]
+/topic_arm_set_dexterous_hand_vr_cmd_0_310 [std_msgs/msg/String]
+/topic_arm_set_gripper_vr_cmd_0_310 [std_msgs/msg/String]
+/topic_arm_target_robot_eef_pose_0_310 [std_msgs/msg/String]
+/topic_arm_target_robot_height_z_0_310 [std_msgs/msg/String]
+/topic_arm_whole_body_and_gripper_current_joints_status_0_310 [std_msgs/msg/String]
+/topic_arm_whole_body_external_force_momentum_0_310 [std_msgs/msg/String]
+/topic_arm_whole_body_target_joints_position_0_310 [std_msgs/msg/String]
+/topic_arm_whole_body_target_joints_velocity_0_310 [std_msgs/msg/String]
+/topic_chat_text_0_310 [std_msgs/msg/String]
+/topic_force_sensor_hand_left_data_0_310 [std_msgs/msg/String]
+/topic_force_sensor_hand_right_data_0_310 [std_msgs/msg/String]
+/topic_fx_rate_0_310 [std_msgs/msg/String]
+/topic_gv_battery_0_310 [sensor_msgs/msg/BatteryState]
+/topic_gv_current_motors_status_0_310 [std_msgs/msg/String]
+/topic_gv_front_lidar_0_310 [sensor_msgs/msg/LaserScan]
+/topic_gv_imu_0_310 [sensor_msgs/msg/Imu]
+/topic_gv_rear_lidar_0_310 [sensor_msgs/msg/LaserScan]
+/topic_gv_target_cmd_vel_0_310 [geometry_msgs/msg/Twist]
+/topic_gv_wheel_odom_0_310 [nav_msgs/msg/Odometry]
+/topic_kiosk_image_path_0_310 [std_msgs/msg/String]
+/topic_kiosk_text_0_310 [std_msgs/msg/String]
+/topic_left_arm_dexteroushand_sensor_data_0_310 [std_msgs/msg/String]
+/topic_menu_status_0_310 [std_msgs/msg/String]
+/topic_mic_energy_0_310 [std_msgs/msg/String]
+/topic_reailtime_0_310 [std_msgs/msg/String]
+/topic_right_arm_dexteroushand_sensor_data_0_310 [std_msgs/msg/String]
+/topic_tactile_hand_left_data_0_310 [std_msgs/msg/String]
+/topic_tactile_hand_right_data_0_310 [std_msgs/msg/String]
+/topic_task_event_0_310 [std_msgs/msg/String]
+/topic_task_progress_0_310 [std_msgs/msg/String]
+/topic_track_face_to_neck_joint_0_310 [std_msgs/msg/String]
+/topic_tts_0_310 [std_msgs/msg/String]
+/topic_user_language_0_310 [std_msgs/msg/String]
+/topic_weather_info_0_310 [std_msgs/msg/String]
+/waypoints/markers [visualization_msgs/msg/MarkerArray]
+/waypoints/navigation_status [std_msgs/msg/String]
+共 87 个话题
+
+===== 话题 /connect_wifi_0_310 [std_msgs/msg/String] [2026-10-21 20:05:15.100 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+1792584316.435939 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584316.447579 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/connect_wifi_0_310]
+-- echo --once
+1792584324.782971 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /control_center/operator_heartbeat [std_msgs/msg/String] [2026-10-21 20:05:30.717 +0800] =====
+Publisher count: 1
+Node name: control_center_shell
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 10.000
+	min: 0.099s max: 0.101s std dev: 0.00046s window: 65
+-- bw（最后一次统计）
+442 B/s from 70 messages
+	Message size mean: 44 B min: 44 B max: 44 B
+-- echo --once
+1792584339.615479 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+data: a508937f78a74edb94b48f27adac4684
+---
+
+
+===== 话题 /control_reset_0_310 [std_msgs/msg/String] [2026-10-21 20:05:40.409 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584341.017404 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584341.017486 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/control_reset_0_310]
+-- echo --once
+1792584349.312038 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /control_rtt_topic_0_310 [std_msgs/msg/String] [2026-10-21 20:05:55.272 +0800] =====
+Publisher count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584355.857558 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584355.867255 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/control_rtt_topic_0_310]
+-- echo --once
+1792584364.215350 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /control_safe_recover_0_310 [std_msgs/msg/String] [2026-10-21 20:06:10.151 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584370.758982 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584370.747983 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/control_safe_recover_0_310]
+-- echo --once
+1792584379.062423 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /control_set_left_gripper_force_ratio_0_310 [std_msgs/msg/String] [2026-10-21 20:06:25.040 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584385.629562 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584385.651072 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/control_set_left_gripper_force_ratio_0_310]
+-- echo --once
+1792584393.924370 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /control_set_right_gripper_force_ratio_0_310 [std_msgs/msg/String] [2026-10-21 20:06:39.893 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584400.521580 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584400.488062 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/control_set_right_gripper_force_ratio_0_310]
+-- echo --once
+1792584408.809357 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /control_topic_0_310 [std_msgs/msg/String] [2026-10-21 20:06:54.765 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 3
+Node name: dataset_logger_30fps_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (1)
+  Durability: VOLATILE
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (1)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584415.387970 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584415.387829 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/control_topic_0_310]
+-- echo --once
+1792584423.707686 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /face_detection_0_310 [std_msgs/msg/String] [2026-10-21 20:07:09.652 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+1792584430.257752 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584430.253625 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/face_detection_0_310]
+-- echo --once
+1792584438.567505 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /global_relocalization/status [std_msgs/msg/String] [2026-10-21 20:07:24.531 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: navigation_native_ui
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: TRANSIENT_LOCAL
+-- hz（最后一次统计）
+1792584445.133154 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+Subscribed to [/global_relocalization/status]
+failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+-- echo --once
+1792584453.446401 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /gripper_reboot_0_310 [std_msgs/msg/String] [2026-10-21 20:07:39.400 +0800] =====
+Publisher count: 6
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 6
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+-- hz（最后一次统计）
+1792584460.019676 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584460.001520 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/gripper_reboot_0_310]
+-- echo --once
+1792584468.322054 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /kiosk_display [std_msgs/msg/String] [2026-10-21 20:07:54.288 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584474.931148 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584474.917095 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/kiosk_display]
+-- echo --once
+1792584483.218335 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /localization/continuity_status [std_msgs/msg/String] [2026-10-21 20:08:09.180 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: navigation_native_ui
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: TRANSIENT_LOCAL
+-- hz（最后一次统计）
+1792584489.799417 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584489.767601 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/localization/continuity_status]
+-- echo --once
+1792584498.067799 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /robot_action_0_310 [std_msgs/msg/String] [2026-10-21 20:08:24.044 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584504.668586 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584504.667207 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/robot_action_0_310]
+-- echo --once
+1792584512.979767 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /robot_navigation_0_310/go [std_msgs/msg/String] [2026-10-21 20:08:38.939 +0800] =====
+Publisher count: 2
+Node name: explanation_ros_handler_0_310_136313487206208
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 2
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584519.562017 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584519.561775 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/robot_navigation_0_310/go]
+-- echo --once
+1792584527.852678 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /robot_navigation_0_310/initial_pose [std_msgs/msg/String] [2026-10-21 20:08:53.823 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+1792584534.417615 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584534.434576 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/robot_navigation_0_310/initial_pose]
+-- echo --once
+1792584542.704340 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /robot_navigation_0_310/navigate_pose [std_msgs/msg/String] [2026-10-21 20:09:08.669 +0800] =====
+Publisher count: 1
+Node name: explanation_ros_handler_0_310_136313487206208
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+1792584549.290202 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584549.278656 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/robot_navigation_0_310/navigate_pose]
+-- echo --once
+1792584557.583502 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /robot_navigation_0_310/navigating_feedback [std_msgs/msg/String] [2026-10-21 20:09:23.535 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: explanation_ros_handler_0_310_136313487206208
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584564.151067 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584564.128178 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/robot_navigation_0_310/navigating_feedback]
+-- echo --once
+1792584572.443544 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /robot_order [std_msgs/msg/String] [2026-10-21 20:09:38.410 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: explanation_ros_handler_0_310_136313487206208
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584579.089052 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584579.062757 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/robot_order]
+-- echo --once
+1792584587.343598 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /robot_point_cloud_topic_0_310 [std_msgs/msg/String] [2026-10-21 20:09:53.313 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584593.994258 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584593.967616 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/robot_point_cloud_topic_0_310]
+-- echo --once
+1792584602.252611 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /robot_state_topic_0_310 [std_msgs/msg/String] [2026-10-21 20:10:08.211 +0800] =====
+Publisher count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 2
+Node name: dataset_logger_30fps_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 20.004
+	min: 0.048s max: 0.052s std dev: 0.00056s window: 100
+-- bw（最后一次统计）
+25.41 KB/s from 100 messages
+	Message size mean: 1.26 KB min: 1.25 KB max: 1.26 KB
+-- echo --once
+1792584617.155453 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+data: '{"timestamp": 1792584614.3153887, "state": 0, "joints_pos": {"neck": [-1.06006, -46.56621, -1.62834], "leg_waist": [39.95151, 78.01809, 36.02036, -0.15526], "left_arm": [3.76826, -1.7468, 2.88936, 14.51273, 10.43669, 7.00515, 19.81332], "right_arm": [-1.37327, 0.09888, -0.09888, -9.50304, 1.91248, -4.66646, 21.29959], "left_gripper": [19.10296], "right_gripper": [19.21225]}, "max_current": [50.0, 30.0, 30.0, 30.0, 10.0, 10.0, 10.0], "self_collide": 0, "self_collision_count": 0, "self_collision_pairs": [], "wrench_ext_eef": {"left": [2.672486102723736, 0.6900812506534881, -22.002273434649712, 0.5020313707588184, -0.12970280461506445, 0.050456389065673415], "right": [9.571661074268182e-14, -1.2460467885340247e-14, -1.1678711789995574e-12, 4.172046338356653e-14, -3.7019939703735185e-16, 3.6324975269631295e-15]}, "external_joint_torque": {"left": [-0.5770566414910342, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "right": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, "protection": {"state": "NORMAL", "state_value": 0, "protected": false, "reason": "NONE", "reason_value": 0, "heartbeat_expected_mask": 31, "heartbeat_ready_mask": 20, "heartbeat_lost_mask": 0, "heartbeat_all_lost": false, "heartbeat_protection_armed": false, "message": ""}, "notifications": {}}'
+---
+
+
+===== 话题 /topic_ai_connection_0_310 [std_msgs/msg/String] [2026-10-21 20:10:17.967 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584618.591739 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584618.588599 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_ai_connection_0_310]
+-- echo --once
+1792584626.894064 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_ai_status_0_310 [std_msgs/msg/String] [2026-10-21 20:10:32.842 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 2
+Node name: explanation_ros_handler_0_310_136313487206208
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584633.416366 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584633.449339 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_ai_status_0_310]
+-- echo --once
+1792584641.798686 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_current_robot_eef_pose_0_310 [std_msgs/msg/String] [2026-10-21 20:10:47.742 +0800] =====
+Publisher count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 2
+Node name: explanation_ros_handler_0_310_136313487206208
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: dataset_logger_30fps_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 99.994
+	min: 0.010s max: 0.010s std dev: 0.00011s window: 100
+-- bw（最后一次统计）
+62.96 KB/s from 100 messages
+	Message size mean: 0.62 KB min: 0.62 KB max: 0.62 KB
+-- echo --once
+1792584656.696803 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+data: '{"timestamp": 1792584653.8493893, "left_eef_pose": {"position": [0.034651131169072175, 0.26552579262960635, 0.6072400483716986], "rotation": [0.4031109986761543, -0.6026064107330772, -0.45583987273611043, -0.5163109982497351]}, "right_eef_pose": {"position": [0.0311971907072391, -0.19340202316862143, 0.6110846517322741], "rotation": [-0.4248885266615415, 0.526601818295437, 0.5639500640237676, 0.4734137621224297]}, "head_pose": {"position": [0.008112188918380371, -0.00025218962798971567, 1.3361921485789112], "rotation": [0.9253811330180436, -0.01057944237643974, -0.3788727677216138, -0.003641418982996734]}}'
+---
+
+
+===== 话题 /topic_arm_current_robot_height_z_0_310 [std_msgs/msg/String] [2026-10-21 20:10:57.501 +0800] =====
+Publisher count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: dataset_logger_30fps_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 100.008
+	min: 0.009s max: 0.011s std dev: 0.00018s window: 100
+-- bw（最后一次统计）
+7.67 KB/s from 100 messages
+	Message size mean: 0.08 KB min: 0.08 KB max: 0.08 KB
+-- echo --once
+1792584666.417345 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+data: '{"timestamp": 1792584663.566665, "height_z": -0.1603950795650887}'
+---
+
+
+===== 话题 /topic_arm_dexteroushand_current_joints_status_0_310 [std_msgs/msg/String] [2026-10-21 20:11:07.220 +0800] =====
+Publisher count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+average rate: 10.000
+	min: 0.099s max: 0.101s std dev: 0.00023s window: 65
+-- bw（最后一次统计）
+14.53 KB/s from 70 messages
+	Message size mean: 1.45 KB min: 1.44 KB max: 1.45 KB
+-- echo --once
+1792584676.126219 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+data: '{"timestamp": 1792584673.3225071, "left_dexteroushand_state": {"position": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "speed": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "torque": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "temperature": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "communication_lost": [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]}, "right_dexteroushand_state": {"position": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "speed": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "torque": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "temperature": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "communication_lost": [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]}}'
+---
+
+
+===== 话题 /topic_arm_dexteroushand_target_joints_position_0_310 [std_msgs/msg/String] [2026-10-21 20:11:16.935 +0800] =====
+Publisher count: 1
+Node name: node_robot_action_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584677.535631 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584677.516597 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_dexteroushand_target_joints_position_0_310]
+-- echo --once
+1792584685.832615 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_gripper_target_joints_position_0_310 [std_msgs/msg/String] [2026-10-21 20:11:31.797 +0800] =====
+Publisher count: 1
+Node name: node_robot_action_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584692.418889 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584692.419698 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_gripper_target_joints_position_0_310]
+-- echo --once
+1792584700.746936 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_gripper_target_joints_torque_0_310 [std_msgs/msg/String] [2026-10-21 20:11:46.721 +0800] =====
+Publisher count: 0
+Subscription count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584707.381804 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584707.343453 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_gripper_target_joints_torque_0_310]
+-- echo --once
+1792584715.700846 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_joints_clear_error_0_310 [std_msgs/msg/String] [2026-10-21 20:12:01.629 +0800] =====
+Publisher count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584722.279224 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584722.247750 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_joints_clear_error_0_310]
+-- echo --once
+1792584730.551968 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_joints_set_enable_state_0_310 [std_msgs/msg/String] [2026-10-21 20:12:16.501 +0800] =====
+Publisher count: 2
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_robot_action_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+-- hz（最后一次统计）
+1792584737.138825 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584737.128262 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_joints_set_enable_state_0_310]
+-- echo --once
+1792584745.451507 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_move_eef_pose_in_robot_frame_0_310 [std_msgs/msg/String] [2026-10-21 20:12:31.391 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584751.986013 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584751.986322 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_move_eef_pose_in_robot_frame_0_310]
+-- echo --once
+1792584760.280376 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_move_eef_pose_in_vr_frame_0_310 [std_msgs/msg/String] [2026-10-21 20:12:46.248 +0800] =====
+Publisher count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584766.869908 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584766.853249 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_move_eef_pose_in_vr_frame_0_310]
+-- echo --once
+1792584775.173791 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_move_joints_trajectory_0_310 [std_msgs/msg/String] [2026-10-21 20:13:01.148 +0800] =====
+Publisher count: 1
+Node name: node_robot_action_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584781.797098 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584781.787093 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_move_joints_trajectory_0_310]
+-- echo --once
+1792584790.078899 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+!rclpy.ok()
+
+
+===== 话题 /topic_arm_move_up_down_z_0_310 [std_msgs/msg/String] [2026-10-21 20:13:16.044 +0800] =====
+Publisher count: 4
+Node name: explanation_ros_handler_0_310_136313487206208
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_robot_action_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584796.663188 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584796.665154 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_move_up_down_z_0_310]
+-- echo --once
+1792584804.984287 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_move_whole_body_joints_by_planning_0_310 [std_msgs/msg/String] [2026-10-21 20:13:30.937 +0800] =====
+Publisher count: 2
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_robot_action_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584811.536707 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584811.511480 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_move_whole_body_joints_by_planning_0_310]
+-- echo --once
+1792584819.827571 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_robot_action_0_310 [std_msgs/msg/String] [2026-10-21 20:13:45.794 +0800] =====
+Publisher count: 5
+Node name: explanation_ros_handler_0_310_136313487206208
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_robot_action_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: node_robot_action_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584826.451457 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584826.432394 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_robot_action_0_310]
+-- echo --once
+1792584834.734726 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_set_dexterous_hand_vr_cmd_0_310 [std_msgs/msg/String] [2026-10-21 20:14:00.674 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584841.319784 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584841.299794 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_set_dexterous_hand_vr_cmd_0_310]
+-- echo --once
+1792584849.604405 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_set_gripper_vr_cmd_0_310 [std_msgs/msg/String] [2026-10-21 20:14:15.558 +0800] =====
+Publisher count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584856.166908 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584856.173774 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_set_gripper_vr_cmd_0_310]
+-- echo --once
+1792584864.502025 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_target_robot_eef_pose_0_310 [std_msgs/msg/String] [2026-10-21 20:14:30.443 +0800] =====
+Publisher count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: dataset_logger_30fps_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 100.017
+	min: 0.010s max: 0.011s std dev: 0.00016s window: 100
+-- bw（最后一次统计）
+63.36 KB/s from 100 messages
+	Message size mean: 0.63 KB min: 0.63 KB max: 0.63 KB
+-- echo --once
+1792584879.358181 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+data: '{"timestamp": 1792584876.5061116, "left_eef_pose": {"position": [-4.660596457820715e-05, 0.25911656567290947, 0.7692218924110841], "rotation": [0.49986434751805564, -0.5002297332762691, -0.500133711821533, -0.4997720663725784]}, "right_eef_pose": {"position": [-1.929559977582873e-06, -0.19709880849460315, 0.7691991147007513], "rotation": [-0.4999963267645387, 0.4999981634379257, 0.500001836582313, 0.5000036731814916]}, "head_pose": {"position": [-0.008932936234899512, 0.0005064297102007273, 1.5124304185756001], "rotation": [-0.999999999982287, 5.355291523260706e-06, 1.8366455438550694e-06, 1.8367628839507145e-06]}}'
+---
+
+
+===== 话题 /topic_arm_target_robot_height_z_0_310 [std_msgs/msg/String] [2026-10-21 20:14:40.157 +0800] =====
+Publisher count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: dataset_logger_30fps_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 100.006
+	min: 0.010s max: 0.010s std dev: 0.00008s window: 100
+-- bw（最后一次统计）
+6.04 KB/s from 100 messages
+	Message size mean: 0.06 KB min: 0.06 KB max: 0.06 KB
+-- echo --once
+1792584889.078221 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+data: '{"timestamp": 1792584886.2270741, "height_z": 0.0}'
+---
+
+
+===== 话题 /topic_arm_whole_body_and_gripper_current_joints_status_0_310 [std_msgs/msg/String] [2026-10-21 20:14:49.886 +0800] =====
+Publisher count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 3
+Node name: dataset_logger_30fps_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_robot_action_service_0_310
+Node namespace: /
+-- hz（最后一次统计）
+average rate: 99.982
+	min: 0.009s max: 0.011s std dev: 0.00033s window: 100
+-- bw（最后一次统计）
+257.60 KB/s from 100 messages
+	Message size mean: 2.56 KB min: 2.52 KB max: 2.58 KB
+-- echo --once
+1792584898.815063 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+data: '{"timestamp": 1792584895.9620545, "leg_waist_joint_state": {"position": [39.95150983826188, 78.0180926362345, 36.02035648566632, -0.15526133135330578], "speed": [-0.0028146791064049587, -0.0028146791064049587, -0.01130411447572314, -0.0028146791064049587], "torque": [-20.0, -15.0, 5.0, -5.0], "temperature": [0.0, 0.0, 0.0, 0.0], "communication_lost": [false, false, false, false]}, "left_arm_joint_state": {"position": [3.7682569088114346, -1.7468013075831383, 2.8893631691469093, 14.512732876209611, 10.436688303004773, 7.005148902854512, 19.813315071568223], "speed": [-0.27983286697476006, -0.27983286697476006, -0.27983286697476006, -0.27983286697476006, -0.13991643348738003, -0.4197493004621401, -0.13991643348738003], "torque": [0.439560439560438, -0.0293040293040292, 0.146520146520146, 0.146520146520146, -0.02051282051282044, -0.006837606837606813, -0.006837606837606813], "temperature": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "communication_lost": [false, false, false, false, false, false, false]}, "right_arm_joint_state": {"position": [-1.373271468225789, 0.09887554571229344, -0.09887554571229344, -9.503038560122112, 1.9124821497652726, -4.666456445427265, 21.299586913671522], "speed": [-0.27983286697476006, -0.27983286697476006, -0.27983286697476006, -0.27983286697476006, 0.13991643348738003, -0.13991643348738003, -0.4197493004621401], "torque": [-0.3223443223443212, -0.0293040293040292, -0.0293040293040292, -0.146520146520146, -0.006837606837606813, -0.006837606837606813, -0.02051282051282044], "temperature": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "communication_lost": [false, false, false, false, false, false, false]}, "left_gripper_state": {"position": [19.102964558798362], "speed": [-0.4197493004621401], "torque": [-0.0024420024420024333], "temperature": [0.0], "communication_lost": [false]}, "right_gripper_state": {"position": [19.212249253070524], "speed": [-1.2592479013864202], "torque": [-0.0024420024420024333], "temperature": [0.0], "communication_lost": [false]}, "neck_joint_state": {"position": [-1.0600615344413225, -46.56620822942778, -1.628341944657289], "speed": [-0.4197493004621401, -0.4197493004621401, -0.4197493004621401], "torque": [0.0024420024420024333, -0.0024420024420024333, -0.0024420024420024333], "temperature": [0.0, 0.0, 0.0], "communication_lost": [false, false, false]}, "leg_waist_target_joint_state": [0.0, 0.0, 0.0, 0.0], "left_arm_target_joint_state": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "right_arm_target_joint_state": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "neck_target_joint_state": [0.0, 0.0, 0.0]}'
+---
+
+
+===== 话题 /topic_arm_whole_body_external_force_momentum_0_310 [std_msgs/msg/String] [2026-10-21 20:14:59.636 +0800] =====
+Publisher count: 1
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: dataset_logger_30fps_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+	min: 0.004s max: 0.007s std dev: 0.00035s window: 100
+failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+-- bw（最后一次统计）
+234.78 KB/s from 100 messages
+	Message size mean: 1.16 KB min: 1.15 KB max: 1.17 KB
+-- echo --once
+1792584908.574804 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+data: '{"wrench_ext_raw_eef": {"left": [2.6724942091615578, 0.6900833438732601, -22.002340174028205, 0.5020328935678939, -0.12970319804188896, 0.05045654211476888], "right": [9.571690107936596e-14, -1.2460505681610931e-14, -1.167874721496967e-12, 4.1720589934025283e-14, -3.702005199612057e-16, 3.632508545398476e-15]}, "wrench_ext_lpf_eef": {"left": [2.6724935143905335, 0.6900826499625715, -22.00231776322761, 0.502032383264141, -0.12970306699728787, 0.05045653687839432], "right": [1.339465481844497e-13, -1.7444875096912946e-14, -1.6348163087277662e-12, 5.840272148155338e-14, -5.373394846717103e-16, 5.080409088829506e-15]}, "tau_ext_joint_raw": {"left": [-1.5770581362764158, -0.8616777285562824, -0.5557377677707165, -0.2903214936291166, -0.14390162408627002, -0.3434288091344312, -0.4282625361299933], "right": [0.7673348859945801, -0.2064620115649227, -0.31323027462473313, -0.2511269225073789, 0.2153159994227669, -0.26869370230518896, -0.8860085397544524]}, "tau_ext_joint": {"left": [-0.5770583918738628, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "right": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, "safety_status_by_arm": {"left": "WARNING", "right": "SAFE"}}'
+---
+
+
+===== 话题 /topic_arm_whole_body_target_joints_position_0_310 [std_msgs/msg/String] [2026-10-21 20:15:09.375 +0800] =====
+Publisher count: 4
+Node name: explanation_ros_handler_0_310_136313487206208
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_arm_vr_control_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_robot_action_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+-- hz（最后一次统计）
+1792584909.987701 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584909.988127 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_whole_body_target_joints_position_0_310]
+-- echo --once
+1792584918.309144 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_arm_whole_body_target_joints_velocity_0_310 [std_msgs/msg/String] [2026-10-21 20:15:24.266 +0800] =====
+Publisher count: 1
+Node name: node_robot_action_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584924.880568 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584924.892929 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_arm_whole_body_target_joints_velocity_0_310]
+-- echo --once
+1792584933.193975 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_chat_text_0_310 [std_msgs/msg/String] [2026-10-21 20:15:39.151 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+1792584939.767735 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584939.771337 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_chat_text_0_310]
+-- echo --once
+1792584948.092842 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+!rclpy.ok()
+
+
+===== 话题 /topic_force_sensor_hand_left_data_0_310 [std_msgs/msg/String] [2026-10-21 20:15:54.048 +0800] =====
+Publisher count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+1792584954.710893 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584954.741917 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_force_sensor_hand_left_data_0_310]
+-- echo --once
+1792584962.994117 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_force_sensor_hand_right_data_0_310 [std_msgs/msg/String] [2026-10-21 20:16:08.944 +0800] =====
+Publisher count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+1792584969.563224 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584969.560023 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_force_sensor_hand_right_data_0_310]
+-- echo --once
+1792584977.897238 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_fx_rate_0_310 [std_msgs/msg/String] [2026-10-21 20:16:23.855 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792584984.468508 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792584984.505985 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_fx_rate_0_310]
+-- echo --once
+1792584992.765771 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_gv_current_motors_status_0_310 [std_msgs/msg/String] [2026-10-21 20:16:38.721 +0800] =====
+Publisher count: 1
+Node name: node_robot_gv_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+	min: 0.020s max: 0.020s std dev: 0.00022s window: 100
+failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+-- bw（最后一次统计）
+21.78 KB/s from 100 messages
+	Message size mean: 0.44 KB min: 0.43 KB max: 0.44 KB
+-- echo --once
+1792585007.636865 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+data: '{"timestamp": 1792585004.7890663, "gv_motor_state": {"position": [-144.81314838022695, -79.85432610477086, -63.024483186836356, -77.16592262567214], "speed": [-0.6296239506930066, -0.6296239506930066, -1.8888718520798338, -0.6296239506930066], "torque": [0.7765567765567774, -1.8412698412698418, -0.9133089133089136, 1.6263736263736241], "temperature": [0.0, 0.0, 0.0, 0.0], "communication_lost": [false, false, false, false]}}'
+---
+
+
+===== 话题 /topic_kiosk_image_path_0_310 [std_msgs/msg/String] [2026-10-21 20:16:48.445 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792585009.055678 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585009.027774 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_kiosk_image_path_0_310]
+-- echo --once
+1792585017.354777 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_kiosk_text_0_310 [std_msgs/msg/String] [2026-10-21 20:17:03.313 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792585023.929647 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585023.908701 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_kiosk_text_0_310]
+-- echo --once
+1792585032.206398 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_left_arm_dexteroushand_sensor_data_0_310 [std_msgs/msg/String] [2026-10-21 20:17:18.170 +0800] =====
+Publisher count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+1792585038.778303 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585038.779402 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_left_arm_dexteroushand_sensor_data_0_310]
+-- echo --once
+1792585047.084912 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_menu_status_0_310 [std_msgs/msg/String] [2026-10-21 20:17:33.044 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792585053.653511 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+Subscribed to [/topic_menu_status_0_310]
+failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+-- echo --once
+1792585061.950318 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_mic_energy_0_310 [std_msgs/msg/String] [2026-10-21 20:17:47.905 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+average rate: 19.898
+	min: 0.050s max: 0.051s std dev: 0.00015s window: 100
+-- bw（最后一次统计）
+319 B/s from 100 messages
+	Message size mean: 16 B min: 16 B max: 16 B
+-- echo --once
+1792585076.832881 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+data: '0.000'
+---
+
+
+===== 话题 /topic_reailtime_0_310 [std_msgs/msg/String] [2026-10-21 20:17:57.632 +0800] =====
+Publisher count: 1
+Node name: explanation_ros_handler_0_310_136313487206208
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792585078.230206 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585078.230037 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_reailtime_0_310]
+-- echo --once
+1792585086.543025 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_right_arm_dexteroushand_sensor_data_0_310 [std_msgs/msg/String] [2026-10-21 20:18:12.494 +0800] =====
+Publisher count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+1792585093.079218 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585093.098570 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_right_arm_dexteroushand_sensor_data_0_310]
+-- echo --once
+1792585101.407259 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_tactile_hand_left_data_0_310 [std_msgs/msg/String] [2026-10-21 20:18:27.348 +0800] =====
+Publisher count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+1792585107.952464 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585107.977280 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_tactile_hand_left_data_0_310]
+-- echo --once
+1792585116.296841 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_tactile_hand_right_data_0_310 [std_msgs/msg/String] [2026-10-21 20:18:42.235 +0800] =====
+Publisher count: 5
+Node name: node_mod_motor_waist_leg_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_left_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_neck_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_stability_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Node name: node_mod_motor_right_arm_control_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 0
+-- hz（最后一次统计）
+1792585122.833873 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585122.834146 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_tactile_hand_right_data_0_310]
+-- echo --once
+1792585131.146403 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_task_event_0_310 [std_msgs/msg/String] [2026-10-21 20:18:57.088 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: dataset_logger_30fps_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (20)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792585137.700203 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585137.687496 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_task_event_0_310]
+-- echo --once
+1792585146.006273 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_task_progress_0_310 [std_msgs/msg/String] [2026-10-21 20:19:11.948 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: dataset_logger_30fps_node
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792585152.593363 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585152.577350 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_task_progress_0_310]
+-- echo --once
+1792585160.867309 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_track_face_to_neck_joint_0_310 [std_msgs/msg/String] [2026-10-21 20:19:26.845 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792585167.456223 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585167.456084 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_track_face_to_neck_joint_0_310]
+-- echo --once
+1792585175.761278 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_tts_0_310 [std_msgs/msg/String] [2026-10-21 20:19:41.713 +0800] =====
+Publisher count: 1
+Node name: explanation_ros_handler_0_310_136313487206208
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792585182.346697 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585182.321709 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_tts_0_310]
+-- echo --once
+1792585190.609054 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_user_language_0_310 [std_msgs/msg/String] [2026-10-21 20:19:56.586 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792585197.211645 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585197.206501 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_user_language_0_310]
+-- echo --once
+1792585205.520498 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /topic_weather_info_0_310 [std_msgs/msg/String] [2026-10-21 20:20:11.463 +0800] =====
+Publisher count: 1
+Node name: vision_service_0_310
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+Subscription count: 1
+Node name: kiosk_bridge
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: VOLATILE
+-- hz（最后一次统计）
+1792585212.066953 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585212.071180 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/topic_weather_info_0_310]
+-- echo --once
+1792585220.372538 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 话题 /waypoints/navigation_status [std_msgs/msg/String] [2026-10-21 20:20:26.339 +0800] =====
+Publisher count: 0
+Subscription count: 1
+Node name: navigation_native_ui
+Node namespace: /
+Endpoint type: SUBSCRIPTION
+  Reliability: RELIABLE
+  History (Depth): KEEP_LAST (10)
+  Durability: TRANSIENT_LOCAL
+-- hz（最后一次统计）
+1792585226.941948 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+-- bw（最后一次统计）
+1792585226.953542 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+Subscribed to [/waypoints/navigation_status]
+-- echo --once
+1792585235.247454 [0]       ros2: selected interface "lo" is not multicast-capable: disabling multicast
+
+
+===== 录制产物：近 60 天的 mcap / rosbag2（按修改时间倒序） [2026-10-21 20:20:41.213 +0800] =====
+共 0 个
+
+
+===== 录制脚本线索（home 下提到 bag record / mcap 的脚本和配置） [2026-10-21 20:20:45.296 +0800] =====
+
+$ timeout 90 grep -rIlE "ros2 bag record|rosbag2_py|bag record|storage.*mcap|\.mcap" --include=*.sh --include=*.py --include=*.yaml --include=*.yml --exclude-dir=".*" --exclude-dir=site-packages --exclude-dir=node_modules --exclude-dir=pkgs --exclude-dir=build --exclude-dir=log ~ 2>/dev/null | head -30
+/home/ubuntu/ros2_ws/src/autolife_robot_control_center/control_center_navigation/test/export_bag_fixture.py
+[rc=0]
+
+===== 采集器部署（CB_Autolife_Data_Collector） [2026-10-21 20:20:45.939 +0800] =====
+/home/ubuntu/CB_Autolife_Data_Collector
+/home/ubuntu/autolife_terminal_collector
+/home/ubuntu/autolife_terminal_collector/src/autolife_collector
+
+$ git --no-optional-locks -C "/home/ubuntu/CB_Autolife_Data_Collector" log -1 --format='%H %ci %s' 2>&1
+7be8d0cf68be81e7d87c0ba25621411390561dd9 2026-10-18 23:49:25 -0400 Add optional EEF capture and v3 dataset conversion
+[rc=0]
+
+$ git -C "/home/ubuntu/CB_Autolife_Data_Collector" remote -v 2>&1
+origin	https://github.com/lee1354774070-ai/CB_Autolife_Data_Collector.git (fetch)
+origin	https://github.com/lee1354774070-ai/CB_Autolife_Data_Collector.git (push)
+[rc=0]
+
+$ git --no-optional-locks -C "/home/ubuntu/CB_Autolife_Data_Collector" status --short 2>&1 | head -20
+ M scripts/source_ros_env.sh
+?? control_topic_0_310.txt
+[rc=0]
+
+$ ls -la "/home/ubuntu/CB_Autolife_Data_Collector" | head -50
+total 536
+drwxrwxr-x 11 ubuntu ubuntu   4096 Oct 19 18:10 .
+drwxr-x--- 40 ubuntu ubuntu   4096 Oct 20 21:01 ..
+-rw-rw-r--  1 ubuntu ubuntu   3147 Oct 19 14:25 AGENTS.md
+-rw-rw-r--  1 ubuntu ubuntu   3385 Oct 19 14:25 camera_config.py
+-rw-rw-r--  1 ubuntu ubuntu   3292 Oct 19 14:25 cli_help.py
+-rw-rw-r--  1 ubuntu ubuntu  17935 Oct 19 14:25 collector_control.py
+-rw-rw-r--  1 ubuntu ubuntu   2099 Oct 19 14:25 collector_modes.py
+-rw-rw-r--  1 ubuntu ubuntu   1192 Oct 19 18:10 control_topic_0_310.txt
+-rw-rw-r--  1 ubuntu ubuntu  15579 Oct 19 14:25 convert_dataset.py
+drwxrwxr-x  4 ubuntu ubuntu   4096 Oct 19 14:25 dagger
+-rw-rw-r--  1 ubuntu ubuntu   7894 Oct 19 14:25 dagger_labels.py
+drwxrwxr-x  2 ubuntu ubuntu   4096 Oct 19 14:25 desktop
+drwxrwxr-x  3 ubuntu ubuntu   4096 Oct 19 14:25 docs
+-rw-rw-r--  1 ubuntu ubuntu   9048 Oct 19 14:25 eef_schema.py
+-rw-rw-r--  1 ubuntu ubuntu  11379 Oct 19 14:25 episode_storage.py
+drwxrwxr-x  8 ubuntu ubuntu   4096 Oct 21 10:36 .git
+-rw-rw-r--  1 ubuntu ubuntu     61 Oct 19 14:25 .gitignore
+drwxrwxr-x  2 ubuntu ubuntu   4096 Oct 19 14:25 gui
+-rw-rw-r--  1 ubuntu ubuntu   6698 Oct 19 14:25 hand_camera_producer.py
+-rw-rw-r--  1 ubuntu ubuntu  32911 Oct 19 14:25 INSTRUCTION.md
+-rw-rw-r--  1 ubuntu ubuntu  32078 Oct 19 14:25 INSTRUCTION_zh.md
+-rw-rw-r--  1 ubuntu ubuntu  49909 Oct 19 14:25 README.md
+-rw-rw-r--  1 ubuntu ubuntu    725 Oct 19 14:25 README_zh.md
+-rw-rw-r--  1 ubuntu ubuntu 111282 Oct 19 14:25 record_lerobot_official.py
+-rw-rw-r--  1 ubuntu ubuntu   6959 Oct 19 14:25 ROBOT300_TESTING_zh.md
+-rw-rw-r--  1 ubuntu ubuntu  12501 Oct 19 14:25 robot_schema.py
+drwxrwxr-x  2 ubuntu ubuntu   4096 Oct 19 14:25 scripts
+-rw-rw-r--  1 ubuntu ubuntu   7139 Oct 19 14:25 shm_camera.py
+-rw-rw-r--  1 ubuntu ubuntu   5251 Oct 19 14:25 shm_camera_topic_bridge.py
+-rwxrwxr-x  1 ubuntu ubuntu    827 Oct 19 14:25 start_dagger.sh
+-rw-rw-r--  1 ubuntu ubuntu  46804 Oct 19 14:25 start_lerobot_official_collect.sh
+-rwxrwxr-x  1 ubuntu ubuntu    187 Oct 19 14:25 start_mzj300_dagger.sh
+-rw-rw-r--  1 ubuntu ubuntu   6541 Oct 19 14:25 subtask_annotations.py
+drwxrwxr-x  3 ubuntu ubuntu   4096 Oct 19 14:25 teleop_snapshot
+drwxrwxr-x  3 ubuntu ubuntu   4096 Oct 19 14:25 tests
+-rw-rw-r--  1 ubuntu ubuntu   6896 Oct 19 14:25 time_sync.py
+drwxrwxr-x  2 ubuntu ubuntu   4096 Oct 19 14:25 tools
+-rw-rw-r--  1 ubuntu ubuntu  26495 Oct 19 14:25 vr_collector_control.py
+-rw-rw-r--  1 ubuntu ubuntu   3911 Oct 19 14:25 VR_FEEDBACK.md
+-rw-rw-r--  1 ubuntu ubuntu    656 Oct 19 14:25 vr_feedback.py
+-rw-rw-r--  1 ubuntu ubuntu   5355 Oct 19 14:25 vr_reset.py
+[rc=0]
+
+$ git --no-optional-locks -C "/home/ubuntu/autolife_terminal_collector" log -1 --format='%H %ci %s' 2>&1
+fatal: not a git repository (or any of the parent directories): .git
+[rc=128]
+
+$ git -C "/home/ubuntu/autolife_terminal_collector" remote -v 2>&1
+fatal: not a git repository (or any of the parent directories): .git
+[rc=128]
+
+$ git --no-optional-locks -C "/home/ubuntu/autolife_terminal_collector" status --short 2>&1 | head -20
+fatal: not a git repository (or any of the parent directories): .git
+[rc=0]
+
+$ ls -la "/home/ubuntu/autolife_terminal_collector" | head -50
+total 92
+drwxr-xr-x  6 ubuntu ubuntu  4096 Sep 22 14:58 .
+drwxr-x--- 40 ubuntu ubuntu  4096 Oct 20 21:01 ..
+-rw-r--r--  1 ubuntu ubuntu 56269 Aug 23 11:18 autolife_collect.py
+drwxr-xr-x  2 ubuntu ubuntu  4096 Aug 21 12:04 configs
+-rw-r--r--  1 ubuntu ubuntu  5051 Aug 23 14:44 data_logger_graceful.py
+drwxr-xr-x  3 ubuntu ubuntu  4096 Aug 21 12:00 docs
+-rw-r--r--  1 ubuntu ubuntu   162 Aug 21 10:29 pyproject.toml
+drwxr-xr-x  3 ubuntu ubuntu  4096 Aug 21 12:04 src
+drwxr-xr-x  2 ubuntu ubuntu  4096 Aug 21 12:04 tests
+[rc=0]
+
+$ git --no-optional-locks -C "/home/ubuntu/autolife_terminal_collector/src/autolife_collector" log -1 --format='%H %ci %s' 2>&1
+fatal: not a git repository (or any of the parent directories): .git
+[rc=128]
+
+$ git -C "/home/ubuntu/autolife_terminal_collector/src/autolife_collector" remote -v 2>&1
+fatal: not a git repository (or any of the parent directories): .git
+[rc=128]
+
+$ git --no-optional-locks -C "/home/ubuntu/autolife_terminal_collector/src/autolife_collector" status --short 2>&1 | head -20
+fatal: not a git repository (or any of the parent directories): .git
+[rc=0]
+
+$ ls -la "/home/ubuntu/autolife_terminal_collector/src/autolife_collector" | head -50
+total 80
+drwxr-xr-x 4 ubuntu ubuntu  4096 Aug 21 12:04 .
+drwxr-xr-x 3 ubuntu ubuntu  4096 Aug 21 12:04 ..
+-rw-r--r-- 1 ubuntu ubuntu  4876 Aug 21 11:17 cli.py
+-rw-r--r-- 1 ubuntu ubuntu  8985 Aug 21 11:29 config.py
+-rw-r--r-- 1 ubuntu ubuntu  1552 Aug 21 11:19 episode.py
+-rw-r--r-- 1 ubuntu ubuntu    67 Aug 21 10:29 __init__.py
+-rw-r--r-- 1 ubuntu ubuntu   161 Aug 21 11:17 __main__.py
+-rw-r--r-- 1 ubuntu ubuntu  2814 Aug 21 11:20 monitor.py
+drwxrwxr-x 2 ubuntu ubuntu  4096 Aug 21 13:21 __pycache__
+drwxr-xr-x 3 ubuntu ubuntu  4096 Aug 21 13:21 quality
+-rw-r--r-- 1 ubuntu ubuntu 13217 Aug 21 12:02 robot_flow_trigger.py
+-rw-r--r-- 1 ubuntu ubuntu  2807 Aug 21 11:30 services.py
+-rw-r--r-- 1 ubuntu ubuntu  7693 Aug 21 12:02 trigger.py
+[rc=0]
+
+$ pgrep -af "shm_camera_topic_bridge|record_lerobot|start_lerobot" 2>&1
+[rc=1]
+
+===== Python 环境里的 lerobot 版本 [2026-10-21 20:20:47.542 +0800] =====
+/home/ubuntu/miniconda3/envs/cuda_env/bin/python: importlib.metadata.PackageNotFoundError: No package metadata was found for lerobot
+/home/ubuntu/miniconda3/envs/face_detection_env/bin/python: importlib.metadata.PackageNotFoundError: No package metadata was found for lerobot
+/home/ubuntu/miniconda3/envs/lerobot/bin/python: 0.6.2
+/home/ubuntu/miniconda3/envs/robot_env/bin/python: importlib.metadata.PackageNotFoundError: No package metadata was found for lerobot
+/usr/bin/python3: importlib.metadata.PackageNotFoundError: No package metadata was found for lerobot
+
+===== LeRobot 数据集样本（最新 5 份 meta/info.json） [2026-10-21 20:20:47.885 +0800] =====
+共 0 份
+
+===== 关闭本脚本启动的 ros2 daemon [2026-10-21 20:20:49.256 +0800] =====
+
+$ ros2 daemon stop
+The daemon has been stopped
+[rc=0]
+
+===== 结束 [2026-10-21 20:20:49.809 +0800] =====
+[remote rc=0]
+
+===== 吞吐：机器人 → 工作站，经 SSH 拉 100 MiB 零字节，3 次 [2026-10-21 06:20:49.853461782 -0600] =====
+第 1 次：104857600 字节，6.10 秒，137.5 Mbit/s
+第 2 次：104857600 字节，4.45 秒，188.6 Mbit/s
+第 3 次：104857600 字节，4.61 秒，181.9 Mbit/s
+注：SSH 加密会占用机器人 CPU，所以这里测到的是下限。
+
+===== 完成，输出在 /tmp/claude-1001/-home-shawn----robot-data-platform/d9765374-5fda-447d-a403-94569c0f9b33/scratchpad/robot-facts/out/autolife-20261021T060446.txt [2026-10-21 06:21:05.28652260 -0600] =====

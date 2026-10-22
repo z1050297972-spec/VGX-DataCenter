@@ -29,6 +29,7 @@ M0 和 M1 所需的决策全部关闭，两份 spec 可以直接交给 `/to-spec
   - **技术栈**（ADR 0002）：Python 3.12 + uv 的模块化单体，原生运行；SQLite + 同步写法的 SQLAlchemy 2。前端用 pnpm、TanStack Router/Query、Ant Design。平台运行时不依赖 lerobot（ADR 0003）。
   - **检查链**：ruff、basedpyright 严格模式、import-linter、契约检查脚本，全部汇总进 `make check`，由 git 钩子触发。docstring 写六项，小节标题用英文、内容写中文。负责人新增一条总需求："充分的中文注释"。
   - **流程**：Codex 不能提交，一律由 Claude 提交；新增依赖由 Claude 在负责人批准后安装。
+- [两台机器人的事实](issues/05-robot-facts.md)：在 104 上，工作站直连两台机器人，头部 H.264 原样转发够用，整份录制流实时拉不动。R1 Lite 的原厂录制有 52 个话题，默认开着往厂商云（TOS）上传，厂商自带 WebRTC 网关。AutoLife 的 DDS 只绑回环，没有图像话题，采集器还没正式用过。R1 Lite 的实时话题因为 DDS 发现配置的问题没测到，转「[机器人现场补测](issues/18-robot-facts-followup.md)」。事实写在 0007。
 
 ## Not yet specified
 
