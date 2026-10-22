@@ -30,6 +30,7 @@ M0 和 M1 所需的决策全部关闭，两份 spec 可以直接交给 `/to-spec
   - **检查链**：ruff、basedpyright 严格模式、import-linter、契约检查脚本，全部汇总进 `make check`，由 git 钩子触发。docstring 写六项，小节标题用英文、内容写中文。负责人新增一条总需求："充分的中文注释"。
   - **流程**：Codex 不能提交，一律由 Claude 提交；新增依赖由 Claude 在负责人批准后安装。
 - [两台机器人的事实](issues/05-robot-facts.md)：在 104 上，工作站直连两台机器人，头部 H.264 原样转发够用，整份录制流实时拉不动。R1 Lite 的原厂录制有 52 个话题，默认开着往厂商云（TOS）上传，厂商自带 WebRTC 网关。AutoLife 的 DDS 只绑回环，没有图像话题，采集器还没正式用过。R1 Lite 的实时话题因为 DDS 发现配置的问题没测到，转「[机器人现场补测](issues/18-robot-facts-followup.md)」。事实写在 0007。
+- [Codex 协作规程](issues/08-codex-workflow.md)：每张实现票在单独的 worktree 里做，一次只做一张，规划可以并行；骨架关卡给负责人一页五块摘要，测试清单随骨架一起交；改变含义的契约变更要回到负责人那里；打回 3 轮不过就找负责人；所有提交由 Claude 做，打回期间不提交、只拍快照。联网调研也派给 Codex（只读沙箱加联网搜索）；结论性事实由 Claude 重跑或核对来源。续接会话会在执行命令时所在的目录里工作，实测见 0009。
 
 ## Not yet specified
 

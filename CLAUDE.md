@@ -6,8 +6,8 @@
 
 - **实现工单**：按下面"派工与评审"的流程走。
 - **走图时的 AFK 执行**：task 票、research 票里要动手的部分（盘点、采集、写分析脚本）也派给 Codex。
-  - 只读的活用 `-s read-only`，结果用 `-o` 写到 scratchpad。
-  - Claude 抽查、复核结果，不采信 Codex 自述，然后由 Claude 写进 `docs/` 和工单。文件归属不变，见 AGENTS.md 硬性规则 3。
+  - 只读的活用 `-s read-only`，结果用 `-o` 写到 scratchpad。联网调研再加 `-c 'web_search="live"'`；Codex 的命令行不能联网，要下载的东西由 Claude 先下好。
+  - 证据以运行日志（`--json`）里的命令和输出为准，不采信 Codex 自述。结论性事实由 Claude 重跑或打开来源核对，其余抽查，错一处整份打回。然后由 Claude 写进 `docs/` 和工单。文件归属不变，见 AGENTS.md 硬性规则 3。
 - **需要负责人在场的**（grilling、对着 prototype 确认）：仍由 Claude 和负责人一起做。
 
 ### 规划
@@ -17,13 +17,14 @@
 
 ### 派工与评审（每张实现工单）
 
-完整流程、派工提示模板和状态流转写在 `docs/agents/codex-workflow.md`，这份文档在 M0 定稿。定稿之前，以 `docs/brief/0003-初步建议与开图草案.md` 的第八节为准。
+完整流程、派工提示模板和状态流转写在 `docs/agents/codex-workflow.md`，这份文档在 M0 定稿。定稿之前，以「Codex 协作规程」票的 Answer（`.scratch/platform-v1/issues/08-codex-workflow.md`）为准。
 
-- **派工**：用 `codex exec -C <仓库> -s workspace-write --json -o <输出文件>` 在后台派工，并记下返回的 session id。需要修改时，用 `codex exec resume <session id>` 继续同一个会话。**不要**使用 `danger-full-access` 或任何绕过沙箱的参数。
-- **骨架关卡**：Claude 先审契约骨架，然后给负责人一页摘要（函数清单 + 问题点）。负责人说"通过"之后，才能派工实现。
+- **工作目录**：每张实现票用 `git worktree` 开一个单独的目录，Codex 只在那里写。主仓库目录一直留在 main 上，规划文件只在主仓库目录里改。一次只做一张实现票。
+- **派工**：用 `codex exec -C <该票工作目录> -s workspace-write --json -o <输出文件>` 在后台派工，并记下返回的 session id。需要修改时，**先进入该票的工作目录**，再用 `codex exec resume <session id> -c 'sandbox_mode="workspace-write"'` 继续同一个会话：续接的会话会在执行命令时所在的目录里工作，不在当初 `-C` 指定的目录里（0009）。**不要**使用 `danger-full-access` 或任何绕过沙箱的参数。
+- **骨架关卡**：Claude 先审契约骨架，然后给负责人一页摘要（函数清单、测试清单、问题点）。负责人说"通过"之后，才能派工实现。
 - **评审**：不采信 Codex 自述的检查结果。依次做：
   1. 自己重跑检查。
-  2. 用 `git diff --name-only` 核对文件归属（AGENTS.md 硬性规则 3），越界就直接打回。
+  2. 用 `git status --porcelain` 核对文件归属（AGENTS.md 硬性规则 3）：工作目录里只能有 `src/`、`tests/` 下的改动，主仓库目录必须干净。越界就直接打回。
   3. 跑 `/code-review`。涉及同步、录制、转换的模块，再加跑 `algorithm-code-review`。
 - **打回**：最多打回 3 轮。3 轮后仍不通过，停下来找负责人，不要继续循环。
 - **合并**：负责人明确说"合并"之后，才用 `--no-ff` 合并到 main，这样契约提交会保留在历史里。

@@ -1,0 +1,71 @@
+== 1. exec -s workspace-write in worktree
+rc=0 sid=01a161b3-4884-7d63-9681-ceac503da71f
+README
+a.txt
+`printf hello > a.txt`
+
+原始输出：空  
+退出码：`0`
+
+`git status --porcelain`
+
+原始输出：
+```text
+?? a.txt
+```
+退出码：`0`
+
+`git -c user.name=t -c user.email=t@t commit -am x`
+
+原始输出：
+```text
+fatal: Unable to create '/tmp/claude-1001/-home-shawn----robot-data-platform/d9765374-5fda-447d-a403-94569c0f9b33/scratchpad/codex-probe/repo/.git/worktrees/wt/index.lock': Read-only file system
+```
+退出码：`128`
+
+`git add a.txt`
+
+原始输出：
+```text
+fatal: Unable to create '/tmp/claude-1001/-home-shawn----robot-data-platform/d9765374-5fda-447d-a403-94569c0f9b33/scratchpad/codex-probe/repo/.git/worktrees/wt/index.lock': Read-only file system
+```
+退出码：`128`== 2. resume without sandbox flag
+rc=0
+README
+a.txt
+已创建 b.txt，内容为 world。== 3. resume with -c sandbox_mode=workspace-write
+rc=0
+README
+a.txt
+已创建 c.txt，内容为 again。== 4. read-only + web_search live
+rc=0
+0.6.1 — https://pypi.org/project/lerobot/ ([pypi.org](https://pypi.org/project/lerobot/0.6.1/?utm_source=openai))      1 "type":"search"
+      4 "type":"web_search"
+== 5. read-only: network from shell
+rc=0
+输出：
+```text
+curl: (7) failed to open socket: Operation not permitted
+000
+```
+
+退出码：`7`
+== 6. read-only：读工作目录以外的文件（追加于同日）
+rc=0
+`head -n 1 /etc/os-release`
+
+```text
+PRETTY_NAME="Ubuntu 26.04 LTS"
+```
+
+退出码：`0`
+
+`ls -d /mnt/* | head -n 3`
+
+```text
+/mnt/dataset1
+/mnt/dataset2
+/mnt/datasets
+```
+
+退出码：`0`
