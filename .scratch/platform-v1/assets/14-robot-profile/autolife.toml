@@ -1,0 +1,41 @@
+# RobotProfile 草样：AutoLife（云蝶）（决策票「RobotProfile 是否共用」）
+# 事实来源：0007；未知项等「机器人现场补测」
+profile = "autolife"
+version = 1
+model = "AutoLife"
+robot_type_labels = []                 # 待补测：第一份 LeRobot 样本的 robot_type
+
+[ros]
+distro = "jazzy"
+rmw = "rmw_cyclonedds_cpp"
+domain_id = 0
+discovery = "cyclonedds_loopback_only"
+qos_subscribe = "RELIABLE"
+readiness = [
+  { check = "run_on_robot", reason = "CycloneDDS 只绑回环，平台节点必须跑在机器人本机上（0007）" },
+]
+
+# 观测和目标都在 JSON 字符串消息里，取法是"JSON 路径"
+[[joint_group]]
+name = "left_arm"
+joints = ["待补测×7"]                  # 7 个关节，名字待采集器代码或厂商文档确认
+unit = "待补测"                        # 数值像角度制（39.95、78.02），没有文档
+observation = { topic = "/topic_arm_whole_body_and_gripper_current_joints_status_0_310", extract = "json:left_arm_joint_state.position", rate_hz = 100, stamp = "receive", stamp_trusted = false }  # std_msgs/String 没有 header，只能用接收时刻
+target = { topic = "/topic_arm_whole_body_target_joints_position_0_310", extract = "json:待补测", rate_hz = "待补测", may_be_silent = true }  # 空闲时没有消息
+
+[[joint_group]]
+name = "left_gripper"
+joints = ["left_gripper"]
+unit = "待补测"
+observation = { topic = "/topic_arm_whole_body_and_gripper_current_joints_status_0_310", extract = "json:left_gripper_state.position", rate_hz = 100, stamp = "receive", stamp_trusted = false }
+target = { none = true }               # 待补测：夹爪目标在哪个话题
+
+# right_arm、right_gripper、leg_waist（4）、neck（3）同理，略。
+
+[[camera]]
+name = "head"
+source = "shm:/dev/shm/camera_image_buffer_待补测"
+encoding = "bgr8"                      # 未压缩，开桥后一路约 663 Mbit/s，预览必须在机器人上压缩
+resolution = "待补测"
+rate_hz = "待补测"
+stamp = "待补测"

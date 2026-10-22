@@ -1,0 +1,55 @@
+# RobotProfile 草样：Galaxea R1 Lite（决策票「RobotProfile 是否共用」）
+# 只写机器人本身的事实。同步容差、帧率、编码这类转换参数归工具配置。
+# 事实来源：0007、0008、/mnt/datasets/工具/mcap2lerobot/configs/r1lite.toml
+profile = "r1lite"
+version = 1
+model = "R1 Lite"
+robot_type_labels = ["galaxea_r1lite", "r1lite"]   # 与型号登记里的型号标签一致
+
+[ros]
+distro = "humble"
+rmw = "rmw_fastrtps_cpp"
+discovery = "fastdds_discovery_server"
+discovery_server = "10.42.0.238:11811"
+participant = "SUPER_CLIENT"
+qos_subscribe = "BEST_EFFORT"          # 0008：用 RELIABLE 订阅收不到
+# 就绪条件：平台节点启动前逐条检查，不满足就报错并说明原因
+readiness = [
+  { check = "address_present", value = "10.42.0.238", reason = "eth1 未接通时所有节点互相断开，原厂录制会录出空数据（0008）" },
+]
+
+# 关节组：观测和目标共用同一份关节名、顺序和单位
+[[joint_group]]
+name = "left_arm"
+joints = ["left_arm_joint1", "left_arm_joint2", "left_arm_joint3", "left_arm_joint4", "left_arm_joint5", "left_arm_joint6"]  # 消息里的 name 只有一项，顺序由这里给（待补测：厂商关节命名）
+unit = "rad"                           # 待补测：未见文档，按 JointState 惯例
+observation = { topic = "/hdas/feedback_arm_left", extract = "JointState.position", rate_hz = 200, stamp = "header", stamp_trusted = true }
+target = { topic = "/motion_target/target_joint_state_arm_left", extract = "JointState.position", rate_hz = 190, stamp = "header", stamp_trusted = false }  # 来自主臂电脑，时间戳不可信（0008）
+
+[[joint_group]]
+name = "left_gripper"
+joints = ["left_gripper"]
+unit = "待补测"                        # r1lite.toml 用 100.0 作静止填充值，单位未知
+observation = { topic = "/hdas/feedback_gripper_left", extract = "JointState.position", rate_hz = 200, stamp = "header", stamp_trusted = true }
+target = { topic = "/motion_target/target_position_gripper_left", extract = "JointState.position", rate_hz = 20, stamp = "header", stamp_trusted = false, may_be_silent = true }  # 0008：当场发现左夹爪目标没有消息
+
+# right_arm、right_gripper 与左侧对称，略。torso、chassis 的组同理，草样里不展开。
+
+[[camera]]
+name = "head_left"
+topic = "/hdas/camera_head/left_raw/image_raw_color/compressed"
+encoding = "h264"                      # CompressedImage 外壳里装的是 H.264，预览要改装成 CompressedVideo
+resolution = [1920, 1536]
+rate_hz = 30
+stamp = "header"
+
+[[camera]]
+name = "wrist_left"
+topic = "/hdas/camera_wrist_left/color/image_raw/compressed"
+encoding = "jpeg"
+resolution = [1280, 720]
+rate_hz = 30
+stamp = "header"
+trigger = "independent"                # 与头部相机不同步触发
+
+# head_right、wrist_right 同理，略。

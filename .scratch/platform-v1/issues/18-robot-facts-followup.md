@@ -30,6 +30,17 @@ Status: open
 
 补充（来自「[核心领域模型与术语](13-domain-model.md)」）：登记机器人时要填序列号。AutoLife 的 DMI 序列号要 root 权限才能读（`/sys/class/dmi/id/product_serial`）。下次在 AutoLife 旁边时，经负责人同意后用 `sudo` 读一次，写进补测文档。
 
+补充（来自「[RobotProfile 是否共用](14-robot-profile.md)」，ADR 0007）：补齐两份 RobotProfile 草样里标成"待补测"的事实，草样在 `.scratch/platform-v1/assets/14-robot-profile/`。
+- **R1 Lite**：
+  - 两条臂各个关节的名字（反馈消息里的 `name` 只有一项）；
+  - 夹爪 `position` 的单位。
+- **AutoLife**：
+  - 各个关节的名字和单位（数值看起来像角度制，但没有文档）；
+  - 目标话题的 JSON 字段，以及遥操作时的频率；
+  - 夹爪的目标从哪里来；
+  - 头部相机的分辨率和帧率；
+  - 第一份 LeRobot 样本里的 `robot_type`。
+
 **完成标准**：三项都有实测值，写成新的 `docs/brief/000N-环境事实更新-机器人补测.md`，每条附来源；本票 Answer 写要点并链接过去。
 
 ## Comments
