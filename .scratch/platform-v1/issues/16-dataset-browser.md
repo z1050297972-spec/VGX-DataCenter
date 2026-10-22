@@ -1,7 +1,7 @@
 # 数据集浏览界面
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: 01, 02
 
 ## Question
@@ -36,4 +36,12 @@ Blocked by: 01, 02
   - 按现在的数据，第一次扫描预计报出 1 类需要处理、5 类提示，这些内容可以直接当作原型数据。
 - **存储根离线**：面板顶部报一条，链接标"存储根离线"。原型里也要体现这种情况。
 
+补充（来自「[核心领域模型与术语](13-domain-model.md)」）：负责人看原型时一起讨论这两点：
+- 筛选里要不要加"数据来源"。现有 35 个数据集还没有标注，原型里会全部显示为"未知"。
+- 除了按型号标签（`robot_type`）筛选，要不要再加一个"按机器人型号"筛选。例如选了 R1 Lite，就把带 `galaxea_r1lite`、`r1lite` 标签的数据集都筛出来。
+
 **完成标准**：负责人对着原型确认了布局，以及上面每个部件的取舍。确认结果写在本票 Answer 里，供 M1 spec 使用。
+
+## Comments
+
+- 2026-10-22，认领。负责人同意执行和规划并行：由后台 agent 派 Codex（gpt-6-astra，high）在 `prototype/dataset-browser` 分支的独立工作目录 `~/桌面/robot-data-platform.wt/prototype-dataset-browser` 里搭原型，做好后在主会话里和负责人对着原型确认。

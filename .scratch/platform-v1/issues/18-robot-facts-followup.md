@@ -28,6 +28,8 @@ Status: open
 
 这张票不阻塞「[核心领域模型与术语](13-domain-model.md)」和「[RobotProfile 是否共用](14-robot-profile.md)」。那两张票先按 0007 里根据录制和配置得到的话题清单走。补测如果发现出入，再回去修订。
 
+补充（来自「[核心领域模型与术语](13-domain-model.md)」）：登记机器人时要填序列号。AutoLife 的 DMI 序列号要 root 权限才能读（`/sys/class/dmi/id/product_serial`）。下次在 AutoLife 旁边时，经负责人同意后用 `sudo` 读一次，写进补测文档。
+
 **完成标准**：三项都有实测值，写成新的 `docs/brief/000N-环境事实更新-机器人补测.md`，每条附来源；本票 Answer 写要点并链接过去。
 
 ## Comments

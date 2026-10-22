@@ -19,4 +19,9 @@ Blocked by: 05, 06, 07
 - **怎么加入机器人的 ROS 图要不要也写进去**：两台机器人的做法完全不同。R1 Lite 是 Fast DDS 的发现服务器加 SUPER_CLIENT 配置；AutoLife 是 CycloneDDS，只绑回环。平台在机器人上跑的节点（例如 `viz_relay`）必须用对应的配置才能看到话题（0007）。
   - R1 Lite 已在 104 上实测（0008）：用节点原样的环境就能加入，前提是机器人持有 `10.42.0.238`，这个地址由有线连接的主臂电脑分配；主臂读数和手柄节点跑在那台电脑上，时间戳不可信；订阅要用 BEST_EFFORT；HDAS 反馈的 `JointState` 里 `name` 只有一项（如 `left_arm`），和 6 个位置对不上，关节顺序只能由 RobotProfile 给出。
 
+补充（来自「[核心领域模型与术语](13-domain-model.md)」）：
+- **RobotProfile 挂在机器人型号上**：每台机器人属于一个型号，RobotProfile 按型号来写。同一型号的两台机器人配置不一样时怎么办（例如换了夹爪），由本票定。
+- **型号标签**：型号上会写明它对应哪些型号标签，例如 R1 Lite 对应 `galaxea_r1lite` 和 `r1lite`。RobotProfile 要不要用到这个对应关系，例如转换时写进 LeRobot 的 `robot_type`，由本票定。
+- **端口的分工**：机器人登记里只记 SSH 端口。预览、录制要用的其他端口，例如 foxglove_bridge 的端口、厂商 `ehi_gateway` 的 8000，放在哪里由本票和 M5 定。
+
 **完成标准**：以上各项都有结论，并且用两台机器人各写一份 RobotProfile 草样来验证。结论写成 ADR；术语写进 `GLOSSARY.md`。本票加调 `algorithm-engineering`。
