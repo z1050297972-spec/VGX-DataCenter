@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-29",
+  "dataset_name": "R1_lite_table_withdrawing_lerobot",
+  "data_origin": "真机采集",
+  "data_origin_set_by": {"kind": "人工标注", "account_id": 1, "account_name": "<账号名>", "at": "2026-10-23T02:00:00Z"},
+  "collection_task_id": null,
+  "lineage": [
+    {
+      "record_id": 1,
+      "kind": "转换",
+      "status": "来历部分未知",
+      "note": "平台接管前产生。特征名和视频参数（hevc、crf 30）与 mcap2lerobot 的 configs/r1lite.toml 一致，推断由它从 dataset-35 的三天数据转出；工具版本、配置内容、转换时间都没有记录。",
+      "inputs": [
+        {"dataset_id": "dataset-35", "source_id": "src_01e0bc7e9cc8"},
+        {"dataset_id": "dataset-35", "source_id": "src_d5edab567d18"},
+        {"dataset_id": "dataset-35", "source_id": "src_04a13d43b1b0"}
+      ],
+      "outputs": [
+        {"source_id": "src_bcaa7cb1b695", "format": "lerobot", "codebase_version": "v3.0"}
+      ],
+      "tool": {"name": "mcap2lerobot", "version": null, "commit": null},
+      "config": null,
+      "robot_profile": null,
+      "parameters": null,
+      "job_id": null,
+      "started_at": null,
+      "finished_at": null,
+      "recorded_by": {"kind": "人工补录", "account_id": 1, "account_name": "<账号名>", "at": "2026-10-23T02:00:00Z"}
+    }
+  ],
+  "_example_platform_record": {
+    "说明": "以后由平台转换时，同一条记录会写成下面这样（示意，不是真实数据）",
+    "record_id": 2,
+    "kind": "转换",
+    "status": "完整",
+    "inputs": [{"dataset_id": "dataset-35", "source_id": "src_01e0bc7e9cc8"}],
+    "outputs": [{"source_id": "src_<新分配>", "format": "lerobot", "codebase_version": "v3.0"}],
+    "tool": {"name": "mcap2lerobot", "version": "0.1.0", "commit": "4027d15d388d8dd87c737b31d4b2d2907dbce326"},
+    "config": {"path": "configs/r1lite.toml", "sha256": "<64 位十六进制>", "content": "<配置文件全文>"},
+    "robot_profile": {"model": "R1 Lite", "file": "profiles/r1lite.toml", "version": 1},
+    "parameters": {"format": "v3.0", "fps": null, "task": null},
+    "job_id": 123,
+    "started_at": "2026-11-20T03:00:00Z",
+    "finished_at": "2026-11-20T03:42:10Z",
+    "ingest_check": {"result": "通过", "warnings": 0},
+    "recorded_by": {"kind": "worker", "at": "2026-11-20T03:43:00Z"}
+  }
+}

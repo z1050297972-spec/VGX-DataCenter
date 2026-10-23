@@ -1,6 +1,6 @@
 # 仓库骨架和检查链
 
-Status: in-progress
+Status: in-review
 
 ## 依据
 
@@ -299,3 +299,72 @@ Claude 评审时逐条核对，结果记进 Comments。
 - 2026-10-22，骨架关卡（主会话）：负责人"通过"。G1 入口层互不 import：采纳；G2 契约脚本按定义计数、显式软链接退出 2：采纳；G3 派工 B 加 basedpyright `failOnWarnings = true`：采纳。
   - 第 13 步：`git config core.hooksPath .githooks`（共用的 `.git/config`）；契约提交 `b1fec00 契约：仓库骨架和检查链`，经过钩子，五步全绿、56 个跳过（验收第 3 条）；`.githooks/pre-commit` 在提交里是 `100755`。工作目录提交后干净。
   - Status 改回 `in-progress`，执行线从第 14 步继续。
+- 2026-10-22，第 14 步派工 B（续接）。提示 `assets/…/prompt-B.md`：派工 B 模板，加上把契约检查接进 `make check`（第 4/6 步，在 import-linter 和 pytest 之间）、G3 的 `failOnWarnings = true`、G1/G2 照现有契约、验收第 7 条的五种违规、删掉上一轮留在 `/tmp` 的 `rdp-a2-*`。快照 `refs/rdp/m0-01/B`（基于契约提交 `b1fec00`，工作目录干净）。会话 `01a16490-d7e5-7862-b467-af073a447b22`，先 `cd <工作目录>` 再 `codex exec resume … -m gpt-6-astra -c model_reasoning_effort='"high"' -c 'sandbox_mode="workspace-write"' --json -o assets/…/out-B.md - < prompt-B.md`。运行日志 `<执行线临时目录>/m0-01/ev-B.jsonl`、`err-B.txt`。网关 `10.1.179.3:8088` 直连 200。
+- 2026-10-22，派工 B 交回，第 15 步评审（`codex-workflow.md` 3.5）。
+  - 运行：21:41:15–22:06:49，退出码 0，最后一条 `turn.completed`，`out-B.md` 在 assets。没有网关断开。
+  - **1 重跑**：工作目录 `make check` 退出码 0，六步 `[1/6]`…`[6/6]`：ruff format、ruff check、basedpyright（`0 errors, 0 warnings, 0 notes`）、import-linter（1 kept）、契约检查（`问题总数: 0`）、pytest（`56 passed`），用时 3.5 秒。`pytest -rs` 没有跳过。跑之前和之后 `git status` 相同。
+  - **2 文件归属**：工作目录只有 ` M` `Makefile`、`pyproject.toml`、`scripts/check_contracts.py`、`src/rdp/infra/timeutil.py`、`tests/test_check_contracts.py`、`tests/test_timeutil.py`。`pyproject.toml` 只改了 `[tool.*]`：加 `failOnWarnings = true`（G3）、`tmp_path_retention_policy = "none"`，改了两条注释；`uv.lock`、依赖表、`.githooks/`、`.gitignore` 没动。主仓库目录非规划文件为空。
+  - **3 对比契约**：`ensure_utc`、`check_file`、`main` 的签名和 docstring，以及两个模块的 docstring，和契约提交 `b1fec00` 逐字相同（用 `ast` 比的）。没有新的公开函数。
+  - **4 运行日志**：84 条命令，没有碰两个旧项目和 `/mnt`；唯一碰到 `/tmp` 的是只读列出 `/tmp/pytest-of-shawn`。上一轮留的 `/tmp/rdp-a2-*` 已删。沙箱里两次 `make check`（日志第 231、244 行）都是六步全绿，basedpyright 和契约检查都真正跑完（验收第 4 条）。
+  - Codex 自述：有些测试去掉跳过后第一次就通过（前面的实现或标准库行为已经覆盖），不是每个都先红后绿。
+  - **违规试验**：快照 `refs/rdp/m0-01/B-done`（`12ed832`），`violation_probe.sh B-done --with-contracts`，输出 `violation_probe-B-done.txt`：**29 项全部通过**。A2 那 23 项照样通过，另外：契约检查的五种违规（缺 `Time Semantics:`、私有函数没有 docstring、`@dataclass` 没有 `Attributes:`、顺序颠倒、`Side Effects:` 为空）都失败在 `[5/6] 契约检查`，输出形如 `src/rdp/infra/probe_contract.py:4  rdp.infra.probe_contract.no_time  缺少 Time Semantics:`；脚本退出码 0 / 1 / 2（无问题 / 有问题 / 不存在的路径）。基线 3.6 秒。
+  - **5 两轴评审**：在检出 `B-done` 的探针工作目录里跑 `/code-review`（基准 `28b6e1c`，即 main 的合并基点），结果见下一条。
+- 2026-10-22，第 15 步第 5 项两轴评审（`/code-review`，探针工作目录检出 `B-done`，基准 `28b6e1c`）。
+  - **Standards 轴**：没有硬性违规。3.2、4.1、4.2、7.1、7.2、7.6、8.3、规则 7 都通过。新增豁免 5 处：两处 `noqa: S603`、一处 `noqa: DTZ001`，以及 per-file-ignores 的 S101、D417，都只针对单条规则并写了理由。判断题：
+    - `test_input_unchanged` 的 docstring 写了"不依赖系统时钟或本地时区"，但测试没有改 `TZ`，这句没验证到。
+    - 几个测试在函数里用 `for` 循环跑多个用例，可以改成 parametrize。
+    - `_run` 和 `_run_api` 重复。
+  - **Spec 轴**：没有缺项，也没有越界。实现上有偏差，执行线已逐条复现：
+    1. `@<名>.setter` / `.deleter` 被当成公开函数，要求六项。工单写的是"私有函数和 `@property` 至少一句职责"。
+    2. `functools.cached_property` 没被认作 property。
+    3. 同一行写 `Returns: 无` 被报成"缺少 Returns:"，提示有误导性；标题行带尾随空格也报"缺少"。
+    4. 非 .py 参数的报错里路径重复了一遍：`检查失败: x.txt: x.txt: 不是 .py 文件`。
+  - 另外，执行线发现 `tmp_path_retention_policy = "none"` 和 CODING_STANDARDS 7.8"测试没过时先保留证据"冲突。是我的提示写成"用完不留"引起的。
+  - 风险（不改，写进汇报）：契约规定 `test_` 开头的函数不查，所以 `src/rdp` 里叫 `test_*` 的公开函数也会被放过。这条写在已批准的契约里，要改就是改含义，得负责人决定。
+- 2026-10-22，**打回第 1 轮（r1）**。Status 先改成 `changes-requested`，发出修复轮时再改成 `in-progress`。修复清单：
+  1. 问题：property 的 setter、deleter 被当成公开函数查。位置：`scripts/check_contracts.py`，装饰器识别（`_DECORATOR_KINDS` 一带）。期望：`@<名>.setter`、`@<名>.deleter` 和 getter 一样，只要一句非空职责；加测试。
+  2. 问题：`functools.cached_property`（直接名、限定名、导入别名）没被认作 property。期望：按 property 处理；加测试。执行线批准：这是对契约"识别 property"的补充说明，不改含义。
+  3. 问题：小节标题行有尾随空格，或者标题和内容写在同一行（`Returns: 无`）时，报的是"缺少 Returns:"。期望：尾随空格不影响识别标题；同一行写内容时，报一条准确的问题（例如"Returns: 标题后要换行再写内容"），不报"缺少"。仍然算问题、退出 1。加测试。
+  4. 问题：非 .py 参数的报错路径重复。位置：`main` 的报错输出。期望：`检查失败: x.txt: 不是 .py 文件`，路径只出现一次；相关测试断言改严。
+  5. 问题：`test_input_unchanged` 的 docstring 说"不依赖本地时区"，但没有验证。位置：`tests/test_timeutil.py`。期望：用 `monkeypatch.setenv("TZ", …)` 加 `time.tzset()` 换两个本地时区，结果相同；测试结束后恢复。
+  6. 问题：`tmp_path_retention_policy = "none"` 会删掉失败测试的现场（CODING_STANDARDS 7.8）。位置：`pyproject.toml`。期望：改成 `"failed"`，注释写明理由。
+  - 契约（三个公开函数的签名和 docstring）不改。
+- 2026-10-22，派工 r1（续接）。提示 `assets/…/prompt-r1.md`（修复轮模板，就是上面的 6 条），快照 `refs/rdp/m0-01/r1`，Status 改成 `in-progress`。会话 `01a16490-d7e5-7862-b467-af073a447b22`，先 `cd <工作目录>` 再续接，参数同派工 B；运行日志 `ev-r1.jsonl`、`err-r1.txt`。
+- 2026-10-22，r1 交回并评审：**通过**。
+  - 运行：22:36:16–22:44:23，退出码 0，最后一条 `turn.completed`，`out-r1.md` 在 assets。没有网关断开。
+  - 重跑：`make check` 六步全绿，`61 passed`，4.5 秒；跑之前和之后 `git status` 相同。
+  - 文件归属：在 B 的基础上多了 `?? tests/test_check_configuration.py`。受保护文件只改了 `tmp_path_retention_policy = "failed"` 和它的注释。主仓库目录非规划文件为空。
+  - 契约：三个公开函数和两个模块 docstring 和 `b1fec00` 逐字相同。
+  - 运行日志：没有碰旧项目和 `/mnt`，`/tmp/rdp-*` 没有残留。
+  - 执行线用自己写的样例复现了 6 条：
+    - setter、deleter、`functools.cached_property`、`cached_property` 别名都只要一句职责；
+    - 标题行带尾随空格能识别；同一行写 `Returns: 无` 报 `Returns: 标题后要换行再写内容`，退出 1；
+    - `x.txt` 的报错是 `检查失败: x.txt: 不是 .py 文件`，退出 2；
+    - `test_input_unchanged` 换了上海、纽约两个 `TZ`。
+  - 新增的 `test_check_configuration.py` 用子进程跑 pytest，验证"失败现场保留、成功的清理"。它测的是配置不是平台代码，算轻微越界；但它守住了一条配置决定，留着。
+  - 违规试验：快照 `refs/rdp/m0-01/r1-done`（`e33f945`），`violation_probe-r1-done.txt`，29 项全部通过。打回共 1 轮。
+- 2026-10-22，第 17 步：实现提交 `baf56e3 实现：仓库骨架和检查链`，经过钩子（六步全绿，`61 passed`），提交后工作目录干净。Status 改成 `in-review`，等负责人说"合并"（主会话按 `codex-workflow.md` 3.7 做）。
+- 2026-10-22，**完工汇报**（执行线起草）。
+  - **改了什么**（分支 `t/m0-01-repo-skeleton-check-chain`，三个提交）：
+    - `4ee62d2` 依赖：ruff 0.17.1、basedpyright 1.40.2、import-linter 2.15、pytest 9.1.1，以及 `uv.lock`。
+    - `b1fec00` 契约：检查配置、Makefile、钩子、三层占位包、两个模块的契约骨架，56 个跳过的测试。
+    - `baf56e3` 实现：`ensure_utc` 和契约检查脚本；`make check` 改成六步；`failOnWarnings`（G3）；`tmp_path_retention_policy = "failed"`。
+  - **测试**：61 个，全部通过（timeutil 10 个，契约脚本 50 个，配置 1 个），没有跳过。`make check` 六步约 3.5–4.5 秒。违规试验三轮快照（A2-done 23 项，B-done、r1-done 各 29 项）全部通过。
+  - **十条验收**：
+    1. 环境：通过。`.venv` 是 3.12.15，`uv.lock` 已入库；依赖提交之后，依赖表和 `uv.lock` 都没变过。
+    2. 空骨架全绿：通过。A2 时五步（契约检查当时是桩，按约定不接），0.55 秒；`make fmt` 能跑。
+    3. 骨架阶段全绿：通过。契约提交 `b1fec00` 经过钩子，五步全绿、56 个跳过（主会话做的提交）。
+    4. 沙箱里能跑：通过。A2 和 B 的运行日志里，Codex 在沙箱中跑了 `make check`，basedpyright 都输出了 `0 errors, 0 warnings, 0 notes`，退出码 0。不需要退路。
+    5. 违规会失败：通过。每种违规都失败在对应的那一步，去掉后恢复全绿；"不能失败"的四种都是全绿。
+    6. 钩子能拦：通过。违规提交被拒、HEAD 没变，去掉违规后提交成功；D2 的三种情况都对；`.githooks/pre-commit` 在提交里是 `100755`。
+    7. 契约脚本能抓缺项：通过。五种违规都输出了文件:行号、函数全名和问题；退出码 0 / 1 / 2。
+    8. 不留痕迹：通过。每次跑 `make check` 前后，`git status` 都相同。
+    9. 文件归属：通过。工作目录只动了 `src/`、`tests/` 和允许改的受保护文件；主仓库目录只有规划文件的改动；运行日志里没有碰两个旧项目，也没有碰 `/mnt`。
+    10. 注释与契约：通过。`/code-review` 的 Standards 轴没有硬性违规；Spec 轴发现的偏差在 r1 修好，执行线复现确认。
+  - **风险**：
+    - 契约规定 `test_` 开头的函数不查，所以 `src/rdp` 里叫 `test_*` 的公开函数也会被放过。要收紧就得改契约含义，需要负责人决定，可以留到 `/retro`。
+    - Codex 自己说，有一部分测试去掉跳过后第一次就通过了，不是每个都先红后绿。
+    - 新增的 `tests/test_check_configuration.py` 测的是 pytest 配置，算轻微越界，留着。
+    - 规程待定稿：08 号票里"主仓库目录必须为空"那句要改；违规试验脚本要按 ruff 的规则名匹配（第一次跑踩过）；Codex 会在 `/tmp` 留试验文件，提示里要写明用完删掉。
+    - Standards 轴的判断题没改：测试里的 `for` 循环可以改成 parametrize，`_run` 和 `_run_api` 有重复。
+  - **下一张**：按 D3，起草第 2 张「Web 骨架与前端检查链」（最小 FastAPI 应用 + 前端骨架）。先按这张票跑下来的情况修订 `codex-workflow.md` 和 `CODING_STANDARDS.md`，然后定稿。

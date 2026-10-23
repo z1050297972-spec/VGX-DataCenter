@@ -1,0 +1,44 @@
+# 工具清单草样：mcap2lerobot（「工具清单与转换血缘」）
+# 放在工具自己仓库的根目录：/mnt/datasets/工具/mcap2lerobot/tool.toml
+# 清单是工具的事实来源；平台数据库里只放它的索引。字段名是草样，M4 定稿。
+
+[tool]
+name = "mcap2lerobot"            # 和目录名一致，命名规则 <输入>2<输出>[-<变体>]
+version = "0.1.0"                # 和 Cargo.toml 一致；血缘另记 git 提交号
+summary = "把机器人录制的 MCAP 转成 LeRobot 数据集"
+
+[io]
+input_formats = ["mcap"]
+# 同一个工具能产出两种格式版本，由命令参数 {format} 选择
+output_format = "lerobot"
+output_versions = ["v3.0", "v2.1"]
+
+[models]
+# 键是平台登记的机器人型号（不是数据里的型号标签），值是工具仓库里的配置文件
+"R1 Lite" = "configs/r1lite.toml"
+
+[runtime]
+kind = "binary"                  # 只有两种：binary，或 conda（写 env = "<环境名>"）
+path = "target/release/mcap2lerobot"   # 平台不构建，由人先 cargo build --release
+needs_gpu = true                 # configs/r1lite.toml 用 hevc_nvenc；GPU 不可用时不改用 CPU
+report_protocol = "无"           # 还没接入上报协议，M4 接入后改成协议版本号
+
+[command]
+# 参数列表，不经过 shell；占位符由平台填写。--yes：非终端下不加会直接报错。
+# 输出目录一律是暂存区里这个作业的目录，每次都是新目录，所以不需要 --force。
+argv = [
+  "convert",
+  "--config", "{config}",
+  "--output", "{output}",
+  "--format", "{format}",
+  "--yes",
+  "{inputs...}",
+]
+# 可选参数，用户在提交作业时填写；不填就用配置文件里的值
+optional = { fps = ["--fps", "{fps}"], task = ["--task", "{task}"] }
+
+[preflight]
+# 转换前的核对（M4 实现）：配置里的话题、关节顺序要和 RobotProfile 一致
+check_against_robot_profile = true
+# 工具自带的输入检查，作为作业的第一步
+verify_argv = ["verify", "--config", "{config}", "{inputs...}"]

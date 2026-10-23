@@ -254,8 +254,114 @@ def value() -> int:
 "
 
 if [ -n "$WITH_CONTRACTS" ]; then
+  # 契约检查的违规（验收第 5 条后半、第 7 条）。放在公开模块里，按公开函数的规则查。
+  # 每种违规只在契约检查那一步失败：私有函数由公开函数调用，免得 basedpyright 报未使用；
+  # 空的那一项选 Side Effects:，它不是 Google 标准小节，ruff 的 D414 不管它。
+  C=src/rdp/infra/probe_contract.py
+  CH='"""探针（基础层）：契约检查的违规试验用，试完删除。"""'
+  six() { # 用法：six <首行>；输出一段六项齐全的 docstring 正文（不含引号），参数名 flag
+    printf '%s\n\n    Args:\n        flag: 开关，True 或 False。\n\n    Returns:\n        原值。\n\n    Raises:\n        无。\n\n    Side Effects:\n        无。\n\n    Time Semantics:\n        无。\n    ' "$1"
+  }
+  expect_fail "契约：公开函数缺 Time Semantics:" "$S_CONTRACTS" 'probe_contract\.py:[0-9]+ .*no_time.*Time Semantics' "$C" "$CH
+
+
+def no_time(flag: bool) -> bool:
+    \"\"\"返回原值。
+
+    Args:
+        flag: 开关，True 或 False。
+
+    Returns:
+        原值。
+
+    Raises:
+        无。
+
+    Side Effects:
+        无。
+    \"\"\"
+    return flag
+"
+  expect_fail "契约：私有函数没有 docstring" "$S_CONTRACTS" 'probe_contract\.py:[0-9]+ .*_helper' "$C" "$CH
+
+
+def uses_private(flag: bool) -> bool:
+    \"\"\"$(six '调用私有函数。')\"\"\"
+    return _helper(flag)
+
+
+def _helper(flag: bool) -> bool:
+    return flag
+"
+  expect_fail "契约：@dataclass 没有 Attributes:" "$S_CONTRACTS" 'probe_contract\.py:[0-9]+ .*Point.*Attributes' "$C" "$CH
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Point:
+    \"\"\"平面上的一个点。\"\"\"
+
+    x: int
+"
+  expect_fail "契约：小节顺序颠倒（Raises 在 Returns 前）" "$S_CONTRACTS" 'probe_contract\.py:[0-9]+ .*swapped' "$C" "$CH
+
+
+def swapped(flag: bool) -> bool:
+    \"\"\"返回原值。
+
+    Args:
+        flag: 开关，True 或 False。
+
+    Raises:
+        无。
+
+    Returns:
+        原值。
+
+    Side Effects:
+        无。
+
+    Time Semantics:
+        无。
+    \"\"\"
+    return flag
+"
+  expect_fail "契约：某一项为空（Side Effects:）" "$S_CONTRACTS" 'probe_contract\.py:[0-9]+ .*empty_side.*Side Effects' "$C" "$CH
+
+
+def empty_side(flag: bool) -> bool:
+    \"\"\"返回原值。
+
+    Args:
+        flag: 开关，True 或 False。
+
+    Returns:
+        原值。
+
+    Raises:
+        无。
+
+    Side Effects:
+
+    Time Semantics:
+        无。
+    \"\"\"
+    return flag
+"
+  # 验收第 7 条的退出码：直接运行脚本。
   say ""
-  say "（契约检查的违规：派工 B 之后在这里补上）"
+  say "== 契约脚本退出码（验收第 7 条）"
+  .venv/bin/python scripts/check_contracts.py >"$OUT/c0.txt" 2>&1; c0=$?
+  say "  无参数（src/rdp、scripts）：退出码 $c0，$(tail -1 "$OUT/c0.txt")"
+  printf '%s\n\n\ndef no_time(flag: bool) -> bool:\n    """返回原值。\n\n    Args:\n        flag: 开关。\n\n    Returns:\n        原值。\n    """\n    return flag\n' "$CH" >"$C"
+  .venv/bin/python scripts/check_contracts.py "$C" >"$OUT/c1.txt" 2>&1; c1=$?
+  say "  有问题的文件：退出码 $c1"; sed 's/^/  | /' "$OUT/c1.txt"
+  rm -f "$C"
+  .venv/bin/python scripts/check_contracts.py does/not/exist.py >"$OUT/c2.txt" 2>&1; c2=$?
+  say "  不存在的路径：退出码 $c2"; sed 's/^/  | /' "$OUT/c2.txt"
+  if [ "$c0" -eq 0 ] && [ "$c1" -eq 1 ] && [ "$c2" -eq 2 ]; then ok "0 / 1 / 2"; else bad "退出码是 $c0 / $c1 / $c2"; fi
+  restore_and_recheck quiet
 fi
 
 # ---------- 4. 不能失败 ----------
