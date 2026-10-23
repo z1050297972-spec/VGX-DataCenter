@@ -1,6 +1,6 @@
 # 仓库骨架和检查链
 
-Status: in-review
+Status: done
 
 ## 依据
 
@@ -368,3 +368,4 @@ Claude 评审时逐条核对，结果记进 Comments。
     - 规程待定稿：08 号票里"主仓库目录必须为空"那句要改；违规试验脚本要按 ruff 的规则名匹配（第一次跑踩过）；Codex 会在 `/tmp` 留试验文件，提示里要写明用完删掉。
     - Standards 轴的判断题没改：测试里的 `for` 循环可以改成 parametrize，`_run` 和 `_run_api` 有重复。
   - **下一张**：按 D3，起草第 2 张「Web 骨架与前端检查链」（最小 FastAPI 应用 + 前端骨架）。先按这张票跑下来的情况修订 `codex-workflow.md` 和 `CODING_STANDARDS.md`，然后定稿。
+- 2026-10-22，合并（主会话）：负责人说"合并"。合并前主会话独立重跑 `make check`（六步全绿，61 passed），用自写探针确认契约脚本能报出缺 `Time Semantics:`（退出码 1）。按 `codex-workflow.md` 3.7：暂存区为空；`git merge --no-ff --no-commit`；主仓库目录 `uv sync --frozen` 新建 `.venv`；`82907a1 合并：仓库骨架和检查链` 经过钩子，在合并结果上六步全绿、61 passed。Status 改成 `done`；工作目录、分支、`refs/rdp/m0-01/` 快照已删除。
