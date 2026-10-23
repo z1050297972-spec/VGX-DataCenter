@@ -206,10 +206,14 @@ def check_file(path: Path) -> list[str]:
     with tokenize.open(path) as source:
         tree = ast.parse(source.read(), filename=str(path))
     module_parts = _module_parts(path)
+    # W3 只豁免本检查器所属仓库的 tests/；解析软链接，不能借目录名或 cwd 扩大范围。
+    in_repository_tests = path.resolve().is_relative_to(
+        Path(__file__).resolve().parents[1] / "tests"
+    )
     problems: list[str] = []
     for node, names, decorators in _definitions(tree.body, module_parts, {}):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if "overload" in decorators or node.name.startswith("test_"):
+            if "overload" in decorators or (in_repository_tests and node.name.startswith("test_")):
                 continue
             # 构造器沿用类的可见性，模块级同名函数仍按私有函数处理。
             visibility_names = (

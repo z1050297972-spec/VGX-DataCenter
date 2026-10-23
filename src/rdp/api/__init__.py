@@ -1,12 +1,22 @@
 """Web 入口层，提供应用工厂及 SPA 托管边界，不访问导航层或存储根。
 
 静态托管使用 FastAPI 再导出的 StaticFiles；不自行实现文件传输或直接依赖 starlette。
-依据：ADR 0001、0002、0005，M0 工单 02；A2 只交契约，B 实现路由及托管。
+依据：ADR 0001、0002、0005，M0 工单 02；接口与静态托管共享一个应用入口。
 """
 
+import stat
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
+
+from rdp.api.health import HealthResponse, get_health
+
+
+def _unknown_api() -> Response:
+    """保留 API 命名空间，避免同名静态文件或 SPA 回退冒充 JSON 接口。"""
+    return JSONResponse({"detail": "Not Found"}, status_code=404)
 
 
 def create_app(web_dist: Path | None) -> FastAPI:
@@ -39,4 +49,43 @@ def create_app(web_dist: Path | None) -> FastAPI:
         同步创建，返回前完成目录校验；无重试、轮询或时区转换。
         构建产物由部署方保持稳定，创建时校验不保证后续请求时文件仍存在。
     """
-    raise NotImplementedError
+    app = FastAPI(title="机器人数据管理平台", version="0.1.0")
+    app.add_api_route("/api/health", get_health, methods=["GET"], response_model=HealthResponse)
+    # 已知接口优先；兜底必须在静态挂载之前，不能让构建目录里的 api/ 文件遮蔽接口。
+    for path in ("/api", "/api/{unknown:path}"):
+        app.add_api_route(
+            path,
+            _unknown_api,
+            include_in_schema=False,
+            methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE"],
+        )
+    if web_dist is not None:
+        # 固定创建时的绝对目录，后续 cwd 改动不能切换应用所服务的文件。
+        web_dist = web_dist.resolve()
+        # 主动 stat 保留不存在、无权限等原始 OSError，不用 is_dir 吞掉错误原因。
+        if not stat.S_ISDIR(web_dist.stat().st_mode):
+            raise NotADirectoryError(f"构建路径不是目录: {web_dist}")
+        index = web_dist / "index.html"
+        if not stat.S_ISREG(index.stat().st_mode):
+            raise ValueError(f"入口不是普通文件: {index}")
+        # 提前拒绝入口软链接越界；普通资源的路径约束由 StaticFiles 继续负责。
+        if not index.resolve().is_relative_to(web_dist):
+            raise ValueError(f"入口越出构建目录: {index}")
+        # 沿用 StaticFiles 默认的 html=False；首页与 SPA 路由回退统一由下方处理。
+        static_files = StaticFiles(directory=web_dist)
+
+        async def _spa_fallback(request: Request, _error: Exception) -> Response:
+            """把不存在的前端路由交给首页，文件传输仍由 StaticFiles 负责。"""
+            # 仅前端 GET 导航允许回退；API 业务异常与其他方法保留通用 404 JSON。
+            path = request.url.path
+            if request.method != "GET" or path == "/api" or path.startswith("/api/"):
+                return JSONResponse(
+                    {"detail": getattr(_error, "detail", "Not Found")},
+                    status_code=404,
+                    headers=getattr(_error, "headers", None),
+                )
+            return await static_files.get_response("index.html", request.scope)
+
+        app.add_exception_handler(404, _spa_fallback)
+        app.mount("/", static_files)
+    return app

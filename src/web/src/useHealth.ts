@@ -1,9 +1,24 @@
 // 页面查询层（工单 02）；缓存交给 TanStack Query，传输交给 api/health，不直接调用 fetch。
 import type { UseQueryResult } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { HealthClient, HealthResponse } from "./api/client";
+import { fetchHealth } from "./api/health";
 
-/** 健康查询缓存有效期为 1000 毫秒；按 ADR 0001 秒级状态更新，不做高频请求。 */
+/** G1：缓存 1000 毫秒以复用短时间内的重复挂载；过期后再次挂载获取新状态，不轮询。 */
 export const HEALTH_STALE_TIME_MS = 1000;
+
+// TanStack Query 默认按 JSON 哈希，客户端里的函数会被省略；用弱引用身份避免不同传输串缓存。
+const clientKeys = new WeakMap<HealthClient, number>();
+let nextClientKey = 0;
+
+function clientKey(client: HealthClient): number {
+  let key = clientKeys.get(client);
+  if (key === undefined) {
+    key = nextClientKey++;
+    clientKeys.set(client, key);
+  }
+  return key;
+}
 
 /**
  * 管理一次健康查询的加载、缓存和失败状态。
@@ -15,7 +30,13 @@ export const HEALTH_STALE_TIME_MS = 1000;
  * @timeSemantics 缓存 HEALTH_STALE_TIME_MS 毫秒，不轮询、不自动重试、不因窗口聚焦刷新；
  * 过期后再次挂载可重新获取，取消信号传递给请求，单次超时由 HEALTH_TIMEOUT_MS 约束。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- A2 契约桩不使用参数；B 实现函数后删除此豁免。
 export function useHealth(client: HealthClient): UseQueryResult<HealthResponse> {
-  throw new Error("未实现");
+  return useQuery({
+    queryKey: ["health", clientKey(client)],
+    queryFn: ({ signal }) => fetchHealth(client, signal),
+    staleTime: HEALTH_STALE_TIME_MS,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchInterval: false,
+  });
 }

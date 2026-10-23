@@ -1,28 +1,46 @@
 {
-  "openapi": "3.1.0",
-  "info": { "title": "机器人数据管理平台", "version": "0.1.0" },
-  "paths": {
-    "/api/health": {
-      "get": {
-        "operationId": "get_health_api_health_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } }
-            }
-          }
-        }
-      }
-    }
-  },
   "components": {
     "schemas": {
       "HealthResponse": {
-        "type": "object",
-        "properties": { "status": { "type": "string", "const": "ok", "title": "Status" } },
-        "required": ["status"],
-        "title": "HealthResponse"
+        "description": "健康接口的固定响应结构。\n\nAttributes:\n    status: Web 可响应的状态，无单位，仅允许字符串 ok；不是 worker 的在线状态。",
+        "properties": {
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "机器人数据管理平台",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/health": {
+      "get": {
+        "description": "返回 Web 入口可响应的健康状态。\n\nArgs:\n    无\n\nReturns:\n    status 为 ok 的 HealthResponse，序列化为 {\"status\": \"ok\"}。\n\nRaises:\n    无\n\nSide Effects:\n    无；不访问数据库、导航层、存储根或网络。\n\nTime Semantics:\n    同步返回当次请求的状态，不读取时钟、不等待或重试。",
+        "operationId": "get_health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Health"
       }
     }
   }

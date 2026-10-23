@@ -14,8 +14,9 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
-    // 沙箱不能建立 socket，使用线程池避免 forks 的进程通信限制。
+    // 沿用 A2 已验证的线程池；0012 已授权本地通信，不需要修改 asyncio 或 socket。
     pool: "threads",
+    setupFiles: ["./src/testSetup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     clearMocks: true,
     restoreMocks: true,

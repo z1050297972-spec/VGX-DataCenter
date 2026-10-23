@@ -1,6 +1,10 @@
 // 健康展示组件（工单 02）；不包含传输实现、业务权限或数据库状态。
 import type { ReactElement } from "react";
+import { useState } from "react";
+import { Alert, Typography } from "antd";
 import type { HealthClient } from "./api/client";
+import { createHealthClient } from "./api/client";
+import { useHealth } from "./useHealth";
 
 /** 页面输入不含物理量；依赖可注入，避免测试修改全局 fetch。 */
 export interface HealthPageProps {
@@ -18,7 +22,11 @@ export interface HealthPageProps {
  * @sideEffects 经 useHealth 请求 /api/health，不修改 URL、浏览器存储或全局 fetch。
  * @timeSemantics 沿用 HEALTH_STALE_TIME_MS 的缓存和 HEALTH_TIMEOUT_MS 的超时，无额外轮询。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- A2 契约桩不使用参数；B 实现函数后删除此豁免。
 export function HealthPage(props: HealthPageProps = {}): ReactElement {
-  throw new Error("未实现");
+  const [defaultClient] = useState(createHealthClient);
+  const health = useHealth(props.client ?? defaultClient);
+  if (health.isError) {
+    return <Alert type="error" title="请求失败" role="alert" />;
+  }
+  return <Typography.Text>{health.isSuccess ? "后端正常" : "正在检查后端…"}</Typography.Text>;
 }

@@ -37,4 +37,4 @@ def get_health() -> HealthResponse:
     Time Semantics:
         同步返回当次请求的状态，不读取时钟、不等待或重试。
     """
-    raise NotImplementedError
+    return HealthResponse(status="ok")

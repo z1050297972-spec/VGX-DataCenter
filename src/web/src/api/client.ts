@@ -1,5 +1,6 @@
 // Web 请求边界（ADR 0001、0002）；只使用生成的接口类型和 openapi-fetch，不承载页面状态。
 import type { Client, ClientOptions } from "openapi-fetch";
+import createClient from "openapi-fetch";
 import type { components, paths } from "./schema";
 
 /** 健康响应只引用生成类型，禁止另写重复的接口结构。 */
@@ -21,7 +22,6 @@ const defaultFetch: FetchImplementation = fetch;
  * @sideEffects 无；只创建内存对象，不访问网络或修改全局 fetch。
  * @timeSemantics 同步创建；请求的取消和超时由调用方的 AbortSignal 控制。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- A2 契约桩不使用参数；B 实现函数后删除此豁免。
 export function createHealthClient(fetchImpl: FetchImplementation = defaultFetch): HealthClient {
-  throw new Error("未实现");
+  return createClient<paths>({ baseUrl: "", fetch: fetchImpl });
 }

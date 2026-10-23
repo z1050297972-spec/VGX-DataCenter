@@ -11,6 +11,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * Get Health
+         * @description 返回 Web 入口可响应的健康状态。
+         *
+         *     Args:
+         *         无
+         *
+         *     Returns:
+         *         status 为 ok 的 HealthResponse，序列化为 {"status": "ok"}。
+         *
+         *     Raises:
+         *         无
+         *
+         *     Side Effects:
+         *         无；不访问数据库、导航层、存储根或网络。
+         *
+         *     Time Semantics:
+         *         同步返回当次请求的状态，不读取时钟、不等待或重试。
+         */
         get: operations["get_health_api_health_get"];
         put?: never;
         post?: never;
@@ -24,7 +43,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** HealthResponse */
+        /**
+         * HealthResponse
+         * @description 健康接口的固定响应结构。
+         *
+         *     Attributes:
+         *         status: Web 可响应的状态，无单位，仅允许字符串 ok；不是 worker 的在线状态。
+         */
         HealthResponse: {
             /**
              * Status

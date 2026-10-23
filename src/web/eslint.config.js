@@ -76,14 +76,14 @@ export default tseslint.config(
       "jsdoc/check-tag-names": ["error", { definedTags: ["sideEffects", "timeSemantics"] }],
       "jsdoc/require-description": ["error", { contexts: functionContexts }],
       "jsdoc/require-param": "error",
+      "jsdoc/check-param-names": "error",
       "jsdoc/require-param-description": "error",
       // require-tags 按每个函数检查，避免 no-missing-syntax 只保证文件里至少有一份。
-      // 无参数仍保留 @param 无 - 无参数；不启用会拒绝此约定的 check-param-names。
+      // G2：只有真实参数才写 @param，由 require-param 与 check-param-names 核对签名。
       "jsdoc/require-tags": [
         "error",
         {
           tags: [
-            { tag: "param", context: functionContext },
             { tag: "returns", context: functionContext },
             { tag: "throws", context: functionContext },
             { tag: "sideEffects", context: functionContext },
