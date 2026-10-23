@@ -51,7 +51,7 @@
 1. 确认工单是 `Status: ready-for-agent`，并且没有别的实现票在进行中（第 1 节）。
 2. Status 改成 `in-progress`。
 3. `git -C <主仓库目录> worktree add -b t/<票>-<slug> <工作目录> main`
-4. 在工作目录里装依赖，因为沙箱不能联网：`uv sync --frozen`；有前端以后，再在 `src/web/` 里跑 `pnpm install --frozen-lockfile`。
+4. 在工作目录里装依赖：`uv sync --frozen`，再在 `src/web/` 里跑 `pnpm install --frozen-lockfile`。沙箱虽然为了跑测试开了网络权限（0012），安装仍然只由执行线在沙箱外做。
 5. 在工作目录里跑一次 `make check`。
 
 M0 第 1 张票开票时还没有 `pyproject.toml` 和 `make check`，第 4、5 步按那张票自己的步骤做。
@@ -205,6 +205,7 @@ timeout 60m codex exec resume \
 - **打回期间不提交**：中间状态过不了钩子，改用快照（5.2）记录每一轮。
 - **派工 A、B 之前，工作目录必须干净**（`git status --porcelain` 为空），这样派工之后出现的改动全是 Codex 的。修复轮之前，工作目录里是上一轮的改动，靠快照区分这一轮改了什么。
 - **规划文件只在主仓库目录里改**：工单、Comments、assets 都在主仓库目录。实现分支上只有代码和依赖文件，合并时不会冲突。
+- **新的包管理目录**：第一次引入一种包管理器（例如 M0 第 2 张的 pnpm）时，先确认 `.gitignore` 已经忽略它的安装目录（`node_modules/`），再做依赖提交，否则安装目录会进提交。
 - **派工 B 途中要装新依赖**：先拍一个快照，用 `git stash -u` 收起 Codex 的改动；在干净的工作目录里装依赖、做依赖提交（这时是契约提交加上新依赖，钩子能过）；再 `git stash pop`。
 - **整轮方向都错、要丢弃工作区的改动时**，先问负责人，不自行回退。
 

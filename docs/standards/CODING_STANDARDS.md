@@ -1,6 +1,6 @@
 # 编码规范
 
-> **状态**：2026-10-23 定稿（M0 第 1 张工单「仓库骨架和检查链」跑通后）。以后由 `/retro` 修订；前端部分（3.5、第 10 条和标着"前端骨架工单"的地方）在「Web 骨架与前端检查链」里实测后补全。
+> **状态**：2026-10-23 定稿（M0 第 1 张工单「仓库骨架和检查链」跑通后）。前端部分 2026-10-23 在 M0 第 2 张「Web 骨架与前端检查链」跑通后补全。以后由 `/retro` 修订。
 >
 > **依据**：
 > - 「技术栈与工程规范」（`.scratch/platform-v1/issues/03-tech-stack-standards.md`）Answer 里的「`CODING_STANDARDS.md` 的条目要点」。第 1–10 条的编号沿用那份要点。
@@ -50,7 +50,7 @@
 - 生成器用 `Yields:` 代替 `Returns:`。
 - 不查：`@overload` 的签名（文档写在实现上）、嵌套函数、`tests/` 下的测试函数（测试的要求见第 7 条）。`src/` 里名字以 `test_` 开头的公开函数照样要写六项。
 
-〔机：`scripts/check_contracts.py` 查小节有没有、顺序对不对、内容是不是空的；ruff 的 docstring 规则查 `Args:` 等小节和签名是否一致。现在的脚本按名字跳过所有 `test_` 开头的函数，改成只在 `tests/` 下跳过，放在「Web 骨架与前端检查链」里做〕
+〔机：`scripts/check_contracts.py` 查小节有没有、顺序对不对、内容是不是空的；ruff 的 docstring 规则查 `Args:` 等小节和签名是否一致。`test_` 开头的函数，只有文件在仓库根的 `tests/` 下时才跳过，按解析软链接后的绝对路径判断〕
 
 ### 3.2 每项写到什么程度
 
@@ -152,7 +152,9 @@ def _split_sections(docstring: str) -> dict[str, str]:
 - 副作用和时间语义用自定义标签 `@sideEffects`、`@timeSemantics`。组件的副作用写它发出的请求和改动的 URL 参数；时间语义写轮询间隔和缓存过期时间。
 - 不适用的项写"无"。
 
-〔机：eslint-plugin-jsdoc。具体规则和这两个标签名，在前端骨架工单里实测后定稿〕
+- 没有参数的函数不写 `@param`。
+
+〔机：eslint-plugin-jsdoc（`src/web/eslint.config.js`）。导出的函数声明、箭头函数、函数表达式都要有 TSDoc（`require-jsdoc`）；首行职责、`@param` 与签名一致（`require-param`、`check-param-names`）；每个函数都要有 `@returns`、`@throws`、`@sideEffects`、`@timeSemantics`（`require-tags`），内容不能是空的（`match-description`）；`check-tag-names` 只认这两个自定义标签。props 字段的 TSDoc 是〔审〕〕
 
 ```ts
 /** 作业进度的轮询间隔，单位毫秒。网页约 1 秒轮询一次（ADR 0001）；worker 每秒最多写一次进度（ADR 0005），轮询再快也拿不到新数据。 */
@@ -251,7 +253,7 @@ export function useJobProgress(jobId: number): UseQueryResult<JobProgress> {
   - ESLint：`// eslint-disable-next-line <规则名> -- 理由`。
   - TypeScript：`// @ts-expect-error 理由`，不用 `@ts-ignore`。
 
-  〔机：不带规则码的豁免、多余的豁免都会让 `make check` 失败。后端：ruff 的 PGH003、PGH004（禁止不带规则码的 `type: ignore` 和 `noqa`）、RUF100（多余的 `noqa`）；basedpyright 的 `reportIgnoreCommentWithoutRule`、`reportUnnecessaryTypeIgnoreComment` 设为 error，`enableTypeIgnoreComments = false`，所以 `# type: ignore` 不起作用。前端见前端骨架工单〕
+  〔机：不带规则码的豁免、多余的豁免都会让 `make check` 失败。后端：ruff 的 PGH003、PGH004（禁止不带规则码的 `type: ignore` 和 `noqa`）、RUF100（多余的 `noqa`）；basedpyright 的 `reportIgnoreCommentWithoutRule`、`reportUnnecessaryTypeIgnoreComment` 设为 error，`enableTypeIgnoreComments = false`，所以 `# type: ignore` 不起作用。前端：`reportUnusedDisableDirectives` 让多余的 `eslint-disable` 失败；eslint-plugin-eslint-comments 的 `no-unlimited-disable`、`require-description` 让不写规则名、不写理由的 `eslint-disable` 失败；`ban-ts-comment` 禁止 `@ts-ignore`、`@ts-nocheck`，`@ts-expect-error` 必须带说明〕
 - **8.2 配置里的豁免也算**：`pyproject.toml` 的 per-file-ignores、basedpyright 的规则开关、import-linter 的 `ignore_imports`、ESLint 配置里关掉的规则。每一条旁边用注释写理由。这些都在受保护文件里，只有工单允许时才能改（规则 3）。〔审〕
 - **8.3 评审时**：把 diff 里新增的豁免全部列出来，逐条判断是否只针对单条规则、理由是否成立、能不能改代码消掉。〔审：`git diff <基准> | grep -nE 'noqa|pyright: ignore|eslint-disable|ts-expect-error|per-file-ignores|ignore_imports'`〕
 
@@ -286,9 +288,9 @@ export function useJobProgress(jobId: number): UseQueryResult<JobProgress> {
 
 ## 10. 前端
 
-前端检查链在前端骨架工单里配好，全部是〔机〕：TypeScript 严格模式加 `noUncheckedIndexedAccess`，ESLint 的 `strictTypeChecked` 加 react-hooks 和 jsdoc 规则，Prettier，Vitest 加 React Testing Library。v1 不做浏览器端到端测试（03）。TSDoc 见 3.5。
+前端检查链是 `make check` 的第 7–11 步，全部是〔机〕：OpenAPI 和生成类型的过期检查（改了接口先跑 `make api-types`），TypeScript 严格模式加 `noUncheckedIndexedAccess`，ESLint 的 `strictTypeChecked` 加 react-hooks 和 jsdoc 规则，Prettier，Vitest 加 React Testing Library。v1 不做浏览器端到端测试（03）。TSDoc 见 3.5。
 
-- **10.1** 请求统一经 openapi-fetch 生成的客户端发出，由 TanStack Query 管理。页面和组件里不直接调用 `fetch`。〔审；前端骨架工单可以用 ESLint 的 `no-restricted-globals` 把它变成〔机〕〕
+- **10.1** 请求统一经 openapi-fetch 生成的客户端发出，由 TanStack Query 管理。页面和组件里不直接调用 `fetch`。〔机：ESLint `no-restricted-globals` 禁止 `fetch`、`window.fetch`、`globalThis.fetch`，唯一的例外是 `src/api/` 里的客户端工厂〕
 - **10.2** 接口类型只用 openapi-typescript 从 OpenAPI 生成的类型，不手写重复的接口类型。〔机：`make check` 检查生成的类型有没有过期（ADR 0001）〕〔审：没有手写的接口类型〕
 - **10.3** 轮询间隔、缓存时间写成具名常量，单位写进名字（例如 `JOB_POLL_INTERVAL_MS`），注释写明出处（约 1 秒一次，ADR 0001）。〔审〕
 - **10.4** 前端里的地址一律写相对路径（`/api/...`），不写协议和主机名（ADR 0001：M5 要上 HTTPS）。〔审〕
