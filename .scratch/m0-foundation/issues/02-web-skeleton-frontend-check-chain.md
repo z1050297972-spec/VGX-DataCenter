@@ -1,6 +1,6 @@
 # Web 骨架与前端检查链
 
-Status: needs-triage
+Status: ready-for-agent
 
 ## 依据
 
@@ -180,3 +180,8 @@ Claude 评审时逐条核对，结果记进 Comments。
   - fastapi、uvicorn、httpx 和前端主要依赖已在 03 号票「M0 首批依赖清单」里批准，不用再申请。
   - 本机在监听的端口有 80、8080、8088、3306、6379、5173（原型的开发服务器）；8000、8600 空着。
   - `.gitignore` 已经有 `dist/`，还没有 `node_modules/`。
+- 2026-10-23，负责人批准本票（"批准"；三个问题都按推荐答案记下）：
+  - **T1**：批准 `@testing-library/dom`（10.x）、`@types/node`（22.x，实测不需要就不装）、`@eslint-community/eslint-plugin-eslint-comments`（4.x），都是开发依赖。
+  - **T2**：TypeScript 用 5.9.3。
+  - **T3**：`vite build` 不进 `make check`，只在演示（验收第 10 条）和部署时跑。
+  - Status 改成 `ready-for-agent`，由执行线的后台 agent 按「Claude 的步骤」推进，做到骨架关卡后交回主会话。
