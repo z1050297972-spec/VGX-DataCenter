@@ -316,3 +316,8 @@ Claude 评审时逐条核对，结果记进 Comments。
     1. 续接一次，把背景讲清楚：负责人批准；`socketpair` 是本进程内的一对 fd，`write(2)` 是沙箱明确允许的，补丁不带来任何联网能力，也不碰沙箱配置。Codex 仍拒绝就不再试。
     2. 接受 Codex 提的方案：用线程池的后端接口测试照常由 Codex 写，但只在沙箱外由 Claude 跑；先红后绿的证据由 Claude 在沙箱外跑出来补进 assets；验收第 4 条改成"沙箱里除这些测试外全绿"。`make check` 在沙箱里会挂在 pytest，Codex 只能跑 `pytest --deselect`/`-k` 的子集。
     3. 回到选项 2（只给本票的派工放开 `network_access`），负责人之前没选。
+- 2026-10-23，主会话向负责人说明：Codex 拒绝得有道理，B 方案实际上是绕开安全控制，主会话推荐时考虑不周；不再续接去劝。负责人选 **N1**：
+  - 实现票的派工（含本票续接）加 `-c 'sandbox_workspace_write.network_access=true'`，这是负责人授权的正式设置；沙箱能写的范围不变，只读任务不联网。
+  - 三道防线：提示写明不安装、不联网；评审按 `codex-workflow.md` 3.5 第 5 项查运行日志里的安装和联网命令，有一条整轮打回；照常核对依赖表和锁文件。
+  - 写进 `docs/brief/0012-环境事实更新-沙箱socket与联网授权.md`、`codex-workflow.md` 第 4、7、9 节和 3.5 第 5 项、`CLAUDE.md`。
+  - 本票从快照 `B-blocked`（`5d84bd3`）的工作区状态续接同一会话，照 `prompt-B.md` 继续；`tests/conftest.py` 不加 `_write_to_self` 补丁。验收第 4 条不变（全部在沙箱里通过）。

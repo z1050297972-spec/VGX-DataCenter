@@ -109,7 +109,13 @@ M0 第 1 张票开票时还没有 `pyproject.toml` 和 `make check`，第 4、5 
    - 越界直接打回。
 3. **对比契约**：`git -C <工作目录> diff <契约提交> -- <骨架涉及的文件>`。已获批的签名、类型和 docstring 没有变化；有变化按 6.2 处理。
 4. **先红后绿**：在运行日志里核对，每个测试在实现之前都有一次失败的运行。没有失败记录、Codex 也没说明理由的，记进修复清单。
-5. **运行日志**：`grep -nE 'data_check|Data_Collection_System' <运行日志>` 没有结果，因为沙箱的读权限挡不住两个旧项目（0009）。出现 `/mnt` 的命令逐条看一遍。
+5. **运行日志**：`grep -nE 'data_check|Data_Collection_System' <运行日志>` 没有结果，因为沙箱的读权限挡不住两个旧项目（0009）。出现 `/mnt` 的命令逐条看一遍。再查安装和联网命令（0012），有一条就整轮打回：
+
+   ```bash
+   grep -nE '"command":"[^"]*\b(pip|npm|npx|curl|wget|uv (add|pip)|pnpm (add|install)|git (clone|fetch))\b' <运行日志>
+   ```
+
+   命中的是 `pnpm install --frozen-lockfile` 时不算违规，但要确认锁文件没变。
 6. **两轴评审**：拍快照 `B-done`（修复轮是 `r<N>-done`），在检出这个快照的探针工作目录里（5.2）跑 `/code-review main`，并把主仓库目录里的工单路径给它当 spec。涉及同步、录制、转换的模块，再跑 `algorithm-code-review`。
    - 要在探针工作目录里跑，是因为 `/code-review` 比较的是 `main...HEAD` 之间的提交，而这时实现还没有提交。
 7. **违规试验**：在同一个探针工作目录里放进违规，确认每种都在对应的那一步失败。按 ruff 输出里的规则名（例如 `print`）匹配，不按规则码匹配，因为同一条规则在不同版本里可能换码。试验用例和输出放进 assets。
@@ -153,6 +159,7 @@ M0 第 1 张票开票时还没有 `pyproject.toml` 和 `make check`，第 4、5 
 # 新会话：派工 A
 cd <工作目录>
 timeout 60m codex exec -C <工作目录> -s workspace-write \
+  -c 'sandbox_workspace_write.network_access=true' \
   -m gpt-6-astra -c 'model_reasoning_effort="high"' \
   --json -o <assets>/out-A.md \
   - < <assets>/prompt-A.md \
@@ -163,6 +170,7 @@ cd <工作目录>
 timeout 60m codex exec resume \
   -m gpt-6-astra -c 'model_reasoning_effort="high"' \
   -c 'sandbox_mode="workspace-write"' \
+  -c 'sandbox_workspace_write.network_access=true' \
   --json -o <assets>/out-B.md \
   <会话编号> - < <assets>/prompt-B.md \
   > <临时目录>/ev-B.jsonl 2> <临时目录>/err-B.txt
@@ -175,7 +183,7 @@ timeout 60m codex exec resume \
 - **跑完的标志**：运行日志最后一条是 `turn.completed`，`-o` 文件存在。
 - **后台运行**：用 Bash 的后台方式运行，Codex 退出时会收到通知，不用轮询输出文件。
 - **超时**：60 分钟（`timeout 60m`，退出码 124 表示超时）。M0 第 1 张票每次派工都在这个时间内跑完，先不调。
-- **沙箱**：实现票用 `workspace-write`。非代码任务见第 8 节。
+- **沙箱**：实现票用 `workspace-write`，并打开 `sandbox_workspace_write.network_access=true`（0012，负责人 2026-10-23 授权）。不打开时沙箱禁止 socket 的发送调用，FastAPI 的测试会一直挂住。代价是 Codex 的命令能上网，所以 3.5 第 5 项要查安装和联网命令。非代码任务不打开，见第 8 节。
 
 ## 5. 提交与快照
 
@@ -270,7 +278,7 @@ snap() {
 - 只改 `src/`、`tests/`。本票允许改的受保护文件：<清单；没有写"无">。
 - 改动留在工作区，不要 `git add`，也不要提交。
 - 不读取 `~/桌面/data_check` 和 `~/桌面/Data_Collection_System-main`，不碰 `/mnt`。
-- 沙箱不能联网，不要尝试安装任何东西。需要新依赖时停下，在最终回复里写依赖申请（AGENTS.md 规则 7）。
+- 不安装任何东西，不访问网络（沙箱为了跑测试开了网络权限，但这张票用不到网络；评审会查运行日志，出现安装或联网的命令整轮打回）。需要新依赖时停下，在最终回复里写依赖申请（AGENTS.md 规则 7）。
 - 自己在 `/tmp` 或别处建的试验文件，交付前删掉。
 ```
 
@@ -365,4 +373,5 @@ snap() {
 - **工作目录里 Codex 连 `git add` 都做不了**（`index.lock': Read-only file system`）：工作目录的索引在主仓库的 `.git/worktrees/` 下，沙箱里只读（0009）。改动只能留在工作区，这是预期的。
 - **运行日志开头有一两条 `error` 事件**，说 `disable_response_storage` is ignored：这是本机 `~/.codex/config.toml` 里的旧字段，不影响运行，不算失败。
 - **沙箱能读整个文件系统**，包括 `/mnt` 和两个旧项目（0009）。"不读旧项目"只能靠派工提示，加上 3.5 第 5 项的日志检查。
+- **`workspace-write` 不开网络时 socket 发不出数据**：`send` 报 `Operation not permitted`，asyncio 的线程唤醒随之挂住，`TestClient` 卡死。实现票派工因此打开 `network_access`（第 4 节，0012）。不要在测试里换别的系统调用绕开，Codex 会拒绝，这样做也确实是在绕过安全控制。
 - **只读沙箱里命令行不能联网**（`curl` 报 `failed to open socket: Operation not permitted`），但联网搜索可用（0009）。

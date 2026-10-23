@@ -20,7 +20,7 @@
 完整流程、派工提示模板和状态流转写在 `docs/agents/codex-workflow.md`（2026-10-23 定稿），这里只列要点，两者不一致时以手册为准。
 
 - **工作目录**：每张实现票用 `git worktree` 开一个单独的目录，Codex 只在那里写。主仓库目录一直留在 main 上，规划文件只在主仓库目录里改。一次只做一张实现票。
-- **派工**：用 `codex exec -C <该票工作目录> -s workspace-write --json -o <输出文件>` 在后台派工，并记下返回的 session id。需要修改时，**先进入该票的工作目录**，再用 `codex exec resume <session id> -c 'sandbox_mode="workspace-write"'` 继续同一个会话：续接的会话会在执行命令时所在的目录里工作，不在当初 `-C` 指定的目录里（0009）。**不要**使用 `danger-full-access` 或任何绕过沙箱的参数。
+- **派工**：用 `codex exec -C <该票工作目录> -s workspace-write --json -o <输出文件>` 在后台派工，并记下返回的 session id。需要修改时，**先进入该票的工作目录**，再用 `codex exec resume <session id> -c 'sandbox_mode="workspace-write"'` 继续同一个会话：续接的会话会在执行命令时所在的目录里工作，不在当初 `-C` 指定的目录里（0009）。**不要**使用 `danger-full-access` 或任何绕过沙箱的参数。实现票的派工加 `-c 'sandbox_workspace_write.network_access=true'`，这是负责人授权的正式设置（0012），评审时查运行日志里有没有安装和联网的命令。
 - **骨架关卡**：Claude 先审契约骨架，然后给负责人一页摘要（函数清单、测试清单、问题点）。负责人说"通过"之后，才能派工实现。
 - **评审**：不采信 Codex 自述的检查结果。依次做：
   1. 自己重跑检查。
