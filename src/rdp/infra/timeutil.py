@@ -5,7 +5,7 @@
 依据：CODING_STANDARDS 5.1，ADR 0002，M0 工单 01「仓库骨架和检查链」。
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def ensure_utc(value: datetime) -> datetime:
@@ -29,4 +29,7 @@ def ensure_utc(value: datetime) -> datetime:
     Time Semantics:
         输入时刻按其自带时区解释，输出使用 UTC；微秒不截断或舍入，无等待或重试。
     """
-    raise NotImplementedError
+    # tzinfo 非空仍可能没有偏移；两种情况都不能交给 astimezone 猜测本地时区。
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("时刻必须带有效时区")
+    return value.astimezone(UTC)

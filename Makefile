@@ -2,16 +2,17 @@
 .PHONY: check fmt
 
 check:
-	@echo "[1/5] ruff format --check"
+	@echo "[1/6] ruff format --check"
 	.venv/bin/ruff format --check .
-	@echo "[2/5] ruff check"
+	@echo "[2/6] ruff check"
 	.venv/bin/ruff check .
-	@echo "[3/5] basedpyright"
+	@echo "[3/6] basedpyright"
 	.venv/bin/basedpyright
-	@echo "[4/5] import-linter"
+	@echo "[4/6] import-linter"
 	.venv/bin/lint-imports --no-cache --no-logo
-# 派工 A2 的契约检查脚本只有桩；派工 B 实现后，在 import-linter 与 pytest 之间接上。
-	@echo "[5/5] pytest"
+	@echo "[5/6] 契约检查"
+	.venv/bin/python scripts/check_contracts.py src/rdp scripts
+	@echo "[6/6] pytest"
 	.venv/bin/pytest
 
 fmt:

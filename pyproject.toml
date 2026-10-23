@@ -51,7 +51,7 @@ allowed-confusables = ["：", "（", "）", "，", "；", "。", "！", "？", "
 # 不启用 DOC202：0.17.1 会拒绝无显式 return 的函数写 Returns: 无（规则 4 要求保留）。
 # 不启用 DOC502：0.17.1 会把 Raises: 无 误当异常，也会拒绝记录有意穿过的下层异常。
 # 0.17.1 实测上述已启用的 DOC 规则兼容 raise NotImplementedError 骨架。
-# 六项完整性、顺序和非空检查由契约脚本兜底，派工 B 实现后接入。
+# 六项完整性、顺序和非空检查由契约脚本补齐，并纳入 make check。
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -81,6 +81,8 @@ include = ["src/rdp", "scripts", "tests"]
 pythonVersion = "3.12"
 pythonPlatform = "Linux"
 typeCheckingMode = "strict"
+# 骨架关卡 G3：warning 也阻止交付，避免严格模式中的警告被忽略。
+failOnWarnings = true
 # 显式绑定项目解释器，避免使用 PATH 上 miniconda 的 Python 3.14。
 venvPath = "."
 venv = ".venv"
@@ -105,4 +107,6 @@ layers = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-config --strict-markers"
-# 03 号票不设覆盖率门槛；骨架测试用 pytest.skip，并在结果中显示跳过原因。
+# 03 号票不设覆盖率门槛；保留跳过原因输出，防止环境阻塞被误当作通过。
+# CODING_STANDARDS 7.8 要求失败时先保留证据；成功样例清理，失败现场保留供定位。
+tmp_path_retention_policy = "failed"
