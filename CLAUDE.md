@@ -17,15 +17,16 @@
 
 ### 派工与评审（每张实现工单）
 
-完整流程、派工提示模板和状态流转写在 `docs/agents/codex-workflow.md`，这份文档在 M0 定稿。定稿之前，以「Codex 协作规程」票的 Answer（`.scratch/platform-v1/issues/08-codex-workflow.md`）为准。
+完整流程、派工提示模板和状态流转写在 `docs/agents/codex-workflow.md`（2026-10-23 定稿），这里只列要点，两者不一致时以手册为准。
 
 - **工作目录**：每张实现票用 `git worktree` 开一个单独的目录，Codex 只在那里写。主仓库目录一直留在 main 上，规划文件只在主仓库目录里改。一次只做一张实现票。
 - **派工**：用 `codex exec -C <该票工作目录> -s workspace-write --json -o <输出文件>` 在后台派工，并记下返回的 session id。需要修改时，**先进入该票的工作目录**，再用 `codex exec resume <session id> -c 'sandbox_mode="workspace-write"'` 继续同一个会话：续接的会话会在执行命令时所在的目录里工作，不在当初 `-C` 指定的目录里（0009）。**不要**使用 `danger-full-access` 或任何绕过沙箱的参数。
 - **骨架关卡**：Claude 先审契约骨架，然后给负责人一页摘要（函数清单、测试清单、问题点）。负责人说"通过"之后，才能派工实现。
 - **评审**：不采信 Codex 自述的检查结果。依次做：
   1. 自己重跑检查。
-  2. 用 `git status --porcelain` 核对文件归属（AGENTS.md 硬性规则 3）：工作目录里只能有 `src/`、`tests/` 下的改动，主仓库目录必须干净。越界就直接打回。
-  3. 跑 `/code-review`。涉及同步、录制、转换的模块，再加跑 `algorithm-code-review`。
+  2. 用 `git status --porcelain` 核对文件归属（AGENTS.md 硬性规则 3）：工作目录里只能有 `src/`、`tests/` 下的改动（以及工单允许的受保护文件）；主仓库目录里规划文件以外不能有改动。越界就直接打回。
+  3. 核对每个测试先红后绿（`CODING_STANDARDS.md` 7.10）。
+  4. 跑 `/code-review`。涉及同步、录制、转换的模块，再加跑 `algorithm-code-review`。
 - **打回**：最多打回 3 轮。3 轮后仍不通过，停下来找负责人，不要继续循环。
 - **合并**：负责人明确说"合并"之后，才用 `--no-ff` 合并到 main，这样契约提交会保留在历史里。
 - **记录**：派工记录和评审结论，追加到对应工单末尾的 `## Comments` 下。

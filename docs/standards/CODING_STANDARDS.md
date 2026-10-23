@@ -1,6 +1,6 @@
 # 编码规范
 
-> **状态**：草稿。M0 第 1 张工单「仓库骨架和检查链」跑通后定稿，之后由 `/retro` 修订。
+> **状态**：2026-10-23 定稿（M0 第 1 张工单「仓库骨架和检查链」跑通后）。以后由 `/retro` 修订；前端部分（3.5、第 10 条和标着"前端骨架工单"的地方）在「Web 骨架与前端检查链」里实测后补全。
 >
 > **依据**：
 > - 「技术栈与工程规范」（`.scratch/platform-v1/issues/03-tech-stack-standards.md`）Answer 里的「`CODING_STANDARDS.md` 的条目要点」。第 1–10 条的编号沿用那份要点。
@@ -48,9 +48,9 @@
 - **私有函数**至少写一句职责。`@property` 也写一句，单位和取值范围写进这一句。
 - **数据类**（`@dataclass`）写 `Attributes:`，每个字段写含义、单位和取值范围。
 - 生成器用 `Yields:` 代替 `Returns:`。
-- 不查：`@overload` 的签名（文档写在实现上）、嵌套函数、测试函数（测试的要求见第 7 条）。
+- 不查：`@overload` 的签名（文档写在实现上）、嵌套函数、`tests/` 下的测试函数（测试的要求见第 7 条）。`src/` 里名字以 `test_` 开头的公开函数照样要写六项。
 
-〔机：`scripts/check_contracts.py` 查小节有没有、顺序对不对、内容是不是空的；ruff 的 docstring 规则查 `Args:` 等小节和签名是否一致〕
+〔机：`scripts/check_contracts.py` 查小节有没有、顺序对不对、内容是不是空的；ruff 的 docstring 规则查 `Args:` 等小节和签名是否一致。现在的脚本按名字跳过所有 `test_` 开头的函数，改成只在 `tests/` 下跳过，放在「Web 骨架与前端检查链」里做〕
 
 ### 3.2 每项写到什么程度
 
@@ -239,6 +239,7 @@ export function useJobProgress(jobId: number): UseQueryResult<JobProgress> {
 - **7.7** 修缺陷时，留一个能区分旧行为和正确行为的测试。〔审〕
 - **7.8** 测试没过时，先保留证据，定位到最小的责任模块再修。改阈值、删断言属于改契约，按 `docs/agents/codex-workflow.md` 的「契约变更」处理。〔审〕
 - **7.9** 不设覆盖率门槛（03）。评审看 7.1，不看覆盖率数字。
+- **7.10** 先红后绿：每个测试在写实现之前先单独跑一次，看到它失败。一开始就通过的测试要说明原因，否则它可能什么都没测到。〔审：运行日志里每个测试都有一次实现前的失败运行，或者有说明，见 `codex-workflow.md` 3.5〕
 
 ## 8. 豁免
 
@@ -250,7 +251,7 @@ export function useJobProgress(jobId: number): UseQueryResult<JobProgress> {
   - ESLint：`// eslint-disable-next-line <规则名> -- 理由`。
   - TypeScript：`// @ts-expect-error 理由`，不用 `@ts-ignore`。
 
-  〔机：不带规则码的豁免、多余的豁免都会让 `make check` 失败。用哪几条规则实现，后端见 M0 第 1 张工单，前端见前端骨架工单〕
+  〔机：不带规则码的豁免、多余的豁免都会让 `make check` 失败。后端：ruff 的 PGH003、PGH004（禁止不带规则码的 `type: ignore` 和 `noqa`）、RUF100（多余的 `noqa`）；basedpyright 的 `reportIgnoreCommentWithoutRule`、`reportUnnecessaryTypeIgnoreComment` 设为 error，`enableTypeIgnoreComments = false`，所以 `# type: ignore` 不起作用。前端见前端骨架工单〕
 - **8.2 配置里的豁免也算**：`pyproject.toml` 的 per-file-ignores、basedpyright 的规则开关、import-linter 的 `ignore_imports`、ESLint 配置里关掉的规则。每一条旁边用注释写理由。这些都在受保护文件里，只有工单允许时才能改（规则 3）。〔审〕
 - **8.3 评审时**：把 diff 里新增的豁免全部列出来，逐条判断是否只针对单条规则、理由是否成立、能不能改代码消掉。〔审：`git diff <基准> | grep -nE 'noqa|pyright: ignore|eslint-disable|ts-expect-error|per-file-ignores|ignore_imports'`〕
 

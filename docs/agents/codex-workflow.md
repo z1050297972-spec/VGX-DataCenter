@@ -1,14 +1,14 @@
 # Codex 派工与评审手册
 
-> **状态**：草稿。M0 第 1 张工单「仓库骨架和检查链」跑通后定稿，之后由 `/retro` 修订。
+> **状态**：2026-10-23 定稿，依据是 M0 第 1 张工单「仓库骨架和检查链」第一次跑通流水线的情况。以后由 `/retro` 修订。
 >
-> **定稿之前，以「Codex 协作规程」（`.scratch/platform-v1/issues/08-codex-workflow.md`）的 Answer 为准**，`CLAUDE.md` 也是这么写的。本手册把那份 Answer 整理成操作步骤。标着〔2026-10-22〕的条目是 08 号票关闭以后新定或新发现的；08 里没有、或者写法不同的地方，以这些条目为准。
+> 本手册取代「Codex 协作规程」（`.scratch/platform-v1/issues/08-codex-workflow.md`）的 Answer，两者不一致时以本手册为准。
 >
 > 实测过的 Codex 行为见 `docs/brief/0006`、`0009`。本手册里的命令按 codex-cli 0.163.0 写。
 
 ## 1. 分工
 
-〔2026-10-22〕规划和执行并行：
+规划和执行并行：
 
 | 谁 | 做什么 | 在哪里写、在哪里提交 |
 |---|---|---|
@@ -21,9 +21,9 @@
 - **执行线到关卡就交回主会话，然后停下。** 关卡过后，主会话续接同一个执行线，或者新开一个；新开的先读工单的 Comments，接上进度。
 - **Comments 做完一步记一步**，写法和规划票一致，例如：`- 2026-10-22，派工 B。会话 <编号>，快照 refs/rdp/m0-01/B，提示 assets/01-repo-skeleton-check-chain/prompt-B.md，运行日志 <路径>。结论：……`
 
-〔2026-10-22〕**执行线要能承受中断。**
+**执行线要能承受中断。**
 
-- 这一天，后台 agent 曾因 Claude 的使用额度用完（HTTP 429）中途停下。已做的工作都还在，额度恢复后续接，从停下的地方继续。
+- 2026-10-22，后台 agent 曾因 Claude 的使用额度用完（HTTP 429）中途停下。已做的工作都还在，额度恢复后续接，从停下的地方继续。
 - 所以每一步的产物都落到文件里，不只留在 agent 的上下文里：
   - 派工提示和 Codex 的最终回复在 assets。
   - 会话编号、快照名、检查结果、评审结论在工单的 Comments。
@@ -72,7 +72,7 @@ M0 第 1 张票开票时还没有 `pyproject.toml` 和 `make check`，第 4、5 
 执行线：
 
 1. 在工作目录里重跑 `make check`。
-2. 核对文件归属，查运行日志（3.5 的第 2、4 项）。
+2. 核对文件归属，查运行日志（3.5 的第 2、5 项）。
 3. 对照工单、`GLOSSARY.md`、ADR 和 `CODING_STANDARDS.md` 第 3 条审骨架：每个公开函数六项写全、内容合格；测试清单覆盖每个契约行为（`CODING_STANDARDS.md` 7.1）。
 4. 拍快照 `A-done`。把一页摘要（6.1）写进 Comments，Status 改成 `in-review`，交回主会话。
 
@@ -98,7 +98,7 @@ M0 第 1 张票开票时还没有 `pyproject.toml` 和 `make check`，第 4、5 
 1. **重跑**：在工作目录里跑 `make check`，记下用时。
 2. **文件归属**（规则 3）：
    - 工作目录：`git status --porcelain --untracked-files=all` 的每一行，都在 `src/`、`tests/` 下，或者是工单写明允许改的受保护文件。
-   - 〔2026-10-22〕主仓库目录：里面允许有还没提交的规划改动，但规划文件以外不能有改动。`git -C <主仓库目录> status --porcelain -- src tests` 必须为空。再用下面这条把范围放到所有非规划文件，受保护文件也在内，输出同样必须为空：
+   - 主仓库目录：里面允许有还没提交的规划改动，但规划文件以外不能有改动。`git -C <主仓库目录> status --porcelain -- src tests` 必须为空。再用下面这条把范围放到所有非规划文件，受保护文件也在内，输出同样必须为空：
 
      ```bash
      git -C <主仓库目录> status --porcelain --untracked-files=all -- . \
@@ -108,12 +108,14 @@ M0 第 1 张票开票时还没有 `pyproject.toml` 和 `make check`，第 4、5 
      续接时忘了先 `cd`，Codex 就会把文件写进主仓库目录（0009），这条能抓到。
    - 越界直接打回。
 3. **对比契约**：`git -C <工作目录> diff <契约提交> -- <骨架涉及的文件>`。已获批的签名、类型和 docstring 没有变化；有变化按 6.2 处理。
-4. **运行日志**：`grep -nE 'data_check|Data_Collection_System' <运行日志>` 没有结果，因为沙箱的读权限挡不住两个旧项目（0009）。出现 `/mnt` 的命令逐条看一遍。
-5. **两轴评审**：拍快照 `B-done`（修复轮是 `r<N>-done`），在检出这个快照的探针工作目录里（5.2）跑 `/code-review main`，并把主仓库目录里的工单路径给它当 spec。涉及同步、录制、转换的模块，再跑 `algorithm-code-review`。
+4. **先红后绿**：在运行日志里核对，每个测试在实现之前都有一次失败的运行。没有失败记录、Codex 也没说明理由的，记进修复清单。
+5. **运行日志**：`grep -nE 'data_check|Data_Collection_System' <运行日志>` 没有结果，因为沙箱的读权限挡不住两个旧项目（0009）。出现 `/mnt` 的命令逐条看一遍。
+6. **两轴评审**：拍快照 `B-done`（修复轮是 `r<N>-done`），在检出这个快照的探针工作目录里（5.2）跑 `/code-review main`，并把主仓库目录里的工单路径给它当 spec。涉及同步、录制、转换的模块，再跑 `algorithm-code-review`。
    - 要在探针工作目录里跑，是因为 `/code-review` 比较的是 `main...HEAD` 之间的提交，而这时实现还没有提交。
-6. **记录**：每项的结论写进 Comments，不通过的整理成修复清单。
+7. **违规试验**：在同一个探针工作目录里放进违规，确认每种都在对应的那一步失败。按 ruff 输出里的规则名（例如 `print`）匹配，不按规则码匹配，因为同一条规则在不同版本里可能换码。试验用例和输出放进 assets。
+8. **记录**：每项的结论写进 Comments，不通过的整理成修复清单。
 
-**完成**：六项都有结论记在 Comments。
+**完成**：八项都有结论记在 Comments。
 
 - 全部通过：做实现提交（`实现：<票名>`），起草完工汇报（改了什么、测试情况、风险、下一张工单），Status 改成 `in-review`，交回主会话。
 - 有不通过的：进入 3.6。
@@ -166,20 +168,23 @@ timeout 60m codex exec resume \
   > <临时目录>/ev-B.jsonl 2> <临时目录>/err-B.txt
 ```
 
-- 〔2026-10-22〕**模型**：每条 `codex exec` 和 `codex exec resume` 都显式带上 `-m gpt-6-astra -c 'model_reasoning_effort="high"'`，不依赖 `~/.codex/config.toml` 的默认值。2026-10-22 查过 codex-cli 0.163.0 的 `codex exec resume --help`：续接也有 `-m`。以后的版本要是没有，改用 `-c 'model="gpt-6-astra"'`。
+- **模型**：每条 `codex exec` 和 `codex exec resume` 都显式带上 `-m gpt-6-astra -c 'model_reasoning_effort="high"'`，不依赖 `~/.codex/config.toml` 的默认值。2026-10-22 查过 codex-cli 0.163.0 的 `codex exec resume --help`：续接也有 `-m`。以后的版本要是没有，改用 `-c 'model="gpt-6-astra"'`。
 - **续接**：`codex exec resume` 没有 `-C` 和 `-s`。续接的会话在执行命令时所在的目录里工作，不在当初 `-C` 指定的目录里（0009）。所以先 `cd` 进工作目录，再用 `-c 'sandbox_mode="…"'` 写明沙箱模式。
-- 〔2026-10-22〕**提示用文件传**：派工提示写进 assets 里的文件，用 `- < prompt.md` 从标准输入传给 Codex，便于存档。
+- **提示用文件传**：派工提示写进 assets 里的文件，用 `- < prompt.md` 从标准输入传给 Codex，便于存档。
 - **会话编号**：运行日志第一条事件 `thread.started` 里的 `thread_id`，即 `grep -o '"thread_id":"[^"]*"' ev-A.jsonl | head -1 | cut -d'"' -f4`。一张实现票只用一个会话；只有 6.3 的升级选了 (b)，才开新会话。
 - **跑完的标志**：运行日志最后一条是 `turn.completed`，`-o` 文件存在。
 - **后台运行**：用 Bash 的后台方式运行，Codex 退出时会收到通知，不用轮询输出文件。
-- **超时**：暂定 60 分钟（`timeout 60m`，退出码 124 表示超时），M0 跑通后再调。
+- **超时**：60 分钟（`timeout 60m`，退出码 124 表示超时）。M0 第 1 张票每次派工都在这个时间内跑完，先不调。
 - **沙箱**：实现票用 `workspace-write`。非代码任务见第 8 节。
 
 ## 5. 提交与快照
 
 ### 5.1 提交
 
-所有提交都由 Claude 做，都经过钩子 `.githooks/pre-commit` 跑 `make check`，不加 `--no-verify`。唯一的例外是 M0 第 1 张票的第一个依赖提交：那时检查链还不存在，见那张票。
+所有提交都由 Claude 做，都经过钩子 `.githooks/pre-commit`，不加 `--no-verify`，也不用 `-c core.hooksPath=…` 之类的办法绕开钩子。
+
+- 钩子先看暂存了哪些文件：只动了规划文件（`.scratch/`、`docs/`、`GLOSSARY.md`、`AGENTS.md`、`CLAUDE.md`）时，打印一行"仅暂存规划文件，跳过 make check。"后放行；动了其他文件，就跑全量 `make check`（M0 第 1 张工单 D2）。所以主会话提交规划文件不需要 `.venv`。
+- `core.hooksPath` 设在共用的 `.git/config` 里，值是相对路径 `.githooks`。没有 `.githooks/` 的分支（例如 `prototype/*`）提交时不跑钩子，这是预期的。
 
 | 时间点 | 提交说明开头 | 内容 | 谁、在哪 |
 |---|---|---|---|
@@ -243,7 +248,7 @@ snap() {
 ### 6.3 打回与升级
 
 - 每次把修复清单发回给 Codex 算一轮，包括 Claude 重跑 `make check` 没过的情况；运行超时也算一轮。
-- 〔2026-10-22〕模型网关断开后的那一次重试（第 9 节）不算一轮：它没有发修复清单。
+- 模型网关断开后的那一次重试（第 9 节）不算一轮：它没有发修复清单。
 - 第 3 轮仍不通过，就停下来，把问题清单和判断交给主会话，由负责人在三种处理里选一种：
   - (a) 再给两轮；
   - (b) Claude 改写契约或者把票拆小，开一个新的 Codex 会话重做（默认建议）；
@@ -266,6 +271,7 @@ snap() {
 - 改动留在工作区，不要 `git add`，也不要提交。
 - 不读取 `~/桌面/data_check` 和 `~/桌面/Data_Collection_System-main`，不碰 `/mnt`。
 - 沙箱不能联网，不要尝试安装任何东西。需要新依赖时停下，在最终回复里写依赖申请（AGENTS.md 规则 7）。
+- 自己在 `/tmp` 或别处建的试验文件，交付前删掉。
 ```
 
 **派工 A**（新会话）：
@@ -296,13 +302,13 @@ snap() {
 
 ```markdown
 骨架已获批，契约提交是 <提交号>。现在按测试清单逐个函数实现，用 $tdd 和 $enterprise-coding：
-1. 每次去掉一个测试的跳过，先运行、看到它失败，再写实现让它通过。
+1. 每次去掉一个测试的跳过，先单独运行它（`.venv/bin/pytest <文件>::<测试名>`），看到它失败，再写实现让它通过。去掉跳过就直接通过的测试，在最终回复里逐个列出并说明原因（例如前一个测试的实现已经覆盖了它）。
 2. 已获批的签名、类型和 docstring 不改。确实要改时停下，在最终回复里写契约变更申请：哪个函数、改什么、为什么。
 3. 最后 `make check` 全绿，测试里不留骨架阶段的跳过。
 
 <边界>
 
-最终回复：同派工 A 的四块。
+最终回复：同派工 A 的四块，另加第 5 块"先红后绿"：每个测试一行，写它第一次运行的结果（失败的原因，或者为什么一开始就通过）。
 ```
 
 **修复轮**（续接）：
@@ -329,7 +335,7 @@ snap() {
 | 要写脚本或中间文件 | `-s workspace-write` | 临时目录下单独一个子目录。写不到仓库，也写不到 `/mnt` |
 | 联网调研 | `-s read-only -c 'web_search="live"'` | 临时目录 |
 
-- 〔2026-10-22〕**临时目录不是 git 仓库**：命令要加 `--skip-git-repo-check`，否则报 "Not inside a trusted directory"。提示照样用 `- < prompt.md` 从文件传；要是把提示写在命令行参数里，标准输入就接 `< /dev/null`，否则会停在 "Reading additional input from stdin"（标准输入不是终端时，codex 会把它读进来，追加在提示后面，见 `codex exec --help`）。
+- **临时目录不是 git 仓库**：命令要加 `--skip-git-repo-check`，否则报 "Not inside a trusted directory"。提示照样用 `- < prompt.md` 从文件传；要是把提示写在命令行参数里，标准输入就接 `< /dev/null`，否则会停在 "Reading additional input from stdin"（标准输入不是终端时，codex 会把它读进来，追加在提示后面，见 `codex exec --help`）。
 - 模型参数、提示存档、会话编号、超时同第 4 节。
 - **派工提示**写这几项：目标；只读范围；要交付什么（事实清单，每条附命令或来源网址）；禁止碰的路径（两个旧项目）。例子见 `.scratch/platform-v1/assets/11-dataset-contract/codex-facts-prompt.md`。
 - **证据**以运行日志（`--json`）里记录的命令和输出为准，不以 Codex 自己的总结为准。用到的命令和输出，由 Claude 整理进 assets。
@@ -342,19 +348,21 @@ snap() {
 
 ## 9. 故障与已知现象
 
-- 〔2026-10-22〕**模型网关断开**：运行日志或 stderr 里出现 "stream disconnected" 或 "error sending request"。
+- **模型网关断开**：运行日志或 stderr 里出现 "stream disconnected" 或 "error sending request"。
   1. 只重试一次。有会话编号就续接同一个会话，提示写"上一次运行因模型网关断开而中止，从中断处继续原来的任务"；还没有会话编号就原样重跑。
   2. 还不行，就停下来报告，不再重试，也不自己改代理设置。报告写三样：报错原文；代理相关的环境变量（`env | grep -i _proxy`）；直连和经代理访问网关各自通不通，返回任何 HTTP 状态码都算通：
 
      ```bash
-     curl -sS -m 5 --noproxy '*' -o /dev/null -w '%{http_code}\n' http://192.168.0.180:8088/
-     curl -sS -m 5 -x http://127.0.0.1:7897 -o /dev/null -w '%{http_code}\n' http://192.168.0.180:8088/
+     curl -sS -m 5 --noproxy '*' -o /dev/null -w '%{http_code}\n' http://10.1.179.3:8088/
+     curl -sS -m 5 -x http://127.0.0.1:7897 -o /dev/null -w '%{http_code}\n' http://10.1.179.3:8088/
      ```
 
+     网关地址以 `~/.codex/config.toml` 的 `base_url` 为准，2026-10-23 是 `10.1.179.3:8088`。
   3. 2026-10-22 实测过一次：经过代理 127.0.0.1:7897 访问网关 192.168.0.180:8088 会超时，直连是通的；后来负责人修好了。
-- 〔2026-10-22〕**Claude 的使用额度用完**（HTTP 429）：执行线会中途停下，处理办法见第 1 节"执行线要能承受中断"。
+- **Claude 的使用额度用完**（HTTP 429）：执行线会中途停下，处理办法见第 1 节"执行线要能承受中断"。
 - **Codex 说"已创建"，文件却不在工作目录里**：续接前没有先 `cd` 进工作目录，文件写进了执行命令时所在的目录（0009）。3.5 第 2 项的主仓库目录检查能抓到。
+- **`.git/info/exclude` 是所有工作目录共用的**（`git rev-parse --git-path info/exclude` 指向主仓库的 `.git/`）。只想在某个工作目录里忽略的东西，不要写进去，否则会影响以后所有的票。2026-10-22 提交原型时写错过一次，已经删掉。
 - **工作目录里 Codex 连 `git add` 都做不了**（`index.lock': Read-only file system`）：工作目录的索引在主仓库的 `.git/worktrees/` 下，沙箱里只读（0009）。改动只能留在工作区，这是预期的。
 - **运行日志开头有一两条 `error` 事件**，说 `disable_response_storage` is ignored：这是本机 `~/.codex/config.toml` 里的旧字段，不影响运行，不算失败。
-- **沙箱能读整个文件系统**，包括 `/mnt` 和两个旧项目（0009）。"不读旧项目"只能靠派工提示，加上 3.5 第 4 项的日志检查。
+- **沙箱能读整个文件系统**，包括 `/mnt` 和两个旧项目（0009）。"不读旧项目"只能靠派工提示，加上 3.5 第 5 项的日志检查。
 - **只读沙箱里命令行不能联网**（`curl` 报 `failed to open socket: Operation not permitted`），但联网搜索可用（0009）。
