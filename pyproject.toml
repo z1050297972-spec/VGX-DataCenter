@@ -6,7 +6,11 @@ description = "机器人数据管理平台"
 # ADR 0002 固定 Python 3.12，避免开发、检查和运行时使用不同的次版本。
 requires-python = "==3.12.*"
 # A1 只提供最小包；后续依赖由 Claude 用 uv add 写入。
-dependencies = []
+dependencies = [
+    "fastapi>=0.161.1",
+    "pydantic>=2.14.1",
+    "uvicorn>=0.54.0",
+]
 
 [build-system]
 # 工单 D1 已批准 uv_build：与 uv 同源，仅用于构建，支持本包的 editable 安装。
@@ -17,6 +21,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "basedpyright>=1.40.2",
+    "httpx>=0.28.1",
     "import-linter>=2.15",
     "pytest>=9.1.1",
     "ruff>=0.17.1",
@@ -93,6 +98,8 @@ enableTypeIgnoreComments = false
 
 [tool.importlinter]
 root_package = "rdp"
+# ADR 0001：同时检查第三方 Web 框架，防止基础层绕过入口层。
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "入口层只能向下依赖基础层"
@@ -103,6 +110,15 @@ layers = [
     # 领域层待领域模型及 M0 spec 确定后插在此处，领域间依赖另行登记。
     "rdp.infra",
 ]
+
+[[tool.importlinter.contracts]]
+name = "基础层不得依赖 Web 框架"
+type = "forbidden"
+source_modules = [
+    "rdp.infra",
+    # 后续领域包在此登记，领域层同样不能依赖 Web 框架（规范 1.3）。
+]
+forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

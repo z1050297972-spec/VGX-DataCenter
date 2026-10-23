@@ -458,15 +458,15 @@ def test_nested_definitions_skipped(tmp_path: Path) -> None:
     assert "Inner" not in result.stdout
 
 
-def test_test_functions_skipped(tmp_path: Path) -> None:
-    """验证契约：test_ 开头的测试函数不要求六项文档，普通函数仍检查。"""
+def test_test_functions_outside_repository_checked(tmp_path: Path) -> None:
+    """验证 W3：仓库 tests/ 外的 test_ 函数与普通函数一样检查六项。"""
     _write(tmp_path, "sample.py", "def test_example():\n    pass\n" + _function())
-    assert _run(tmp_path, "sample.py").returncode == 0
+    assert _run(tmp_path, "sample.py").returncode == 1
     _write(tmp_path, "sample.py", "def test_example():\n    pass\ndef normal():\n    pass\n")
     result = _run(tmp_path, "sample.py")
     assert result.returncode == 1
     assert "sample.normal" in result.stdout
-    assert "sample.test_example" not in result.stdout
+    assert "sample.test_example" in result.stdout
 
 
 def test_diagnostic_location(tmp_path: Path) -> None:

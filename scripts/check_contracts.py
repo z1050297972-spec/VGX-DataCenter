@@ -180,7 +180,9 @@ def check_file(path: Path) -> list[str]:
         __init__.py 不算私有路径，__init__ 按所属类的可见性检查。
         property 只需非空职责；数据类需非空 Attributes:（包括空数据类写「无」）。
         识别 property、dataclass、overload 的直接名字、限定名及导入别名。
-        overload 签名、函数体内的嵌套定义及 test_ 开头的测试函数不查；
+        overload 签名、函数体内的嵌套定义不查；test_ 开头的函数仅当文件
+        位于本脚本所属仓库根的 tests/ 下时跳过，按解析后的绝对路径判断，
+        不依赖当前工作目录；src/、scripts/ 及其他目录中的同名函数照常检查六项。
         overload 的实际实现照常检查。不通过导入或执行代码推断动态装饰器。
 
     Raises:
@@ -204,10 +206,14 @@ def check_file(path: Path) -> list[str]:
     with tokenize.open(path) as source:
         tree = ast.parse(source.read(), filename=str(path))
     module_parts = _module_parts(path)
+    # W3 只豁免本检查器所属仓库的 tests/；解析软链接，不能借目录名或 cwd 扩大范围。
+    in_repository_tests = path.resolve().is_relative_to(
+        Path(__file__).resolve().parents[1] / "tests"
+    )
     problems: list[str] = []
     for node, names, decorators in _definitions(tree.body, module_parts, {}):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if "overload" in decorators or node.name.startswith("test_"):
+            if "overload" in decorators or (in_repository_tests and node.name.startswith("test_")):
                 continue
             # 构造器沿用类的可见性，模块级同名函数仍按私有函数处理。
             visibility_names = (

@@ -28,3 +28,6 @@ build/
 *.mp4
 *.tar
 *.tar.gz
+
+# 前端依赖及 Vite、Vitest 缓存统一放在依赖目录，不进入版本控制。
+node_modules/
