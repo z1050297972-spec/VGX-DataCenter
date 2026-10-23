@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "incremental": false,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    // 工单 T1 实测：依赖的声明引用未安装的 Node 类型；本项目不直接使用 Node API。
+    // 仅跳过第三方声明内部检查，源码仍按 strict 检查；需要 Node API 时另行申请类型依赖。
+    "skipLibCheck": true
+  },
+  "include": ["src", "vite.config.ts"]
+}

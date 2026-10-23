@@ -98,6 +98,8 @@ enableTypeIgnoreComments = false
 
 [tool.importlinter]
 root_package = "rdp"
+# ADR 0001：同时检查第三方 Web 框架，防止基础层绕过入口层。
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "入口层只能向下依赖基础层"
@@ -108,6 +110,15 @@ layers = [
     # 领域层待领域模型及 M0 spec 确定后插在此处，领域间依赖另行登记。
     "rdp.infra",
 ]
+
+[[tool.importlinter.contracts]]
+name = "基础层不得依赖 Web 框架"
+type = "forbidden"
+source_modules = [
+    "rdp.infra",
+    # 后续领域包在此登记，领域层同样不能依赖 Web 框架（规范 1.3）。
+]
+forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

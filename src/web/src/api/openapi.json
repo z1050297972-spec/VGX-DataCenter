@@ -1,0 +1,29 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "机器人数据管理平台", "version": "0.1.0" },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "get_health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": { "status": { "type": "string", "const": "ok", "title": "Status" } },
+        "required": ["status"],
+        "title": "HealthResponse"
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+# 生成类型必须保持 openapi-typescript 的原始输出，靠过期检查验证，不手工格式化。
+src/api/schema.d.ts
+# OpenAPI 的排序、缩进由导出器保证；避免 Prettier 重排后与 B 的逐字节过期检查冲突。
+# A2 暂为手写草稿，B 用真正导出替换。
+src/api/openapi.json
+# 锁文件只由 Claude 用 pnpm 维护，不能被格式化工具改写。
+pnpm-lock.yaml
+# 依赖、构建产物及缓存不属于待格式化源码。
+node_modules/
+dist/

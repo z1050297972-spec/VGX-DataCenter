@@ -180,7 +180,9 @@ def check_file(path: Path) -> list[str]:
         __init__.py 不算私有路径，__init__ 按所属类的可见性检查。
         property 只需非空职责；数据类需非空 Attributes:（包括空数据类写「无」）。
         识别 property、dataclass、overload 的直接名字、限定名及导入别名。
-        overload 签名、函数体内的嵌套定义及 test_ 开头的测试函数不查；
+        overload 签名、函数体内的嵌套定义不查；test_ 开头的函数仅当文件
+        位于本脚本所属仓库根的 tests/ 下时跳过，按解析后的绝对路径判断，
+        不依赖当前工作目录；src/、scripts/ 及其他目录中的同名函数照常检查六项。
         overload 的实际实现照常检查。不通过导入或执行代码推断动态装饰器。
 
     Raises:
