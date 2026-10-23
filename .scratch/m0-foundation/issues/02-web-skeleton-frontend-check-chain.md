@@ -1,6 +1,6 @@
 # Web 骨架与前端检查链
 
-Status: in-review
+Status: done
 
 ## 依据
 
@@ -384,3 +384,8 @@ Claude 评审时逐条核对，结果记进 Comments。
   - **和工单的偏差**：`@types/node` 实测不需要，没装（用 `skipLibCheck: true`）；router、jsdoc 比最新版低一个补丁号（pnpm 11 的发布时间门槛）；派工 B 中途因沙箱阻塞续接了三次（B2 被 Codex 拒绝、B3 按 N1 打开网络），都不算打回；验收第 8 条过期检查按上面拆成两项；新增测试比骨架清单多 7 个（`/api` 各方法、自带 `404.html` 不覆盖 SPA、帮助参数不掩盖未知参数、W3 的回归断言、G3 的两种失败、r1 的回归）。
   - **合并后（第 15、16 步，主会话）**：主仓库目录 `uv sync --frozen` 加 `src/web/` 里 `pnpm install --frozen-lockfile`；按实测补全 `CODING_STANDARDS.md` 3.1（W3）、3.5（TSDoc 规则表，见骨架摘要第 4 块和 G2）、8.1（前端豁免检查）、10.1 改成〔机〕。
   - **下一张**：M0 第 3 张「配置、状态目录与运行日志」。
+- 2026-10-23，主会话复核后合并（负责人事先授权："just merge it"，条件是评审通过）。
+  - 复核：工作目录 `make check` 十一步全绿（约 10 秒，pytest 101 passed，Vitest 19 passed）；工作目录干净；`src/`、`tests/` 以外的改动只有 `Makefile`、`scripts/check_contracts.py`（都在允许表里），锁文件没变；B3、r1 运行日志的安装和联网 grep 没有命中；违规试验 r1-done 34/34。
+  - 3.7：暂存区空 → `git merge --no-ff --no-commit` → `uv sync --frozen`、`pnpm install --frozen-lockfile` → `git commit`，钩子在合并结果上跑 `make check` 全绿 → `f925329 合并：Web 骨架与前端检查链`。
+  - 收尾：工作目录、分支 `t/m0-02-web-skeleton-frontend-check-chain`、快照 `refs/rdp/m0-02/*` 已删除。Status 改成 `done`。
+  - 待办（主会话）：第 16 步补 CODING_STANDARDS 前端部分（3.1、3.5、8.1、10.1）；`codex-workflow.md` 加"前端依赖提交前先补 `.gitignore` 的 `node_modules/`"。
