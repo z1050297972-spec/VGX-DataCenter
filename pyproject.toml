@@ -1,0 +1,112 @@
+[project]
+name = "rdp"
+# uv_build 不支持动态版本，按本票 A1 要求使用静态版本。
+version = "0.1.0"
+description = "机器人数据管理平台"
+# ADR 0002 固定 Python 3.12，避免开发、检查和运行时使用不同的次版本。
+requires-python = "==3.12.*"
+# A1 只提供最小包；后续依赖由 Claude 用 uv add 写入。
+dependencies = []
+
+[build-system]
+# 工单 D1 已批准 uv_build：与 uv 同源，仅用于构建，支持本包的 editable 安装。
+# 按派工指定的 uv 0.13.5 设置下限；上限将构建后端限定在 0.13 系列。
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.40.2",
+    "import-linter>=2.15",
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+]
+
+[tool.ruff]
+target-version = "py312"
+# 03 号决策票：格式化行宽 100 个字符，所有后端源码、脚本和测试共用。
+line-length = 100
+include = ["src/**/*.py", "scripts/**/*.py", "tests/**/*.py", "pyproject.toml"]
+
+[tool.ruff.lint]
+# DOC 仍处于 preview；只启用逐条点名的预览规则，不随升级引入整组预览规则。
+preview = true
+explicit-preview-rules = true
+select = [
+    "E4", "E7", "E9", "F", # Ruff 默认规则。
+    "B", "UP", "I", "N", "PTH", "SIM", "D", # 03 号票要求的代码及文档规范。
+    "T20", "DTZ", "S", "ERA001", # 禁止 print、无时区时间及危险写法；E722 已禁止裸 except。
+    "C901", "PLR0912", "PLR0913", "PLR0915", # 复杂度、分支、参数、语句阈值。
+    "RUF001", "RUF002", "RUF003", "RUF100", # 检查混淆字符和多余豁免。
+    "PGH003", "PGH004", # 禁止没有规则码的 type: ignore 和 noqa。
+    "DOC102", "DOC201", "DOC402", "DOC403", "DOC501",
+]
+ignore = [
+    "D400", # 0.17.1 实测仍要求英文句点，不接受中文句号；遵循规则 5。
+    "D415", # 0.17.1 实测仍不接受中文句号；中文文档不添加多余的英文标点。
+]
+# 0.17.1 实测 RUF001–003 会报中文冒号、括号、逗号和分号；保留检查并允许中文标点。
+allowed-confusables = ["：", "（", "）", "，", "；", "。", "！", "？", "【", "】", "“", "”", "‘", "’", "、", "…", "—"]
+# DOC102 核对多写的参数，D417 核对缺少的参数说明；DOC201/402/403/501 核对返回、生成和异常。
+# 不启用 DOC202：0.17.1 会拒绝无显式 return 的函数写 Returns: 无（规则 4 要求保留）。
+# 不启用 DOC502：0.17.1 会把 Raises: 无 误当异常，也会拒绝记录有意穿过的下层异常。
+# 0.17.1 实测上述已启用的 DOC 规则兼容 raise NotImplementedError 骨架。
+# 六项完整性、顺序和非空检查由契约脚本补齐，并纳入 make check。
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pydoclint]
+# 私有函数和 property 按规范只需一句职责，不强加公开函数的小节要求。
+ignore-one-line-docstrings = true
+
+[tool.ruff.lint.mccabe]
+# 03 号票：每个函数的圈复杂度不超过 10。
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+# 03 号票：每个函数最多 5 个参数、40 条语句、12 个分支。
+max-args = 5
+max-statements = 40
+max-branches = 12
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101", # pytest 用 assert 表达期望，测试断言不承担生产输入校验。
+    "D417", # 测试的 docstring 记录契约行为，不要求为 fixture 参数重复写 Args。
+]
+
+[tool.basedpyright]
+include = ["src/rdp", "scripts", "tests"]
+pythonVersion = "3.12"
+pythonPlatform = "Linux"
+typeCheckingMode = "strict"
+# 骨架关卡 G3：warning 也阻止交付，避免严格模式中的警告被忽略。
+failOnWarnings = true
+# 显式绑定项目解释器，避免使用 PATH 上 miniconda 的 Python 3.14。
+venvPath = "."
+venv = ".venv"
+reportIgnoreCommentWithoutRule = "error"
+reportUnnecessaryTypeIgnoreComment = "error"
+# 规范 8.1 只允许带规则名的 pyright: ignore，type: ignore 不参与抑制。
+enableTypeIgnoreComments = false
+
+[tool.importlinter]
+root_package = "rdp"
+
+[[tool.importlinter.contracts]]
+name = "入口层只能向下依赖基础层"
+type = "layers"
+layers = [
+    # 两个入口互不依赖，避免 Web 入口与运维入口之间耦合。
+    "rdp.api | rdp.ops",
+    # 领域层待领域模型及 M0 spec 确定后插在此处，领域间依赖另行登记。
+    "rdp.infra",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-config --strict-markers"
+# 03 号票不设覆盖率门槛；保留跳过原因输出，防止环境阻塞被误当作通过。
+# CODING_STANDARDS 7.8 要求失败时先保留证据；成功样例清理，失败现场保留供定位。
+tmp_path_retention_policy = "failed"

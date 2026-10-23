@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# 工单 D2：只有纯规划提交跳过检查；其余提交检查整个工作目录。
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+# 先完整读取清单，git 失败时直接退出，避免进程替换吞掉失败后误判为规划提交。
+staged_file_list=$(mktemp)
+trap 'rm -f -- "$staged_file_list"' EXIT
+# NUL 分隔兼容中文、空白和换行；禁用改名检测使新旧路径都参与判断，删除也不排除。
+git diff --cached --name-only --no-renames -z > "$staged_file_list"
+
+has_staged_files=false
+only_planning=true
+while IFS= read -r -d '' staged_path; do
+    has_staged_files=true
+    case "$staged_path" in
+        .scratch/*|docs/*|GLOSSARY.md|AGENTS.md|CLAUDE.md) ;;
+        *) only_planning=false ;;
+    esac
+done < "$staged_file_list"
+
+if [[ "$has_staged_files" == true && "$only_planning" == true ]]; then
+    echo "仅暂存规划文件，跳过 make check。"
+    exit 0
+fi
+
+# 空暂存区也检查，便于直接运行钩子验证检查链。
+if ! make check; then
+    echo "检查失败，请修好后重新提交。" >&2
+    exit 1
+fi
