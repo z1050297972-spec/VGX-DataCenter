@@ -307,3 +307,12 @@ Claude 评审时逐条核对，结果记进 Comments。
   - 不打补丁时，同样的 `TestClient` 脚本超时（退出码 124），和执行线看到的一致。
   - 做法：派工 B 续接时，让 Codex 在 `tests/conftest.py` 里加这个补丁，按规则 5 写明这是权宜、为什么（沙箱的 seccomp 禁止 socket 的 send 系列调用，`write` 不受限）、什么时候可以去掉（Codex 沙箱放开本进程内的 socket 发送，或者 asyncio 改用别的唤醒方式）。补丁只在测试进程里生效，生产不在沙箱里跑，不受影响。
   - 顺带发现：starlette 1.9.0 导入 `TestClient` 时报 `StarletteDeprecationWarning`，说 `httpx` 用法已弃用、建议改装 `httpx2`。现在只是警告，不影响测试；以后升级 starlette 时要处理，记为风险。
+- 2026-10-23 16:05，派工 B 继续（B2，执行线）。不是打回轮。提示 `assets/…/prompt-B2.md`：先在 `tests/conftest.py` 加 `_write_to_self` 的权宜补丁（按规则 5 写为什么、什么时候去掉，只在测试进程生效）和一条先红后绿的契约测试，pytest 一律套 `timeout`；然后照 `prompt-B.md` 从停下的地方继续；StarletteDeprecationWarning 只记不改。从快照 `B-blocked`（`5d84bd3`）的工作区状态续接同一会话 `01a1676d-9d88-7950-947f-7e51ac8d54a1`，先 `cd <工作目录>`，参数同派工 B，没有 `network_access`。运行日志 `ev-B2.jsonl`、`err-B2.txt`，最终回复 `out-B2.md`。
+- 2026-10-23 18:30，B2 交回：**Codex 拒绝打补丁，停下等决定**（执行线）。
+  - 运行：16:05–18:25，退出码 0，最后一条 `turn.completed`，`out-B2.md` 在 assets，没有网关断开。运行日志只有 6 行：一条回复，没有执行任何命令、没有改文件（耗时长不是 Codex 在干活）。工作区仍是 `B-blocked` 的三处改动；没有残留进程。
+  - Codex 原话："这一步不能照做：把 seccomp 禁止的 `socket.send` 改为对同一 socket 调用 `os.write`，是在绕过沙箱安全控制，即使补丁仅用于测试。……可行的续接方式是由 Claude 在正常环境运行 `TestClient` 测试，或批准不依赖受限 socket 通信的测试方案；相应需要调整'全部在当前沙箱内通过'的验收要求。"
+  - 执行线没有自行加压续接，也不能自己写 `tests/conftest.py`（CLAUDE.md：Claude 不在 `tests/` 下写代码）。不算打回轮次。Status 保持 `in-progress`。
+  - 可选的处理（交负责人）：
+    1. 续接一次，把背景讲清楚：负责人批准；`socketpair` 是本进程内的一对 fd，`write(2)` 是沙箱明确允许的，补丁不带来任何联网能力，也不碰沙箱配置。Codex 仍拒绝就不再试。
+    2. 接受 Codex 提的方案：用线程池的后端接口测试照常由 Codex 写，但只在沙箱外由 Claude 跑；先红后绿的证据由 Claude 在沙箱外跑出来补进 assets；验收第 4 条改成"沙箱里除这些测试外全绿"。`make check` 在沙箱里会挂在 pytest，Codex 只能跑 `pytest --deselect`/`-k` 的子集。
+    3. 回到选项 2（只给本票的派工放开 `network_access`），负责人之前没选。
