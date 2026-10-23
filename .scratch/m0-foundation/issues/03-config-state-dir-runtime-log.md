@@ -34,7 +34,7 @@ Status: ready-for-agent
 - 一个配置函数，参数是进程名（`web` 或 `worker`）、日志目录、要不要同时写 stderr、级别。写 `logs/web.log` 或 `logs/worker.log`，每天零点切分，保留 `retention_days` 天。
 - 上下文：作业编号、请求编号放在 contextvars 里，日志配置自动把它们加到每条的 key=value 后面。提供一个上下文管理器设置它们，退出时恢复原值。
 - Web：`create_app` 加一个中间件，每个请求生成一个请求编号，放进上下文，并在响应头 `X-Request-ID` 里返回。uvicorn 的访问日志关掉，uvicorn 自己的启动和报错日志走同一套格式。
-- 本票不写启动 Web 和 worker 的运维命令（第 10 张），所以"要不要写 stderr"是参数，由第 10 张的命令和 systemd 单元来传。
+- 本票不写启动 Web 和 worker 的运维命令（第 11 张），所以"要不要写 stderr"是参数，由第 11 张的命令和 systemd 单元来传。
 
 **手册**：在 `docs/manual/` 新建「运维手册」的第一节：配置文件在哪、每项的含义和默认值、状态目录里有什么、日志在哪、怎么看。由 Claude 按实现写。
 
@@ -42,7 +42,7 @@ Status: ready-for-agent
 
 - 诊断对象、四类异常、接口的统一异常处理（第 4 张）。
 - 作业日志的写法（第 8 张）；本票只给出它的目录。
-- 启动命令和 systemd 单元（第 10 张）。
+- 启动命令和 systemd 单元（第 11 张）。
 
 ## 允许改的受保护文件
 
