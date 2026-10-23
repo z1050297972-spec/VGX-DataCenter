@@ -1,6 +1,6 @@
 # 仓库骨架和检查链
 
-Status: ready-for-agent
+Status: in-progress
 
 ## 依据
 
@@ -224,3 +224,78 @@ Claude 评审时逐条核对，结果记进 Comments。
   - 基础层包名用 `rdp.infra`。
   - 同时在 `AGENTS.md` 的"开工前先读"里加了一条：写代码或评审代码时，读 `docs/standards/CODING_STANDARDS.md`。
   - Status 改成 `ready-for-agent`，由执行线的后台 agent 按「Claude 的步骤」推进，做到骨架关卡后交回主会话。
+- 2026-10-22 10:57，第 2 步装 uv（执行线）。
+  - 版本：uv 当前稳定版 0.13.5，PyPI 和 GitHub releases 一致（GitHub 发布于 2026-10-22T01:35Z，标为 stable）。固定 0.13.5。
+  - 安装：官方独立安装脚本 `https://github.com/astral-sh/uv/releases/download/0.13.5/uv-installer.sh`，和 `https://astral.sh/uv/0.13.5/install.sh` 逐字节相同（sha256 `1c6e7f02…`）。先下载成文件、看过内容：cargo-dist 0.32.0 生成；内嵌的 `uv-x86_64-unknown-linux-gnu.tar.gz` 校验值 `f68d291c…` 和 release 里的 `.sha256` 一致；`NO_MODIFY_PATH=1` 时不碰 shell 配置文件。然后 `UV_NO_MODIFY_PATH=1 sh uv-installer-0.13.5.sh`，退出码 0。
+  - 结果：`~/.local/bin` 里多了 `uv` 和随它发布的 `uvx`，此外只写了回执 `~/.config/uv/uv-receipt.json`（`"modify_path":false`，供 `uv self update` 用）。`.profile`、`.bashrc` 的 sha256 装前装后相同。
+  - `uv --version`：`uv 0.13.5 (x86_64-unknown-linux-gnu)`。
+- 2026-10-22 10:58，第 3 步装 Python。
+  - 命令：`uv python install 3.12 --no-bin`，不加 `--default`。
+  - 另加了 `--no-bin`：uv 0.13 默认会把 `python3.12` 放进 `~/.local/bin`，而这一步要求 `~/.local/bin` 里只装 uv。不加 bin 不影响项目：uv 建 `.venv` 时直接找 `~/.local/share/uv/python/` 下的解释器。
+  - 结果：CPython 3.12.15，在 `~/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/`。PATH 上的 `python3` 仍是 miniconda 的 3.14.6。
+- 2026-10-22 10:58，第 4 步开票。扫过 `.scratch/m*/issues/*.md` 的 `Status:` 行，没有别的实现票在进行中。Status 改成 `in-progress`。`git -C ~/桌面/robot-data-platform worktree add -b t/m0-01-repo-skeleton-check-chain ~/桌面/robot-data-platform.wt/m0-01-repo-skeleton-check-chain main`，工作目录在 `28b6e1c`，`git status --porcelain --untracked-files=all` 为空。按本票，`codex-workflow.md` 3.1 的第 4、5 步跳过。
+- 2026-10-22 11:01，第 5 步派工 A1。
+  - 提示 `assets/01-repo-skeleton-check-chain/prompt-A1.md`（派工 A 模板，交付改成 A1 的两个文件；告知 uv 0.13.5，`[build-system]` 写 `uv_build>=0.13.5,<0.14.0`，和 uv 0.13.5 的 `uv init` 生成的一致）。
+  - 快照 `refs/rdp/m0-01/A1`（`ead26a4`）。会话 `01a16490-d7e5-7862-b467-af073a447b22`。
+  - 命令：在工作目录里 `timeout 3600 codex exec -m gpt-6-astra -c model_reasoning_effort='"high"' -C <工作目录> -s workspace-write --json -o assets/…/out-A1.md - < prompt-A1.md`。运行日志 `<执行线临时目录>/m0-01/ev-A1.jsonl`、`err-A1.txt`。
+  - 派工前核实：PyPI 上 `uv-build` 0.13.5 的 `requires_dist` 为空（没有传递依赖），许可证 MIT OR Apache-2.0。
+  - 环境变化（和 0011 不同）：`~/.codex/config.toml` 的 `base_url` 现在是 `http://10.1.179.3:8088/v1`（本机 Wi-Fi 地址，在 `no_proxy` 的 10.0.0.0/8 里，直连 200），默认 `model_reasoning_effort` 是 `"max"`。命令里照常显式写 `high`。
+- 2026-10-22 11:05，第 6 步审 A1：通过。
+  - Codex 11:02:56 开始、11:04:06 退出，退出码 0；运行日志最后一条是 `turn.completed`，`out-A1.md` 已存进 assets。stderr 为空；运行日志开头两条 `disable_response_storage` 的 `error` 事件是已知现象（`codex-workflow.md` 第 9 节）。
+  - 文件归属：工作目录 `git status --porcelain --untracked-files=all` 只有 `?? pyproject.toml`、`?? src/rdp/__init__.py`。主仓库目录 `-- src tests` 为空，非规划文件的检查也为空（只有主会话自己的规划改动）。
+  - 内容：`pyproject.toml` 只有 `[project]`（`rdp`、静态版本 `0.1.0`、`==3.12.*`、`dependencies = []`，没有 readme、authors）和 `[build-system]`（`uv_build>=0.13.5,<0.14.0`），注释是中文。`src/rdp/__init__.py` 只有包的 docstring：根包不放逻辑，三层从上往下依赖，依据 ADR 0002 和本票。
+  - 运行日志：执行了 10 条命令（读规划文件、enterprise-coding 的 SKILL.md、`git status`、`rg --files`），没有碰两个旧项目和 `/mnt`。检查办法：从 JSONL 里取出 `command_execution` 的命令逐条看，不只 grep 全文（全文 grep 会命中 `cat AGENTS.md` 的输出）。
+- 2026-10-22 11:08，第 7–9 步装依赖（执行线）。
+  - 第 7 步：在工作目录里 `uv add --dev ruff basedpyright import-linter pytest`，退出码 0，用时 29 秒。`Using CPython 3.12.15`，建了 `.venv`，解析 17 个包，装 16 个，`rdp` 以 editable 方式装上。`pyproject.toml` 新增 `[dependency-groups] dev`，四项都是 `>=` 下限。
+  - 第 8 步核对：
+    - `.venv/bin/python -c 'import rdp, sys; print(sys.version)'` 输出 `3.12.15 (main, Oct 21 2026, 17:47:06) [Clang 23.1.3 ]`，`rdp.__file__` 指向工作目录的 `src/rdp/__init__.py`。
+    - `.venv/bin/basedpyright --version`：`basedpyright 1.40.2`，`based on pyright 1.1.414`。
+    - `uv tree --depth 1`：ruff 0.17.1、basedpyright 1.40.2、import-linter 2.15、pytest 9.1.1。传递依赖：basedpyright 带 nodejs-wheel-binaries 24.19.0；import-linter 带 click 8.5.0、grimp 3.17、rich 15.0.0（markdown-it-py、mdurl、pygments）、typing-extensions 4.16.0；pytest 带 iniconfig、packaging 26.3、pluggy 1.7.0、pygments 2.21.0。
+    - **项目装的 ruff 是 0.17.1，不是 03 号票实测用的 0.16.3**（PATH 上 miniconda 的那个）。所以 D400/D415、RUF001–003 白名单要在 0.17.1 上再验一次（验收第 5 条），已写进 A2 的提示。
+    - 构建后端：`uv.lock` 里没有 uv-build；`.venv` 里也没有。uv 0.13.5 对 `uv_build>=0.13.5,<0.14.0` 走自带构建后端的快速路径（`uv build --help` 里的 `--force-pep517` 说明了这条路径），没有下载 uv_build，`~/.cache/uv/builds-v0` 为空。另外下载了 PyPI 上 uv_build 0.13.5 的 manylinux x86_64 wheel（sha256 和 PyPI 一致），METADATA 里 `Requires-Dist` 0 条，许可证 MIT OR Apache-2.0：D1 要求的"没有传递依赖"成立。
+    - 输出存在 `<执行线临时目录>/m0-01/step8-verify.txt`。
+  - 第 9 步：依赖提交 `4ee62d2 依赖：ruff、basedpyright、import-linter、pytest（仓库骨架和检查链）`，在工单分支上，含 `pyproject.toml`、`uv.lock`、`src/rdp/__init__.py`，正文注明附带了 A1 的最小包。提交前确认 `core.hooksPath` 没设、`.git/hooks` 里没有生效的钩子，没加 `--no-verify`。提交后工作目录 `git status --porcelain --untracked-files=all` 为空（`.venv/` 已在 `.gitignore` 里）。
+- 2026-10-22 11:20，第 10 步派工 A2（续接）。
+  - 提示 `assets/01-repo-skeleton-check-chain/prompt-A2.md`：派工 A 模板，交付见「派工分段」的 A2；附上装依赖时核实的版本，和三处容易出错的地方（钩子读暂存清单要用 `-z`，中文路径；`make check` 不留痕迹；`make fmt` 要能跑）。最终回复在四块之外加了第五块"检查配置的要点"，供骨架摘要用。
+  - 执行线派工前在 ruff 0.17.1 上预先试过（临时目录，不在仓库里）：D415 仍然不认"。"；RUF002/RUF003 会报 `：（），；`；DOC202 会报 `Returns: 无`；DOC501、DOC502 不报骨架的 `raise NotImplementedError`；`# noqa: T201  # 理由：…` 能用；多余的 noqa 报 RUF100，不带规则码的报 PGH004。评审时据此核对 Codex 的配置。
+  - 快照 `refs/rdp/m0-01/A2`。先 `cd <工作目录>`，再 `timeout 3600 codex exec resume 01a16490-d7e5-7862-b467-af073a447b22 -m gpt-6-astra -c model_reasoning_effort='"high"' -c 'sandbox_mode="workspace-write"' --json -o assets/…/out-A2.md - < prompt-A2.md`。运行日志 `<执行线临时目录>/m0-01/ev-A2.jsonl`、`err-A2.txt`。
+- 2026-10-22，派工 A2 交回，第 11 步审骨架（`codex-workflow.md` 3.3）。
+  - 运行：11:11:46–11:23:09，退出码 0，最后一条 `turn.completed`，`out-A2.md` 在 assets。没有网关断开。
+  - **重跑**：工作目录里 `make check` 退出码 0，五步依次是 `[1/5] ruff format --check`、`[2/5] ruff check`、`[3/5] basedpyright`（`0 errors, 0 warnings, 0 notes`）、`[4/5] import-linter`（1 kept）、`[5/5] pytest`（56 skipped），用时 0.55 秒。跑之前和之后 `git status --porcelain --untracked-files=all` 相同（验收第 8 条）。`make fmt` 退出码 0，没改动任何文件（验收第 2 条）。按 A2 的约定，`make check` 这时是五步，契约检查在派工 B 接上后才是六步。
+  - **沙箱里能跑（验收第 4 条，第一次检验）**：运行日志第 48 行，Codex 在沙箱里跑 `make check`，basedpyright 一步输出 `0 errors, 0 warnings, 0 notes`，整条退出码 0。basedpyright 在沙箱里能用，不需要 ADR 0002 的退路。
+  - **文件归属**：工作目录只有 ` M pyproject.toml`（只加了 `[tool.*]`，`[project]`、`[build-system]`、`[dependency-groups]` 没动，`uv.lock` 没动）、`Makefile`、`.githooks/pre-commit`（755）、`scripts/check_contracts.py`、`src/rdp/{api,ops,infra}/__init__.py`、`src/rdp/infra/timeutil.py`、`tests/test_timeutil.py`、`tests/test_check_contracts.py`。`.gitignore` 没改：import-linter 用 `--no-cache` 关掉了缓存。主仓库目录 `-- src tests` 为空，非规划文件为空。
+  - **运行日志**：18 条命令，没有碰两个旧项目和 `/mnt`。Codex 在 `/tmp/rdp-a2-*` 留了 6 个试验文件（规则清单、探针、输出），不在仓库里，不违反规则 3；记一笔，派工 B 的提示里要求用完删掉。
+  - **审骨架**：两个公开函数六项齐全、内容具体（`ensure_utc`：无时区按 `tzinfo is None or utcoffset() is None` 判定报 `ValueError`，越界报 `OverflowError`；`check_file`、`main`：输出格式、退出码 0/1/2、出错时只写 stderr 不出部分报告）。三个占位包按 4.1 写了层、职责、边界。测试清单 10 + 46 个，覆盖每条 `Raises:`、每种返回和验收第 7 条的五种违规；期望值是手算的（08:30+08:00 → 00:30Z、23:30−02:00 → 次日 01:30Z）。没有工单之外的公开函数。
+  - 快照 `refs/rdp/m0-01/A2-done`（`01219f2`），`.githooks/pre-commit` 在快照里是 `100755`。
+- 2026-10-22，第 11 步违规试验和钩子试验。脚本 `assets/…/violation_probe.sh`，输出 `violation_probe-A2-done.txt`。
+  - 第一次跑（`violation_probe-A2-done-try1.txt`）有 11 项"不通过"，**全是探针脚本的问题，不是检查链的**：ruff 0.17.1 的默认输出写规则名（`print:`），不写规则码，期望标记没对上；探针里的私有函数没人调用，basedpyright 严格模式报 `reportUnusedFunction`，连带钩子"去掉违规后提交"失败，暂存区没清空，又带坏了 D2 那一项。改成公开函数名、按规则名匹配、D2 试验前先 `git reset` 后重跑。
+  - 第二次：**23 项全部通过**。基线全绿 0.7 秒。格式、print、`datetime.now()`、裸 except、注释掉的代码、6 个参数、类型错误、基础层 import 入口层、失败断言，各自失败在对应的那一步；豁免类：不带规则码的 `# noqa`（单独一行、压在真实违规上）报 blanket-noqa，`# type: ignore` 和不带规则名的 `# pyright: ignore` 都在 ruff 那步报 blanket-type-ignore，多余的 `# noqa: T201` 报 unused-noqa，多余的 `# pyright: ignore[…]` 在 basedpyright 那步失败。去掉每一处以后工作区和基线相同、`make check` 全绿。不能失败的：中文全角标点、以"。"结尾、`Returns: 无`/`Raises: 无`、带理由的单条豁免，都全绿。
+  - 钩子（验收第 6 条）：`git -c core.hooksPath=.githooks commit` 提交 print 违规被拒、HEAD 没变；去掉后同样的命令提交成功。D2：只暂存中文文件名的规划文件时跳过检查（工作区另有未暂存的违规也不跑）；规划文件加代码一起暂存时跑全量并被拒；把代码文件改名进 `docs/` 时也跑全量。没有改任何 git 配置；探针工作目录已删除，里面的提交都是游离提交。
+- 2026-10-22，流程冲突记录（按派工要求记下）：08 号票 Answer 写"主仓库目录的 `git status --porcelain` 必须为空"，`codex-workflow.md` 3.5 的〔2026-10-22〕条目和本票验收第 9 条写"规划文件以外没有改动"。规划和执行并行时主仓库目录里总有主会话的规划改动，按 08 的写法每次都会判越界，所以本票按后者核对。定稿时把 08 的这句改掉。另外 `--no-bin`（第 3 步）是对本票步骤的补充。
+- 2026-10-22，**骨架关卡一页摘要**（执行线起草，交主会话转负责人）。
+  1. **这张票做什么**：搭后端包骨架 `rdp` 和整条检查链（`make check` + `make fmt` + 提交前钩子），并用它把 Codex 派工流水线第一次走通。
+  2. **函数清单**：
+
+     | 模块 | 函数 | 职责 | 改动什么 | 什么情况下报错 |
+     |---|---|---|---|---|
+     | `rdp.infra.timeutil` | `ensure_utc(value) -> datetime` | 带时区的时刻换算成 UTC，时刻不变 | 无 | 不带时区（`tzinfo` 或 `utcoffset()` 为 None）报 `ValueError`；换算后越出 1–9999 年报 `OverflowError` |
+     | `scripts/check_contracts.py` | `check_file(path) -> list[str]` | 只读解析一个文件，返回每个有问题定义的一行 | 无（不导入、不执行源码） | 非 .py 或非普通文件 `ValueError`；读不到 `OSError`；语法错 `SyntaxError`；解码失败 `UnicodeError` |
+     | `scripts/check_contracts.py` | `main(argv) -> 0/1/2` | 检查给定路径（默认 `src/rdp`、`scripts`），输出问题行和"问题总数: N" | 只写 stdout/stderr | 返回码：0 无问题，1 有问题，2 参数、路径、读取或解析错误；stdout/stderr 写失败抛 `OSError` |
+
+     另有三个只有 docstring 的占位包 `rdp.api`、`rdp.ops`（入口层）、`rdp.infra`（基础层）。
+  3. **测试清单**（全部 `pytest.skip`，派工 B 逐个实现）：`test_timeutil.py` 10 个：+08:00、−02:00 跨日、本来就是 UTC、微秒、无时区、有 tzinfo 但 utcoffset 为 None、下界越界、上界越界、datetime.min/max 本身、输入不被修改。`test_check_contracts.py` 46 个：六项齐全通过、写"无"通过、骨架通过；缺职责、逐项缺失、逐项为空、顺序颠倒、标题大小写不符、重复小节；私有函数、私有模块和包、`__init__.py`、公开类方法、`__init__`、property、dataclass `Attributes:`、装饰器别名、生成器 `Yields:`、async、overload、嵌套函数、测试函数；输出格式、一个定义一行、排序和总数、空文件；默认路径、显式路径、去重、软链接、帮助、未知选项、不存在的路径、非 .py、语法错、编码、OSError 传递。
+  4. **检查配置要点**：
+     - ruff 0.17.1：行宽 100；默认 E4/E7/E9/F，加 B、UP、I、N、PTH、SIM、D（google）、T20、DTZ、S、ERA001；阈值 C901 圈复杂度 ≤ 10、PLR0913 参数 ≤ 5、PLR0915 语句 ≤ 40、PLR0912 分支 ≤ 12；豁免检查 PGH003、PGH004、RUF100；pydoclint 用 `explicit-preview-rules` 点名开 DOC102/201/402/403/501。
+     - 关掉的：D400、D415（0.17.1 上仍不认"。"）；DOC202（会报 `Returns: 无`）；DOC502（会把 `Raises: 无` 当异常名，也不许写有意穿过的下层异常）。这几条由契约脚本兜底。RUF001–003 保留，加了 17 个中文标点的白名单。
+     - 测试目录只放宽 S101（pytest 用 assert）和 D417（fixture 参数不写 Args），D103 保留。
+     - basedpyright 1.40.2 严格模式，绑定 `.venv`（3.12）；不带规则名的豁免、多余的豁免都报错；`# type: ignore` 不起抑制作用（规范 8.1 只认 `# pyright: ignore[规则]`）。
+     - import-linter：层合约"`rdp.api | rdp.ops` → （领域层预留）→ `rdp.infra`"，两个入口互不 import；`--no-cache`，不留缓存目录。
+     - 钩子按 D2：`-z`、`--no-renames` 读暂存清单；只动规划文件就跳过；暂存区为空时跑全量。
+  5. **要负责人拍板的**：
+     1. 入口层 `rdp.api` 和 `rdp.ops` 互不 import（Codex 选的，比工单写的严）。建议：采纳，两个入口共用的逻辑放领域层。
+     2. 契约脚本的两处取舍：总数按"有问题的定义"计，不按缺项计；显式传入软链接路径直接退出 2，目录里的软链接不跟随。建议：采纳，都更保守。
+     3. basedpyright 只在有 error 时失败，warning 不让 `make check` 失败。严格模式下大部分规则已是 error（实测 `reportDeprecated` 是 error），但没有逐条核过。建议：派工 B 里顺手加 `failOnWarnings = true`，零成本。
+  6. **结论：建议通过。** 检查都由执行线重跑过：`make check` 0.55 秒全绿；basedpyright 在沙箱里真正跑完；违规试验和钩子试验 23 项全过；文件归属干净；没打回（0 轮）。负责人说"通过"以后做第 13 步。
+- 2026-10-22，骨架关卡（主会话）：负责人"通过"。G1 入口层互不 import：采纳；G2 契约脚本按定义计数、显式软链接退出 2：采纳；G3 派工 B 加 basedpyright `failOnWarnings = true`：采纳。
+  - 第 13 步：`git config core.hooksPath .githooks`（共用的 `.git/config`）；契约提交 `b1fec00 契约：仓库骨架和检查链`，经过钩子，五步全绿、56 个跳过（验收第 3 条）；`.githooks/pre-commit` 在提交里是 `100755`。工作目录提交后干净。
+  - Status 改回 `in-progress`，执行线从第 14 步继续。

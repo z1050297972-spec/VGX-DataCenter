@@ -1,0 +1,153 @@
+# violation_probe：快照 refs/rdp/m0-01/A2-done，2026-10-22 12:12:53 -0600
+探针工作目录：/tmp/claude-1001/-home-shawn----robot-data-platform/311bf87f-07e3-4751-ad0e-0c1d85c02fd0/scratchpad/m0-01/probe-m0-01，HEAD 01219f2
+uv 0.13.5；Python 3.12.15；ruff 0.17.1；basedpyright 1.40.2；pytest 9.1.1
+
+== 基线 make check
+  退出码=0，用时 0.7s
+  步骤：[1/5] ruff format --check
+  步骤：[2/5] ruff check
+  步骤：[3/5] basedpyright
+  步骤：[4/5] import-linter
+  步骤：[5/5] pytest
+  跑完以后 git status 和跑之前相同（验收第 8 条）
+
+== 违规：格式：一行不符合 ruff format（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.0s，最后一步：[1/5] ruff format --check
+  输出：3:unformatted: File would be reformatted
+  输出：12:1 file would be reformatted, 8 files already formatted
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.6s）
+
+== 违规：ruff：print(...)（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/5] ruff check
+  输出：6:print: `print` found
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.5s）
+
+== 违规：ruff：不带时区的 datetime.now()（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/5] ruff check
+  输出：6:call-datetime-now-without-tzinfo: `datetime.datetime.now()` called without a `tz` argument
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.5s）
+
+== 违规：ruff：裸 except（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/5] ruff check
+  输出：6:bare-except: Do not use bare `except`
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.6s）
+
+== 违规：ruff：被注释掉的代码（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/5] ruff check
+  输出：6:commented-out-code: Found commented-out code
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.5s）
+
+== 违规：ruff：6 个参数的函数（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/5] ruff check
+  输出：6:too-many-arguments: Too many arguments in function definition (6 > 5)
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.5s）
+
+== 违规：basedpyright：一个类型错误（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.4s，最后一步：[3/5] basedpyright
+  输出：10:  /tmp/claude-1001/-home-shawn----robot-data-platform/311bf87f-07e3-4751-ad0e-0c1d85c02fd0/scratchpad/m0-01/probe-m0-01/src/rdp/infra/_probe.py:6:12 - error: Type "Literal['x']" is not assignable to return type "int"
+  输出：11:    "Literal['x']" is not assignable to "int" (reportReturnType)
+  输出：12:1 error, 0 warnings, 0 notes
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.5s）
+
+== 违规：import-linter：基础层 import 入口层（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.4s，最后一步：[4/5] import-linter
+  输出：20:入口层只能向下依赖基础层 BROKEN
+  输出：22:Contracts: 0 kept, 1 broken.
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.6s）
+
+== 违规：pytest：一个失败的断言（tests/test_probe_fail.py）
+  make check 退出码=2，用时 0.6s，最后一步：[5/5] pytest
+  输出：106:FAILED tests/test_probe_fail.py::test_probe_fails - assert 2 == (2 + 1)
+  输出：107:======================== 1 failed, 56 skipped in 0.03s =========================
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.5s）
+
+== 违规：豁免：不带规则码的 # noqa（本行没有别的问题）（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/5] ruff check
+  输出：20:blanket-noqa: Use specific rule codes when using `noqa`
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.6s）
+
+== 违规：豁免：不带规则码的 # noqa（压在真实违规上）（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/5] ruff check
+  输出：6:blanket-noqa: Use specific rule codes when using `noqa`
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.5s）
+
+== 违规：豁免：不带规则码的 # type: ignore（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/5] ruff check
+  输出：6:blanket-type-ignore: Use specific rule codes when ignoring type issues
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.5s）
+
+== 违规：豁免：多余的 # noqa: <规则码>（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/5] ruff check
+  输出：6:unused-noqa: [*] Unused `noqa` directive (unused: `T201`)
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.5s）
+
+== 违规：豁免（补充）：不带规则名的 # pyright: ignore（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/5] ruff check
+  输出：6:blanket-type-ignore: Use specific rule codes when ignoring type issues
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.6s）
+
+== 违规：豁免（补充）：多余的 # pyright: ignore[<规则名>]（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 0.4s，最后一步：[3/5] basedpyright
+  输出：10:  /tmp/claude-1001/-home-shawn----robot-data-platform/311bf87f-07e3-4751-ad0e-0c1d85c02fd0/scratchpad/m0-01/probe-m0-01/src/rdp/infra/_probe.py:6:33 - error: Unnecessary "# pyright: ignore" rule: "reportReturnType" (reportUnnecessaryTypeIgnoreComment)
+  结果：通过 —— 失败在期望的步骤，输出里有期望的标记
+  去掉以后：工作区和基线相同，make check 全绿（0.5s）
+
+== 不能失败：注释和 docstring 里的中文全角标点；以。结尾的 docstring；Returns: 无、Raises: 无（src/rdp/infra/probe_ok.py）
+  make check 退出码=0，用时 0.5s，最后一步：[5/5] pytest
+  结果：通过 —— 全绿
+
+== 不能失败：带理由的单条豁免（# noqa: T201、# pyright: ignore[...]）（src/rdp/infra/_probe.py）
+  make check 退出码=0，用时 0.5s，最后一步：[5/5] pytest
+  结果：通过 —— 全绿
+
+== 钩子：.githooks/pre-commit 在快照里的权限
+  git ls-tree HEAD .githooks/pre-commit → 100755
+  结果：通过 —— 100755
+
+== 钩子：提交一处违规（print），应被拒
+  退出码=1，HEAD 没变
+  | Found 1 error.
+  | 1 unsafe fix available with `--fix --unsafe-fixes`.
+  | make: *** [Makefile:8: check] Error 1
+  | 检查失败，请修好后重新提交。
+  结果：通过 —— 提交被拒，没有产生新提交
+
+== 钩子：去掉违规后，同样的命令提交成功
+  退出码=0
+  | SKIPPED [1] tests/test_timeutil.py:48: A2 契约骨架，派工 B 用 TDD 实现
+  | SKIPPED [1] tests/test_timeutil.py:53: A2 契约骨架，派工 B 用 TDD 实现
+  | ============================= 56 skipped in 0.02s ==============================
+  结果：通过 —— 提交成功（游离提交 c14426e）
+
+== 钩子（D2）：只暂存规划文件（中文文件名），工作区里另有未暂存的违规，应跳过检查
+  退出码=0
+  | 仅暂存规划文件，跳过 make check。
+  结果：通过 —— 跳过检查并提交成功，没跑 make check
+
+== 钩子（D2）：规划文件和代码一起暂存，代码有违规，应跑全量并被拒
+  退出码=1
+  | 1 unsafe fix available with `--fix --unsafe-fixes`.
+  | make: *** [Makefile:8: check] Error 1
+  | 检查失败，请修好后重新提交。
+  结果：通过 —— 跑了 make check，提交被拒
+
+== 钩子（D2）：改名，把代码文件挪进 docs/，应跑全量
+  暂存：R  src/rdp/infra/_probe.py -> docs/probe_moved.py
+  退出码=0
+  结果：通过 —— 跑了 make check（旧路径在 src/ 下）
+
+# 汇总：通过 23 项，不通过 0 项。探针工作目录已删除。
