@@ -302,3 +302,8 @@ Claude 评审时逐条核对，结果记进 Comments。
   - 用 `codex sandbox -c 'sandbox_mode="workspace-write"'` 跑一段只做 `socketpair().send` 和 `asyncio` `run_in_executor` 的脚本：`send` 报 `[Errno 1] Operation not permitted`，`run_in_executor` 一直不返回（`timeout` 退出码 124）。加 `-c 'sandbox_workspace_write.network_access=true'` 后两者都正常，同时 `curl https://pypi.org/` 返回 200，即真的能上网。
   - 试过 `network.allow_local_binding=true`、`sandbox_workspace_write.allow_local_binding=true`，都还是 `Operation not permitted`。codex 二进制里的 `allow_unix_sockets` 属于网络代理的按路径放行，管不到 `socketpair`。执行线的选项 1 实际上走不通。
   - 复现脚本留下的挂起进程已清理。等负责人决定。
+- 2026-10-23，负责人选 B（"先试B"）：只在测试里绕开，沙箱不放开。主会话在默认的 `workspace-write` 沙箱里用独立脚本验证（脚本在主会话 scratchpad 的 `sbx/`，不进仓库）：
+  - 把 `asyncio.selector_events.BaseSelectorEventLoop._write_to_self` 里的 `csock.send(b"\0")` 换成 `os.write(csock.fileno(), b"\0")` 以后：`socketpair` 的 `recv` 正常；`run_in_executor` 返回；FastAPI `TestClient` 调同步接口返回 `{"ok": true}`；`StaticFiles` 返回 200 和页面内容。
+  - 不打补丁时，同样的 `TestClient` 脚本超时（退出码 124），和执行线看到的一致。
+  - 做法：派工 B 续接时，让 Codex 在 `tests/conftest.py` 里加这个补丁，按规则 5 写明这是权宜、为什么（沙箱的 seccomp 禁止 socket 的 send 系列调用，`write` 不受限）、什么时候可以去掉（Codex 沙箱放开本进程内的 socket 发送，或者 asyncio 改用别的唤醒方式）。补丁只在测试进程里生效，生产不在沙箱里跑，不受影响。
+  - 顺带发现：starlette 1.9.0 导入 `TestClient` 时报 `StarletteDeprecationWarning`，说 `httpx` 用法已弃用、建议改装 `httpx2`。现在只是警告，不影响测试；以后升级 starlette 时要处理，记为风险。
