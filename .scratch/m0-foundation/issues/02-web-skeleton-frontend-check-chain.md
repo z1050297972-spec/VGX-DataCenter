@@ -1,6 +1,6 @@
 # Web 骨架与前端检查链
 
-Status: ready-for-agent
+Status: in-progress
 
 ## 依据
 
@@ -185,3 +185,99 @@ Claude 评审时逐条核对，结果记进 Comments。
   - **T2**：TypeScript 用 5.9.3。
   - **T3**：`vite build` 不进 `make check`，只在演示（验收第 10 条）和部署时跑。
   - Status 改成 `ready-for-agent`，由执行线的后台 agent 按「Claude 的步骤」推进，做到骨架关卡后交回主会话。
+- 2026-10-23，第 2 步开票（执行线）。扫过 `.scratch/m*/issues/*.md` 的 `Status:` 行，只有 01（done）和本票，没有别的实现票在进行中；没有在跑的 `codex exec`。Status 改成 `in-progress`。`git worktree add -b t/m0-02-web-skeleton-frontend-check-chain ~/桌面/robot-data-platform.wt/m0-02-web-skeleton-frontend-check-chain main`，在 `5e6c34f`。`uv sync --frozen` 后基线 `make check` 六步全绿，`61 passed`，用时 4.6 秒；`git status --porcelain --untracked-files=all` 为空；`core.hooksPath` 是 `.githooks`。还没有 `src/web/`，`pnpm install` 跳过。
+- 2026-10-23 14:23（+08:00），第 3 步派工 A1。
+  - 提示 `assets/02-web-skeleton-frontend-check-chain/prompt-A1.md`（派工 A 模板，交付只有 `src/web/package.json`：只写 `name`、`private`、`type`、`scripts`，没有依赖表、`packageManager`、`engines`；scripts 只放 dev、build、preview，检查命令以 Makefile 为准）。
+  - 快照 `refs/rdp/m0-02/A1`（`dfb998e`）。会话 `01a1676d-9d88-7950-947f-7e51ac8d54a1`。
+  - 命令：在工作目录里 `timeout 60m codex exec -C <工作目录> -s workspace-write -m gpt-6-astra -c 'model_reasoning_effort="high"' --json -o assets/…/out-A1.md - < prompt-A1.md`。运行日志 `<执行线临时目录>/m0-02/ev-A1.jsonl`、`err-A1.txt`。
+  - 派工前：node v22.23.2、pnpm 11.22.0、codex-cli 0.163.0；网关 `10.1.179.3:8088` 直连 200。
+- 2026-10-23 14:26，第 4 步审 A1：通过。
+  - Codex 退出码 0，运行日志最后一条 `turn.completed`，`out-A1.md` 在 assets；stderr 为空，开头一条 `disable_response_storage` 的 `error` 是已知现象。
+  - 文件归属：工作目录只有 `?? src/web/package.json`，四个字段（`name: "rdp-web"`、`private`、`type: "module"`、`scripts` 里 dev/build/preview），没有依赖表。主仓库目录非规划文件为空。
+  - 运行日志：10 条命令（读规划文件、enterprise-coding 的 SKILL.md、`git status`、`rg --files`），没有碰两个旧项目和 `/mnt`（JSONL 全文有 2 处命中，都在 `cat AGENTS.md` 的输出里）。记一笔：Codex 读的是工作目录里的规划文件副本（相对路径），A2 的提示里再强调读主仓库目录的版本。
+- 2026-10-23 14:30，第 5–7 步装依赖（执行线）。
+  - 第 5 步核实（`npm view`、PyPI JSON，输出在 `<执行线临时目录>/m0-02/step5-*.txt`）：所有包都没有 deprecated 标记；许可证都是 MIT，除了 typescript Apache-2.0、eslint-plugin-jsdoc BSD-3-Clause、uvicorn/httpx/starlette BSD-3-Clause。engines：jsdom 30 和 eslint-plugin-jsdoc 65 要 Node `^22.22.2`，vitest 5 要 `^22.12.0`，本机 v22.23.2 满足。直接依赖里带 `prepare` 的（antd、eslint-plugin-jsdoc、jsdom）只在开发它们的仓库里跑，从 registry 装时不跑。fastapi 0.161.1 带进 starlette 1.9.0、opentelemetry-api 1.45.1（Apache-2.0，纯 Python 的 API 包）、annotated-doc、typing-inspection，没有重型包。
+  - 第 6 步：`uv add fastapi uvicorn pydantic` 装 13 个包；`uv add --dev httpx` 装 4 个（httpx 0.28.1、httpcore 1.0.9、certifi、anyio 已在）。
+  - 第 7 步：在 `src/web/` 里 `pnpm add react@19.3.1 react-dom@19.3.1 @tanstack/react-router @tanstack/react-query antd openapi-fetch`，再 `pnpm add -D vite @vitejs/plugin-react typescript@5.9.3 openapi-typescript eslint typescript-eslint eslint-plugin-react-hooks eslint-plugin-jsdoc @eslint-community/eslint-plugin-eslint-comments prettier vitest @testing-library/react @testing-library/dom jsdom @types/react@~19.3.0 @types/react-dom@~19.3.0`。
+    - **两个包比起草时查到的最新版低一个补丁号**：@tanstack/react-router 1.170.45（1.170.46 发布于 10 小时前）、eslint-plugin-jsdoc 65.4.0（65.4.1 发布于 15 小时前）。pnpm 11 默认不选发布不满一天的版本，用户和项目配置里都没改这个默认值。没有手动指定新版本。
+    - 没有 peer 依赖告警。依赖树 347 个包，没有一个带 preinstall/install/postinstall 脚本（逐个查了 `node_modules/.pnpm/*/node_modules/**/package.json`），所以**不需要 `pnpm-workspace.yaml`**，也没有放行任何构建脚本。原生二进制（rolldown、lightningcss 的 linux-x64-gnu 包）是 optionalDependencies 预编译好的，不用构建。`pnpm licenses list`：MIT 273、Apache-2.0 18、ISC 12、BSD-2 11、BSD-3 5，另有 MPL-2.0、CC-BY、CC0、BlueOak、Unlicense、MIT-0 若干，都是宽松许可证。
+    - 删掉 `node_modules` 后 `pnpm install --frozen-lockfile --offline` 0.6 秒装齐：store（`~/.local/share/pnpm/store/v11`）里已经全了，合并时可以离线装。
+  - **@types/node 不装**（T1"实测不需要就不装"）。执行线在临时目录里用一份最小的 `vite.config.ts`（`vitest/config` 的 `defineConfig`、react 插件、`/api` 转发、jsdom、`pool: "threads"`）实测：`skipLibCheck: true`（Vite 模板的默认）时 tsc 5.9.3 通过；`false` 时报依赖自带的 `.d.ts` 缺 `node:util`、`URLSearchParams` 等。所以 A2 用 `skipLibCheck: true`，在 tsconfig 里写理由。
+- 2026-10-23 14:33，第 8 步核对并做依赖提交。
+  - 版本：`uv tree --depth 1` 是 fastapi 0.161.1、pydantic 2.14.1、uvicorn 0.54.0、httpx 0.28.1（dev），其余同第 1 张。`node_modules/.bin/tsc --version` 是 `Version 5.9.3`；eslint v10.13.0、vitest 5.0.5、prettier 3.9.10、openapi-typescript v7.13.0。`pnpm list --depth 0` 存在 `<执行线临时目录>/m0-02/step8-pnpm-list.txt`。
+  - 依赖提交 `261a373 依赖：fastapi、uvicorn 和前端依赖（Web 骨架与前端检查链）`，含 `pyproject.toml`、`uv.lock`、`src/web/package.json`、`src/web/pnpm-lock.yaml`，经过钩子（六步全绿，`61 passed`），正文注明附带了 A1 的 `package.json`。
+  - **和 5.1"一律 `git add -A`"的偏差**：这次只 `git add` 了上面四个文件，因为 `.gitignore` 还没有 `node_modules/`（A2 由 Codex 加），`-A` 会把 `node_modules` 提交进去。钩子查的是工作目录，`node_modules` 不影响后端六步（ruff 默认排除 `node_modules`，里面那个 `flatted.py` 没被查到），所以提交前后检查的是同一份代码。提交后 `git status` 只有 `?? src/web/node_modules/`。
+- 2026-10-23 14:31，第 9 步派工 A2（续接）。
+  - 提示 `assets/…/prompt-A2.md`：派工 A 模板，交付见「派工分段」的 A2；附第 8 步的版本，以及工单要求的三处提醒（`make check` 不调 pnpm；Vitest 起不来先试 `pool: "threads"`，还不行就停下报告；TSDoc 各项靠哪条规则写进最终回复）。另外写明：规划文件用绝对路径读主仓库目录的版本；没装 `@types/node`（用 `skipLibCheck: true`）、`jiti`（ESLint 配置用 `.js`）、`@eslint/js`、`globals`、jest-dom、user-event；A2 里 `openapi.json` 可以按工单定的接口手写成契约草稿、`schema.d.ts` 用 openapi-typescript 从它生成，B 用真正的导出重新生成；步骤编号按最终十一步写。最终回复六块（模板四块 + 检查配置要点 + TSDoc 规则与 Vitest 池）。
+  - 快照 `refs/rdp/m0-02/A2`（`7d97e43`，和依赖提交 `261a373` 的树相同；拍快照时用 `':!src/web/node_modules'` 把还没被忽略的 `node_modules` 排除在临时索引外）。
+  - 先 `cd <工作目录>`，再 `timeout 60m codex exec resume -m gpt-6-astra -c 'model_reasoning_effort="high"' -c 'sandbox_mode="workspace-write"' --json -o assets/…/out-A2.md 01a1676d-9d88-7950-947f-7e51ac8d54a1 - < prompt-A2.md`。运行日志 `<执行线临时目录>/m0-02/ev-A2.jsonl`、`err-A2.txt`。网关直连 200。
+- 2026-10-23 14:48，派工 A2 交回，第 10 步审骨架（`codex-workflow.md` 3.3）。
+  - 运行：14:31–14:47，退出码 0，最后一条 `turn.completed`，`out-A2.md` 在 assets。没有网关断开；stderr 只有一条 `apply_patch verification failed`（Codex 自己的补丁没对上，随后重试成功），不影响结果。
+  - **重跑**：工作目录 `make check` 退出码 0，用时 6.9 秒，十步 `[1/11]`…`[6/11]`、`[8/11]`…`[11/11]`：后端六步（basedpyright `0 errors, 0 warnings, 0 notes`；import-linter `2 kept, 0 broken`；契约检查 `问题总数: 0`；pytest `61 passed, 34 skipped`），tsc、ESLint 无输出（即通过），Prettier `All matched files use Prettier code style!`，Vitest `6 skipped (6)` 个文件、`19 skipped (19)` 个测试。`[7/11]` 过期检查按约定用注释占位。跑之前和之后 `git status --porcelain --untracked-files=all` 相同（验收第 11 条）。
+  - **沙箱里能跑（验收第 4 条，A2 这一半）**：运行日志第 67 行，Codex 在沙箱中跑 `make check` 退出码 0，tsc、ESLint、Prettier、Vitest 都跑完，Vitest 用 `pool: "threads"` 真正起来了（19 skipped）。不需要退路。
+  - **文件归属**：工作目录只有 ` M .gitignore`（只加 `node_modules/`）、`Makefile`、`pyproject.toml`（只改 `[tool.importlinter]`：`include_external_packages = true` 和 forbidden 合约；ruff、basedpyright 没动；依赖表没动）、`scripts/check_contracts.py`（只改 `check_file` 的 docstring）、`src/rdp/api/__init__.py`；新文件都在 `src/rdp/api/`、`src/web/`、`tests/` 下。`package.json`、`pnpm-lock.yaml`、`uv.lock` 和依赖提交相同；没有 `pnpm-workspace.yaml`；`.githooks/pre-commit` 没改。主仓库目录 `-- src tests` 为空，非规划文件为空（只有本票文件和 assets）。
+  - **运行日志**：23 条命令，读规划文件这次都用了主仓库目录的绝对路径；没有碰两个旧项目和 `/mnt`；没有在 `/tmp` 留文件（TSDoc 试验用 ESLint 的 `lintText` 在内存里跑）。命令清单在 `<执行线临时目录>/m0-02/A2-commands.txt`。
+  - **审骨架**：Python 的 `create_app`、`get_health`、`export_openapi`、`main` 六项齐全，`HealthResponse` 有 `Attributes:`；TS 的 `mountWeb`、`createHealthClient`、`fetchHealth`、`useHealth`、`HealthPage` 六项齐全，`HEALTH_TIMEOUT_MS`、`HEALTH_STALE_TIME_MS` 是带单位的具名常量；失败 Alert 的权宜写了去掉的条件。测试清单 pytest 34 个（接口和托管 17、导出 11、W3 6）、Vitest 19 个，覆盖验收第 5–7 条和每条 `Raises:`。没有工单之外的公开函数。`openapi.json` 按提示手写成契约草稿，`schema.d.ts` 由 openapi-typescript 从它生成。
+  - 快照 `refs/rdp/m0-02/A2-done`（`d96d0b4`）。
+- 2026-10-23 14:58，第 10 步违规试验和钩子试验。脚本 `assets/…/violation_probe.sh A2-done`，输出 `violation_probe-A2-done.txt`。
+  - 第一次跑到一半就停了：探针工作目录在 tmpfs（`/tmp`）上，pnpm 11 按文件系统另找 store（`/tmp/.pnpm-store`），离线装不上。脚本改成 `--store-dir ~/.local/share/pnpm/store`，误建的 `/tmp/.pnpm-store`（12 KB）已删。**合并时要注意**：主仓库目录和 store 在同一个文件系统，不受影响。
+  - 第二次（`violation_probe-A2-done-try1.txt`）30 项通过、1 项不通过，**是探针的问题**：我写的"不能失败"样例里有 `void flag;`，被 `@typescript-eslint/no-meaningless-void-operator` 报了。改成 `return flag;` 后重跑。
+  - 第三次：**31 项全部通过**。基线十步全绿 7.3 秒，跑完 `git status` 不变。
+    - tsc：类型错误、越界下标当成非 `undefined` 用，都报 `error TS2322`，失败在 `[8/11]`。
+    - ESLint（都失败在 `[9/11]`，按规则名匹配）：`no-floating-promises`、`rules-of-hooks`、`complexity`、`max-params`、`no-console`、直接 `fetch`（`no-restricted-globals`）、导出函数和导出箭头函数没有 TSDoc（`jsdoc/require-jsdoc`）、缺 `@sideEffects`（`jsdoc/require-tags`）、`@timeSemantics` 为空（`jsdoc/match-description`，补充项）、未登记的标签（`jsdoc/check-tag-names`）、`/* eslint-disable */`（`eslint-comments/no-unlimited-disable`）、不带理由的 `eslint-disable-next-line`（`eslint-comments/require-description`）、多余的豁免（`Unused eslint-disable directive`）、`@ts-ignore` 和不带说明的 `@ts-expect-error`（`ban-ts-comment`）。
+    - Prettier 失败在 `[10/11]`；Vitest 失败的断言失败在 `[11/11]`；`rdp.infra` 里 `from fastapi import FastAPI` 失败在 `[4/11]` import-linter。
+    - 补充：把 `src/web/node_modules` 挪走，`make check` 在 pytest 之后、`[8/11]` 之前失败，提示 `先在 src/web 里运行 pnpm install --frozen-lockfile`，没有自动安装。
+    - 不能失败的：中文注释和 TSDoc、`@throws 无`；`eslint-disable-next-line no-console -- 理由` 和带说明的 `@ts-expect-error`；`tests/` 下只写一句的 `test_*`：都全绿。
+    - 过期检查和 W3（`src/rdp` 里的 `test_probe` 被报出）不在 A2：前者没接，后者实现留到 B。脚本里用 `--with-b` 开关，在 `B-done` 上跑。
+  - 钩子（验收第 9 条）：普通 `git commit`（`core.hooksPath` 已在共用配置里），提交 `console.log` 违规被拒（输出里有 `no-console`）、HEAD 没变；去掉后提交成功。D2：只暂存中文文件名的规划文件时跳过检查（工作区另有未暂存的违规）；规划加代码一起暂存时跑全量并被拒；代码文件改名进 `docs/` 时跑全量。探针工作目录已删，里面的提交都是游离提交。
+- 2026-10-23 15:05，**骨架关卡一页摘要**（执行线起草，交主会话转负责人）。
+  1. **这张票做什么**：一个只有 `GET /api/health` 的 FastAPI 应用托管前端构建产物，前端一个页面经 openapi-fetch + TanStack Query 调它；前端检查链（tsc、ESLint、Prettier、Vitest，B 再接 OpenAPI 过期检查）接进 `make check` 和钩子；补上 FastAPI 的 import-linter 合约和契约脚本的 `test_*` 跳过范围（W3）。
+  2. **函数清单**：
+
+     | 模块 | 函数 | 职责 | 改动什么 | 什么情况下报错 |
+     |---|---|---|---|---|
+     | `rdp.api` | `create_app(web_dist: Path \| None) -> FastAPI` | 建应用：`/api/health`，可选托管 SPA（找不到的非 `/api/` GET 回 `index.html`；`/api` 下未知路径 404 JSON；非 GET 不回退；不许读出构建目录） | 无（只读构建目录状态，不建 socket） | **创建时**就校验：目录不存在或缺 `index.html` → `FileNotFoundError`；路径是文件 → `NotADirectoryError`；`index.html` 不是普通文件或软链接指到目录外 → `ValueError`；读状态失败 → `OSError` |
+     | `rdp.api.health` | `get_health() -> HealthResponse` | 返回 `{"status": "ok"}`，只表示 Web 能响应，不探测数据库和 worker | 无 | 无 |
+     | `rdp.api.openapi_export` | `export_openapi(output_path) -> None` | 把 `create_app(None).openapi()` 写成确定的 JSON（键排序、2 空格、UTF-8、末尾换行） | 写一个文件；**写到一半失败可能留下截断文件**（见问题 3） | 父目录不存在、目标是目录、写失败 → `OSError`；不能序列化 → `TypeError`；非有限数 → `ValueError` |
+     | `rdp.api.openapi_export` | `main(argv) -> 0/1/2` | 命令行入口 `python -m rdp.api.openapi_export <输出路径>` | 同上 | 返回码 0 成功或帮助、1 导出失败、2 参数错误；stdout/stderr 写失败抛 `OSError` |
+     | `scripts/check_contracts.py` | `check_file`（只改 docstring，W3） | `test_` 开头的函数只在文件位于仓库根 `tests/` 下时跳过，按解析后的绝对路径判断 | 无 | 同原契约 |
+     | `src/web/src/api/client.ts` | `createHealthClient(fetchImpl?)` | 建 openapi-fetch 客户端，基地址为空（相对路径 `/api/...`），`fetch` 可注入 | 无（只建对象） | 无；传输错误由请求的 Promise 拒绝 |
+     | `src/web/src/api/health.ts` | `fetchHealth(client, signal?)` | 发一次 `GET /api/health`，只接受 `status: "ok"` | 一次请求 | 请求失败、非 2xx、载荷不符、取消、超过 `HEALTH_TIMEOUT_MS`（5000 ms）→ Promise 拒绝，不重试 |
+     | `src/web/src/useHealth.ts` | `useHealth(client)` | TanStack Query 管加载、缓存、失败 | 请求、更新查询缓存 | 无；错误放在返回值的 `error` 里。缓存 `HEALTH_STALE_TIME_MS`（1000 ms），不轮询、不自动重试、聚焦不刷新 |
+     | `src/web/src/HealthPage.tsx` | `HealthPage(props)` | 显示"后端正常"或失败的 Ant Design `Alert`（权宜，诊断组件那张票替换） | 经 useHealth 请求 | 无 |
+     | `src/web/src/main.tsx` | `mountWeb(container)` | 挂载 React、QueryClientProvider、RouterProvider | 建 React 根 | `container` 为 null → `Error` |
+
+     另有 `HealthResponse`（pydantic，`status: Literal["ok"]`）、代码式路由树（一个根路由 `/`，私有的 `getRootRoute`）、`index.html`，以及手写的 `openapi.json` 草稿和从它生成的 `schema.d.ts`（B 用真正的导出重新生成）。
+  3. **测试清单**（pytest 用 `pytest.skip`，Vitest 用 `it.skip`，B 逐个实现）：
+     - `tests/test_web_app.py` 17 个：health 200 和 `{"status":"ok"}`、响应模型进 OpenAPI；`web_dist=None` 时 `/` 404；`/` 和嵌套前端路由回 `index.html`；静态文件原样返回；`/api` 和 `/api/不存在` 404 JSON；非 GET 不回退；路径穿越和越界软链接读不到目录外；目录不存在、是文件、缺 `index.html`、`index.html` 是目录、软链接越界、读状态出错（`OSError`）；相对路径；多个应用互不影响、创建不写文件不建 socket。
+     - `tests/test_openapi_export.py` 11 个：两次导出逐字节相同（排序、缩进、换行）；和 `create_app(None).openapi()` 一致；只覆盖指定文件；输出路径不合格报 `OSError`；`TypeError`/`ValueError` 时原文件不变；命令行成功、帮助、参数错误退出 2、导出失败退出 1、stdout/stderr 写失败、`argv=None` 读 `sys.argv`。
+     - `tests/test_contract_scope.py` 6 个（W3）：`src/`、`scripts/` 下的 `test_*` 照查；只有仓库根 `tests/` 下跳过；别处叫 `tests` 的目录不豁免；和当前工作目录无关；按解析后的路径判断、软链接不能扩大豁免。
+     - Vitest 19 个：客户端 2（不发请求、不改全局 `fetch`；注入的 `fetch` 收到相对路径 `/api/health`）、fetchHealth 5（成功；非 2xx、无响应、载荷不符拒绝；传输异常不伪装成 ok；超时中止不重试；取消）、useHealth 5（加载/成功/失败；缓存期内不重复请求；不同客户端不共享缓存；不重试不轮询；取消传给请求）、HealthPage 4（成功显示"后端正常"；失败显示 `Alert` 且没有成功提示；加载中；默认客户端稳定、不改 URL）、路由 1、挂载 2。
+  4. **检查配置要点**：
+     - `make check` 十一步：后端六步不变 → `[7/11]` 过期检查（A2 用注释占位，B 接上：导出和生成都写到临时目录，逐字节比较，不一致提示 `make api-types`）→ `[8/11]` tsc → `[9/11]` ESLint（`--max-warnings 0`）→ `[10/11]` Prettier `--check` → `[11/11]` Vitest `run`。前端工具都从 `src/web/node_modules/.bin/` 调，没有 `pnpm`；没有 `node_modules` 时在 `[8/11]` 之前失败并提示 `pnpm install --frozen-lockfile`。新增 `make api-types`；`make fmt` 加了 `eslint --fix`、`prettier --write`。现在全程约 7 秒。
+     - tsconfig：`strict`、`noUncheckedIndexedAccess`、`isolatedModules`、`verbatimModuleSyntax`，没关 `noImplicitAny`；`noEmit`、`incremental: false`（不留 `.tsbuildinfo`）；`skipLibCheck: true`，理由写在配置里（依赖自带的 `.d.ts` 引用 Node 类型，没装 `@types/node`）。
+     - ESLint：typescript-eslint `strictTypeChecked`、react-hooks flat recommended；`complexity` ≤ 10（注释写明它兜底后端的"分支 ≤ 12"）、`max-params` ≤ 5、`max-statements` ≤ 40；`no-console`；`no-restricted-globals` 禁 `fetch`，连 `window.fetch`、`self.fetch`、`globalThis.fetch` 也禁。
+     - 豁免：`reportUnusedDisableDirectives: "error"`；`eslint-comments/no-unlimited-disable`、`require-description`；`ban-ts-comment` 禁 `@ts-ignore`、`@ts-nocheck`，`@ts-expect-error` 要至少 3 个字的说明。代码里的豁免：客户端工厂读全局 `fetch` 的那一处（`no-restricted-globals`），加上 5 个骨架桩各一条 `no-unused-vars`（参数还没用到），B 实现后必须删掉，不删的话"多余豁免"那条会报。
+     - **TSDoc 各项靠哪条规则**（都是 eslint-plugin-jsdoc 65.4.0，执行线用违规试验核过"缺"和"空"两种）：
+
+       | 项 | 必须出现 | 不能为空 |
+       |---|---|---|
+       | 首行职责 | `require-jsdoc`（导出的函数、箭头函数、函数表达式；组件也是函数）+ `require-description` | `require-description` + `match-description`（`\S`） |
+       | `@param` | `require-tags` 每个函数都要有；`require-param` 核对每个真实参数 | `require-param-description` + `match-description` |
+       | `@returns`、`@throws`、`@sideEffects`、`@timeSemantics` | `require-tags`（按函数查，不是按文件） | `match-description` |
+
+       `check-tag-names` 登记了 `sideEffects`、`timeSemantics` 两个标签。**做不到的**：内容合不合格（单位、取值范围写全没有）仍是〔审〕；而且为了让无参函数能写 `@param 无 - 无参数。`，Codex 没开 `check-param-names`，所以 `@param` 写了一个不存在的参数名不会报（见问题 2）。
+     - Prettier：行宽 100、2 空格、分号、双引号、尾逗号、LF。生成的 `schema.d.ts` 不过 ESLint 和 Prettier；`openapi.json`、`pnpm-lock.yaml` 也不过 Prettier（格式由导出器定，避免和逐字节比较冲突），旁边都写了理由。
+     - import-linter：`include_external_packages = true`；新 forbidden 合约"基础层不得依赖 Web 框架"：`rdp.infra` 不 import `fastapi`、`starlette`、`uvicorn`，领域包登记的位置用注释留着。ruff、basedpyright 没改。钩子没改。
+     - **沙箱里**：tsc、ESLint、Prettier、Vitest 都在 Codex 的沙箱里跑完；Vitest 用 `pool: "threads"` 起得来，不需要退路。basedpyright 照旧能跑。
+  5. **要负责人拍板的**：
+     1. **两个时间常量**：健康请求超时 `HEALTH_TIMEOUT_MS = 5000`，缓存 `HEALTH_STALE_TIME_MS = 1000`；失败不自动重试、不轮询、窗口聚焦不刷新。工单只要求"写成具名常量"，没定数值，是 Codex 定的。建议：采纳。另外缓存常量的注释引了 ADR 0001 的"约 1 秒轮询"，但健康检查不轮询，B 里改成写真实理由。
+     2. **无参函数的 `@param`**：现在要求无参函数也写 `@param 无 - 无参数。`（对应后端的 `Args: 无`），代价是关掉了 `check-param-names`，写错参数名查不出来。建议：改成"有参数才写 `@param`"：从 `require-tags` 里去掉 `param`（`require-param` 已经保证每个真实参数都有说明），打开 `check-param-names`。只改 ESLint 配置和一处私有函数的注释，不改任何函数的含义，放进派工 B 做。
+     3. **`export_openapi` 写到一半失败可能留下截断文件**。建议：改成同目录临时文件加 `os.replace`（标准库，CODING_STANDARDS 2.6），失败时原文件不变。这改了 `Side Effects:` 的含义，所以要你点头；B 里实现，测试加一条。
+  6. **结论：建议通过**（问题 2、3 按建议在派工 B 里改）。检查都由执行线重跑过：`make check` 十步 6.9 秒全绿，跑完不留痕迹；tsc、ESLint、Vitest 在沙箱里真正跑完；违规试验和钩子试验 31 项全过；文件归属干净；没打回（0 轮）。给 B 的提醒，不用负责人拍板：`main.tsx` 在模块顶层就调 `mountWeb`，`main.test.tsx` 一 import 就会挂载，B 要拆开；`router.tsx` 里那个会抛"未实现"的 `getRootRoute` 改成普通箭头函数。负责人说"通过"以后，做契约提交 `契约：Web 骨架与前端检查链`，Status 改回 `in-progress`。
+- 2026-10-23，骨架关卡（主会话）：负责人"全部通过"。
+  - 主会话先独立重跑：`make check` 十一步（第 7 步按 A2 约定空着）退出码 0，约 7 秒，61 passed、34 skipped，Vitest 19 skipped；工作目录的改动都在 `src/`、`tests/` 和本票允许的受保护文件内；主仓库目录规划文件以外没有改动。
+  - **G1** 接受 `HEALTH_TIMEOUT_MS` 5000、`HEALTH_STALE_TIME_MS` 1000，不重试、不轮询、不在切回页面时刷新；派工 B 改正 staleTime 注释里错引的 ADR 0001 轮询频率。
+  - **G2** 没有参数的函数不写 `@param`：`require-tags` 去掉 `param`，打开 `check-param-names`（只改配置，派工 B 做）。
+  - **G3** `export_openapi` 改成同目录临时文件加 `os.replace`（CODING_STANDARDS 2.6），改 `Side Effects:`，派工 B 加一个测试。负责人已批准这处契约含义变化。
+  - 第 11 步：契约提交 `1b2e3ed 契约：Web 骨架与前端检查链`，经过钩子，全绿；`node_modules` 没进提交（`.gitignore` 第 33 行）。Status 改回 `in-progress`，执行线从第 12 步继续。
