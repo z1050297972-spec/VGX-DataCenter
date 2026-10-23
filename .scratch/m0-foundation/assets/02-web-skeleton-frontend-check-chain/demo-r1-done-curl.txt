@@ -1,0 +1,6 @@
+# 演示（r1-done）：2026-10-23 22:47:01 +0800，uvicorn --factory，127.0.0.1:8600
+GET /              200 text/html; charset=utf-8 <!doctype html> <html lang="zh-CN">   <head>     <meta chars
+GET /api/health    200 application/json {"status":"ok"}
+GET /datasets/x    200 text/html; charset=utf-8 <!doctype html> <html lang="zh-CN">   <head>     <meta chars
+GET /api/nonexistent 404 application/json {"detail":"Not Found"}
+POST /datasets/x   {"detail":"Method Not Allowed"} 405

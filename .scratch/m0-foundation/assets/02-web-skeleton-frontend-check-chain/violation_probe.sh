@@ -337,23 +337,45 @@ if [ -n "$WITH_B" ]; then
 def test_probe() -> None:
     """只有一句职责。"""
 '
-  # 过期检查：给健康检查的响应模型加一个字段，不重新生成。
-  say ""
-  say "== 违规：过期检查（HealthResponse 加一个字段，不重新生成）"
+  # 过期检查（a）：只改 OpenAPI、不改接口返回的 JSON，免得 pytest 先失败。
+  # 给 status 加一段 description（schema 变了，/api/health 的返回不变），不重新生成。
   hf=$(grep -rl 'class HealthResponse' src/rdp/api)
   cp "$hf" "$OUT/health.bak"
   .venv/bin/python -I - "$hf" <<'PY'
-import sys, re
+import sys
 p = sys.argv[1]
 s = open(p, encoding="utf-8").read()
-s = re.sub(r'(\n    status: Literal\["ok"\]\n)', r'\1    probe: int = 0\n', s, count=1)
+s = s.replace("from pydantic import BaseModel", "from pydantic import BaseModel, Field", 1)
+s = s.replace('    status: Literal["ok"]\n', '    status: Literal["ok"] = Field(description="探针")\n', 1)
 open(p, "w", encoding="utf-8").write(s)
 PY
-  grep -n 'probe: int' "$hf" | sed 's/^/  改动：/'
+  say ""
+  say "== 违规：过期检查（a）HealthResponse.status 加 description，不重新生成"
+  grep -n 'Field(description' "$hf" | sed 's/^/  改动：/'
   run_check
   say "  make check 退出码=$RC，最后一步：$STEP"
   grep -n 'make api-types' "$OUT/check.txt" | head -2 | sed 's/^/  输出：/'
-  if [ "$RC" -ne 0 ] && grep -qE "$S_STALE" <<<"$STEP" && grep -q 'make api-types' "$OUT/check.txt"; then ok "失败在过期检查，提示 make api-types"; else bad "过期检查没有按约定失败"; tail -15 "$OUT/check.txt" | sed 's/^/  | /'; fi
+  if [ "$RC" -ne 0 ] && grep -qE "$S_STALE" <<<"$STEP" && grep -q 'make api-types' "$OUT/check.txt"; then ok "失败在 [7/11] 过期检查，提示 make api-types"; else bad "过期检查没有按约定失败"; tail -15 "$OUT/check.txt" | sed 's/^/  | /'; fi
+  cp "$OUT/health.bak" "$hf"
+  restore_and_recheck
+
+  # 过期检查（b）：按验收第 8 条的写法，给响应模型加一个字段、不重新生成。
+  # 加字段会改变 /api/health 的返回，make check 会先失败在 pytest（这是对的），
+  # 所以这一项直接跑过期检查那一步（make check-api-types，即 make check 里 [7/11] 调用的目标）。
+  .venv/bin/python -I - "$hf" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+s = s.replace('    status: Literal["ok"]\n', '    status: Literal["ok"]\n    probe: int = 0\n', 1)
+open(p, "w", encoding="utf-8").write(s)
+PY
+  say ""
+  say "== 违规：过期检查（b）HealthResponse 加字段 probe，不重新生成，直接跑 make check-api-types"
+  grep -n 'probe: int' "$hf" | sed 's/^/  改动：/'
+  make check-api-types >"$OUT/stale.txt" 2>&1; src=$?
+  say "  make check-api-types 退出码=$src"
+  grep -n 'make api-types' "$OUT/stale.txt" | head -2 | sed 's/^/  输出：/'
+  if [ "$src" -ne 0 ] && grep -q 'make api-types' "$OUT/stale.txt"; then ok "过期检查失败并提示 make api-types"; else bad "过期检查没有失败"; tail -10 "$OUT/stale.txt" | sed 's/^/  | /'; fi
   cp "$OUT/health.bak" "$hf"
   restore_and_recheck
 fi

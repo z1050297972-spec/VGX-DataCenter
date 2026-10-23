@@ -1,0 +1,219 @@
+# violation_probe：快照 refs/rdp/m0-02/r1-done，2026-10-23 22:37:33 +0800
+探针工作目录：/tmp/claude-1001/-home-shawn----robot-data-platform/311bf87f-07e3-4751-ad0e-0c1d85c02fd0/scratchpad/m0-02/probe-m0-02，HEAD c18af3a；core.hooksPath=.githooks
+Python 3.12.15；ruff 0.17.1；tsc 5.9.3；eslint v10.13.0；prettier 3.9.10；vitest/5.0.5
+
+== 基线 make check
+  退出码=0，用时 10.7s
+  步骤：[1/11] ruff format --check
+  步骤：[2/11] ruff check
+  步骤：[3/11] basedpyright
+  步骤：[4/11] import-linter
+  步骤：[5/11] 契约检查
+  步骤：[6/11] pytest
+  步骤：[7/11] OpenAPI 过期检查
+  步骤：[8/11] tsc
+  步骤：[9/11] ESLint
+  步骤：[10/11] Prettier
+  步骤：[11/11] Vitest
+  All checks passed!
+  ======================== 101 passed, 1 warning in 4.95s ========================
+   Test Files  6 passed (6)
+        Tests  19 passed (19)
+  结果：通过 —— 跑完以后 git status 和跑之前相同（验收第 11 条）
+
+== 违规：tsc：类型错误（src/web/src/probe.ts）
+  make check 退出码=2，用时 7.3s，最后一步：[8/11] tsc
+  输出：58:src/web/src/probe.ts(2,14): error TS2322: Type 'string' is not assignable to type 'number'.
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.3s）
+
+== 违规：tsc：越界下标当成非 undefined 用（noUncheckedIndexedAccess）（src/web/src/probe.ts）
+  make check 退出码=2，用时 7.3s，最后一步：[8/11] tsc
+  输出：58:src/web/src/probe.ts(3,14): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.3s）
+
+== 违规：ESLint：no-floating-promises（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.9s，最后一步：[9/11] ESLint
+  输出：62:  24:3  error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.2s）
+
+== 违规：ESLint：rules-of-hooks（src/web/src/probe.tsx）
+  make check 退出码=2，用时 8.9s，最后一步：[9/11] ESLint
+  输出：62:  14:21  error  React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.2s）
+
+== 违规：ESLint：complexity（> 10）（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.9s，最后一步：[9/11] ESLint
+  输出：62:  10:8  error  Function 'probeComplex' has a complexity of 12. Maximum allowed is 10  complexity
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.3s）
+
+== 违规：ESLint：max-params（6 个参数）（src/web/src/probe.ts）
+  make check 退出码=2，用时 9.0s，最后一步：[9/11] ESLint
+  输出：62:  15:8  error  Function 'probeSum' has too many parameters (6). Maximum allowed is 5  max-params
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.3s）
+
+== 违规：ESLint：no-console（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.8s，最后一步：[9/11] ESLint
+  输出：62:  11:3  error  Unexpected console statement  no-console
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.2s）
+
+== 违规：ESLint：直接调用 fetch（no-restricted-globals）（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.7s，最后一步：[9/11] ESLint
+  输出：62:  11:8  error  Unexpected use of 'fetch'. 请求必须通过 api/client 的客户端工厂。  no-restricted-globals
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.1s）
+
+== 违规：ESLint：导出函数没有 TSDoc（jsdoc/require-jsdoc）（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.8s，最后一步：[9/11] ESLint
+  输出：62:  1:8  error  Missing JSDoc comment  jsdoc/require-jsdoc
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.2s）
+
+== 违规：ESLint：导出箭头函数没有 TSDoc（jsdoc/require-jsdoc）（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.9s，最后一步：[9/11] ESLint
+  输出：62:  1:27  error  Missing JSDoc comment  jsdoc/require-jsdoc
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.2s）
+
+== 违规：ESLint：TSDoc 缺 @sideEffects（jsdoc/require-tags）（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.9s，最后一步：[9/11] ESLint
+  输出：62:  1:1  error  Missing required tag "sideEffects"  jsdoc/require-tags
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.3s）
+
+== 违规：ESLint（补充）：@timeSemantics 为空（jsdoc/match-description）（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.8s，最后一步：[9/11] ESLint
+  输出：62:  8:1  error  JSDoc description does not satisfy the regex pattern  jsdoc/match-description
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.3s）
+
+== 违规：ESLint：未登记的标签（jsdoc/check-tag-names）（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.9s，最后一步：[9/11] ESLint
+  输出：62:  9:1  error  Invalid JSDoc tag name "unregisteredProbe"  jsdoc/check-tag-names
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.2s）
+
+== 违规：豁免：不带规则名的 eslint-disable（no-unlimited-disable）（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.9s，最后一步：[9/11] ESLint
+  输出：62:  1:0  error  Unexpected unlimited 'eslint-disable' comment. Specify some rule names to disable                       eslint-comments/no-unlimited-disable
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.1s）
+
+== 违规：豁免：不带理由的 eslint-disable-next-line（require-description）（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.9s，最后一步：[9/11] ESLint
+  输出：62:  11:0  error  Unexpected undescribed directive comment. Include descriptions to explain why the comment is necessary  eslint-comments/require-description
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.3s）
+
+== 违规：豁免：多余的 eslint-disable（reportUnusedDisableDirectives）（src/web/src/probe.ts）
+  make check 退出码=2，用时 9.0s，最后一步：[9/11] ESLint
+  输出：62:  11:3  error  Unused eslint-disable directive (no problems were reported from 'no-console')
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.3s）
+
+== 违规：豁免：@ts-ignore（ban-ts-comment）（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.9s，最后一步：[9/11] ESLint
+  输出：62:  11:3  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.2s）
+
+== 违规：豁免：不带说明的 @ts-expect-error（ban-ts-comment）（src/web/src/probe.ts）
+  make check 退出码=2，用时 8.8s，最后一步：[9/11] ESLint
+  输出：62:  11:3  error  Include a description after the "@ts-expect-error" directive to explain why the @ts-expect-error is necessary. The description must be 3 characters or longer  @typescript-eslint/ban-ts-comment
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.2s）
+
+== 违规：Prettier：一处不合格式（src/web/src/probe.ts）
+  make check 退出码=2，用时 9.0s，最后一步：[10/11] Prettier
+  输出：63:[warn] src/probe.ts
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.2s）
+
+== 违规：Vitest：一个失败的断言（src/web/src/probe.test.ts）
+  make check 退出码=2，用时 10.5s，最后一步：[11/11] Vitest
+  输出：69: ❯ src/probe.test.ts (1 test | 1 failed) 5ms
+  输出：74: FAIL  src/probe.test.ts > 验证契约：探针。断言失败时 make check 失败在 Vitest 那一步
+  输出：94: Test Files  1 failed | 6 passed (7)
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.1s）
+
+== 违规：import-linter：rdp.infra 里 import fastapi（src/rdp/infra/_probe.py）
+  make check 退出码=2，用时 1.2s，最后一步：[4/11] import-linter
+  输出：21:基础层不得依赖 Web 框架 BROKEN
+  输出：23:Contracts: 1 kept, 1 broken.
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.3s）
+
+== 违规（补充）：src/web/node_modules 不存在，应在第一个前端步骤之前失败并提示
+  make check 退出码=2，最后一步：[6/11] pytest
+  输出：52:先在 src/web 里运行 pnpm install --frozen-lockfile
+  结果：通过 —— 前端步骤之前就失败，提示 pnpm install --frozen-lockfile，没有自动安装
+  去掉以后：工作区和基线相同，make check 全绿（10.2s）
+
+== 违规：契约脚本（W3）：src/rdp 里没有六项的公开函数 test_probe（src/rdp/infra/probe_contract.py）
+  make check 退出码=2，用时 1.2s，最后一步：[5/11] 契约检查
+  输出：26:src/rdp/infra/probe_contract.py:4  rdp.infra.probe_contract.test_probe  缺少 Args:；缺少 Returns:；缺少 Raises:；缺少 Side Effects:；缺少 Time Semantics:
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.4s）
+
+== 违规：过期检查（a）HealthResponse.status 加 description，不重新生成
+  改动：19:    status: Literal["ok"] = Field(description="探针")
+  make check 退出码=2，最后一步：[7/11] OpenAPI 过期检查
+  输出：55:OpenAPI 或生成类型已过期，请运行 make api-types
+  结果：通过 —— 失败在 [7/11] 过期检查，提示 make api-types
+  去掉以后：工作区和基线相同，make check 全绿（10.3s）
+
+== 违规：过期检查（b）HealthResponse 加字段 probe，不重新生成，直接跑 make check-api-types
+  改动：20:    probe: int = 0
+  make check-api-types 退出码=2
+  输出：3:OpenAPI 或生成类型已过期，请运行 make api-types
+  结果：通过 —— 过期检查失败并提示 make api-types
+  去掉以后：工作区和基线相同，make check 全绿（10.2s）
+
+== 不能失败：中文注释和 TSDoc、@throws 无（src/web/src/probeOk.ts）
+  make check 退出码=0，用时 10.3s，最后一步：[11/11] Vitest
+  结果：通过 —— 全绿
+
+== 不能失败：带理由的单条豁免（eslint-disable-next-line 规则 -- 理由、@ts-expect-error 说明）（src/web/src/probe.ts）
+  make check 退出码=0，用时 10.3s，最后一步：[11/11] Vitest
+  结果：通过 —— 全绿
+
+== 不能失败：tests/ 下没有六项的 test_*（tests/test_probe_ok.py）
+  make check 退出码=0，用时 10.2s，最后一步：[11/11] Vitest
+  结果：通过 —— 全绿
+
+== 钩子：提交一处前端违规（no-console），应被拒
+  退出码=1，HEAD 没变
+  |   11:3  error  Unexpected console statement  no-console
+  | 检查失败，请修好后重新提交。
+  结果：通过 —— 提交被拒（ESLint no-console），没有产生新提交
+
+== 钩子：去掉违规后，同样的命令提交成功
+  退出码=0
+  | [10/11] Prettier
+  | [11/11] Vitest
+  结果：通过 —— 提交成功（游离提交 c753286）
+
+== 钩子（D2）：只暂存规划文件（中文文件名），工作区里另有未暂存的违规，应跳过检查
+  退出码=0
+  | 仅暂存规划文件，跳过 make check。
+  结果：通过 —— 跳过检查并提交成功，没跑 make check
+
+== 钩子（D2）：规划文件和代码一起暂存，代码有违规，应跑全量并被拒
+  退出码=1
+  |   11:3  error  Unexpected console statement  no-console
+  | 检查失败，请修好后重新提交。
+  结果：通过 —— 跑了 make check，提交被拒
+
+== 钩子（D2）：改名，把代码文件挪进 docs/，应跑全量
+  暂存：R  src/web/src/probe.ts -> docs/probe_moved.ts
+  退出码=0
+  结果：通过 —— 跑了 make check（旧路径在 src/ 下）
+
+# 汇总：通过 34 项，不通过 0 项。探针工作目录已删除。

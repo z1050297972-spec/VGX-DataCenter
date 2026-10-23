@@ -1,0 +1,45 @@
+# 演示：2026-10-23 22:25:24 +0800，uvicorn --factory，127.0.0.1:8600，web_dist=src/web/dist（vite build）
+## GET /
+HTTP/1.1 200 OK
+date: Fri, 23 Oct 2026 14:25:23 GMT
+server: uvicorn
+content-type: text/html; charset=utf-8
+accept-ranges: bytes
+content-length: 341
+last-modified: Fri, 23 Oct 2026 14:25:07 GMT
+etag: "1124c428858384301f4fc75302cd930f"
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+
+## GET /api/health
+HTTP/1.1 200 OK
+date: Fri, 23 Oct 2026 14:25:23 GMT
+server: uvicorn
+content-length: 15
+content-type: application/json
+
+{"status":"ok"}
+## GET /datasets/x
+HTTP/1.1 200 OK
+date: Fri, 23 Oct 2026 14:25:23 GMT
+server: uvicorn
+content-type: text/html; charset=utf-8
+accept-ranges: bytes
+content-length: 341
+last-modified: Fri, 23 Oct 2026 14:25:07 GMT
+etag: "1124c428858384301f4fc75302cd930f"
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+
+## GET /api/nonexistent
+HTTP/1.1 404 Not Found
+date: Fri, 23 Oct 2026 14:25:23 GMT
+server: uvicorn
+content-length: 22
+content-type: application/json
+
+{"detail":"Not Found"}

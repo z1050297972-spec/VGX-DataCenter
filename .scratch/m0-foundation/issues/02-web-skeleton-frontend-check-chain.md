@@ -1,6 +1,6 @@
 # Web 骨架与前端检查链
 
-Status: in-progress
+Status: in-review
 
 ## 依据
 
@@ -321,3 +321,66 @@ Claude 评审时逐条核对，结果记进 Comments。
   - 三道防线：提示写明不安装、不联网；评审按 `codex-workflow.md` 3.5 第 5 项查运行日志里的安装和联网命令，有一条整轮打回；照常核对依赖表和锁文件。
   - 写进 `docs/brief/0012-环境事实更新-沙箱socket与联网授权.md`、`codex-workflow.md` 第 4、7、9 节和 3.5 第 5 项、`CLAUDE.md`。
   - 本票从快照 `B-blocked`（`5d84bd3`）的工作区状态续接同一会话，照 `prompt-B.md` 继续；`tests/conftest.py` 不加 `_write_to_self` 补丁。验收第 4 条不变（全部在沙箱里通过）。
+- 2026-10-23，派工 B 继续（B3，执行线，按负责人 N1）。不是打回轮。开工前确认：工作区的树和 `B-blocked`（`5d84bd3`）相同（`f7dd120`），没有残留的 `codex exec`、pytest、vitest 进程。提示 `assets/…/prompt-B3.md`：说明网络权限已正式打开、不打任何 `send`/`write` 补丁；照 `prompt-B.md` 从停下的地方继续，pytest 和 `make check` 一律套 `timeout`；"边界"用 `codex-workflow.md` 第 7 节新版原样。先 `cd <工作目录>`，按第 4 节续接模板（加 `-c 'sandbox_workspace_write.network_access=true'`），会话 `01a1676d-9d88-7950-947f-7e51ac8d54a1`，运行日志 `ev-B3.jsonl`、`err-B3.txt`，最终回复 `out-B3.md`。
+- 2026-10-23 22:40，派工 B3 交回，第 13 步评审（`codex-workflow.md` 3.5）。
+  - 运行：21:11–22:03，退出码 0，最后一条 `turn.completed`，`out-B3.md` 在 assets，stderr 为空，没有网关断开，没有残留进程。
+  - **1 重跑**：工作目录 `timeout 600 make check` 退出码 0，用时 10.2 秒，十一步 `[1/11]`…`[11/11]` 全绿：basedpyright `0 errors, 0 warnings, 0 notes`；import-linter `2 kept, 0 broken`；契约检查 `问题总数: 0`；pytest `100 passed, 1 warning`（就是 StarletteDeprecationWarning）；`[7/11]` `OpenAPI 与生成类型均未过期`；tsc、ESLint 通过；Prettier 通过；Vitest `6 passed`、`19 passed`。`pytest -rs` 没有跳过。跑之前和之后 `git status` 相同（验收第 11 条）。
+  - **2 文件归属**：工作目录改动都在 `src/`、`tests/`，加上 `Makefile`、`scripts/check_contracts.py`、`src/web/eslint.config.js`、`vite.config.ts`、`.prettierignore`（都在允许表里）。`pyproject.toml`、`uv.lock`、`package.json`、`pnpm-lock.yaml`、`.githooks/`、`.gitignore` 相对契约提交没变；没有 `pnpm-workspace.yaml`。主仓库目录 `-- src tests` 为空；非规划文件里只有根目录一个 `Read_First_What're_Files_Meaning?.md`（16:19 写入，不在任何 Codex 运行日志里，内容是负责人自己的目录导读），不是 Codex 写的，执行线没动它，交主会话确认。
+  - **3 对比契约**：用 `ast` 比 `create_app`、`get_health`、`HealthResponse`、`export_openapi`、`main`、`check_file` 的签名和 docstring，只有 `export_openapi` 的 `Raises:`、`Side Effects:` 变了（G3，已获批）；两个模块 docstring 只去掉了"A2/B"阶段的字样。TS 五个导出函数的 TSDoc 和签名不变（`mountWeb` 挪到 `mountWeb.tsx`），只有 `HEALTH_STALE_TIME_MS` 的注释按 G1 改了。
+  - **4 先红后绿**：从 `ev-B.jsonl`、`ev-B3.jsonl` 里逐个找每个测试的第一次单独运行（结果存在 `<执行线临时目录>/m0-02/red-first-check.txt`），和 Codex 的表一致：每个测试都有单独运行。pytest 41 个里 26 个先红；15 个第一次就绿，都写了原因（例如 FastAPI 默认首页 404、StaticFiles 已挡住越界、W3 第一个测试的实现已覆盖其余五个）。Vitest 19 个里 17 个先红，2 个先绿有原因（Promise 拒绝自然透传；空容器那条桩本来就抛错，下一条再区分）。G3 的 `test_atomic_failure[write/replace]` 先红。
+  - **5 运行日志**：124 条命令。安装和联网的 grep（3.5 第 5 项）没有命中；两个旧项目只在 Codex 读提示时的输出里出现；没有 `/mnt`；唯一碰 `/tmp` 的命令是删掉它自己失败运行留下的两个 `pytest-of-shawn` 目录。没有 `send`/`write` 补丁；`tests/` 里两处 `patch("socket.socket", side_effect=AssertionError)` 是断言"不建 socket"，不是绕开沙箱。
+  - **6 两轴评审**：快照 `refs/rdp/m0-02/B-done`（`9190f83`），探针工作目录检出它，`/code-review`（基准 `5e6c34f`，即和 main 的合并基点），两轴结论：
+    - 两轴都报了同一个硬问题：`create_app` 用 `app.add_exception_handler(404, _spa_fallback)` 接管**所有** 404，不看路径。现在 `/api` 下的未知路径由兜底路由直接回 JSON，所以没暴露；但以后任何 `/api` 的 GET 接口抛 `HTTPException(404)`（M1 的"数据集不存在"就是），都会拿到 `index.html` 和 200。违反它自己的 `Returns:`（"`/api/` 下……绝不返回 index.html"）和 CODING_STANDARDS 3.3.2。执行线读代码确认。
+    - Standards 轴另报：`noqa: PTH105` 可以用 `Path.replace`（就是 `os.replace`）消掉；`tests/test_web_app.py:27` 的 `pyright: ignore` 可以用文件里已有的 `_request()` 消掉，那个测试还有一个没用的 `tmp_path`；`router.test.tsx` 改了模块单例 `router` 没恢复（7.5）；`create_app` 里 `web_dist` 已 resolve 又 resolve 一次，"禁用 StaticFiles 的 404.html"那句注释说的其实是默认值；`health.ts` 自己拼超时，没写为什么不用 `AbortSignal.timeout`（9.1）；非 GET 的非 `/api` 路径回的是"API 不存在"的 JSON，名不副实。判断题不改：测试 helper 重复、`useHealth` 的 WeakMap、Makefile 两种调用写法。执行线不采纳的一条：`test_export_matches_app` 和 `create_app(None).openapi()` 比，契约本来就规定导出等于它，不违反 7.2。
+    - Spec 轴另报（不改，记风险）：`/api/{unknown:path}` 兜底收了所有方法，所以 `POST /api/health` 回 404 不是 405；`node_modules` 检查在 `[7/11]` 标题之前失败，看不出属于哪一步（提示文字是对的）；`.prettierignore` 里 openapi.json 有两行重叠的理由。
+  - **7 违规试验**：`violation_probe.sh B-done --with-b`，输出 `violation_probe-B-done.txt`：**34 项全部通过**。第一次（`-try1.txt`）过期检查那项不通过，是探针的问题：给响应模型加字段会改变 `/api/health` 的返回，pytest 在 `[6/11]` 先失败（这是对的）。改成两项：(a) 只给 `status` 加 `description`（schema 变、返回不变），`make check` 失败在 `[7/11]` 并提示 `make api-types`；(b) 按验收原话加字段，直接跑 `make check-api-types`（`[7/11]` 调的目标），失败并提示 `make api-types`。W3：`src/rdp` 里只写一句的 `test_probe` 失败在 `[5/11]`。A2 那 31 项照样通过，基线 10 秒左右。
+  - **验收第 10 条演示**（执行线，沙箱外）：`vite build`（576 KB 的包，Vite 提示超过 500 KB，见风险）；在临时目录写一个无参工厂，`uvicorn --factory --app-dir <临时目录> rdp_demo_factory:app --host 127.0.0.1 --port 8600`。`curl`：`/` 200 `index.html`、`/api/health` 200 `{"status":"ok"}`、`/datasets/x` 200 `index.html`、`/api/nonexistent` 404 `{"detail":"Not Found"}`。无头 Chrome 打开 `http://127.0.0.1:8600/` 显示"后端正常"。输出和截图：`demo-B-done-curl.txt`、`demo-B-done-page.png`、`demo-B-done-uvicorn.log`。服务已停，8600 已释放，`dist/` 已删。
+  - **结论：打回第 1 轮（r1）**。Status 改成 `changes-requested`，发出修复轮时改回 `in-progress`。修复清单（契约不改）：
+    1. 问题：SPA 回退接管所有 404。位置：`src/rdp/api/__init__.py` 的 `_spa_fallback` 和 `add_exception_handler(404, …)`。期望：只有路径不在 `/api` 下（不是 `/api`，也不以 `/api/` 开头）、方法是 GET 的 404 才回 `index.html`；`/api` 下的 404 一律原样回 JSON（保留原来的 `detail`）。加测试：测试里给应用加一个 GET `/api/...` 接口抛 `HTTPException(404)`，带 `web_dist` 时拿到 404 JSON，不是 `index.html`。这个测试先红后绿。
+    2. 问题：非 GET 的非 `/api` 路径回的是"API 不存在"的处理函数。位置：同上。期望：改成一个名副其实的通用 404 JSON（名字和注释说清楚），或者原样回 StaticFiles 的 404；行为照契约"非 GET 请求不使用 SPA 回退"。
+    3. 问题：`noqa: PTH105`。位置：`src/rdp/api/openapi_export.py`。期望：用 `Path.replace`（底层就是 `os.replace`，G3 的语义不变），删掉豁免；docstring 里的 `os.replace` 字样保留。
+    4. 问题：可以消掉的 `pyright: ignore[reportUnknownMemberType]` 和没用的 `tmp_path`。位置：`tests/test_web_app.py:27` 一带的 `test_health_response`。期望：改用文件里已有的 `_request()`，删掉豁免和多余参数。
+    5. 问题：`router.test.tsx` 用 `router.update(...)` 改了模块单例，没恢复，测试之间可能互相影响（CODING_STANDARDS 7.5）。期望：测试结束后恢复，或者在测试里新建一个独立的 router。
+    6. 问题：几处小问题。位置：`create_app` 里重复的 `web_dist.resolve()`；"禁用 StaticFiles 的 404.html 与目录首页优先逻辑"这句注释（实际是 `html=False` 的默认行为）；`src/web/.prettierignore` 里 openapi.json 两行重叠的理由；`src/web/src/api/health.ts` 自己拼超时，没写为什么不用 `AbortSignal.timeout`。期望：去掉重复的 resolve；注释写准；`.prettierignore` 合成一行理由；`health.ts` 要么改用 `AbortSignal.timeout`（测试照样能用假时钟验证），要么注释写明为什么不用（9.1）。
+- 2026-10-23 22:27，派工 r1（续接）。提示 `assets/…/prompt-r1.md`（修复轮模板，就是上面 6 条；"边界"用第 7 节新版），快照 `refs/rdp/m0-02/r1`，Status 改成 `in-progress`。会话 `01a1676d-9d88-7950-947f-7e51ac8d54a1`，先 `cd <工作目录>`，按第 4 节续接模板（带 `network_access=true`）；运行日志 `ev-r1.jsonl`、`err-r1.txt`。两轴评审用的探针工作目录已删。
+- 2026-10-23 22:45，r1 交回并评审：**通过**。
+  - 运行：22:27–22:34，退出码 0，最后一条 `turn.completed`，`out-r1.md` 在 assets，stderr 为空，没有残留进程。
+  - 重跑：`make check` 十一步全绿，10.3 秒，`101 passed`（多了 r1 的回归测试）、Vitest 19 passed；跑之前和之后 `git status` 相同。
+  - 文件归属：这一轮只动了 `src/rdp/api/__init__.py`、`openapi_export.py`、`src/web/.prettierignore`、`health.ts`、`router.test.tsx`、`tests/test_web_app.py`；受保护文件和锁文件相对契约提交没变；主仓库目录非规划文件仍只有那个负责人的导读文件。
+  - 契约：这一轮没有改任何 docstring 或 TSDoc（`git diff r1 r1-done` 核过）。
+  - 先红后绿：`test_api_404_preserves_detail` 第一次单独运行失败（运行日志第 17 行，`assert 200 == 404`，即 `/api` 下抛 404 的 GET 拿到了 `index.html`），修好后同一命令通过（第 22 行）。
+  - 运行日志：13 条命令，安装和联网的 grep 没有命中；没有旧项目、`/mnt`；唯一碰 `/tmp` 的是删掉它自己的回归测试样例。
+  - 6 条逐条核对：SPA 回退只接管非 `/api` 的 GET 404，`/api` 下保留原 `detail` 和响应头；非 GET 回通用 404 JSON；`Path.replace` 替掉了 `os.replace`、豁免删掉了；`test_health_response` 用 `_request()`、豁免和 `tmp_path` 删掉了；路由测试新建独立 router，并断言单例没变；重复 resolve、注释、`.prettierignore` 改好了，`health.ts` 写明了不用 `AbortSignal.timeout` 的理由（它没法提前清掉计时器）。
+  - 违规试验：快照 `refs/rdp/m0-02/r1-done`（`c18af3a`），`violation_probe-r1-done.txt`，34 项全部通过。
+  - 演示（r1-done，沙箱外）：`/` 和 `/datasets/x` 200 `index.html`，`/api/health` 200 `{"status":"ok"}`，`/api/nonexistent` 404 JSON，`POST /datasets/x` 405（不走 SPA 回退）；无头 Chrome 显示"后端正常"。`demo-r1-done-curl.txt`、`demo-r1-done-page.png`、`demo-r1-done-uvicorn.log`。服务已停，`dist/` 已删。打回共 1 轮。
+- 2026-10-23 22:50，第 14 步：实现提交 `b79cce0 实现：Web 骨架与前端检查链`，经过钩子（十一步全绿，`101 passed`、Vitest 19 passed），提交后工作目录干净。Status 改成 `in-review`，等负责人说"合并"（主会话按 `codex-workflow.md` 3.7 做；第 3 步记得在主仓库目录的 `src/web/` 里 `pnpm install --frozen-lockfile`）。
+- 2026-10-23，**完工汇报**（执行线起草）。
+  - **改了什么**（分支 `t/m0-02-web-skeleton-frontend-check-chain`，三个提交）：
+    - `261a373` 依赖：fastapi 0.161.1、uvicorn 0.54.0、pydantic 2.14.1、httpx 0.28.1（dev），前端 22 个包，`uv.lock`、`pnpm-lock.yaml`。
+    - `1b2e3ed` 契约：检查配置（tsconfig、ESLint、Prettier、Vitest）、Makefile 十一步（第 7 步占位）、import-linter forbidden 合约、W3 的 docstring、后端和前端的契约骨架、53 个跳过的测试。
+    - `b79cce0` 实现：`create_app`、`get_health`、`export_openapi`（临时文件加原子替换）、命令行入口；前端客户端、`fetchHealth`、`useHealth`、`HealthPage`、`mountWeb`、路由；`[7/11]` 过期检查和 `make api-types`；G1–G3；W3；真正导出的 `openapi.json`、`schema.d.ts`；测试环境适配 `testSetup.ts`（jsdom 下补浏览器 `Request` 对相对 URL 的处理和 `scrollTo`，不碰 `fetch`）。
+  - **测试**：pytest 101 个（原有 61，加接口和托管 20、导出 14、W3 6），Vitest 19 个，全部通过，没有跳过。`make check` 十一步约 10 秒（第 1 张是 3.5–4.5 秒）。违规试验：A2-done 31 项、B-done 34 项、r1-done 34 项，全部通过。
+  - **十二条验收**：
+    1. 环境：通过。`tsc --version` 是 5.9.3（T2）；`pnpm-lock.yaml`、`uv.lock` 在依赖提交里入库；契约和实现两个提交里依赖表、锁文件都没变。
+    2. 骨架阶段全绿：通过。契约提交 `1b2e3ed` 经过钩子，十步全绿，pytest 34 个、Vitest 19 个跳过（主会话做的提交，执行线在 A2-done 上重跑过）。
+    3. 实现后全绿：通过。十一步退出码 0，没有跳过；用时约 10 秒，超过 03 号票"约 1 分钟"的线还远，暂不拆快慢两档。
+    4. 沙箱里能跑：通过，但有前提。A2 的日志里 tsc、ESLint、Vitest（threads 池）在沙箱里跑完；B3 和 r1 的日志里 `make check` 十一步在沙箱里退出码 0。B 阶段要靠负责人授权打开沙箱网络权限（N1，`docs/brief/0012`），不打开时 FastAPI 的测试会挂住。
+    5. 接口和托管：通过。`/api/health` 200 和 `{"status":"ok"}`；`/`、嵌套前端路由回 `index.html`；静态文件原样返回；`/api` 和 `/api/不存在` 404 JSON；`web_dist=None` 时 `/` 404；四种不合格的构建目录在创建时按契约报错；另加 `/api` 下接口自己抛的 404 不回 `index.html`（r1）。
+    6. 导出确定：通过。两次导出逐字节相同的测试；`make api-types` 之后过期检查通过；违规试验里改了 schema 不重新生成，`[7/11]` 失败并提示 `make api-types`。
+    7. 前端：通过。成功显示"后端正常"、失败显示 `Alert`；注入的 `fetch` 收到相对路径 `/api/health`。
+    8. 违规会失败：通过。每种都失败在对应的那一步（按规则名匹配），去掉后恢复全绿；"不能失败"的三种都全绿。过期检查的"加字段"按原话做时会先在 pytest 失败（加字段改变了接口返回，这是对的），所以探针拆成 (a) 只改 schema 的 `make check` 和 (b) 加字段直接跑过期检查目标，两项都通过。
+    9. 钩子：通过。前端 `console.log` 违规提交被拒、HEAD 没变，去掉后提交成功；D2 的三种情况照旧。钩子没改。
+    10. 能演示：通过。沙箱外 `vite build`，`uvicorn --factory` 在 `127.0.0.1:8600`，`curl` 首页拿到 `index.html`、`/api/health` 拿到 JSON，无头 Chrome 显示"后端正常"（截图在 assets）。工单写的是"浏览器打开"，这里用的是无头 Chrome 截图。
+    11. 不留痕迹：通过。每次跑 `make check` 前后 `git status` 都相同。
+    12. 文件归属与契约：通过。工作目录只动了 `src/`、`tests/` 和允许表里的文件；主仓库目录规划文件以外只有负责人自己的导读文件；运行日志没碰两个旧项目，安装和联网的 grep 没有命中；先红后绿每个测试都有单独运行，先绿的都有原因；Standards 轴的硬问题（404 回退）在 r1 修好。
+  - **风险**：
+    - starlette 1.9.0 导入 `TestClient` 时报 `StarletteDeprecationWarning`（建议改用 `httpx2`）。现在只是警告；以后升级 starlette 时要处理，可能要申请 `httpx2`。
+    - 实现派工要开沙箱网络权限（N1）。安全靠提示和评审时的日志 grep，这张票三轮日志都没有命中。
+    - `/api/{unknown:path}` 兜底收了所有方法，所以 `POST /api/health` 回 404，不是 405。等接口变多、统一异常处理那张票（04）时再看。
+    - 前端包 576 KB，`vite build` 提示超过 500 KB（antd 整包）。按路由拆包本来就不在本票，留给 M1。
+    - `node_modules` 检查在 `[7/11]` 标题之前失败，提示文字是对的，但看不出属于哪一步。
+    - 判断题没改：测试 helper 有重复；`useHealth` 用 WeakMap 按客户端区分缓存（只为测试注入）；Makefile 两种调用前端工具的写法混用。
+    - pnpm 的 store 按文件系统区分：探针工作目录在 tmpfs 上时要 `--store-dir`。主仓库目录不受影响。
+  - **和工单的偏差**：`@types/node` 实测不需要，没装（用 `skipLibCheck: true`）；router、jsdoc 比最新版低一个补丁号（pnpm 11 的发布时间门槛）；派工 B 中途因沙箱阻塞续接了三次（B2 被 Codex 拒绝、B3 按 N1 打开网络），都不算打回；验收第 8 条过期检查按上面拆成两项；新增测试比骨架清单多 7 个（`/api` 各方法、自带 `404.html` 不覆盖 SPA、帮助参数不掩盖未知参数、W3 的回归断言、G3 的两种失败、r1 的回归）。
+  - **合并后（第 15、16 步，主会话）**：主仓库目录 `uv sync --frozen` 加 `src/web/` 里 `pnpm install --frozen-lockfile`；按实测补全 `CODING_STANDARDS.md` 3.1（W3）、3.5（TSDoc 规则表，见骨架摘要第 4 块和 G2）、8.1（前端豁免检查）、10.1 改成〔机〕。
+  - **下一张**：M0 第 3 张「配置、状态目录与运行日志」。
