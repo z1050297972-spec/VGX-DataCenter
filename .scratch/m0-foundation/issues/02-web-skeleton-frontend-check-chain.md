@@ -281,3 +281,24 @@ Claude 评审时逐条核对，结果记进 Comments。
   - **G2** 没有参数的函数不写 `@param`：`require-tags` 去掉 `param`，打开 `check-param-names`（只改配置，派工 B 做）。
   - **G3** `export_openapi` 改成同目录临时文件加 `os.replace`（CODING_STANDARDS 2.6），改 `Side Effects:`，派工 B 加一个测试。负责人已批准这处契约含义变化。
   - 第 11 步：契约提交 `1b2e3ed 契约：Web 骨架与前端检查链`，经过钩子，全绿；`node_modules` 没进提交（`.gitignore` 第 33 行）。Status 改回 `in-progress`，执行线从第 12 步继续。
+- 2026-10-23 15:16，第 12 步派工 B（续接，执行线）。
+  - 提示 `assets/…/prompt-B.md`：派工 B 模板（先红后绿要逐个测试单独跑，pytest 和 Vitest 的单独运行命令都写明，评审会在日志里核对），加上 G1（只改 staleTime 注释）、G2（`require-tags` 去掉 `param`，开 `check-param-names`，删掉 `@param 无`）、G3（临时文件加 `os.replace`，改 `Side Effects:`，加一个测试），评审提醒（`mountWeb` 挪到单独模块、`main.tsx` 只留入口；`getRootRoute` 改成箭头函数；删掉 5 个桩上的 `no-unused-vars` 豁免；改 `.prettierignore` 里"手写草稿"那句），接上 `[7/11]` 过期检查和 `make api-types`、用真正的导出重新生成两个入库文件，实现 W3。最终回复六块（模板四块 + 先红后绿 + 检查配置的变化）。
+  - 快照 `refs/rdp/m0-02/B`（`b82ffcf`，基于契约提交 `1b2e3ed`，工作目录干净）。
+  - 会话 `01a1676d-9d88-7950-947f-7e51ac8d54a1`，先 `cd <工作目录>` 再 `timeout 60m codex exec resume -m gpt-6-astra -c 'model_reasoning_effort="high"' -c 'sandbox_mode="workspace-write"' --json -o assets/…/out-B.md <会话> - < prompt-B.md`。运行日志 `<执行线临时目录>/m0-02/ev-B.jsonl`、`err-B.txt`。网关直连 200。
+- 2026-10-23 15:40，**派工 B 被沙箱挡住，停下等负责人决定**（执行线）。
+  - 运行：15:16–15:23，退出码 0，最后一条 `turn.completed`，`out-B.md` 在 assets，没有网关断开。Codex 只做了第一个测试：`test_health_response` 先红（`create_app` 抛 `NotImplementedError`），补上最小实现后卡在 `TestClient.__enter__`，限时重跑超时（退出码 124），没有变绿。其余 33 个后端、19 个前端测试和 G1–G3 都没开始。工作区留着三处改动（`src/rdp/api/__init__.py`、`health.py`、`tests/test_web_app.py`，含一条 `# pyright: ignore[reportUnknownMemberType]`），快照 `refs/rdp/m0-02/B-blocked`（`5d84bd3`）。
+  - **执行线复现的原因**（`codex sandbox -c 'sandbox_mode="workspace-write"' -- .venv/bin/python -I …`，和 Codex 派工的沙箱相同）：
+    - `socket.socketpair()` 能建，但 `send` 报 `PermissionError: Operation not permitted`；对同一个 socket 用 `os.write` 能写，管道也能写。被挡的是 socket 的发送调用（seccomp）。
+    - asyncio 从别的线程唤醒事件循环（`call_soon_threadsafe`）靠的就是往 socketpair 里 `send` 一个字节，所以 `asyncio.run` 里 `await loop.run_in_executor(...)` 会一直挂住；不带线程的 `asyncio.run` 正常。
+    - **影响比 TestClient 大**：Starlette 把同步的接口函数、`StaticFiles` 的文件读取都放进线程池跑，所以换成 `httpx.ASGITransport` 在同一线程里调也一样挂（实测）。沙箱里没法测 FastAPI 的托管，`make check` 的 pytest 一步在沙箱里会挂住，验收第 4 条做不到。以后每张带接口测试的票都会碰到。
+    - 加 `-c 'sandbox_workspace_write.network_access=true'` 后 `send` 成功、`run_in_executor` 返回 3。codex-cli 0.163.0 的二进制里还有更窄的权限配置项（`allow_unix_sockets`、`allow_local_binding` 一类），具体写法没核实。
+    - 收尾：Codex 说已经终止的那个挂住的 pytest 其实还在跑，执行线自己 `timeout` 的两个诊断进程也没退出（`timeout` 只杀了外层），都已手动结束，现在没有残留进程；诊断脚本在临时目录里，已删。
+  - 不算打回轮次（没有发修复清单）。Status 保持 `in-progress`。
+  - **要负责人选的**（执行线的建议是 1，不行再 2）：
+    1. 由执行线先试 codex 自带的"只放开本地 unix socket、不放开外网"的权限配置。要是能做到 `socketpair` 能 `send`、`curl` 外网仍然失败，就按这个配置派工，写进 `docs/brief` 和 `codex-workflow.md` 第 4 节。
+    2. 本票的派工加 `sandbox_workspace_write.network_access=true`（实测能解决）。代价：Codex 的命令能联网。靠提示里"不安装、不联网"，加上评审时查运行日志里有没有 `pnpm`/`uv`/`pip`/`curl`/`npx` 来兜底。
+    3. 沙箱不动：用线程池的后端测试只由 Claude 在沙箱外跑，Codex 写了也跑不了。这样这些测试在日志里没有先红后绿的证据，`make check` 在沙箱里也跑不完。不建议。
+- 2026-10-23，主会话复核阻塞：
+  - 用 `codex sandbox -c 'sandbox_mode="workspace-write"'` 跑一段只做 `socketpair().send` 和 `asyncio` `run_in_executor` 的脚本：`send` 报 `[Errno 1] Operation not permitted`，`run_in_executor` 一直不返回（`timeout` 退出码 124）。加 `-c 'sandbox_workspace_write.network_access=true'` 后两者都正常，同时 `curl https://pypi.org/` 返回 200，即真的能上网。
+  - 试过 `network.allow_local_binding=true`、`sandbox_workspace_write.allow_local_binding=true`，都还是 `Operation not permitted`。codex 二进制里的 `allow_unix_sockets` 属于网络代理的按路径放行，管不到 `socketpair`。执行线的选项 1 实际上走不通。
+  - 复现脚本留下的挂起进程已清理。等负责人决定。
