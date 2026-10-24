@@ -1,0 +1,4 @@
+stdout 字节数：0
+stderr 字节数：0
+700 /tmp/claude-1001/-home-shawn----robot-data-platform/311bf87f-07e3-4751-ad0e-0c1d85c02fd0/scratchpad/m0-03/demo/state
+700 /tmp/claude-1001/-home-shawn----robot-data-platform/311bf87f-07e3-4751-ad0e-0c1d85c02fd0/scratchpad/m0-03/demo/state/logs

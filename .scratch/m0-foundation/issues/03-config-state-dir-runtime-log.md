@@ -1,6 +1,6 @@
 # 配置、状态目录与运行日志
 
-Status: in-progress
+Status: in-review
 
 ## 依据
 
@@ -186,3 +186,26 @@ Status: in-progress
   1. 问题：过期归档清理时列目录失败，之后的日志全丢。位置：`src/rdp/infra/logging.py` `_delete_expired` / `getFilesToDelete`。期望：列目录（`iterdir`、`is_file`、`is_symlink` 等）报 `OSError` 时同样跳过这次清理，当条和之后的记录照常写入；启动清理只试一次就清掉 `_startup_cleanup`（失败也清，下次切分再试）；切分时 `rolloverAt` 照常前进、活动文件照常重开。先写测试看到失败：启动阶段和切分阶段各一种。`getFilesToDelete` 自己的契约（返回过期归档列表）不变。
   2. 问题：两个默认路径常量是公开名，多出了模块的对外接口（2.9）。位置：`src/rdp/infra/config.py` 的 `DEFAULT_STATE_DIR_RELATIVE`、`DEFAULT_CONFIG_FILE_RELATIVE`。期望：改成 `_` 开头的私有名；没有别处引用。
 - 2026-10-24 10:20（+08:00），第 8 步派工 r2（修复轮第 2 轮，续接）。提示 `assets/…/prompt-r2.md`。快照 `refs/rdp/m0-03/r2`（`c257c37`，树和 `r1-done` 相同）。Status 改回 `in-progress`。会话同上，先 `cd <工作目录>` 再续接（带 `network_access=true`），`-o assets/…/out-r2.md`。运行日志 `<执行线临时目录>/m0-03/ev-r2.jsonl`、`err-r2.txt`。网关直连 200。
+- 2026-10-24 10:40（+08:00），r2 交回，复评（3.5）。
+  1. 重跑：`make check` 十一步全绿，`232 passed`，跑前跑后 `git status` 相同。**通过。**
+  2. 文件归属：这一轮只改了 `src/rdp/infra/{config,logging}.py`、`tests/test_logging.py`；主仓库目录非规划文件只有负责人的那个文件。**通过。**
+  3. 契约：公开签名和 docstring 没变；`getFilesToDelete` 的契约不变，兜底放在调用处 `_delete_expired`。**通过。**
+  4. 先红后绿：新测试 `test_expired_archive_query_errors_preserve_records`（启动/切分 × `iterdir`/`is_file`/`is_symlink` 六种）第一次 `6 failed`，修后 `6 passed`。变异抽查 10/10（`mutation_probe-r2-done.txt`），删除失败试验三条记录都在。**通过。**
+  5. 运行日志：9 条命令，没碰旧项目和 `/mnt`，没有安装、联网命令。**通过。**
+  6. 两轴评审：这一轮的改动只有 `_delete_expired` 外面包一层 `try/except OSError` 和两个常量改名，执行线自己逐行审过，没有再跑子 agent；上一轮两轴提出的两条都已解决。**通过。**
+  7. 违规试验：`violation_probe-r2-done.txt`，12 项全部通过。**通过。**
+  8. 演示：在 `r2-done` 上重做一次（`demo-r2-done-*`）：两个 `X-Request-ID`（`3393adf5…`、`231ade49…`）不同；`web.log` 8 行，都是统一格式的 uvicorn 启动、关闭行，没有访问日志；stdout、stderr 0 字节；目录 0700。**通过。**
+  - 快照 `refs/rdp/m0-03/r2-done`（`dc50018`）。打回 2 轮（r1、r2），在 3 轮以内。
+- 2026-10-24 10:45（+08:00），实现提交 `62191ba 实现：配置、状态目录与运行日志`（`git add -A`，树和 `r2-done` 相同），经过钩子，十一步全绿，`232 passed`；提交后工作目录干净。探针工作目录都已删除，没有残留的 codex、pytest、演示进程。Status 改成 `in-review`，交回主会话等负责人"合并"。
+- 2026-10-24 10:45（+08:00），**完工汇报**（执行线起草）。
+  - **改了什么**：`rdp.infra.config`（读唯一的 TOML 配置：`RDP_CONFIG` 或 `~/.config/rdp/config.toml`，没有就用默认值；pydantic 严格校验，报错逐项写文件、项名、实际值、期望）；`rdp.infra.state`（状态目录里所有路径只在 `state_paths` 一处算：`rdp.sqlite3`、`logs/`、`logs/<作业类型>/`、`worker.lock`；`initialize_state` 新建的目录 0700，已存在的不改，宽于 0700 的返回清单）；`rdp.infra.logging`（统一行格式、作业编号和请求编号经 contextvars 自动带上、`web.log`/`worker.log` 每天零点后切分并按日历天删旧文件、可选 stderr、接管 uvicorn 日志并关掉访问日志、"使用默认配置"和宽权限警告两条启动日志）；`rdp.api` 的 `create_app` 加了请求编号中间件（`X-Request-ID`，框架的 500 也带）。
+  - **测试**：pytest 232 个（本票新增 131 个），全绿，没有跳过；`make check` 约 11 秒。先红后绿按运行日志逐个核对过；一开始就绿的 72 个用 10 个变异抽查，全部抓到。违规试验 12 项、演示都通过。
+  - **契约变化**（负责人已批准）：P2 `format` 不因字段内容报错；P4 `initialize_state` 改返回宽权限清单，新增 `DirectoryPermissionWarning`、`log_state_warnings`。执行线批准的补充说明一处：`configure_logging` 的 Side Effects 加"删不掉的过期归档跳过并留下，下次切分或启动再试"。
+  - **风险和要负责人知道的**：
+    1. **重启后归档日期不准**：服务停了几天再启动，`web.log` 里前几天的内容会在下一次零点整体归档成重启当天的日期（契约写明了"不按 mtime 回溯切分"，骨架关卡批准过）。按日期找日志可能找错文件，旧内容也会多留几天。要改就是契约含义变化，建议另开一个小票或在第 11 张前处理：启动时活动文件的修改日期早于今天，就先按那个日期归档。
+    2. **第 11 张必须**用 `uvicorn.run(..., log_config=None, access_log=False)`，否则 uvicorn 会覆盖日志配置、访问日志又会出现。演示已按这个方式跑通，建议写进第 11 张的验收。
+    3. 配置报错里，未知项的实际值显示 `<已隐藏>`（防止把以后的口令类配置打出来），"期望"部分是 pydantic 的英文原文。
+    4. 默认时区每条日志读两三次 `/etc/localtime`，不看 `TZ`（P1）；v1 日志量小，可以接受。
+    5. 日志写失败时（磁盘满、切分时 rename 失败）会丢记录且没有提示（`raiseExceptions = False`，ADR 0005）；同名归档追加合并中途失败、重试时会重复追加一段（不丢）。
+    6. 缺失的祖先目录（例如 `~/.local/share`）也会建成 0700；P4 警告不受日志级别限制，ERROR 级别下照样写。
+  - **下一张**：第 4 张「诊断与报错框架」（依赖本票）。
