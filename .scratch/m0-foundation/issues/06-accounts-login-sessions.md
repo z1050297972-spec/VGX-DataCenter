@@ -89,3 +89,4 @@ Status: ready-for-agent
   - Status 改成 `ready-for-agent`。等第 5 张合并以后再开票。
 - 2026-10-23，第 4 张骨架关卡定了状态码表（`CODING_STANDARDS.md` 6.2）。本票合并时，把 401（没登录、会话过期）、403（没权限）的用法和响应格式补进那张表，并在使用手册的简表里同步。
 - 2026-10-24，第 4 张合并时定（S1，负责人批准）：本票让 `/api/{path}` 兜底路由分清"路径不存在"（404）和"路径存在但方法不对"（405，带 `Allow` 头）；改完同步 CODING_STANDARDS 6.2 的表、`rdp.api.errors` 模块 docstring 里的表和运维手册的状态码速查。本票的受保护文件不受影响，代码在 `src/rdp/api/`。验收加一条：`POST /api/health` 返回 405，`GET /api/不存在` 返回 404。
+- 2026-10-24，第 5 张定：`GET /api/errors/{id}` 本票加登录，所有登录账号都能看。

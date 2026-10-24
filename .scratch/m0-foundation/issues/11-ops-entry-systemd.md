@@ -90,3 +90,4 @@ Status: ready-for-agent
   - **M3**：命令行用标准库 `argparse`。
   - Status 改成 `ready-for-agent`。等第 10 张合并以后再开票。
 - 2026-10-23，按第 3 张评审补范围：`rdp web` 传 `log_config=None, access_log=False`；启动时按活动日志文件的修改日期补归档（R1，负责人批准）。验收加 2a、2b。
+- 2026-10-24，第 5 张定（B1、B3）：启动入口必须把数据库引擎传给 `create_app`（验收加一条）；关闭引擎前等写报错表的线程结束；升级步骤先停 Web 和 worker 再 `migrate`。
