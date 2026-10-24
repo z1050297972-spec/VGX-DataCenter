@@ -246,3 +246,78 @@ def test_custom_404_does_not_override_spa(tmp_path: Path) -> None:
     response = _request(create_app(tmp_path), "/datasets/x")
     assert response.status_code == 200
     assert response.text == "首页路由入口"
+
+
+def test_request_middleware_construction(tmp_path: Path) -> None:
+    """验证工单 03 契约：RequestIdMiddleware.__init__：只保存下游应用，不调用它、不绑定编号、不保存请求级状态。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_response_request_id(tmp_path: Path) -> None:
+    """验证工单 03 契约：验收 7：TestClient 请求 /api/health，两次响应均带唯一合法 uuid4.hex 编号且互不相同。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_client_request_id_ignored(tmp_path: Path) -> None:
+    """验证工单 03 契约：RequestIdMiddleware：客户端合法、非法或重复 X-Request-ID 均忽略，响应使用服务端新编号。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_response_and_log_id_match(tmp_path: Path) -> None:
+    """验证工单 03 契约：验收 7：测试路由在请求内写业务日志，日志 request_id 与响应头逐字相同；中间件不自动造访问日志。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_concurrent_request_ids(tmp_path: Path) -> None:
+    """验证工单 03 契约：验收 4：交错两个并发请求，中间阻塞点前后业务日志与各自响应编号一致，退出不污染其他请求。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_request_ids_on_all_response_statuses(tmp_path: Path) -> None:
+    """验证工单 03 契约：create_app 新契约：API、静态文件、SPA、重定向、404、校验错误及框架 500 响应均带编号。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_response_id_header_replaced(tmp_path: Path) -> None:
+    """验证工单 03 契约：RequestIdMiddleware：覆盖下游所有同名响应头只留一个，不修改下游原消息或 scope。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_health_has_no_access_log(tmp_path: Path) -> None:
+    """验证工单 03 契约：验收 7：TestClient 调用健康接口不产生访问日志，uvicorn.access 记录也被日志配置丢弃。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_request_context_restored_after_failure(tmp_path: Path) -> None:
+    """验证工单 03 契约：RequestIdMiddleware Raises：下游、receive、send 的异常原样传播，退出恢复原 request_id 和 job_id。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_request_context_restored_after_cancel(tmp_path: Path) -> None:
+    """验证工单 03 契约：RequestIdMiddleware Raises：请求取消保留取消异常且恢复上下文，不重复记录错误。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_streaming_and_background_context(tmp_path: Path) -> None:
+    """验证工单 03 契约：RequestIdMiddleware 时间语义：流式响应与后台任务内日志保留请求编号，整个下游调用完成才恢复。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_non_http_scope_passthrough(tmp_path: Path) -> None:
+    """验证工单 03 契约：RequestIdMiddleware 返回：WebSocket/lifespan 消息原样透传，不生成编号、不改上下文。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_failure_before_response_start(tmp_path: Path) -> None:
+    """验证工单 03 契约：RequestIdMiddleware：下游未发送响应即失败时不自造响应，异常原样传播，框架已发出的 500 则带编号。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_request_wrapper_outside_error_stack(tmp_path: Path) -> None:
+    """验证工单 03 契约：_RequestContextApp.build_middleware_stack 返回：包装完整父类栈，框架 500 在上下文内且不改变路由/OpenAPI。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
+
+
+def test_app_does_not_configure_logging(tmp_path: Path) -> None:
+    """验证工单 03 契约：create_app 副作用：创建多个应用不安装全局 handler、不写日志文件；请求关联中间件实例互相独立。"""
+    pytest.skip("工单 03 契约骨架，获批后逐项 TDD 接入中间件")
