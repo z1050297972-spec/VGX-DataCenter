@@ -7,8 +7,10 @@ description = "机器人数据管理平台"
 requires-python = "==3.12.*"
 # A1 只提供最小包；后续依赖由 Claude 用 uv add 写入。
 dependencies = [
+    "alembic>=1.20.1",
     "fastapi>=0.161.1",
     "pydantic>=2.14.1",
+    "sqlalchemy>=2.1.6",
     "uvicorn>=0.54.0",
 ]
 
