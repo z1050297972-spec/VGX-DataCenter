@@ -4,6 +4,54 @@
  */
 
 export interface paths {
+    "/api/errors/{error_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Error Details
+         * @description 为 GET /api/errors/{error_id} 返回一条完整报错。
+         *
+         *     Args:
+         *         error_id: 请求 uuid4 hex 或作业规范正整数十进制文本，无单位；作业最大 2^63-1，
+         *             无前导零，不接受路径、SQL 或任意字符串；框架先校验形状，函数再校验整数上界。
+         *         session: 本请求缓存的只读 Session；仅供同步路由线程使用，响应发送前关闭。
+         *
+         *     Returns:
+         *         ErrorRecord，HTTP 200 JSON；包含编号、UTC 时间、类别、摘要、同日志的报告和来源种类；
+         *         来源编号就是 error_id。响应模型进入 OpenAPI；不返回 SQL、请求体或额外日志上下文。
+         *         本票暂不鉴权，第 06 张加“所有登录账号可看”的登录依赖，不仅管理员。
+         *
+         *     Raises:
+         *         ErrorReportNotFoundError: 找不到记录（含过期清除），404；诊断对象 error_id，规则为
+         *             “报错必须仍在保留期内且已成功保存”，实际“不存在”，期望“有一条报错”，
+         *             后果“无法展示完整报错”，下一步“按编号查询运行日志或联系维护者”。
+         *         InvalidErrorIdentifierError: 直接调用时格式错误，或作业编号越界，422；不回显非法原值。
+         *             HTTP 形状错误由框架 RequestValidationError 返回同类 422。
+         *         InputError: 数据库/时间列损坏；拒绝返回部分详情。
+         *         ConflictError: 读取锁冲突。
+         *         ExternalError: 数据库未启用、权限或 I/O 失败。
+         *         DefectError: 其他 SQL/映射程序错误。
+         *
+         *     Side Effects:
+         *         无（只读一条记录）；不查任意日志文件、不延长保留期、不自行记日志。
+         *
+         *     Time Semantics:
+         *         单次查询，不等待将来的插入；时间返回 UTC，浏览器显示时转本地。
+         *         SQLite 单次锁等待约 5 秒；客户端 5 秒超时可能先放弃，服务端不重试。
+         */
+        get: operations["get_error_details_api_errors__error_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -126,6 +174,45 @@ export interface components {
         };
         DiagnosticText: string;
         /**
+         * ErrorRecord
+         * @description 脱离 Session 的不可变报错快照，同时作为查询接口响应模型。
+         *
+         *     Attributes:
+         *         error_id: 编号，无单位、必填不可空、无默认；request 为小写 uuid4 hex，job 为
+         *             1-9223372036854775807 的规范十进制字符串；不是 ProblemResponse.error_id 的放宽。
+         *         occurred_at: 发生时刻，aware datetime、精度微秒，必填不可空、无默认；模型规范化为 UTC，
+         *             JSON 按 UTC ISO 8601 输出；列存储仍必须用六位微秒的 UTCDateTime。
+         *         category: DiagnosticCategory 四种之一，无单位、不可空、无默认；请求缺陷固定 defect。
+         *         summary: 安全摘要，1-512 个 Unicode 字符，至少含非空白字符，不含换行；必填不可空、无默认。
+         *         report: 安全异常链及 traceback，1-262144 个 Unicode 字符；必填不可空、无默认；
+         *             直接使用 format_exception_report 输出，保留其截断标记，不再添加诊断或上下文。
+         *         source_kind: request/job，无单位、必填不可空、无默认；编号直接由 error_id 表示。
+         */
+        ErrorRecord: {
+            category: components["schemas"]["DiagnosticCategory"];
+            /** Error Id */
+            error_id: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Report */
+            report: string;
+            /**
+             * Source Kind
+             * @enum {string}
+             */
+            source_kind: "request" | "job";
+            /** Summary */
+            summary: string;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
          * HealthResponse
          * @description 健康接口的固定响应结构。
          *
@@ -177,6 +264,19 @@ export interface components {
              */
             type: "about:blank";
         };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -186,6 +286,82 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_error_details_api_errors__error_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                error_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
     get_health_api_health_get: {
         parameters: {
             query?: never;

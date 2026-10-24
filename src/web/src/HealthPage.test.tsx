@@ -5,6 +5,13 @@ import { afterEach, expect, it, vi } from "vitest";
 import { createHealthClient, type FetchImplementation } from "./api/client";
 import { HealthPage } from "./HealthPage";
 
+// 工单 05 骨架：详情接入批准后逐项启用，不改变现有页面行为。
+it.skip("验证契约：HealthPage 为 DiagnosticCard 传稳定的 createErrorDetailsLoader，普通重渲染不重复请求", () => {});
+it.skip("验证契约：程序缺陷默认折叠不查详情，首次展开显示完整报错，折叠再展开复用本次结果", () => {});
+it.skip("验证契约：健康成功和非缺陷卡片不发送详情请求，既有健康缓存与五秒超时不变", () => {});
+it.skip("验证契约：详情 404、失败或五秒超时显示固定提示，保持原错误编号和摘要", () => {});
+it.skip("验证契约：客户端变更重建加载器并取消旧查询，不跨账号复用报告", () => {});
+
 const queryClients: QueryClient[] = [];
 
 function queryClient() {

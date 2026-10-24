@@ -25,6 +25,7 @@ create_app 通过 install_error_handlers 安装统一处理，OpenAPI 在请求�
 import logging
 import sys
 import traceback
+from datetime import datetime
 from http import HTTPStatus
 from itertools import chain
 from types import UnionType
@@ -221,6 +222,10 @@ def format_exception_report(error: BaseException) -> str:
         __notes__ 沿用标准库行为，不打印局部变量。遵循显式 cause 和 suppress_context，
         不遗漏所选链的根因；异常组不截断宽度或深度，循环引用标明已出现。
         无 traceback 时仍输出异常类型和消息；D2 不再替换异常消息或隐藏源码行。
+        工单 05 契约变更提案（骨架不改现有函数体）：增量收集标准库 format(chain=True)
+        的前缀，最多 models.MAX_EXCEPTION_REPORT_CHARS 个 Unicode 字符；超过时预留
+        REPORT_TRUNCATION_MARKER 的长度，尾部加该标记，总长度仍不超过上限。
+        未超限逐字保留；显式标记有损，不另拼诊断或请求数据。日志与数据库共用同一个结果。
 
     Raises:
         无。
@@ -255,12 +260,15 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
         同样附安全错误链。没有 traceback 的参数校验不记录框架异常正文。
         未知 Exception 这里只构造响应、不记录日志，等待 ServerErrorMiddleware 重抛后
         由 ErrorBoundary 记录；包括流式响应已经开始、框架不会发送该返回值的情况。
+        工单 05 提案：已处理异常改为 await report_error_with_database；未知异常仍由
+        ErrorBoundary 调用它，一次请求只报告/存表一次。骨架保留现有 _report_error 调用。
 
     Raises:
         RuntimeError: 请求编号未绑定或非法，由 build_problem 传播；不发送半个错误响应。
 
     Side Effects:
-        无（仅运行日志）；不写数据库，不直接调用 send，不读取请求体或凭据。
+        当前骨架保留仅运行日志；实现阶段新增独立报错事务，失败语义见
+        report_error_with_database；不直接调用 send，不读取请求体或凭据。
         参数校验失败将安全的字段位置和五段诊断追加到同一条 ERROR；
         不格式化 RequestValidationError，不记录请求原值。
         日志 fields 只含 method 和 path，不含查询串；路径使用匹配路由模板，
@@ -269,6 +277,7 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
 
     Time Semantics:
         请求作用域内运行，无轮询或重试；日志时间交给 RuntimeFormatter。
+        工单 05 实现后缺陷持久化额外等待最多约 ERROR_PERSIST_TIMEOUT_S，其他类别不等数据库。
     """
     problem = build_problem(request, error)
     if isinstance(
@@ -333,10 +342,14 @@ class ErrorBoundary:
             调用下游一次；HTTP 未开始响应即失败时发送一份 500，失败发送可能留下前缀。
             只保存调用内响应状态；不修改 scope、contextvars 或全局 logger 配置。
             不读取查询串/请求体，不吞取消；不全局屏蔽 uvicorn 日志。
+            工单 05 提案：未知缺陷统一 await report_error_with_database，独立工作线程写表；
+            保留原 500/已发响应前缀，持久化失败不进入本类的“报告依赖失败”重抛分支。
+            骨架阶段不接通该调用，已有错误处理行为不变。
 
         Time Semantics:
             覆盖下游流式迭代和后台任务直至退出；必须在 request_id 解绑前报告。
-            不增加超时、重试或等待；下游耗时由下游控制。
+            骨架不增加等待；工单 05 实现后缺陷报告等待最多约 ERROR_PERSIST_TIMEOUT_S，
+            无额外重试，下游耗时仍由下游控制。
         """
         if scope["type"] != "http":
             await self._app(scope, receive, send)
@@ -437,6 +450,55 @@ def _has_exception_cycle(error: BaseException, ancestors: frozenset[int]) -> boo
     return (cause is not None and _has_exception_cycle(cause, path)) or any(
         _has_exception_cycle(child, path) for child in children
     )
+
+
+# 工单 05 的提案：SQLite 锁等待 5 秒之外留 1 秒调度余量，单位秒；不无限等线程池。
+ERROR_PERSIST_TIMEOUT_S = 6.0
+
+
+async def report_error_with_database(
+    request: Request, error: Exception, problem: ProblemResponse, *, occurred_at: datetime
+) -> None:
+    """在接口唯一报告边界写运行日志，并尽力保存程序缺陷的同一报告。
+
+    Args:
+        request: 已绑定 request_id 的请求；app.state.database_engine 可缺失，表示离线模式。
+        error: 原异常；含未知 Exception、DefectError、其他领域异常和参数校验异常。
+        problem: build_problem 的结果，无单位，error_id 必须等于当前请求编号。
+        occurred_at: 边界注入的 aware 发生时刻，微秒，内部转 UTC；实现调用方取一次当前时刻，
+            测试传固定时钟，不在数据库里重新读时钟。
+
+    Returns:
+        无；原错误按现有 _report_error 的规则只写一条 ERROR；仅未知异常或 DefectError
+        在配置引擎时写一条报错，其他三类/参数校验或无引擎只记日志。
+        格式化一次，日志的 traceback 段和 ErrorRecord.report 逐字相同（含超长标记），
+        摘要使用固定 problem.detail，来源 request、编号 problem.error_id；保留 D2 的
+        异常消息和源码行、不打印 locals，不增加请求体、query、headers、cookie 或凭据。
+
+    Raises:
+        InputError: occurred_at 无时区或 UTC 换算溢出；报告之前拒绝，不产生半份报错。
+        DefectError: problem 编号与请求上下文不符；报告前拒绝，不伪造关联号。
+        BaseException: 取消等非 Exception 原样传播，不吞取消。
+        Exception: 日志 handler 或格式化本身失败，沿用第 04 张边界故障语义；不递归报告。
+            数据库写入、线程调度和等待超时异常不传播，不能盖掉原始 500。
+
+    Side Effects:
+        handle_error 处理显式缺陷、ErrorBoundary 处理未知缺陷，两处共用此边界函数；
+        在 request.state 标记已报告，重入不重复写日志/表。先完成业务会话回滚再写报错。
+        通过标准库 asyncio.to_thread 执行整个独立 session_scope + write_error，
+        不把业务 Session 跨线程传入，不阻塞事件循环；业务回滚不会删除独立报错。
+        asyncio.wait_for 限定等待 ERROR_PERSIST_TIMEOUT_S；持久化失败只额外记一次 ERROR，
+        fields 仅原 error_id 和安全阶段/失败类别，不格式化第二个 traceback、不回显 SQL 或报告；
+        不再尝试保存该失败，不重试，不改变原响应。失败事务回滚，可能查不到该编号。
+        超时后不等待线程，线程不能被 Python 强杀；可能稍后成功留下一条记录或失败回滚，
+        迟到线程不再记录日志。第 11 张关闭引擎须等在途线程结束；磁盘永久阻塞不承诺线程可回收。
+
+    Time Semantics:
+        发生时刻取原异常边界时刻，UTC；锁等待约 5 秒，异步等待最多约 6 秒加调度开销，
+        不含原有同步日志 I/O。等待期间事件循环可服务其他请求；流式/后台异常可在响应开始后落表。
+        已发完 500 的未知异常可能尚在落表，立刻查询可短暂 404；客户端不自动轮询。
+    """
+    raise NotImplementedError
 
 
 def _model_fields(annotation: Any) -> dict[str, Any]:
