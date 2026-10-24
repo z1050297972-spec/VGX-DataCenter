@@ -1,17 +1,115 @@
 """Web 入口层，提供应用工厂及 SPA 托管边界，不访问导航层或存储根。
 
 静态托管使用 FastAPI 再导出的 StaticFiles；不自行实现文件传输或直接依赖 starlette。
-依据：ADR 0001、0002、0005，M0 工单 02；接口与静态托管共享一个应用入口。
+依据：ADR 0001、0002、0005，M0 工单 02/03；接口与静态托管共享一个应用入口。
 """
 
+import logging
 import stat
+from collections.abc import Awaitable, Callable, MutableMapping
 from pathlib import Path
+from typing import Any, override
+from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from rdp.api.health import HealthResponse, get_health
+from rdp.infra.logging import log_context
+
+logger = logging.getLogger(__name__)
+
+# ASGI 边界本身是开放字典，字段由服务器与框架定义；此处只描述调用形状，
+# 不直接 import 未声明的 starlette，不复制框架的消息字段枚举。
+type _ASGIMessage = MutableMapping[str, Any]
+type _Receive = Callable[[], Awaitable[_ASGIMessage]]
+type _Send = Callable[[_ASGIMessage], Awaitable[None]]
+type _ASGIApp = Callable[[_ASGIMessage, _Receive, _Send], Awaitable[None]]
+
+
+class RequestIdMiddleware:
+    """入口层的 ASGI 请求关联边界，包在框架错误处理中间件之外，不记录访问日志。"""
+
+    def __init__(self, app: _ASGIApp) -> None:
+        """保存下游 ASGI 应用，不启动或调用它。
+
+        Args:
+            app: 下游 ASGI 应用，无单位；必须可异步调用，生产中为完整的 FastAPI 中间件栈。
+
+        Returns:
+            无。得到独立中间件实例，不在实例上保存请求级可变状态。
+
+        Raises:
+            无。
+
+        Side Effects:
+            无。
+
+        Time Semantics:
+            构造时不生成编号、不读取时钟。
+        """
+        self._app = app
+
+    async def __call__(self, scope: _ASGIMessage, receive: _Receive, send: _Send) -> None:
+        """为 HTTP 请求绑定服务端编号，并把同一编号写入响应头。
+
+        Args:
+            scope: ASGI scope 开放字典，无单位；HTTP、WebSocket 或 lifespan 类型。
+            receive: 无参数的异步 ASGI 接收回调，遵循服务器消息协议。
+            send: 异步 ASGI 发送回调，接收一条响应消息，遵循服务器消息协议。
+
+        Returns:
+            无。HTTP 每次新建 uuid.uuid4().hex（32 位小写十六进制，v4/variant 位有效）；
+            无条件忽略客户端 X-Request-ID，防止伪造关联号。每个 http.response.start
+            用该编号替换所有已有同名响应头，仅保留一个 X-Request-ID；
+            包括 2xx、3xx、4xx 和框架产生的 500。WebSocket/lifespan 原样透传，不生成编号。
+
+        Raises:
+            BaseException: 下游应用、receive 或 send 抛出的异常（含取消）原样传播；
+                仍恢复上下文，不在此处转成诊断或重复打错误日志。
+
+        Side Effects:
+            HTTP 调用期间通过 rdp.infra.logging.log_context 绑定 request_id；
+            退出后恢复原值，并发请求互不串号，job_id 保留原绑定。
+            只复制并修改发送的响应起始消息及其 headers，不修改 scope 或下游消息对象。
+            不记录任何访问日志；业务代码在请求内自行记录的日志自动带同一编号。
+            下游尚未发送响应就失败时，本中间件不制造响应；若框架产生 500 则照常加头。
+
+        Time Semantics:
+            绑定覆盖整个下游 ASGI 调用，直到流式响应和后台任务完成或取消；
+            不测量耗时、不阻塞事件循环、不读取墙钟，编号不含时间语义。
+        """
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+        request_id = uuid4().hex
+
+        async def send_with_id(message: _ASGIMessage) -> None:
+            """复制起始消息，避免修改下游复用的 header 列表。"""
+            if message["type"] == "http.response.start":
+                headers = [
+                    (key, value)
+                    for key, value in message.get("headers", [])
+                    if key.lower() != b"x-request-id"
+                ]
+                headers.append((b"x-request-id", request_id.encode("ascii")))
+                message = dict(message, headers=headers)
+            await send(message)
+
+        with log_context(request_id=request_id):
+            await self._app(scope, receive, send_with_id)
+
+
+class _RequestContextApp(FastAPI):
+    """仅把请求上下文包到完整框架栈外，覆盖框架生成的 500 及流式响应。"""
+
+    @override
+    def build_middleware_stack(self) -> _ASGIApp:
+        """返回 RequestIdMiddleware 包装的父类中间件栈；构建时不绑定编号或改变路由。"""
+        # 依赖 Starlette 的 build_middleware_stack 包含错误处理中间件这一行为。
+        # 升级 FastAPI/Starlette 时重看此方法，并重跑框架 500 的响应头契约测试。
+        return RequestIdMiddleware(super().build_middleware_stack())
 
 
 def _unknown_api() -> Response:
@@ -34,6 +132,8 @@ def create_app(web_dist: Path | None) -> FastAPI:
         /api/ 以外找不到文件的 GET 返回 index.html，供前端处理路由。
         /api 及 /api/ 下未知路径返回 404 JSON，绝不返回 index.html；
         非 GET 请求不使用 SPA 回退。静态服务不允许读取目录外文件或跟随越界软链接。
+        应用包含 RequestIdMiddleware，包在框架错误处理中间件之外；每次 HTTP 请求
+        生成 uuid4().hex 请求编号，忽略客户端同名头，所有已发送响应含唯一 X-Request-ID。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -44,12 +144,15 @@ def create_app(web_dist: Path | None) -> FastAPI:
     Side Effects:
         无（只读构建目录及入口文件状态，注册内存中的路由；不建 socket、不写磁盘）。
         接收请求后只读构建产物；不访问导航层、存储根或数据库。
+        请求处理期间绑定 request_id contextvar，业务日志自动关联响应编号，退出时恢复；
+        中间件本身不产生访问日志，包含 /api/health；不在应用工厂配置全局 logger。
 
     Time Semantics:
         同步创建，返回前完成目录校验；无重试、轮询或时区转换。
         构建产物由部署方保持稳定，创建时校验不保证后续请求时文件仍存在。
+        请求绑定持续到下游 ASGI 调用结束（含流式响应、后台任务），异常或取消也恢复。
     """
-    app = FastAPI(title="机器人数据管理平台", version="0.1.0")
+    app = _RequestContextApp(title="机器人数据管理平台", version="0.1.0")
     app.add_api_route("/api/health", get_health, methods=["GET"], response_model=HealthResponse)
     # 已知接口优先；兜底必须在静态挂载之前，不能让构建目录里的 api/ 文件遮蔽接口。
     for path in ("/api", "/api/{unknown:path}"):
