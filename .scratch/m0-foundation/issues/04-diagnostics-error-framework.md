@@ -156,3 +156,73 @@ Status: in-review
   - **D2**：日志里的 traceback 保留异常消息和源码行，不打印局部变量；防口令靠"参数校验失败不回显原值"和"自己的模型报错不回显输入"。契约变更，已获批。
   - **D3**：诊断不加级别；M1 在一致性面板条目上另加"处理优先级"。
   - 执行线列的"B 里处理"各项照办。
+- 2026-10-24 12:55（+08:00），第 4 步契约提交（执行线）。先核对工作目录的树和快照 `A-done` 相同（`236de4c`），再 `git add -A`，普通 `git commit`：`37871e4 契约：诊断与报错框架`，经过钩子，十一步全绿；提交后工作目录干净。D1、D2 和状态码的三件事留给派工 B 改，契约提交用的是 `A-done` 的原样。Status 改回 `in-progress`。
+  - 核对了 6.2 的状态码表和骨架契约：400/404/422 归输入或数据问题、409、502、500、框架 404/405 保持原格式，和骨架一致，没有发现冲突。
+- 2026-10-24 13:00（+08:00），第 5 步派工 B（续接）。
+  - 提示 `assets/04-diagnostics-error-framework/prompt-B.md`：派工 B 模板（逐个测试单独跑、先红后绿，pytest 和 Vitest 都写了单独运行的命令），加上已获批的契约变更 D1（诊断加可选的 `error_chain`，日志写"错误链："几行、网页折叠显示）、D2（traceback 保留异常消息和源码行、不打印局部变量，尽量用标准库 `traceback`）；状态码三件事（`rdp.api.errors` 模块 docstring 写 6.2 的表；测试逐项核对四个基类和表外状态码报错；每类一个接口测试断言状态码、媒体类型、`category`、`error_id` 等于 `X-Request-ID`），并要求和表不一致时停下报告、不改表；评审意见（换掉 `create_app` 的骨架期权宜和说明、删 4 条 `eslint-disable`、`HealthPage` 换卡片、ERROR 级别和框架 404/405 按 Codex 的定、演示由执行线做）。最终回复五块。
+  - 演示改由执行线的演示脚本自己把 `/api/health` 换成抛四类之一的路由（脚本放 assets，和第 3 张的 `demo.py` 一样），不用改 `mount_diagnostic_demo` 的契约。
+  - 快照 `refs/rdp/m0-04/B`（基于契约提交 `37871e4`，工作目录干净）。
+  - 会话 `01a16c0b-b944-7562-888b-dc7fe018c60f`，先 `cd <工作目录>` 再 `timeout 60m codex exec resume -m gpt-6-astra -c 'model_reasoning_effort="high"' -c 'sandbox_mode="workspace-write"' -c 'sandbox_workspace_write.network_access=true' --json -o assets/…/out-B.md <会话> - < prompt-B.md`。运行日志 `<执行线临时目录>/m0-04/ev-B.jsonl`、`err-B.txt`。网关直连 200。
+- 2026-10-24 13:50（+08:00），派工 B 交回，第 6 步评审（`codex-workflow.md` 3.5），逐项结论：
+  1. **重跑**：运行本机时间 22:53–23:30（−06:00），退出码 0，最后一条 `turn.completed`，stderr 为空，没有网关断开（运行日志里唯一一处 "stream disconnected" 在 `cat` brief 的输出里）。工作目录 `make check` 十一步全绿，13.1 秒；pytest `327 passed, 1 warning`（warning 同基线），Vitest `54 passed`，都没有跳过；跑前跑后 `git status` 相同。**通过。**
+  2. **文件归属**：工作目录只有 `src/`、`tests/` 下 20 个文件的改动（含 `make api-types` 生成的 `openapi.json`、`schema.d.ts`），没有新文件；受保护文件和锁文件对契约提交的 diff 为空。主仓库目录 `-- src tests` 为空，非规划文件只有负责人的 `Read_First_What're_Files_Meaning?.md`。**通过。**
+  3. **对比契约**（对 `37871e4`）：签名和类型没变；docstring 的改动只有已获批的 D1（`Diagnostic` 加 `error_chain`、`render_diagnostic` 的 Returns、`DiagnosticCard`/`readProblemResponse` 的 TSDoc）、D2（`format_exception_report` 首行、Returns、Side Effects、模块注释）、状态码表（`rdp.api.errors` 模块 docstring），以及评审意见要求的 `create_app`、`HealthPage` 去掉骨架期说法。新增的都是私有辅助函数。**通过。**
+  4. **先红后绿**：执行线从运行日志解析每个测试第一次单独运行的结果（`<执行线临时目录>/m0-04/B-redgreen.txt`）：pytest 95 个里 53 个先红、42 个一开始就绿，和 Codex 自报的表逐个一致；Vitest 先红、先绿也和自报一致。Codex 如实交代了 5 个前端测试第一次运行是被自己前一步的语法错误挡住的（不算有效的红），修好后其中 1 个出现了有效的功能失败。一开始就绿的比例高（约 45%），所以加做**变异抽查**（`assets/…/mutation_probe.py`，输出 `mutation_probe-B-done.txt`）：12 个变异覆盖 13 个一开始就绿的测试（聚合配额变全局、警告计成错误、对象排序、期望为空也输出、边界记完日志后重新抛出、响应已开始仍补发 500、吞掉 BaseException、日志写实际路径和查询串、校验诊断回显原值、traceback 打印局部变量、部分失败有警告判成带警告成功、中止且部分失败判成部分成功），**12 个全部被抓到**。**通过。**
+  5. **运行日志**：543 条命令；没有一条碰两个旧项目或 `/mnt`；安装、联网命令的 grep 无结果；`/tmp` 下只有 `make check-api-types` 自建自删的临时目录和 pytest 的 `tmp_path`。命令清单 `<执行线临时目录>/m0-04/B-commands.txt`。**通过。**
+  6. **两轴评审**：快照 `refs/rdp/m0-04/B-done`（`16bb2a7`），在探针工作目录里跑 `/code-review`（基点 `f19f883`），原文整理在 `assets/…/code-review-B-done.md`。本票不是同步、录制、转换模块，不跑 `algorithm-code-review`。要改的：示例二的测试没走意外异常路径；logger 名违反 6.4；三处注释还停在派工阶段；后端有 3 份状态码映射；网页卡片不显示类别、错误编号没标签、第五段叫法和日志不一致；接口测试 docstring 写了 404/422 子类但没走真实应用；422 的日志看不出哪个字段。**不通过**，进修复清单。坏味道里"四个异常基类重复、isinstance 元组反复出现"按判断题记下，本轮不要求改。
+  7. **违规试验**：脚本 `assets/…/violation_probe.sh`（照第 3 张，加了工单规定的"`rdp.infra` 里 import `rdp.jobs`"，以及"`rdp.jobs` 里 import `rdp.api`""`rdp.jobs` 里 import `fastapi`"），输出 `violation_probe-B-done.txt`。基线全绿、跑完不留痕迹；12 种违规各失败在对应那一步，其中三条 import-linter 违规都被拦住；带理由的豁免照常全绿；普通 `git commit` 带 print 的代码被钩子拒绝。**15 项全部通过。**
+  8. **演示**（验收第 9 条）：执行线在沙箱外 `vite build` 到临时目录，写了 `assets/…/demo.py`：`tests/diagnostics_demo.py` 挂演示接口；页面只调 `/api/health`，所以脚本按 `DEMO_HEALTH` 把它换成抛四类之一的路由，诊断内容照代表性故障示例写；生产代码里没有演示接口。`127.0.0.1:8600` 起五次（正常、输入、冲突、外部、缺陷），每次 `curl` 后用无头 Chrome 截图，SIGINT 停服务，退出码都是 0，stdout、stderr 都是 0 字节，8600 已释放。
+     - `curl`（`demo-B-done-curl.txt`）：演示接口 input 400、conflict 409、external 502、defect 500、validation 两种 422，都是 `application/problem+json`，`error_id` 等于 `X-Request-ID`；缺陷响应里没有 traceback。
+     - 运行日志（`demo-B-done-web.log`，偏移 −06:00）：每个错误请求只有一条 ERROR，带 `method`、路由模板 `path` 和 `request_id`；外部失败带"错误链："三行；意外的 `TypeError` 只有一份 traceback，保留了原始消息和源码行（D2）。
+     - 截图 `demo-B-done-page-{ok,input,conflict,external,defect}.png`：五段卡片、实际与期望同一行、错误链折叠（3 层）、缺陷只显示一句话和编号加"完整报错"按钮。截图暴露的展示问题进了修复清单第 5 条。
+     - 演示功能本身**通过**；r1 改了卡片以后重新截图。
+  - **和 6.2 状态码表不一致的地方，报主会话，执行线没有改，也没让 Codex 改**：`/api` 下方法不对（例如 `POST /api/health`）返回的是 404 `{"detail":"Not Found"}`，不是表里写的框架 405。原因是第 3 张为 `/api/{path}` 登记了覆盖所有方法的兜底路由（`_unknown_api`），main 上就是这样，不是本票引入的。要么表里这一行改成"404（方法不对也是 404）"，要么另开一张票让兜底路由返回 405，请负责人定。
+- 2026-10-24 13:55（+08:00），**修复清单（r1）**。Status 改成 `changes-requested`。
+  1. 示例二的测试改成未包装的 `TypeError` 经真实应用冒到边界：断言 500、媒体类型、`category`、空诊断、`error_id` 等于 `X-Request-ID`、响应里没有 traceback；日志里只有一条 ERROR 和一份 traceback，带原始消息和源码行；去掉作业结果的断言并写明原因。（`tests/test_api_errors.py`）
+  2. `getLogger(__package__)` 改成 `getLogger(__name__)`，放在 import 之后（6.4）。（`src/rdp/api/errors.py`）
+  3. 删掉过期的"派工 B""在 B 中"说法，只写现在的行为。（`errors.py` 的 `install_error_handlers`，`problems.ts`）
+  4. 后端的状态码映射只留一份：`rdp.infra.diagnostics` 里一个公开的具名常量，注明以 6.2 为准，三处都从它取；前端那份保留，注明对应 6.2。（新增一个公开常量，不改任何函数的含义，执行线批准）
+  5. 卡片标题显示类别中文名；所有 problem 卡片显示"错误编号：…"；第五段标签统一成"检查："，和日志、示例一致。（`DiagnosticCard.tsx`；TSDoc 里的展示细节，执行线批准，汇报时告诉负责人）
+  6. `test_handler_mappings_and_media` 补上 404、422 子类经真实应用返回的用例。
+  7. 422 的运行日志追加各字段的诊断（只有字段位置，没有原值），并补测试。
+- 2026-10-24 13:58（+08:00），派工 r1（续接，第 1 轮打回）。提示 `assets/…/prompt-r1.md`（修复轮模板，七条）；快照 `refs/rdp/m0-04/r1`（`6b3241c`，树和 `B-done` 相同）；会话 `01a16c0b-…`，先 `cd <工作目录>` 再续接，命令同派工 B，`-o assets/…/out-r1.md`。运行日志 `<执行线临时目录>/m0-04/ev-r1.jsonl`、`err-r1.txt`。Status 改回 `in-progress`。
+- 2026-10-24 14:20（+08:00），派工 r1 交回，评审（3.5），逐项结论：
+  1. **重跑**：运行本机时间 23:41–23:54（−06:00），退出码 0，最后一条 `turn.completed`，stderr 为空。运行日志里有一次 `Reconnecting... 1/5 (stream disconnected before completion: Upstream request failed)`，codex 自己重连后跑完，没有中断，不算网关故障。工作目录 `make check` 十一步全绿，12.8 秒；pytest `329 passed, 1 warning`，Vitest `55 passed`，没有跳过；跑前跑后 `git status` 相同。**通过。**
+  2. **文件归属**：这一轮改了 9 个文件，都在 `src/`、`tests/` 下；受保护文件没动；主仓库目录干净（只有负责人的文件）。**通过。**
+  3. **对比契约**：签名没变。新增公开常量 `ALLOWED_HTTP_STATUSES`（修复清单第 4 条，执行线批准）。docstring 改了措辞的有：`install_error_handlers`、`handle_error` 和 `ErrorBoundary.__call__` 里的 logger 名、`handle_error` 的 Side Effects（422 日志）、`DiagnosticCard` 的 `@returns`（展示细节，修复清单第 5 条）、`createProblemFetch` 的 `@timeSemantics`。都在修复清单范围内。**通过。**
+  4. **先红后绿**：Codex 报告第 2、4、5、7 条的测试先红后绿，执行线在运行日志里核对一致。第 1、6 条只改测试，第一次运行就是绿的，因为它们验证的是已有行为。执行线把变异抽查扩到 15 个（`mutation_probe-r1-done.txt`），新加 3 个专门针对这两条：示例二走意外异常路径时边界重新抛出、缺陷响应的 detail 带异常原文、输入类子类的状态码一律 400。**15 个全部被抓到。** **通过。**
+  5. **运行日志**：60 条命令；没碰两个旧项目或 `/mnt`；没有安装和联网命令；`/tmp` 只有检查链自建自删的临时目录。**通过。**
+  6. **两轴评审**：快照 `refs/rdp/m0-04/r1-done`（`80adc5b`），只看增量，原文在 `assets/…/code-review-r1-done.md`。第 1、2、4、5、6、7 条 done。第 3 条 partial：`tests/test_api_errors.py:753` 的 docstring 还留着"派工B"。另有两条判断：`problems.ts` 的 6.2 注释贴错了位置；7 个新测试的 docstring 不以"验证契约："开头。**不通过（只差注释）**，进 r2。
+  7. **违规试验**：`violation_probe-r1-done.txt`，**15 项全部通过**。
+  8. **演示**：在 r1-done 上重做，`demo-r1-done-{curl.txt,web.log}`、`demo-r1-done-page-{ok,input,conflict,external,defect}.png`。卡片标题现在显示"错误 · 输入或数据问题 · 读取数据集 · 来源：平台"，所有卡片都有"错误编号：…"，第五段叫"检查："。422 的日志列出了字段位置 `query.count`，没有原值；logger 名是 `rdp.api.errors`。服务退出码都是 0，8600 已释放，临时的 `dist/` 和状态目录已删。**通过。**
+- 2026-10-24 14:22（+08:00），**修复清单（r2）**，只改注释和测试 docstring。Status 先改成 `changes-requested`，再改回 `in-progress`。
+  1. `tests/test_api_errors.py:753` 的 docstring 去掉"派工B"；在本票改过的文件里再搜一遍，不留。
+  2. `problems.ts` 的 6.2 注释挪到 `statusTable` 上方，`requestId` 正则另写一句注释。
+  3. 本票新写的 7 个测试 docstring 统一以"验证契约："开头。
+  - 派工 r2（续接，第 2 轮打回）。提示 `assets/…/prompt-r2.md`；快照 `refs/rdp/m0-04/r2`；命令同 r1，`-o assets/…/out-r2.md`，运行日志 `<执行线临时目录>/m0-04/ev-r2.jsonl`。
+- 2026-10-24 14:40（+08:00），派工 r2 交回，评审（3.5）。运行本机时间 00:01–00:10（−06:00），退出码 0，`turn.completed`，stderr 为空，没有网关断开；8 条命令，没有碰旧项目或 `/mnt`，没有安装和联网命令。
+  1. **重跑**：`make check` 十一步全绿，12.9 秒；pytest `329 passed`，Vitest `55 passed`，没有跳过；跑前跑后 `git status` 相同。**通过。**
+  2. **文件归属**：这一轮只改了 `tests/test_api_errors.py`、`tests/test_diagnostics.py`、`src/web/src/api/problems.ts`；主仓库目录干净。**通过。**
+  3. **对比契约**：r2 → r2-done 的增量只有注释和测试 docstring，没改代码。**通过。**
+  4. **先红后绿**：本轮没改行为，不适用；r1-done 的 15 个变异仍然有效。
+  5. **运行日志**：见上。**通过。**
+  6. **评审**：增量很小，执行线逐行看过（快照 `refs/rdp/m0-04/r2-done`，`f56958d`）。三条都改了：`派工B` 已删，在本票 20 个文件里搜"派工""在 B 中"没有结果；6.2 注释已挪到 `statusTable` 上方，`requestId` 另有注释；7 个 docstring 都以"验证契约："开头（其中一处冒号后多了个空格，不影响）。**通过。**
+  7. **违规试验**、8. **演示**：代码和 r1-done 一样，沿用 r1-done 的结论（15 项通过；截图 `demo-r1-done-*`）。
+- 2026-10-24 14:42（+08:00），**实现提交**（执行线）。先核对工作目录的树和快照 `r2-done` 相同，再 `git add -A`，普通 `git commit`：`e9ac279 实现：诊断与报错框架`，经过钩子，十一步全绿；提交后工作目录干净。打回 2 轮（r1 七条，r2 三条注释）。Status 改成 `in-review`，交回主会话，等负责人说"合并"。
+- 2026-10-24 14:45（+08:00），**完工汇报**（执行线起草，交主会话转负责人）。
+  - **改了什么**：
+    - **诊断对象**（`rdp.infra.diagnostics`）：十个字段，加上可选的错误链（D1）；渲染成日志用的多行文本；按"来源 + 规则"聚合，每组保留 10 条样例，总数完整。
+    - **四类异常**：状态码只在一处定义（`ALLOWED_HTTP_STATUSES`），和 CODING_STANDARDS 6.2 的表一致。`rdp.api.errors` 的模块 docstring 抄了一份这张表。
+    - **接口统一异常处理**：返回 `application/problem+json`，`error_id` 就是请求编号。参数校验失败每个字段一条诊断，不回显原值。意外异常只在最外层记一次完整 traceback，保留异常消息和源码行（D2），uvicorn 不再重复记。
+    - **作业结果**：`rdp.jobs.outcome.calculate_outcome`。`rdp.jobs` 在 import-linter 里登记为领域层。
+    - **前端**：诊断卡片（五段、类别、错误编号、错误链折叠，程序缺陷点开才看详情），`HealthPage` 的 `Alert` 权宜已换掉。
+    - 演示路由只在 `tests/` 里，生产代码里没有。
+  - **测试**：pytest 从 232 到 329，Vitest 从 19 到 55，都没有跳过。先红后绿逐个核对过；一开始就绿的测试用 15 个变异抽查，全部被抓到；违规试验 15 项通过（含工单规定的"`rdp.infra` import `rdp.jobs`"被拦住）；演示截图在 assets。
+  - **风险**：
+    - 只报告一次，靠的是在 Starlette 的错误中间件外面再包一层边界，并覆盖 `build_middleware_stack`。升级 FastAPI/Starlette 时要重跑那几个用真实 uvicorn 驱动的测试。
+    - 流式响应中途失败时，uvicorn 可能另记一条不带 traceback 的协议日志。
+    - 网页上"点开看完整报错"现在只提示"按编号在运行日志里查"，真正显示 traceback 要等第 5 张存表。组件已经留好了取详情的回调和 5 秒超时。
+    - `ProblemResponse.error_id` 只接受 uuid4 hex。以后作业的错误编号用作业编号（E2），到时候复用这个模型要放宽格式。
+    - 坏味道（没要求改）：四个异常基类的构造函数几乎一样，"是不是四类之一"的判断在 `errors.py` 里重复了几次；以后加子类多了，可以抽一个私有公共基类。
+  - **要负责人知道的**：`/api` 下方法不对（例如 `POST /api/health`）返回 404，不是 6.2 表里写的框架 405。这是第 3 张的兜底路由造成的，main 上就是这样。要么改表，要么另开票，请负责人定。
+  - **下一张**：负责人说"合并"以后由主会话合并（3.7），然后写使用手册"怎么看报错"和运维手册"按错误编号查日志"两节。下一张实现票按 spec 顺序是第 5 张「数据库与迁移」（E2 的报错表存储在那张做）。

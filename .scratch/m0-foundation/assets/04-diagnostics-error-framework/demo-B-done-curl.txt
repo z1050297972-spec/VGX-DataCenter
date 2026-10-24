@@ -1,0 +1,117 @@
+### 模式 ok：GET /api/health
+HTTP/1.1 200 OK
+date: Sat, 24 Oct 2026 05:37:13 GMT
+server: uvicorn
+content-length: 15
+content-type: application/json
+x-request-id: f1f06ac970fd43bf8934ff9b4dbf0219
+
+{"status":"ok"}
+### GET /api/_diagnostics-demo/input
+HTTP/1.1 400 Bad Request
+date: Sat, 24 Oct 2026 05:37:13 GMT
+server: uvicorn
+content-length: 500
+content-type: application/problem+json
+x-request-id: ca5dff42720f49a7994940e8161bc313
+
+{"type":"about:blank","title":"Bad Request","status":400,"detail":"输入或数据不符合要求，请查看诊断。","category":"input","diagnostics":[{"level":"error","category":"input","stage":"演示","source":"平台","objects":[{"key":"dataset","value":"演示数据集"}],"rule":"对象必须可处理","actual":"不满足要求","expected":null,"consequence":"本次操作未完成","next_step":"按诊断检查演示输入","error_chain":[]}],"error_id":"ca5dff42720f49a7994940e8161bc313"}
+### GET /api/_diagnostics-demo/conflict
+HTTP/1.1 409 Conflict
+date: Sat, 24 Oct 2026 05:37:13 GMT
+server: uvicorn
+content-length: 491
+content-type: application/problem+json
+x-request-id: 9f2482769f854000a77b5b7af980222d
+
+{"type":"about:blank","title":"Conflict","status":409,"detail":"操作发生冲突，请查看诊断。","category":"conflict","diagnostics":[{"level":"error","category":"conflict","stage":"演示","source":"平台","objects":[{"key":"dataset","value":"演示数据集"}],"rule":"对象必须可处理","actual":"不满足要求","expected":null,"consequence":"本次操作未完成","next_step":"按诊断检查演示输入","error_chain":[]}],"error_id":"9f2482769f854000a77b5b7af980222d"}
+### GET /api/_diagnostics-demo/external
+HTTP/1.1 502 Bad Gateway
+date: Sat, 24 Oct 2026 05:37:13 GMT
+server: uvicorn
+content-length: 508
+content-type: application/problem+json
+x-request-id: ebce5139916b4b24aa878e4c62523a9d
+
+{"type":"about:blank","title":"Bad Gateway","status":502,"detail":"外部服务或工具失败，请查看诊断。","category":"external","diagnostics":[{"level":"error","category":"external","stage":"演示","source":"平台","objects":[{"key":"dataset","value":"演示数据集"}],"rule":"对象必须可处理","actual":"假命令退出码 1","expected":null,"consequence":"本次操作未完成","next_step":"按诊断检查演示输入","error_chain":[]}],"error_id":"ebce5139916b4b24aa878e4c62523a9d"}
+### GET /api/_diagnostics-demo/defect
+HTTP/1.1 500 Internal Server Error
+date: Sat, 24 Oct 2026 05:37:13 GMT
+server: uvicorn
+content-length: 219
+content-type: application/problem+json
+x-request-id: 33722af139a84623bb99a144b500d81c
+
+{"type":"about:blank","title":"Internal Server Error","status":500,"detail":"平台内部错误，请把错误编号交给维护者。","category":"defect","diagnostics":[],"error_id":"33722af139a84623bb99a144b500d81c"}
+### GET /api/_diagnostics-demo/validation?count=0
+HTTP/1.1 422 Unprocessable Entity
+date: Sat, 24 Oct 2026 05:37:13 GMT
+server: uvicorn
+content-length: 621
+content-type: application/problem+json
+x-request-id: b3cdaee55e224153b91ac1fb61d9db57
+
+{"type":"about:blank","title":"Unprocessable Entity","status":422,"detail":"请求参数不符合要求，请查看诊断。","category":"input","diagnostics":[{"level":"error","category":"input","stage":"请求校验","source":"平台","objects":[{"key":"field","value":"query.count"}],"rule":"请求字段必须满足接口声明","actual":"字段缺失或格式不符合要求（原值不回显）","expected":"符合接口声明的类型和约束","consequence":"请求被拒绝，操作未执行","next_step":"对照接口字段定义修正后重试","error_chain":[]}],"error_id":"b3cdaee55e224153b91ac1fb61d9db57"}
+### GET /api/_diagnostics-demo/validation
+HTTP/1.1 422 Unprocessable Entity
+date: Sat, 24 Oct 2026 05:37:13 GMT
+server: uvicorn
+content-length: 621
+content-type: application/problem+json
+x-request-id: 4cbbdb883e9145ada563d333cd959aaa
+
+{"type":"about:blank","title":"Unprocessable Entity","status":422,"detail":"请求参数不符合要求，请查看诊断。","category":"input","diagnostics":[{"level":"error","category":"input","stage":"请求校验","source":"平台","objects":[{"key":"field","value":"query.count"}],"rule":"请求字段必须满足接口声明","actual":"字段缺失或格式不符合要求（原值不回显）","expected":"符合接口声明的类型和约束","consequence":"请求被拒绝，操作未执行","next_step":"对照接口字段定义修正后重试","error_chain":[]}],"error_id":"4cbbdb883e9145ada563d333cd959aaa"}
+### GET /api/nonexistent
+HTTP/1.1 404 Not Found
+date: Sat, 24 Oct 2026 05:37:13 GMT
+server: uvicorn
+content-length: 22
+content-type: application/json
+x-request-id: f1a1c01954c74e8cba56bbe52838409a
+
+{"detail":"Not Found"}
+### POST /api/health（框架 405）
+HTTP/1.1 404 Not Found
+date: Sat, 24 Oct 2026 05:37:13 GMT
+server: uvicorn
+content-length: 22
+content-type: application/json
+x-request-id: f0ebce2659084597bf584eb7963f3e35
+
+{"detail":"Not Found"}
+### 模式 input：GET /api/health
+HTTP/1.1 400 Bad Request
+date: Sat, 24 Oct 2026 05:37:14 GMT
+server: uvicorn
+content-length: 696
+content-type: application/problem+json
+x-request-id: 2de0c13c79e94979b5ba9126ae2850e5
+
+{"type":"about:blank","title":"Bad Request","status":400,"detail":"输入或数据不符合要求，请查看诊断。","category":"input","diagnostics":[{"level":"error","category":"input","stage":"读取数据集","source":"平台","objects":[{"key":"dataset","value":"r1lite_叠衣服"},{"key":"file","value":"原始路径.json"},{"key":"field","value":"links[3].target"}],"rule":"每条链接都要有 target","actual":"target 为 null","expected":"非空的路径字符串","consequence":"这条链接不显示；数据集的其余部分正常","next_step":"打开该 JSON，对照导航层里的实际软链接补上 target","error_chain":[]}],"error_id":"2de0c13c79e94979b5ba9126ae2850e5"}
+### 模式 conflict：GET /api/health
+HTTP/1.1 409 Conflict
+date: Sat, 24 Oct 2026 05:37:15 GMT
+server: uvicorn
+content-length: 623
+content-type: application/problem+json
+x-request-id: de0947ff67f74dec9b5940bb923a0177
+
+{"type":"about:blank","title":"Conflict","status":409,"detail":"操作发生冲突，请查看诊断。","category":"conflict","diagnostics":[{"level":"error","category":"conflict","stage":"提交改动","source":"平台","objects":[{"key":"dataset","value":"r1lite_叠衣服"}],"rule":"提交时数据集不能已被别的作业改过","actual":"预览之后作业 #57 改过该数据集","expected":"数据集版本与预览时相同","consequence":"本次提交未执行，数据集没有变化","next_step":"等作业 #57 结束后重新预览再提交","error_chain":[]}],"error_id":"de0947ff67f74dec9b5940bb923a0177"}
+### 模式 external：GET /api/health
+HTTP/1.1 502 Bad Gateway
+date: Sat, 24 Oct 2026 05:37:15 GMT
+server: uvicorn
+content-length: 893
+content-type: application/problem+json
+x-request-id: 31c550316bd3415183c514aab76d5dde
+
+{"type":"about:blank","title":"Bad Gateway","status":502,"detail":"外部服务或工具失败，请查看诊断。","category":"external","diagnostics":[{"level":"error","category":"external","stage":"解码","source":"mcap2lerobot","objects":[{"key":"file","value":"RB01_20261011103210456.mcap"},{"key":"topic","value":"/hdas/camera_head/left_raw/image_raw_color/compressed"}],"rule":"每一路视频至少要有一个 H.264 关键帧","actual":"1806 条消息中关键帧 0 个","expected":"至少 1 个关键帧","consequence":"该文件失败，不产出 episode；其余文件继续","next_step":"用 ffprobe 看该话题码流的帧类型；对照这次采集的 boot.sh 日志","error_chain":["转换 RB01_20261011103210456.mcap 失败","相机 head_left 解码失败","无法从 H.264 关键帧读取分辨率：流中没有关键帧"]}],"error_id":"31c550316bd3415183c514aab76d5dde"}
+### 模式 defect：GET /api/health
+HTTP/1.1 500 Internal Server Error
+date: Sat, 24 Oct 2026 05:37:16 GMT
+server: uvicorn
+content-length: 219
+content-type: application/problem+json
+x-request-id: 5b3356e26b0840ef8f0f10002dde48e6
+
+{"type":"about:blank","title":"Internal Server Error","status":500,"detail":"平台内部错误，请把错误编号交给维护者。","category":"defect","diagnostics":[],"error_id":"5b3356e26b0840ef8f0f10002dde48e6"}

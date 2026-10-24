@@ -1,0 +1,13 @@
+[抓到] 聚合样例配额改成全局共享（不同组互相挤占）：1 failed in 0.02s
+[抓到] 警告也计入错误数：1 failed in 0.02s
+[抓到] 对象按键名排序输出：1 failed in 0.02s
+[抓到] 期望为空也写“；期望：”：1 failed in 0.02s
+[抓到] 边界记完日志后重新抛出（uvicorn 会再记一次）：2 failed, 1 warning in 0.34s
+[抓到] 响应已开始仍补发 500：1 failed, 1 warning in 0.13s
+[抓到] 边界吞掉取消等 BaseException：1 failed, 1 warning in 0.12s
+[抓到] 日志请求行写实际路径和查询串：1 failed, 1 warning in 0.13s
+[抓到] 参数校验诊断回显原值：1 failed, 1 warning in 0.13s
+[抓到] traceback 打印局部变量：1 failed, 1 warning in 0.12s
+[抓到] 部分失败有警告时判成带警告成功：1 failed in 0.01s
+[抓到] 中止且有部分失败时判成部分成功：1 failed in 0.01s
+合计：抓到 12，漏网或跳过 0
