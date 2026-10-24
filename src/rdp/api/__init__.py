@@ -9,12 +9,14 @@ import stat
 from collections.abc import Awaitable, Callable, MutableMapping
 from pathlib import Path
 from typing import Any, override
+from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from rdp.api.health import HealthResponse, get_health
+from rdp.infra.logging import log_context
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,7 @@ class RequestIdMiddleware:
         Time Semantics:
             构造时不生成编号、不读取时钟。
         """
-        raise NotImplementedError
+        self._app = app
 
     async def __call__(self, scope: _ASGIMessage, receive: _Receive, send: _Send) -> None:
         """为 HTTP 请求绑定服务端编号，并把同一编号写入响应头。
@@ -78,17 +80,36 @@ class RequestIdMiddleware:
             绑定覆盖整个下游 ASGI 调用，直到流式响应和后台任务完成或取消；
             不测量耗时、不阻塞事件循环、不读取墙钟，编号不含时间语义。
         """
-        raise NotImplementedError
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+        request_id = uuid4().hex
+
+        async def send_with_id(message: _ASGIMessage) -> None:
+            """复制起始消息，避免修改下游复用的 header 列表。"""
+            if message["type"] == "http.response.start":
+                headers = [
+                    (key, value)
+                    for key, value in message.get("headers", [])
+                    if key.lower() != b"x-request-id"
+                ]
+                headers.append((b"x-request-id", request_id.encode("ascii")))
+                message = dict(message, headers=headers)
+            await send(message)
+
+        with log_context(request_id=request_id):
+            await self._app(scope, receive, send_with_id)
 
 
-# 骨架阶段禁止提前接入；第二步 create_app 改用此类后删除本条豁免。
-class _RequestContextApp(FastAPI):  # pyright: ignore[reportUnusedClass]
+class _RequestContextApp(FastAPI):
     """仅把请求上下文包到完整框架栈外，覆盖框架生成的 500 及流式响应。"""
 
     @override
     def build_middleware_stack(self) -> _ASGIApp:
         """返回 RequestIdMiddleware 包装的父类中间件栈；构建时不绑定编号或改变路由。"""
-        raise NotImplementedError
+        # 依赖 Starlette 的 build_middleware_stack 包含错误处理中间件这一行为。
+        # 升级 FastAPI/Starlette 时重看此方法，并重跑框架 500 的响应头契约测试。
+        return RequestIdMiddleware(super().build_middleware_stack())
 
 
 def _unknown_api() -> Response:
@@ -131,9 +152,7 @@ def create_app(web_dist: Path | None) -> FastAPI:
         构建产物由部署方保持稳定，创建时校验不保证后续请求时文件仍存在。
         请求绑定持续到下游 ASGI 调用结束（含流式响应、后台任务），异常或取消也恢复。
     """
-    # 工单 03 当前只交契约：第二步 TDD 时改用 _RequestContextApp 接入中间件。
-    # 此前保留第 02 张已获批实现，避免构造应用时执行尚未实现的骨架。
-    app = FastAPI(title="机器人数据管理平台", version="0.1.0")
+    app = _RequestContextApp(title="机器人数据管理平台", version="0.1.0")
     app.add_api_route("/api/health", get_health, methods=["GET"], response_model=HealthResponse)
     # 已知接口优先；兜底必须在静态挂载之前，不能让构建目录里的 api/ 文件遮蔽接口。
     for path in ("/api", "/api/{unknown:path}"):

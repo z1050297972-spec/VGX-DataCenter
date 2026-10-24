@@ -6,19 +6,27 @@
 """
 
 import logging
+import re
+import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 logger = logging.getLogger(__name__)
 
 # 09 号决策票限定四级；配置、运行日志设置共用此类型，避免两份枚举漂移。
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
-# 工单 03 未定上限；本契约取十年，避免拼错数字造成无限制保留，待骨架评审确认。
+# 工单 03 骨架关卡已批准：保留期上限为 3650 天，防止误填大数导致无限制保留。
 MAX_RETENTION_DAYS = 3650
+# M0 spec S1：平台状态目录的缺省位置，相对于显式注入的用户 home。
+_DEFAULT_STATE_DIR_RELATIVE = Path(".local/share/rdp")
+# 工单 03「范围」：未指定 RDP_CONFIG 时，只读取 home 下的这一份配置。
+_DEFAULT_CONFIG_FILE_RELATIVE = Path(".config/rdp/config.toml")
+# Python 3.12 的 tomllib 只在异常文本尾部给出位置；限定匹配范围以避免回显文档内容。
+_TOML_ERROR_POSITION = re.compile(r"\(at (line [0-9]+, column [0-9]+|end of document)\)$")
 
 
 class WebConfig(BaseModel):
@@ -92,7 +100,9 @@ class PlatformConfig(BaseModel):
         Time Semantics:
             无时钟读取或等待。
         """
-        raise NotImplementedError
+        if not value.is_absolute() or "\x00" in str(value) or ".." in value.parts:
+            raise ValueError("状态目录须为不含 NUL 或 .. 的绝对路径")
+        return value
 
 
 @dataclass(frozen=True)
@@ -146,4 +156,86 @@ def load_config(*, environ: Mapping[str, str], home: Path) -> LoadedConfig:
     Time Semantics:
         同步读取本地文件，无重试；结果是本次读取快照，不监控修改，变更须重启。
     """
-    raise NotImplementedError
+    _validate_location(home, "<arguments>", "home")
+    selected = environ.get("RDP_CONFIG", "")
+    source = _expand_path(selected, home) if selected else home / _DEFAULT_CONFIG_FILE_RELATIVE
+    _validate_location(source, str(source), "RDP_CONFIG" if selected else "config_file")
+    try:
+        with source.open("rb") as stream:
+            data = tomllib.load(stream)
+    except UnicodeDecodeError as error:
+        raise ValueError(
+            f"配置文件 {source}，项 <document>：实际 编码错误位置 {error.start}；期望合法 UTF-8 TOML；拒绝启动，请修正配置"
+        ) from error
+    except tomllib.TOMLDecodeError as error:
+        # Python 3.12 的 TOMLDecodeError 没有 lineno/colno（3.14 才新增），只能提取文案后缀。
+        # 只接受已知的位置格式；文案变化时标明位置未知，不能把整段未知文本当位置回显。
+        location = _TOML_ERROR_POSITION.search(str(error))
+        position = location.group(1) if location else "位置未知"
+        raise ValueError(
+            f"配置文件 {source}，项 <document>：实际 {position}；期望合法 UTF-8 TOML；拒绝启动，请修正配置"
+        ) from error
+    except FileNotFoundError:
+        if selected:
+            raise
+        return LoadedConfig(
+            PlatformConfig(state_dir=home / _DEFAULT_STATE_DIR_RELATIVE), source, True
+        )
+    original = dict(data)
+    state_value = data.get("state_dir", home / _DEFAULT_STATE_DIR_RELATIVE)
+    data["state_dir"] = (
+        _expand_path(state_value, home) if isinstance(state_value, str) else state_value
+    )
+    try:
+        config = PlatformConfig.model_validate(data)
+    except ValidationError as error:
+        raise ValueError(_validation_message(source, original, error)) from error
+    return LoadedConfig(config, source, False)
+
+
+# 只回显已批准且不含秘密的叶子字段；新增字段默认隐藏，不能靠黑名单猜口令名称。
+_VISIBLE_FIELDS = frozenset(
+    {"state_dir", "web.host", "web.port", "log.level", "log.retention_days"}
+)
+
+
+def _validation_message(source: Path, data: Mapping[str, object], error: ValidationError) -> str:
+    """给 pydantic 的逐项错误补文件与安全实际值，不直接展示载荷。"""
+    messages: list[str] = []
+    for detail in error.errors(include_input=False):
+        item = ".".join(str(part) for part in detail["loc"])
+        actual: object = data
+        for part in detail["loc"]:
+            actual = (
+                cast(Mapping[object, object], actual).get(part)
+                if isinstance(actual, Mapping)
+                else None
+            )
+        visible = (
+            repr(actual)
+            if item in _VISIBLE_FIELDS and isinstance(actual, (str, int, float, bool))
+            else "<已隐藏>"
+        )
+        messages.append(
+            f"配置文件 {source}，项 {item}：实际 {visible}；期望 {detail['msg']}（{detail['type']}）；拒绝启动，请修正配置"
+        )
+    return "\n".join(messages)
+
+
+def _expand_path(value: str, home: Path) -> Path:
+    """只展开显式注入的当前用户目录，不读取环境或解析软链接。"""
+    if value == "~":
+        return home
+    if value.startswith("~/"):
+        return home / value[2:]
+    return Path(value)
+
+
+def _validate_location(value: Path, source: str, item: str) -> None:
+    """在文件 I/O 之前校验位置，并补齐配置来源和期望。"""
+    try:
+        PlatformConfig.validate_state_dir(value)
+    except ValueError as error:
+        raise ValueError(
+            f"配置文件 {source}，项 {item}：实际 {str(value)!r}；期望不含 NUL 或 .. 的绝对路径；拒绝启动，请修正配置"
+        ) from error

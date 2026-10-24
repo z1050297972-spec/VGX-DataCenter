@@ -5,6 +5,9 @@
 """
 
 import logging
+import os
+import stat
+import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -63,10 +66,44 @@ def state_paths(config: PlatformConfig, job_types: Sequence[str]) -> StatePaths:
     Time Semantics:
         无。与工作目录、时钟无关。
     """
-    raise NotImplementedError
+    seen: set[str] = set()
+    for name in job_types:
+        if (
+            not name
+            or name in {".", ".."}
+            or "/" in name
+            or "\\" in name
+            or any(unicodedata.category(character) == "Cc" for character in name)
+        ):
+            raise ValueError(f"作业类型实际 {name!r}；期望不含控制字符的单个路径分量")
+        if name in seen:
+            raise ValueError(f"作业类型实际 {name!r} 重复；期望不重复的作业类型")
+        seen.add(name)
+    root = config.state_dir
+    logs = root / "logs"
+    return StatePaths(
+        root,
+        root / DATABASE_FILENAME,
+        logs,
+        tuple((name, logs / name) for name in job_types),
+        root / WORKER_LOCK_FILENAME,
+    )
 
 
-def initialize_state(paths: StatePaths) -> None:
+@dataclass(frozen=True)
+class DirectoryPermissionWarning:
+    """启动时发现的既有目录权限快照，供日志就绪后报告。
+
+    Attributes:
+        path: 已存在的状态根、logs 或作业日志目录的绝对路径；无单位，必填，无默认值。
+        mode: POSIX 权限位，整数 0 至 0o7777，且 mode & 0o077 非零；必填，无默认值。
+    """
+
+    path: Path
+    mode: int
+
+
+def initialize_state(paths: StatePaths) -> tuple[DirectoryPermissionWarning, ...]:
     """创建缺失的状态目录，并保留全部既有内容和权限。
 
     Args:
@@ -74,8 +111,10 @@ def initialize_state(paths: StatePaths) -> None:
             使用本地可信状态位置；调用期间不允许其他主体替换路径。
 
     Returns:
-        无。成功后 root、logs 和全部 job_logs 目录存在且可写、可搜索；
-        已存在的目录及其文件内容、权限、时间戳均不主动改动。
+        不可变的宽权限目录快照元组，按 root、logs、job_logs 输入顺序排列；
+        仅包含调用前已存在且 mode & 0o077 非零的目标目录，不含祖先或本次新建目录；
+        无宽权限目录时为空。成功后所有目标目录存在且可写、可搜索；
+        已有内容和权限不改动，不主动更改时间戳。
 
     Raises:
         NotADirectoryError: 所需目录或祖先被普通文件占用；消息包含冲突路径。
@@ -88,10 +127,47 @@ def initialize_state(paths: StatePaths) -> None:
         即使 umask 更严格也只纠正本次新建目录；不改进程 umask、不 chmod 已有目录。
         不创建数据库、锁文件或任何日志文件；不通过试写探测已有目录的权限。
         失败时保留已建空目录，不回滚、不删除任何既有对象，修正原因后可安全重试。
-        全部已存在时只检查，第二次调用不写任何东西（验收 2）。
+        全部已存在时只检查，第二次调用不写任何东西（验收 2），仍返回当前宽权限清单。
+        不直接打警告；调用方在 configure_logging 完成后把返回值交给 log_state_warnings，
+        由启动边界记录路径、八进制权限及可能泄露口令哈希的后果（P4）。
 
     Time Semantics:
         启动阶段同步执行，无重试；先检查已有目标，再逐层创建。
         权限检查只代表调用时刻，不承诺抵御并发恶意路径替换。
     """
-    raise NotImplementedError
+    directories = (paths.root, paths.logs, *(path for _, path in paths.job_logs))
+    warnings: list[DirectoryPermissionWarning] = []
+    for directory in directories:
+        # 只对平台直接管理的目标拒绝软链接；祖先属于调用方选择的可信本地路径。
+        if directory.is_symlink():
+            raise ValueError(f"状态目录不得是软链接：{directory}")
+        info = _directory_stat(directory)
+        if info is not None:
+            mode = stat.S_IMODE(info.st_mode)
+            if mode & 0o077:
+                warnings.append(DirectoryPermissionWarning(directory, mode))
+    for directory in directories:
+        _create_directory(directory)
+    return tuple(warnings)
+
+
+def _create_directory(path: Path) -> None:
+    """逐层创建，确保祖先也采用平台权限，不依赖 mkdir(parents=True) 的默认权限。"""
+    if _directory_stat(path) is not None:
+        return
+    _create_directory(path.parent)
+    path.mkdir(mode=STATE_DIRECTORY_MODE)
+    path.chmod(STATE_DIRECTORY_MODE)
+
+
+def _directory_stat(path: Path) -> os.stat_result | None:
+    """区分缺失和外部失败，禁止把普通文件误当成已就绪目录。"""
+    try:
+        info = path.stat()
+    except FileNotFoundError:
+        return None
+    if not stat.S_ISDIR(info.st_mode):
+        raise NotADirectoryError(f"所需路径不是目录：{path}")
+    if not os.access(path, os.W_OK | os.X_OK):
+        raise PermissionError(f"目录不可写或不可搜索：{path}")
+    return info
