@@ -1,6 +1,6 @@
 # 配置、状态目录与运行日志
 
-Status: in-review
+Status: in-progress
 
 ## 依据
 
@@ -148,3 +148,8 @@ Status: in-review
   - **P3**：验收第 9 条改成：两次 `curl /api/health` 拿到两个不同的 `X-Request-ID`；`web.log` 里有统一格式的启动行、没有访问日志。"响应头和日志里的编号一致"由测试证明（测试里临时加一个写日志的路由）。
   - **P4**：状态目录已存在且权限宽于 `0700` 时，启动时记一条警告（路径和现在的权限），不自动改权限。契约里相应的 `Side Effects:` 和测试由派工 B 补上。
   - 评审里列的"B 里处理"各项照执行线的意见办（纯 ASGI 中间件用测试钉住并注明升级时重看；`logging.raiseExceptions = False` 注明理由；删掉两条 `reportUnusedClass` 豁免）。
+- 2026-10-24 09:17（+08:00），第 4 步契约提交（执行线）。先核对工作目录的树和快照 `A-done` 相同，再 `git add -A`，普通 `git commit`：`cb86a80 契约：配置、状态目录与运行日志`，经过钩子，十一步全绿；提交后工作目录干净。P2、P4 的契约补充按主会话的安排留给派工 B 改，契约提交用的是 `A-done` 的原样。Status 改回 `in-progress`。
+- 2026-10-24 09:20（+08:00），第 5 步派工 B（续接）。
+  - 提示 `assets/03-config-state-dir-runtime-log/prompt-B.md`：派工 B 模板（逐个测试单独跑、先红后绿），加上已获批的契约变更 P2（`format` 不因字段内容报错，别的类型先 `str()`；键名、保留键、非映射、非有限浮点也不丢整行，改 `Returns:`、`Raises:` 和 `test_invalid_fields`）、P3（`test_response_and_log_id_match` 在测试里临时加写日志的路由；演示由执行线在沙箱外做）、P4（已存在且 `mode & 0o077 != 0` 的状态目录记 WARNING，不改权限；因为 `initialize_state` 在 `configure_logging` 之前跑，建议 `initialize_state` 返回宽权限清单，由日志模块里的启动边界函数在日志配好以后记警告）；评审意见（钉住覆盖 `build_middleware_stack` 的做法并注明升级要重看；`raiseExceptions = False` 写理由和代价；删两条 `reportUnusedClass`；删 `create_app` 里的骨架期注释；测试不依赖本机时区（P1）；测试后恢复全局 logging 状态）。最终回复五块。
+  - 快照 `refs/rdp/m0-03/B`（`e466af1`，基于契约提交 `cb86a80`，工作目录干净）。
+  - 会话 `01a1694d-6710-75a1-839e-baf3833aa19c`，先 `cd <工作目录>` 再 `timeout 60m codex exec resume -m gpt-6-astra -c 'model_reasoning_effort="high"' -c 'sandbox_mode="workspace-write"' -c 'sandbox_workspace_write.network_access=true' --json -o assets/…/out-B.md <会话> - < prompt-B.md`。运行日志 `<执行线临时目录>/m0-03/ev-B.jsonl`、`err-B.txt`。网关直连 200。
