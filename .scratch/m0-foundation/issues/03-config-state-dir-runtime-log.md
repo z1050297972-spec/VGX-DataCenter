@@ -173,3 +173,16 @@ Status: in-progress
   8. **默认时区每条记录读一次 `/etc/localtime`**。位置：`logging.py` `_local_timezone`。期望：不改行为（契约定的"系统时区修改在下条记录生效"），只在注释里写明代价（每条日志两三次小文件读取）和为什么接受（v1 日志量小），以及不看 `TZ` 环境变量的理由（P1 按本机时区；第 11 张的 systemd 单元不设 `TZ`）。
   - 记下、不改的（需要的话汇报时交负责人）：未知项的实际值显示 `<已隐藏>`（防口令泄露，和验收 1 字面不完全一致）；pydantic 的"期望"是英文原文；缺失的祖先目录也建成 0700；P4 警告不受日志级别约束；`retention_days=30` 留 30 个日期归档加当天的活动文件；**重启后活动文件里前几天的内容会在下一次零点整体归档成重启当天的日期**（契约里写明了"不按 mtime 回溯切分"，负责人已批准；要改是契约含义变化，交主会话问负责人）；`_DailyFileHandler` 绕过父类 `__init__`（模块注释写了理由）；第 11 张必须传 `log_config=None, access_log=False`（演示已证实这样能用，建议写进第 11 张的验收）。
 - 2026-10-24 09:58（+08:00），第 7 步派工 r1（修复轮第 1 轮，续接）。提示 `assets/…/prompt-r1.md`（修复轮模板，八条照上面的修复清单；第 1、3 条先写测试看到失败再改）。快照 `refs/rdp/m0-03/r1`（`7695b44`，树和 `B-done` 相同）。Status 改回 `in-progress`。会话 `01a1694d-6710-75a1-839e-baf3833aa19c`，先 `cd <工作目录>` 再按第 4 节续接命令（带 `network_access=true`），`-o assets/…/out-r1.md`。运行日志 `<执行线临时目录>/m0-03/ev-r1.jsonl`、`err-r1.txt`。网关直连 200。
+- 2026-10-24 10:15（+08:00），r1 交回，复评（3.5）。
+  1. 重跑：`make check` 十一步全绿，10.7 秒，`226 passed`，跑前跑后 `git status` 相同。**通过。**
+  2. 文件归属：改动仍只在 `src/rdp/infra/{config,logging}.py`、`tests/{conftest,test_config,test_logging,test_web_app}.py`；主仓库目录非规划文件只有负责人的那个文件。**通过。**
+  3. 契约：公开签名和 docstring 只多了获批的那一句（`configure_logging` 的 Side Effects："删不掉的过期归档跳过并留下，下次切分或启动再试"）。**通过。**
+  4. 先红后绿：运行日志里新测试 `test_expired_archive_delete_errors_preserve_records`（四个参数组合）第一次 `4 failed`，`test_toml_error_without_position_has_safe_fallback` 第一次 `1 failed`，修后通过；`test_concurrent_request_ids` 是只改测试，一开始就绿，Codex 已说明。执行线的删除失败试验（`exp-r1-done-unlink.txt`）：零点后 3 条都在活动文件里，删不掉的归档留着。变异抽查 10/10 仍被抓到（`mutation_probe-r1-done.txt`）。**通过。**
+  5. 运行日志：21 条命令，没碰旧项目和 `/mnt`，没有安装、联网命令，`/tmp` 下没留文件。**通过。**
+  6. 两轴复评（探针工作目录检出快照 `r1-done` = `5bfdff2`，只读子 agent）：八条都已落实，没有新豁免。**还有一条同形态的缺陷**：`getFilesToDelete` 里的 `iterdir()` 出错没被兜住，启动清理时异常在 `_startup_cleanup = False` 之前抛出，之后每条日志都被丢掉（复评 agent 实测跨零点 6 条全丢；执行线读代码确认路径成立）。另两条判断项：`DEFAULT_STATE_DIR_RELATIVE`、`DEFAULT_CONFIG_FILE_RELATIVE` 成了公开名；同名归档追加合并中途失败会在重试时重复追加（不丢日志，记为风险，不改）。`rotate()` 本身失败时持续丢日志，和标准库行为一致，在获批契约"切分失败遵循 handleError"之内，记为风险。**不通过。**
+  7. 违规试验：`violation_probe-r1-done.txt`，12 项全部通过。**通过。**
+  8. 演示：r1 没动 Web 和启动路径，沿用 `B-done` 的演示结论。
+- 2026-10-24 10:18（+08:00），**修复清单（r2）**。Status 改成 `changes-requested`。
+  1. 问题：过期归档清理时列目录失败，之后的日志全丢。位置：`src/rdp/infra/logging.py` `_delete_expired` / `getFilesToDelete`。期望：列目录（`iterdir`、`is_file`、`is_symlink` 等）报 `OSError` 时同样跳过这次清理，当条和之后的记录照常写入；启动清理只试一次就清掉 `_startup_cleanup`（失败也清，下次切分再试）；切分时 `rolloverAt` 照常前进、活动文件照常重开。先写测试看到失败：启动阶段和切分阶段各一种。`getFilesToDelete` 自己的契约（返回过期归档列表）不变。
+  2. 问题：两个默认路径常量是公开名，多出了模块的对外接口（2.9）。位置：`src/rdp/infra/config.py` 的 `DEFAULT_STATE_DIR_RELATIVE`、`DEFAULT_CONFIG_FILE_RELATIVE`。期望：改成 `_` 开头的私有名；没有别处引用。
+- 2026-10-24 10:20（+08:00），第 8 步派工 r2（修复轮第 2 轮，续接）。提示 `assets/…/prompt-r2.md`。快照 `refs/rdp/m0-03/r2`（`c257c37`，树和 `r1-done` 相同）。Status 改回 `in-progress`。会话同上，先 `cd <工作目录>` 再续接（带 `network_access=true`），`-o assets/…/out-r2.md`。运行日志 `<执行线临时目录>/m0-03/ev-r2.jsonl`、`err-r2.txt`。网关直连 200。

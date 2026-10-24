@@ -1,0 +1,11 @@
+[转红] 中间件改用客户端带来的编号：test_client_request_id_ignored → ['1 failed, 1 warning in 0.18s']
+[转红] 中间件用 add_middleware 挂在框架错误处理之内：test_request_ids_on_all_response_statuses test_request_wrapper_outside_error_stack → ['2 failed, 1 warning in 0.13s']
+[转红] log_context 退出不恢复：test_nested_context test_context_exception_restore test_context_cancel_restore test_request_context_restored_after_failure → ['4 failed, 1 warning in 0.19s']
+[转红] 下一零点按固定 86400 秒算：test_dst_calendar_midnight → ['1 failed in 0.03s']
+[转红] 访问日志没关：test_uvicorn_access_disabled test_health_has_no_access_log → ['2 failed, 1 warning in 0.13s']
+[转红] 报错回显所有值：test_sensitive_error_values test_unknown_fields → ['2 failed in 0.04s']
+[转红] 已有目录也 chmod：test_existing_layout_checked_without_writes test_existing_permissions_unchanged → ['2 failed in 0.04s']
+[转红] 时钟回拨后用回拨时刻重算边界：test_clock_rollback → ['1 failed in 0.02s']
+[转红] 同名归档直接覆盖：test_archive_collision → ['1 failed in 0.02s']
+[转红] 请求编号放进进程全局（模仿 ContextVar 接口）：test_concurrent_request_ids test_concurrent_context_isolation → ['2 failed, 1 warning in 0.14s']
+合计：转红 10，未转红或跳过 0
