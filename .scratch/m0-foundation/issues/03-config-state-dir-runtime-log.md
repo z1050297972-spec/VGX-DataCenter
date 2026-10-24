@@ -1,6 +1,6 @@
 # 配置、状态目录与运行日志
 
-Status: in-review
+Status: done
 
 ## 依据
 
@@ -209,3 +209,8 @@ Status: in-review
     5. 日志写失败时（磁盘满、切分时 rename 失败）会丢记录且没有提示（`raiseExceptions = False`，ADR 0005）；同名归档追加合并中途失败、重试时会重复追加一段（不丢）。
     6. 缺失的祖先目录（例如 `~/.local/share`）也会建成 0700；P4 警告不受日志级别限制，ERROR 级别下照样写。
   - **下一张**：第 4 张「诊断与报错框架」（依赖本票）。
+- 2026-10-23，主会话复核后合并（负责人"merge and submit. follow your recommend"）。
+  - 复核：`make check` 十一步全绿（pytest 232 passed，Vitest 19 passed）；改动只在 `src/`、`tests/`；四份运行日志的安装和联网 grep 都没有命中。
+  - 3.7：`9990148 合并：配置、状态目录与运行日志`，钩子在合并结果上全绿；工作目录、分支、`refs/rdp/m0-03/*` 已删除。Status 改成 `done`。
+  - **R1**（负责人按推荐）：启动后归档日期不准的问题放进第 11 张修；`log_config=None, access_log=False` 也写进第 11 张的范围和验收。
+  - 手册：新建 `docs/manual/运维手册.md`，写配置文件、状态目录、运行日志三节。
