@@ -1,6 +1,6 @@
 # 诊断与报错框架
 
-Status: ready-for-agent
+Status: in-review
 
 ## 依据
 
@@ -93,3 +93,56 @@ Status: ready-for-agent
   - **E2**：接口的错误编号就是请求编号，作业里的就是作业编号；完整报错存进数据库保留 30 天，存表的那一步放到第 5 张，本票先写运行日志。
   - **E3**：接口错误响应用 RFC 9457 `application/problem+json`，扩展字段：类别、诊断列表、错误编号。
   - Status 改成 `ready-for-agent`。等第 3 张合并以后再开票。
+
+- 2026-10-24 11:55（+08:00），第 1 步开票（执行线）。扫过 `.scratch/m*/issues/*.md` 的 `Status:` 行：01、02、03 是 done，其余都是 `ready-for-agent`，没有别的实现票在进行中；没有在跑的 `codex exec`。Status 改成 `in-progress`。`git worktree add -b t/m0-04-diagnostics-error-framework ~/桌面/robot-data-platform.wt/m0-04-diagnostics-error-framework main`，在 `f19f883`。`uv sync --frozen`、`src/web/` 里 `pnpm install --frozen-lockfile --offline`（0.6 秒）后，基线 `make check` 十一步全绿：ruff 通过；basedpyright `0 errors, 0 warnings, 0 notes`；import-linter `2 kept, 0 broken`；契约检查 `问题总数: 0`；pytest `232 passed, 1 warning`（warning 是第 2 张就有的 starlette `StarletteDeprecationWarning`）；OpenAPI 过期检查"均未过期"；Vitest `19 passed`；用时 11.9 秒。跑前跑后 `git status --porcelain --untracked-files=all` 都为空；`core.hooksPath` 是 `.githooks`。输出在 `<执行线临时目录>/m0-04/baseline-check.txt`。
+  - **和本票有关的框架事实**（执行线查过工作目录里 starlette 1.9.0 的源码）：`ServerErrorMiddleware` 调用 `Exception` 处理器、发出 500 以后会 `raise exc` 重新抛出，异常会继续传到外层的 `RequestIdMiddleware` 和 uvicorn，uvicorn 会再记一次 traceback。验收第 3 条"只出现一次 traceback"要在契约里处理这一点，已写进派工 A 的提示。
+- 2026-10-24 12:00（+08:00），第 2 步派工 A（新会话）。
+  - 提示 `assets/04-diagnostics-error-framework/prompt-A.md`：派工 A 模板，交付 `rdp.infra.diagnostics`（诊断对象、日志文本和 JSON 渲染、聚合、四类异常基类和状态码）、`rdp.api` 的统一异常处理、`rdp.jobs.outcome`、import-linter 登记 `rdp.jobs`、前端诊断卡片组件的契约，以及跳过的测试清单（pytest、Vitest）。要 Codex 在契约里定下并在最终回复里说明的：字段可空与值类型；枚举的英文名、JSON 值、中文名；日志摘要行写法；聚合的输入输出和顺序；程序缺陷带不带诊断；输入或数据问题基类的默认状态码；problem+json 扩展字段名和 `type`；参数校验失败回不回显原值（口令）；日志里的请求行；starlette `ServerErrorMiddleware` 重新抛出时怎么保证只有一次 traceback；Starlette 自己的 404/405 改不改成 problem+json；错误响应怎么进 OpenAPI；演示路由放在哪里（建议放 `tests/`，不加配置项）；作业结果的边界情况；"点开看完整报错"在本票显示什么；非 problem+json 响应怎么显示；诊断字段对着 09 的工具事件、示例里的"错误链"和 M1 一致性面板"两级"核一遍够不够用。允许改的受保护文件只有 `pyproject.toml` 的 `[tool.importlinter]`。`HealthPage` 换组件留给 B。
+  - 快照 `refs/rdp/m0-04/A`（`fa70a52`，树和 `f19f883` 相同）。会话 `01a16c0b-b944-7562-888b-dc7fe018c60f`。
+  - 命令：在工作目录里 `timeout 60m codex exec -C <工作目录> -s workspace-write -c 'sandbox_workspace_write.network_access=true' -m gpt-6-astra -c 'model_reasoning_effort="high"' --json -o assets/…/out-A.md - < prompt-A.md`。运行日志 `<执行线临时目录>/m0-04/ev-A.jsonl`、`err-A.txt`。
+  - 派工前：codex-cli 0.163.0；网关 `10.1.179.3:8088` 直连 200。
+- 2026-10-24 12:25（+08:00），派工 A 交回，第 3 步审骨架（`codex-workflow.md` 3.3）。
+  - 运行：本机时间 21:54–22:14（−06:00），退出码 0，最后一条 `turn.completed`，`out-A.md` 在 assets；stderr 为空，开头的 `disable_response_storage` `error` 是已知现象。运行日志里唯一一处 "stream disconnected" 在 `cat docs/brief/*.md` 的输出里，不是网关断开。
+  - **重跑**：工作目录 `make check` 退出码 0，十一步全绿，用时 11.1 秒：basedpyright `0 errors, 0 warnings, 0 notes`；import-linter `2 kept, 0 broken`（layers 合约插入了 `rdp.jobs`，forbidden 合约加了 `rdp.jobs`）；契约检查 `问题总数: 0`；pytest `232 passed, 92 skipped, 1 warning`（warning 同基线）；OpenAPI 过期检查"均未过期"；Vitest `19 passed | 33 skipped`。跑前跑后 `git status --porcelain --untracked-files=all` 相同。输出 `<执行线临时目录>/m0-04/A-done-check.txt`。
+  - **文件归属**：工作目录改动 ` M pyproject.toml`、` M src/rdp/api/__init__.py`、` M src/web/src/HealthPage.test.tsx`、` M src/web/src/api/{openapi.json,schema.d.ts}`（`make api-types` 生成），新文件 `src/rdp/api/{_asgi,errors}.py`、`src/rdp/infra/diagnostics.py`、`src/rdp/jobs/{__init__,outcome}.py`、`src/web/src/{DiagnosticCard.tsx,DiagnosticCard.test.tsx}`、`src/web/src/api/{problems.ts,problems.test.ts}`、`tests/{diagnostics_demo,test_api_errors,test_diagnostics,test_diagnostics_demo,test_job_outcome}.py`。受保护文件只动了 `pyproject.toml` 的 `[tool.importlinter]`（+5/−3，两条注释写了理由），`Makefile`、`scripts/`、`.githooks/`、锁文件、前端配置都没动。主仓库目录 `-- src tests` 为空；非规划文件只有负责人的 `Read_First_What're_Files_Meaning?.md`。**通过。**
+  - **运行日志**：45 条命令（读规划文件用主仓库绝对路径；读 starlette `middleware/errors.py`、`applications.py` 和 uvicorn `h11_impl.py` 的源码；用 python heredoc 写文件；`make api-types` 4 次；`make check` 6 次，前 4 次失败后修好）。两个旧项目的命中都在 `cat AGENTS.md`、brief 的输出里，没有命令碰它们或 `/mnt`；安装、联网命令的 grep 无结果；`/tmp` 只有 `make check-api-types` 自建自删的临时目录。命令清单 `<执行线临时目录>/m0-04/A-commands.txt`。**通过。**
+  - **审骨架**：公开的 `render_diagnostic`、`aggregate_diagnostics`、四类异常的 `__init__`、`validation_diagnostics`、`build_problem`、`format_exception_report`、`handle_error`、`ErrorBoundary.__init__`/`__call__`、`install_error_handlers`、`calculate_outcome`、`mount_diagnostic_demo` 六项齐全，内容合格；`Diagnostic`、`DiagnosticObject`、`DiagnosticGroup`、`ProblemResponse`、三个枚举都有 `Attributes:`；TS 的 `DiagnosticCard`、`readProblemResponse`、`createProblemFetch`、`toFailureView` 的 TSDoc 六项齐全。测试 92 + 33 个跳过，对着每条 `Raises:` 和验收第 1–7 条都找得到（验收 1 两个代表性故障、验收 3 用真实 `ServerErrorMiddleware` 和 uvicorn h11 驱动、验收 4 的 9/10/11 边界、验收 5 的五种边界、验收 7 的反向依赖植入）。新增豁免只有 4 条骨架期的 `eslint-disable-next-line @typescript-eslint/no-unused-vars`，写了理由，B 必须删。没有新依赖，没有契约变更申请。
+  - **Codex 定下的要点**：诊断用冻结的 pydantic 模型，十个字段，只有"期望"可空，对象值只收字符串；只报告一次的办法是在请求编号中间件和整个框架栈之间加一层 `ErrorBoundary`，截住 `ServerErrorMiddleware` 重抛的异常，记一次日志后吞掉，流式中途失败和后台任务失败也覆盖；参数校验失败的诊断完全不回显原值；日志的请求行只写方法和路由模板，不写查询串和路径实值；Starlette 自己的 404/405 和 `/api` 兜底 404 保持原来的 JSON；"点开看完整报错"本票显示"请按错误编号在运行日志中查询完整报错"，组件留了一个取详情回调给第 5 张；演示路由在 `tests/diagnostics_demo.py`，生产代码里没有。
+  - **评审意见，B 里处理，不用负责人拍板**：
+    - `create_app` 里骨架期"提前缓存 OpenAPI、登记组件"的权宜，B 换成 `install_error_handlers` 的按需合并，并删掉 `create_app` docstring 和注释里的骨架期说明。
+    - 删 4 条骨架期 `eslint-disable`。
+    - `HealthPage` 换成 `DiagnosticCard`、删 `Alert` 权宜和注释（已在测试清单）。
+    - 演示（验收 9）：页面目前只调 `/api/health`，要截到四类卡片，`mount_diagnostic_demo` 需要能让演示应用里的 `/api/health` 按选择抛四类之一（仍然只在 `tests/` 里）；B 的提示里补这一条，截图由执行线在沙箱外做。
+    - 显式四类异常和参数校验失败在运行日志记 ERROR（6.5"某个操作失败了"），按 Codex 的定。
+    - Starlette 的 404/405 保持原格式，前端遇到时显示固定的"请求失败"提示，按 Codex 的定；以后业务的"找不到"用输入或数据问题的 404 子类。
+    - 流式响应中途失败时，uvicorn 可能另记一条不带 traceback 的"响应未完成"协议日志；验收 3 说的是 traceback 只有一次，可以接受。
+    - 使用手册"怎么看报错"一节归 Claude 写（`docs/` 只由 Claude 改），评审通过后写。
+  - 快照 `refs/rdp/m0-04/A-done`（`ae6ed5a`）。
+- 2026-10-24 12:30（+08:00），**骨架关卡一页摘要**（执行线起草，交主会话转负责人）。
+  1. **这张票做什么**：平台所有"出了什么问题"都用同一种诊断对象表达，渲染成日志文本、接口 JSON 和网页卡片；四类异常和 HTTP 状态码；接口边界只报告一次；作业结果由一个函数算出。
+  2. **函数清单**：
+
+     | 模块 | 函数 | 职责 | 改动什么 | 什么情况下报错 |
+     |---|---|---|---|---|
+     | `rdp.infra.diagnostics` | `Diagnostic`（模型） | 不可变诊断：级别、类别、阶段、来源、对象（有序键值对）、规则、实际、期望、后果、下一步；只有"期望"可空 | 无 | 字段缺失、空白、重复对象键、工具来源报"冲突" → pydantic `ValidationError`（不回显输入） |
+     | 同上 | `render_diagnostic(d) -> str` | 渲染成日志用的六行：摘要 + 对象/规则/实际与期望/后果/检查 | 无 | 无 |
+     | 同上 | `aggregate_diagnostics(ds) -> tuple[DiagnosticGroup, ...]` | 按（来源、规则）分组，每组保留前 10 条样例，总数、错误数、警告数完整 | 消费一次输入 | 混进非诊断项 → `ValueError` |
+     | 同上 | `InputError` / `ConflictError` / `ExternalError` / `DefectError` | 四类异常基类，带诊断；状态码 400（子类可 404、422）/409/502/500 | 无 | 诊断为空（缺陷除外）、类别或级别不符、子类改了不允许的状态码 → `ValueError` |
+     | `rdp.api.errors` | `build_problem(request, error)` | 异常转成 RFC 9457 `problem+json`：`type`=`about:blank`、`title`、`status`、`detail`，加 `category`、`diagnostics`、`error_id`（=请求编号） | 无 | 请求编号没绑定 → `RuntimeError` |
+     | 同上 | `validation_diagnostics(...)` | 参数校验失败 → 每个字段一条 422 诊断，**不回显原值**（防口令） | 无 | 无 |
+     | 同上 | `handle_error` / `ErrorBoundary` / `install_error_handlers(app)` | 统一异常处理；意外异常在最外层记一次完整 traceback，不让框架和 uvicorn 再记 | 写运行日志一次 | 中间件栈已建好后再安装 → `RuntimeError` |
+     | 同上 | `format_exception_report(e) -> str` | 生成写进日志的异常链和 traceback | 无 | 无（脱敏程度见问题 2） |
+     | `rdp.jobs.outcome` | `calculate_outcome(*, total_items, failed_items, warning_count, aborted) -> JobOutcome` | 四种作业结果；中止一律失败；部分失败加警告仍是部分成功；空作业按警告数 | 无 | 负数、失败多于总数、类型不对 → `ValueError` |
+     | 前端 | `DiagnosticCard`、`readProblemResponse`、`createProblemFetch`、`toFailureView` | 五段卡片（实际与期望同一行）；程序缺陷只显示一句话和编号，点开才看详情；非 `problem+json` 的失败（断网、代理 HTML）显示固定文案 | 无 | 无（都转成固定提示） |
+
+     `pyproject.toml` 只改 import-linter：`rdp.jobs` 登记为领域层，也不许 import Web 框架。演示路由在 `tests/` 下，生产代码里没有。
+  3. **测试清单**（125 个，都先跳过）：诊断 32（字段校验、六行渲染、10 条样例的 9/10/11 边界、不同组不挤占、四类异常构造、示例一"转换部分成功"）；接口 40（四类和校验失败的状态码与媒体类型、不回显口令、日志只记一次——用真实的框架错误中间件和 uvicorn 驱动、流式中途失败、后台任务失败、并发编号不串、OpenAPI 里有错误响应、示例二"平台缺陷"）；作业结果 16（五种边界、非法计数、import-linter 反向依赖被拦）；演示 4；前端 33（卡片五段、缺陷折叠与展开、非 problem 响应、`HealthPage` 换组件）。
+  4. **要负责人拍板的**：
+     1. **诊断要不要加一个可选的"错误链"字段？** 代表性故障示例一里，工具报的 ERROR 诊断带三层错误链（"转换文件失败 ← 相机解码失败 ← 流中没有关键帧"）。Codex 的方案是错误链只放在异常和日志里，诊断不带。这样平台自己的异常没问题，但 M4 接工具时，工具报的错误链没地方放，到时要加字段、回到骨架关卡。
+        - 建议：现在就加，可选，默认空（从外到内的几行文字）；日志里写成"错误链："几行，网页上折叠显示。
+     2. **日志里的 traceback 要不要保留原始报错文字？** Codex 为了防止口令进日志，把平台四类以外的异常消息一律换成"异常消息已隐藏"，源码行也去掉。这样示例二那行关键信息 `TypeError: expected str, bytes or os.PathLike object, not NoneType` 就看不到了，排查会很难。
+        - 建议：保留异常消息和源码行，和示例二一致（不打印局部变量，标准库默认也不打）。防口令靠两处：参数校验失败从不回显原值；我们自己的模型都设了"报错不回显输入"。
+     3. **M1 一致性面板的"需要处理 / 提示"两级怎么对应？** 诊断只有错误、警告两级，表示对作业的影响；面板的两级是"要不要人去处理"，两者不一样（例如存储根离线：面板上"需要处理"，对扫描作业只是警告）。
+        - 建议：同意 Codex 的意见，诊断不加级别；M1 在面板条目上另加"处理优先级"，不改诊断对象。
+  5. **结论：建议通过**（问题 1、2 按建议在派工 B 里改；问题 3 只影响 M1）。检查都由执行线重跑过：`make check` 十一步 11.1 秒全绿，跑完不留痕迹；文件归属干净；运行日志没有碰旧项目、`/mnt`，没有安装和联网命令；没有新依赖；没打回（0 轮）。负责人说"通过"以后，做契约提交 `契约：诊断与报错框架`，Status 改回 `in-progress`，派工 B。
+  - Status 改成 `in-review`，交回主会话。
