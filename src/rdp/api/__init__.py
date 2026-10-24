@@ -6,26 +6,24 @@
 
 import logging
 import stat
-from collections.abc import Awaitable, Callable, MutableMapping
 from pathlib import Path
-from typing import Any, override
+from typing import override
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pydantic.json_schema import models_json_schema
 
+from rdp.api._asgi import ASGIApp as _ASGIApp
+from rdp.api._asgi import ASGIMessage as _ASGIMessage
+from rdp.api._asgi import Receive as _Receive
+from rdp.api._asgi import Send as _Send
+from rdp.api.errors import ProblemResponse
 from rdp.api.health import HealthResponse, get_health
 from rdp.infra.logging import log_context
 
 logger = logging.getLogger(__name__)
-
-# ASGI 边界本身是开放字典，字段由服务器与框架定义；此处只描述调用形状，
-# 不直接 import 未声明的 starlette，不复制框架的消息字段枚举。
-type _ASGIMessage = MutableMapping[str, Any]
-type _Receive = Callable[[], Awaitable[_ASGIMessage]]
-type _Send = Callable[[_ASGIMessage], Awaitable[None]]
-type _ASGIApp = Callable[[_ASGIMessage, _Receive, _Send], Awaitable[None]]
 
 
 class RequestIdMiddleware:
@@ -134,6 +132,9 @@ def create_app(web_dist: Path | None) -> FastAPI:
         非 GET 请求不使用 SPA 回退。静态服务不允许读取目录外文件或跟随越界软链接。
         应用包含 RequestIdMiddleware，包在框架错误处理中间件之外；每次 HTTP 请求
         生成 uuid4().hex 请求编号，忽略客户端同名头，所有已发送响应含唯一 X-Request-ID。
+        工单 04 骨架额外登记 ProblemResponse 及诊断组件 schema，提前缓存 OpenAPI；
+        尚不启用占位处理器，错误响应行为不变。测试添加路由后应清空 app.openapi_schema。
+        派工 B 的接入契约见 rdp.api.errors.install_error_handlers，不改变本函数签名。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -191,4 +192,14 @@ def create_app(web_dist: Path | None) -> FastAPI:
 
         app.add_exception_handler(404, _spa_fallback)
         app.mount("/", static_files)
+    # 骨架需要真实生成的前端类型，但不能调用占位处理器；先只登记未引用的组件。
+    # 派工 B 用 install_error_handlers 的按需 schema 合并替代此提前缓存，并登记错误响应。
+    # 字段完全来自 Pydantic，避免手写一份和运行时模型不同的 OpenAPI。
+    _, diagnostic_schemas = models_json_schema(
+        [(ProblemResponse, "serialization")], ref_template="#/components/schemas/{model}"
+    )
+    schema = app.openapi()
+    schema.setdefault("components", {}).setdefault("schemas", {}).update(
+        diagnostic_schemas["$defs"]
+    )
     return app

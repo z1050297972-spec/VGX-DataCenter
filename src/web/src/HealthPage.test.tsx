@@ -85,3 +85,15 @@ it("验证契约：默认客户端跨重渲染稳定且页面不修改 URL", () 
   expect(cache.getQueryCache().getAll()).toHaveLength(1);
   expect(location.href).toBe(initialUrl);
 });
+
+it.skip("验证契约：派工 B 用 DiagnosticCard 替代 Alert 权宜，四类problem按契约展示且不保留成功提示", () => {
+  // 本轮只列迁移清单，保留 HealthPage 已实现的行为。
+});
+
+it.skip("验证契约：派工 B 的fetchHealth透传统一Error，网络断开和代理HTML经toFailureView显示固定文案", () => {
+  // 本轮只列迁移清单，保留 HealthPage 已实现的行为。
+});
+
+it.skip("验证契约：派工 B 移除HealthPage的Alert导入及权宜注释，成功加载缓存超时行为保持第2张契约", () => {
+  // 本轮只列迁移清单，保留 HealthPage 已实现的行为。
+});
