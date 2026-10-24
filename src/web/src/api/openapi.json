@@ -3,7 +3,7 @@
     "schemas": {
       "Diagnostic": {
         "additionalProperties": false,
-        "description": "工具与平台共用的不可变五段诊断；JSON 字段名与属性同名，禁止额外字段。\n\n所有文本保留原内容，不接受空串或纯空白；除 expected 外不接受 null。\n使用 model_validate/model_validate_json 校验，model_dump(mode=\"json\") 生成可序列化对象，\nmodel_dump_json 生成 JSON 文本；枚举输出其值，tuple 输出数组，expected=None 输出 null。\n这三个 Pydantic 方法是唯一 JSON 转换入口，不另写转换结构；不使用 model_construct\n或未校验的 model_copy(update=...) 绕开校验。字段校验失败为 Pydantic ValidationError。\n\nAttributes:\n    level: 级别，DiagnosticLevel 两种之一；无单位，必填，无默认值。\n    category: 类别，DiagnosticCategory 四种之一；无单位，必填，无默认值。\n    stage: 阶段名称，非空白文本；无单位，必填，无默认值；确实未知时写“未知阶段”。\n    source: “平台”或非空白工具名；无单位，必填，无默认值；不存工具版本。\n    objects: 按生产者顺序的 DiagnosticObject 元组；无单位，必填，无默认值；\n        允许空元组表示全局问题，键不得重复；JSON 数组保持顺序，嵌套对象同样不可变。\n    rule: 被违反的规则的稳定文本，兼作来源内的聚合标识；非空白，无单位，必填。\n        同一规则不能嵌入文件名、实测值或随条目变化的内容；无默认值。\n    actual: 实际情况，非空白文本，必填，无默认值；数值及单位由生产者明确写出。\n    expected: 期望情况，非空白文本或 None；默认 None 表示没有可比较的期望，\n        不代表实际为空；数值及单位由生产者明确写出。\n    consequence: 后果，非空白文本，必填，无默认值；写明丢失/跳过和剩余结果是否可用。\n    next_step: 下一步检查建议，非空白文本，必填，无默认值；没有补救时明确写“无需处理”。",
+        "description": "工具与平台共用的不可变五段诊断；JSON 字段名与属性同名，禁止额外字段。\n\n所有文本保留原内容，不接受空串或纯空白；除 expected 外不接受 null。\n使用 model_validate/model_validate_json 校验，model_dump(mode=\"json\") 生成可序列化对象，\nmodel_dump_json 生成 JSON 文本；枚举输出其值，tuple 输出数组，expected=None 输出 null。\n这三个 Pydantic 方法是唯一 JSON 转换入口，不另写转换结构；不使用 model_construct\n或未校验的 model_copy(update=...) 绕开校验。字段校验失败为 Pydantic ValidationError。\n\nAttributes:\n    level: 级别，DiagnosticLevel 两种之一；无单位，必填，无默认值。\n    category: 类别，DiagnosticCategory 四种之一；无单位，必填，无默认值。\n    stage: 阶段名称，非空白文本；无单位，必填，无默认值；确实未知时写“未知阶段”。\n    source: “平台”或非空白工具名；无单位，必填，无默认值；不存工具版本。\n    objects: 按生产者顺序的 DiagnosticObject 元组；无单位，必填，无默认值；\n        允许空元组表示全局问题，键不得重复；JSON 数组保持顺序，嵌套对象同样不可变。\n    rule: 被违反的规则的稳定文本，兼作来源内的聚合标识；非空白，无单位，必填。\n        同一规则不能嵌入文件名、实测值或随条目变化的内容；无默认值。\n    actual: 实际情况，非空白文本，必填，无默认值；数值及单位由生产者明确写出。\n    expected: 期望情况，非空白文本或 None；默认 None 表示没有可比较的期望，\n        不代表实际为空；数值及单位由生产者明确写出。\n    consequence: 后果，非空白文本，必填，无默认值；写明丢失/跳过和剩余结果是否可用。\n    next_step: 下一步检查建议，非空白文本，必填，无默认值；没有补救时明确写“无需处理”。\n    error_chain: D1 的可选文本错误链，从外到内每层一句非空白文本；单位层，\n        默认空元组，不接受 null；JSON 输出有序字符串数组，不包含 traceback。",
         "properties": {
           "actual": {
             "$ref": "#/components/schemas/DiagnosticText"
@@ -13,6 +13,14 @@
           },
           "consequence": {
             "$ref": "#/components/schemas/DiagnosticText"
+          },
+          "error_chain": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DiagnosticText"
+            },
+            "title": "Error Chain",
+            "type": "array"
           },
           "expected": {
             "anyOf": [
@@ -191,6 +199,66 @@
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Health"

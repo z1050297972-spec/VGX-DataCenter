@@ -52,4 +52,20 @@ def calculate_outcome(
     Time Semantics:
         同步纯函数，不读时钟；调用方在作业已完成、计数冻结后调用，取消/中断不调用。
     """
-    raise NotImplementedError
+    if type(aborted) is not bool:
+        raise ValueError("整体中止标志必须为 bool")
+    if any(type(value) is not int for value in (total_items, failed_items, warning_count)):
+        raise ValueError("作业计数必须为整数且不能为 bool")
+    if any(value < 0 for value in (total_items, failed_items, warning_count)):
+        raise ValueError("作业计数必须为非负整数")
+    if failed_items > total_items:
+        raise ValueError("失败条目数不能大于总条目数")
+    if aborted:
+        return JobOutcome.FAILED
+    if total_items > 0 and failed_items == total_items:
+        return JobOutcome.FAILED
+    if failed_items > 0:
+        return JobOutcome.PARTIALLY_SUCCEEDED
+    if warning_count > 0:
+        return JobOutcome.SUCCEEDED_WITH_WARNINGS
+    return JobOutcome.SUCCEEDED

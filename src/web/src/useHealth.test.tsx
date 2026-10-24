@@ -54,7 +54,10 @@ it("验证契约：QueryClientProvider 内加载、成功和失败状态正确",
   await waitFor(() => {
     expect(failed.result.current.isError).toBe(true);
   });
-  expect(failed.result.current.error).toBe(failure);
+  expect(failed.result.current.error).toMatchObject({
+    message: "请求失败",
+    cause: { kind: "unavailable" },
+  });
 });
 
 it("验证契约：缓存有效期内不重复请求，过期后重新挂载可获取", async () => {
@@ -102,7 +105,10 @@ it("验证契约：不同注入客户端不共享健康缓存", async () => {
   const second = renderHook(() => useHealth(secondClient), environment);
   expect(second.result.current.data).toBeUndefined();
   await waitFor(() => {
-    expect(second.result.current.error).toBe(failure);
+    expect(second.result.current.error).toMatchObject({
+      message: "请求失败",
+      cause: { kind: "unavailable" },
+    });
   });
   expect(secondTransport).toHaveBeenCalledTimes(1);
 });

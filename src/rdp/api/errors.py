@@ -1,23 +1,60 @@
 """入口层的 problem+json 与唯一错误报告边界（M0 工单 04，E2/E3）。
 
 使用 FastAPI/Pydantic 的响应、模型和校验异常，以及标准库 traceback 的栈提取能力；
-安全报告只补项目的脱敏策略，不另建序列化或栈解析框架，不新增依赖。
+D2 直接沿用标准库异常消息和源码行，不打印局部变量；参数校验不回显原值，
+自己的 Pydantic 模型均 hide_input_in_errors=True，不新增依赖或自行解析栈。
+状态码以主仓库 CODING_STANDARDS.md 6.2 为准；新状态码先改那张表，再改代码。
+| 状态码 | 类别 | 什么时候用 | 响应 |
+|---|---|---|---|
+| 400 | 输入或数据问题 | 默认：请求合格，但内容或数据有问题，例如数据集缺文件 | problem+json，带诊断 |
+| 404 | 输入或数据问题 | 要操作的对象不存在，例如数据集、账号、作业编号查不到 | problem+json，带诊断 |
+| 422 | 输入或数据问题 | 请求参数不合格（类型、范围、缺项）；不回显原值 | problem+json，带诊断 |
+| 409 | 冲突 | 和当前状态冲突，例如预览之后数据集被别的作业改过 | problem+json，带诊断 |
+| 502 | 外部失败 | 依赖的外部东西出错，例如存储根离线、外部工具失败 | problem+json，带诊断 |
+| 500 | 程序缺陷 | 平台自己的 bug，以及任何没被归入前三类的异常 | problem+json，一句话加错误编号，不带内部细节 |
+| 401、403 | （第 6 张定） | 没登录、没权限 | 第 6 张「账号与登录」补进本表 |
+| 404、405 | （框架） | 接口路径不存在、方法不对，由 Starlette 直接返回 | 保持框架原格式；前端显示"请求失败" |
+
 RFC 9457 使用 about:blank；诊断模型来自基础层，不存数据库、traceback 或请求载荷。
 只报告一次需要 ASGI 外层配合：本地 starlette/middleware/errors.py 的 ServerErrorMiddleware
 无条件重抛 Exception，uvicorn/protocols/http/h11_impl.py 的 run_asgi 会记录逃逸 traceback。
 所以顺序是 RequestIdMiddleware → ErrorBoundary → 完整 FastAPI 栈；不改第 3 张的透传契约。
-本票骨架只登记 schema，不安装会执行占位函数的处理器；派工 B 按 install_error_handlers 接入。
+create_app 通过 install_error_handlers 安装统一处理，OpenAPI 在请求生成时合并模型和响应。
 """
 
-from typing import Literal, Self
+import logging
+import sys
+import traceback
+from http import HTTPStatus
+from itertools import chain
+from types import UnionType
+from typing import Annotated, Any, Literal, Self, Union, cast, get_args, get_origin
+from uuid import UUID
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.json_schema import models_json_schema
 
 from rdp.api._asgi import ASGIApp, ASGIMessage, Receive, Send
-from rdp.infra.diagnostics import Diagnostic, DiagnosticCategory, DiagnosticText
+from rdp.infra.diagnostics import (
+    ALLOWED_HTTP_STATUSES,
+    ConflictError,
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    DiagnosticObject,
+    DiagnosticText,
+    ExternalError,
+    InputError,
+    render_diagnostic,
+)
+from rdp.infra.logging import request_id_context
+
+logger = logging.getLogger(__name__)
 
 
 class ProblemResponse(BaseModel):
@@ -51,7 +88,16 @@ class ProblemResponse(BaseModel):
     @model_validator(mode="after")
     def _validate_problem(self) -> Self:
         """拒绝状态/标题/类别不匹配、跨类别诊断和缺陷载荷中的诊断，包装为 ValidationError。"""
-        raise NotImplementedError
+        if (
+            self.status not in ALLOWED_HTTP_STATUSES[self.category]
+            or self.title != HTTPStatus(self.status).phrase
+        ):
+            raise ValueError("状态码、标题与类别不一致")
+        if any(item.category is not self.category for item in self.diagnostics):
+            raise ValueError("诊断类别与响应不一致")
+        if self.category is DiagnosticCategory.DEFECT and self.diagnostics:
+            raise ValueError("程序缺陷响应不能包含内部诊断")
+        return self
 
 
 def validation_diagnostics(
@@ -81,7 +127,25 @@ def validation_diagnostics(
     Time Semantics:
         同步转换，不读时钟或重试；保持框架报告顺序。
     """
-    raise NotImplementedError
+    return tuple(
+        Diagnostic(
+            level=DiagnosticLevel.ERROR,
+            category=DiagnosticCategory.INPUT,
+            stage="请求校验",
+            source="平台",
+            objects=(
+                DiagnosticObject(
+                    key="field", value=_validation_location(request, item.get("loc", ()))
+                ),
+            ),
+            rule="请求字段必须满足接口声明",
+            actual="字段缺失或格式不符合要求（原值不回显）",
+            expected="符合接口声明的类型和约束",
+            consequence="请求被拒绝，操作未执行",
+            next_step="对照接口字段定义修正后重试",
+        )
+        for item in (error.errors() or [{}])
+    )
 
 
 def build_problem(request: Request, error: Exception) -> ProblemResponse:
@@ -110,33 +174,70 @@ def build_problem(request: Request, error: Exception) -> ProblemResponse:
     Time Semantics:
         同步转换，必须在请求绑定范围内调用；不读时钟。
     """
-    raise NotImplementedError
+    request_id = request_id_context.get()
+    try:
+        valid = (
+            request_id is not None
+            and UUID(request_id).version == 4
+            and UUID(request_id).hex == request_id
+        )
+    except (ValueError, AttributeError):
+        valid = False
+    if not valid or request_id is None:
+        raise RuntimeError("请求编号上下文缺失或非法")
+    status = HTTPStatus.INTERNAL_SERVER_ERROR
+    category = DiagnosticCategory.DEFECT
+    diagnostics: tuple[Diagnostic, ...] = ()
+    detail = "平台内部错误，请把错误编号交给维护者。"
+    if isinstance(error, (InputError, ConflictError, ExternalError)):
+        status, category, diagnostics = error.http_status, error.category, error.diagnostics
+        detail = {
+            DiagnosticCategory.INPUT: "输入或数据不符合要求，请查看诊断。",
+            DiagnosticCategory.CONFLICT: "操作发生冲突，请查看诊断。",
+            DiagnosticCategory.EXTERNAL: "外部服务或工具失败，请查看诊断。",
+        }[category]
+    if isinstance(error, RequestValidationError):
+        status, category = HTTPStatus.UNPROCESSABLE_ENTITY, DiagnosticCategory.INPUT
+        diagnostics = validation_diagnostics(request, error)
+        detail = "请求参数不符合要求，请查看诊断。"
+    return ProblemResponse(
+        title=status.phrase,
+        status=status,
+        detail=detail,
+        category=category,
+        diagnostics=diagnostics,
+        error_id=request_id,
+    )
 
 
 def format_exception_report(error: BaseException) -> str:
-    """生成保留链与栈结构、移除不可信消息的安全完整异常报告。
+    """生成保留异常消息和源码行、不打印局部变量的完整异常报告。
 
     Args:
         error: 当前异常及 cause/context 链，也支持 BaseExceptionGroup；不接受 None。
 
     Returns:
-        按标准库 traceback 的链关系输出所有异常类型、栈帧的代码文件/函数/行号及分组分支；
-        遵循显式 cause 和 suppress_context，不遗漏所选链的根因；异常组不截断宽度或深度，
-        循环引用标明已出现，无 traceback 时仍输出异常类型；不输出局部变量、源代码行或 __notes__。
-        四类平台异常仅使用固定类别中文名；其他异常的任意 message/args 一律替换为
-        “异常消息已隐藏”，避免口令由第三方异常进入日志；不调用不可信异常的 __str__。
-        已脱敏的领域诊断由报告边界另附，保留故障上下文。完整指链与栈完整，不是原文逐字保留。
+        按标准库 traceback 的格式保留每层异常的类型和消息、栈帧文件/函数/行号及源码行，
+        __notes__ 沿用标准库行为，不打印局部变量。遵循显式 cause 和 suppress_context，
+        不遗漏所选链的根因；异常组不截断宽度或深度，循环引用标明已出现。
+        无 traceback 时仍输出异常类型和消息；D2 不再替换异常消息或隐藏源码行。
 
     Raises:
         无。
 
     Side Effects:
-        无；不改变异常、traceback 或 logging 状态，不读取源文件、不写日志。
+        无（只读栈帧对应源文件以取得源码行）；不改变异常、traceback 或 logging 状态，不写日志。
 
     Time Semantics:
         同步转换，不读取时钟，不请求数据库或外部系统。
     """
-    raise NotImplementedError
+    report = traceback.TracebackException.from_exception(
+        error, capture_locals=False, max_group_width=sys.maxsize, max_group_depth=sys.maxsize
+    )
+    result = "".join(report.format(chain=True))
+    if _has_exception_cycle(error, frozenset()):
+        result += "循环引用：已出现的异常不重复展开。\n"
+    return result
 
 
 async def handle_error(request: Request, error: Exception) -> JSONResponse:
@@ -149,7 +250,7 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
     Returns:
         status_code 与载荷 status 相同、Content-Type=application/problem+json 的 JSONResponse；
         X-Request-ID 由最外层 RequestIdMiddleware 统一添加，不能重造编号。
-        显式四类异常和校验失败由本处理器在 rdp.api 记录一条 ERROR；诊断以五段追加。
+        显式四类异常和校验失败由本处理器在 rdp.api.errors 记录一条 ERROR；诊断以五段追加。
         DefectError 的响应不含诊断，日志包含安全完整异常报告；其他领域异常有 cause 时
         同样附安全错误链。没有 traceback 的参数校验不记录框架异常正文。
         未知 Exception 这里只构造响应、不记录日志，等待 ServerErrorMiddleware 重抛后
@@ -160,6 +261,8 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
 
     Side Effects:
         无（仅运行日志）；不写数据库，不直接调用 send，不读取请求体或凭据。
+        参数校验失败将安全的字段位置和五段诊断追加到同一条 ERROR；
+        不格式化 RequestValidationError，不记录请求原值。
         日志 fields 只含 method 和 path，不含查询串；路径使用匹配路由模板，
         无已匹配模板时写“未匹配路径”，避免敏感值藏在路径参数或未知路径里。
         request_id 由 contextvars 自动带入；不记录 headers、cookie、账号或异常原始载荷。
@@ -167,7 +270,16 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
     Time Semantics:
         请求作用域内运行，无轮询或重试；日志时间交给 RuntimeFormatter。
     """
-    raise NotImplementedError
+    problem = build_problem(request, error)
+    if isinstance(
+        error, (InputError, ConflictError, ExternalError, DefectError, RequestValidationError)
+    ):
+        _report_error(request, error, problem)
+    return JSONResponse(
+        problem.model_dump(mode="json"),
+        status_code=problem.status,
+        media_type="application/problem+json",
+    )
 
 
 class ErrorBoundary:
@@ -191,7 +303,7 @@ class ErrorBoundary:
         Time Semantics:
             构造不读取时钟，不生成请求编号。
         """
-        raise NotImplementedError
+        self._app = app
 
     async def __call__(self, scope: ASGIMessage, receive: Receive, send: Send) -> None:
         """覆盖整个 HTTP 调用，在未知异常逃离服务器之前完成唯一报告。
@@ -202,7 +314,7 @@ class ErrorBoundary:
             send: 原 ASGI 发送回调；仅跟踪响应是否开始/完成，不修改消息或响应内容。
 
         Returns:
-            正常调用返回 None。HTTP 的意外 Exception（含异常组）在 rdp.api 以 ERROR
+            正常调用返回 None。HTTP 的意外 Exception（含异常组）在 rdp.api.errors 以 ERROR
             记录一次 format_exception_report，使用 handle_error 同样的安全请求 fields，
             然后消费异常，防止它到达 RequestIdMiddleware 和 uvicorn 的 traceback 分支。
             响应未开始时补发 build_problem 生成的 500；已开始时不发送第二个 start，
@@ -226,11 +338,35 @@ class ErrorBoundary:
             覆盖下游流式迭代和后台任务直至退出；必须在 request_id 解绑前报告。
             不增加超时、重试或等待；下游耗时由下游控制。
         """
-        raise NotImplementedError
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+        started = False
+
+        async def track_send(message: ASGIMessage) -> None:
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self._app(scope, receive, track_send)
+        except Exception as error:
+            request = Request(scope, receive=receive)
+            problem = build_problem(request, error)
+            _report_error(request, error, problem)
+            # 已发送前缀不能改写成另一份响应，也不能伪造成功的流式结尾。
+            if not started:
+                response = JSONResponse(
+                    problem.model_dump(mode="json"),
+                    status_code=problem.status,
+                    media_type="application/problem+json",
+                )
+                await response(scope, receive, send)
 
 
 def install_error_handlers(app: FastAPI) -> None:
-    """在应用启动前登记错误处理及文档，供 create_app 在派工 B 接入。
+    """在应用启动前登记错误处理及文档，由 create_app 调用。
 
     Args:
         app: create_app 正在创建的 FastAPI 应用；尚未构建中间件栈或服务请求。
@@ -238,8 +374,9 @@ def install_error_handlers(app: FastAPI) -> None:
     Returns:
         无；登记四类异常、RequestValidationError 和 Exception → handle_error；
         不覆盖 Starlette HTTPException、404 的 SPA 处理器或 _unknown_api，保留其 JSON/头。
-        _RequestContextApp.build_middleware_stack 在 B 中改成
-        RequestIdMiddleware(ErrorBoundary(super().build_middleware_stack()))，保持工厂签名。
+        _RequestContextApp.build_middleware_stack 返回
+        RequestIdMiddleware(ErrorBoundary(super().build_middleware_stack()))，
+        请求编号中间件包在错误报告边界之外，保持工厂签名。
         OpenAPI 登记 ProblemResponse 及其引用的组件；每个 /api 已知路由的 400/404/409/422/502/500
         responses 增加 application/problem+json 的 $ref，同时保留原有合法 application/json
         错误（如框架 404）。使用 FastAPI responses 元数据和 Pydantic schema，不手写字段。
@@ -255,4 +392,137 @@ def install_error_handlers(app: FastAPI) -> None:
     Time Semantics:
         在挂好正式路由后、首次服务请求前调用；测试挂路由后须清空 OpenAPI 缓存再生成。
     """
-    raise NotImplementedError
+    if app.middleware_stack is not None:
+        raise RuntimeError("错误处理器必须在应用启动之前安装")
+    for error_type in (
+        InputError,
+        ConflictError,
+        ExternalError,
+        DefectError,
+        RequestValidationError,
+        Exception,
+    ):
+        app.add_exception_handler(error_type, handle_error)
+    if not getattr(app.state, "rdp_errors_installed", False):
+        original_openapi = app.openapi
+
+        def openapi() -> dict[str, Any]:
+            """用模型生成组件，保留 FastAPI 的缓存与路由文档。"""
+            schema = original_openapi()
+            _, definitions = models_json_schema(
+                [(ProblemResponse, "serialization")], ref_template="#/components/schemas/{model}"
+            )
+            schema.setdefault("components", {}).setdefault("schemas", {}).update(
+                definitions["$defs"]
+            )
+            _document_problem_responses(schema)
+            return schema
+
+        app.openapi = openapi
+        app.state.rdp_errors_installed = True
+    app.openapi_schema = None
+
+
+def _has_exception_cycle(error: BaseException, ancestors: frozenset[int]) -> bool:
+    """标准库避免无限展开；补一个明确标记，不自行重建 traceback 文本。"""
+    if id(error) in ancestors:
+        return True
+    path = ancestors | {id(error)}
+    cause = error.__cause__ or (None if error.__suppress_context__ else error.__context__)
+    children = (
+        cast(BaseExceptionGroup[BaseException], error).exceptions
+        if isinstance(error, BaseExceptionGroup)
+        else ()
+    )
+    return (cause is not None and _has_exception_cycle(cause, path)) or any(
+        _has_exception_cycle(child, path) for child in children
+    )
+
+
+def _model_fields(annotation: Any) -> dict[str, Any]:
+    """只信任路由声明中的字段名；动态字典键不能借错误位置泄漏请求数据。"""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return {
+            field.alias or name: field.annotation for name, field in annotation.model_fields.items()
+        }
+    result: dict[str, Any] = {}
+    if get_origin(annotation) not in (UnionType, Union, Annotated):
+        return result
+    for member in get_args(annotation):
+        result.update(_model_fields(member))
+    return result
+
+
+def _validation_location(request: Request, location: Any) -> str:
+    """逐段沿声明类型匹配位置，未声明的键只显示占位，数字下标保持。"""
+    if not isinstance(location, (tuple, list)) or not location:
+        return "请求"
+    origin, *parts = cast(list[object] | tuple[object, ...], location)
+    route = request.scope.get("route")
+    if origin not in ("body", "query", "path", "header", "cookie") or not isinstance(
+        route, APIRoute
+    ):
+        return "请求"
+    fields = getattr(route.dependant, f"{origin}_params")
+    known = {field.alias: field.field_info.annotation for field in fields}
+    if origin == "body" and len(fields) == 1 and not getattr(fields[0].field_info, "embed", False):
+        declared = _model_fields(fields[0].field_info.annotation)
+        known = declared or known
+    text = str(origin)
+    annotation: Any = None
+    for part in parts:
+        if type(part) is int:
+            text += f"[{part}]"
+            args = get_args(annotation)
+            annotation = args[0] if get_origin(annotation) in (list, tuple) and args else None
+            known = _model_fields(annotation)
+        else:
+            name = part if isinstance(part, str) and part in known else "未声明字段"
+            text += "." + name
+            annotation = known.get(name)
+            known = _model_fields(annotation)
+    return text
+
+
+def _report_error(request: Request, error: Exception, problem: ProblemResponse) -> None:
+    """只记录一次；校验失败仅写安全诊断，不格式化原异常，防止原值进入日志。"""
+    messages = [problem.detail]
+    if isinstance(error, RequestValidationError):
+        messages.extend(render_diagnostic(item) for item in problem.diagnostics)
+    elif isinstance(error, (InputError, ConflictError, ExternalError, DefectError)):
+        messages.extend(render_diagnostic(item) for item in error.diagnostics)
+    if not isinstance(error, RequestValidationError) and (
+        isinstance(error, DefectError)
+        or not isinstance(error, (InputError, ConflictError, ExternalError))
+        or error.__cause__ is not None
+    ):
+        messages.append(format_exception_report(error))
+    route = request.scope.get("route")
+    path = route.path if isinstance(route, APIRoute) else "未匹配路径"
+    logger.error(
+        "%s", "\n".join(messages), extra={"fields": {"method": request.method, "path": path}}
+    )
+
+
+def _document_problem_responses(schema: dict[str, Any]) -> None:
+    """合并标准响应元数据，不把 FastAPI 默认的旧校验响应误留为合法格式。"""
+    for path, operations in schema.get("paths", {}).items():
+        if not path.startswith("/api/"):
+            continue
+        for method, operation in operations.items():
+            if method not in {"get", "post", "put", "patch", "delete", "head", "options", "trace"}:
+                continue
+            for status in chain.from_iterable(ALLOWED_HTTP_STATUSES.values()):
+                response = operation.setdefault("responses", {}).setdefault(
+                    str(status), {"description": status.phrase}
+                )
+                content = response.setdefault("content", {})
+                if (
+                    status == 422
+                    and content.get("application/json", {}).get("schema", {}).get("$ref")
+                    == "#/components/schemas/HTTPValidationError"
+                ):
+                    content.pop("application/json")
+                content["application/problem+json"] = {
+                    "schema": {"$ref": "#/components/schemas/ProblemResponse"}
+                }

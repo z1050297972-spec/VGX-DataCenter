@@ -31,9 +31,13 @@ it("验证契约：非 2xx、缺少响应和非法载荷均拒绝 Promise", asyn
 });
 
 it("验证契约：传输异常保留失败，不伪装为 ok", async () => {
+  // 工单 04 的传输边界统一错误载荷，不再向页面传递任意原始异常。
   const failure = new Error("连接失败");
   const transport = vi.fn<FetchImplementation>().mockRejectedValue(failure);
-  await expect(fetchHealth(createHealthClient(transport))).rejects.toBe(failure);
+  await expect(fetchHealth(createHealthClient(transport))).rejects.toMatchObject({
+    message: "请求失败",
+    cause: { kind: "unavailable", message: "请求失败，请检查网络或稍后重试。" },
+  });
   expect(transport).toHaveBeenCalledTimes(1);
 });
 
@@ -52,7 +56,7 @@ it("验证契约：HEALTH_TIMEOUT_MS 到期中止请求且不重试", async () =
       }),
   );
   const pending = fetchHealth(createHealthClient(transport));
-  const rejected = expect(pending).rejects.toThrow("请求已中止");
+  const rejected = expect(pending).rejects.toThrow("请求失败");
   await vi.advanceTimersByTimeAsync(4999);
   expect(transport.mock.calls[0]?.[0].signal.aborted).toBe(false);
   await vi.advanceTimersByTimeAsync(1);
@@ -82,7 +86,7 @@ it("验证契约：已取消信号不发请求，运行中取消传播到注入 
       }),
   );
   const pending = fetchHealth(createHealthClient(transport), controller.signal);
-  const rejected = expect(pending).rejects.toThrow("运行中取消");
+  const rejected = expect(pending).rejects.toThrow("请求失败");
   controller.abort();
   await rejected;
   expect(transport.mock.calls[0]?.[0].signal.aborted).toBe(true);

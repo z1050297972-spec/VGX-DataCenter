@@ -67,11 +67,18 @@ export interface components {
          *             不代表实际为空；数值及单位由生产者明确写出。
          *         consequence: 后果，非空白文本，必填，无默认值；写明丢失/跳过和剩余结果是否可用。
          *         next_step: 下一步检查建议，非空白文本，必填，无默认值；没有补救时明确写“无需处理”。
+         *         error_chain: D1 的可选文本错误链，从外到内每层一句非空白文本；单位层，
+         *             默认空元组，不接受 null；JSON 输出有序字符串数组，不包含 traceback。
          */
         Diagnostic: {
             actual: components["schemas"]["DiagnosticText"];
             category: components["schemas"]["DiagnosticCategory"];
             consequence: components["schemas"]["DiagnosticText"];
+            /**
+             * Error Chain
+             * @default []
+             */
+            error_chain: components["schemas"]["DiagnosticText"][];
             /** @default null */
             expected: components["schemas"]["DiagnosticText"] | null;
             level: components["schemas"]["DiagnosticLevel"];
@@ -195,6 +202,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
         };
