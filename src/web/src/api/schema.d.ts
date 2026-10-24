@@ -44,6 +44,88 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * Diagnostic
+         * @description 工具与平台共用的不可变五段诊断；JSON 字段名与属性同名，禁止额外字段。
+         *
+         *     所有文本保留原内容，不接受空串或纯空白；除 expected 外不接受 null。
+         *     使用 model_validate/model_validate_json 校验，model_dump(mode="json") 生成可序列化对象，
+         *     model_dump_json 生成 JSON 文本；枚举输出其值，tuple 输出数组，expected=None 输出 null。
+         *     这三个 Pydantic 方法是唯一 JSON 转换入口，不另写转换结构；不使用 model_construct
+         *     或未校验的 model_copy(update=...) 绕开校验。字段校验失败为 Pydantic ValidationError。
+         *
+         *     Attributes:
+         *         level: 级别，DiagnosticLevel 两种之一；无单位，必填，无默认值。
+         *         category: 类别，DiagnosticCategory 四种之一；无单位，必填，无默认值。
+         *         stage: 阶段名称，非空白文本；无单位，必填，无默认值；确实未知时写“未知阶段”。
+         *         source: “平台”或非空白工具名；无单位，必填，无默认值；不存工具版本。
+         *         objects: 按生产者顺序的 DiagnosticObject 元组；无单位，必填，无默认值；
+         *             允许空元组表示全局问题，键不得重复；JSON 数组保持顺序，嵌套对象同样不可变。
+         *         rule: 被违反的规则的稳定文本，兼作来源内的聚合标识；非空白，无单位，必填。
+         *             同一规则不能嵌入文件名、实测值或随条目变化的内容；无默认值。
+         *         actual: 实际情况，非空白文本，必填，无默认值；数值及单位由生产者明确写出。
+         *         expected: 期望情况，非空白文本或 None；默认 None 表示没有可比较的期望，
+         *             不代表实际为空；数值及单位由生产者明确写出。
+         *         consequence: 后果，非空白文本，必填，无默认值；写明丢失/跳过和剩余结果是否可用。
+         *         next_step: 下一步检查建议，非空白文本，必填，无默认值；没有补救时明确写“无需处理”。
+         *         error_chain: D1 的可选文本错误链，从外到内每层一句非空白文本；单位层，
+         *             默认空元组，不接受 null；JSON 输出有序字符串数组，不包含 traceback。
+         */
+        Diagnostic: {
+            actual: components["schemas"]["DiagnosticText"];
+            category: components["schemas"]["DiagnosticCategory"];
+            consequence: components["schemas"]["DiagnosticText"];
+            /**
+             * Error Chain
+             * @default []
+             */
+            error_chain: components["schemas"]["DiagnosticText"][];
+            /** @default null */
+            expected: components["schemas"]["DiagnosticText"] | null;
+            level: components["schemas"]["DiagnosticLevel"];
+            next_step: components["schemas"]["DiagnosticText"];
+            /** Objects */
+            objects: components["schemas"]["DiagnosticObject"][];
+            rule: components["schemas"]["DiagnosticText"];
+            source: components["schemas"]["DiagnosticText"];
+            stage: components["schemas"]["DiagnosticText"];
+        };
+        /**
+         * DiagnosticCategory
+         * @description 按处理责任划分的四类问题；无单位、无默认成员。
+         *
+         *     Attributes:
+         *         INPUT: 英文成员 INPUT，JSON 值 input，中文显示“输入或数据问题”。
+         *         CONFLICT: 英文成员 CONFLICT，JSON 值 conflict，中文显示“冲突”；仅来源为平台。
+         *         EXTERNAL: 英文成员 EXTERNAL，JSON 值 external，中文显示“外部失败”。
+         *         DEFECT: 英文成员 DEFECT，JSON 值 defect，中文显示“程序缺陷”。
+         * @enum {string}
+         */
+        DiagnosticCategory: "input" | "conflict" | "external" | "defect";
+        /**
+         * DiagnosticLevel
+         * @description 诊断严重程度；无单位、无默认成员，不能据此直接计算作业结果。
+         *
+         *     Attributes:
+         *         ERROR: 英文成员 ERROR，JSON 值 error，中文显示“错误”；操作或条目失败。
+         *         WARNING: 英文成员 WARNING，JSON 值 warning，中文显示“警告”；结果打折但继续。
+         * @enum {string}
+         */
+        DiagnosticLevel: "error" | "warning";
+        /**
+         * DiagnosticObject
+         * @description 对象身份中的一个不可变键值对；供有序数组使用，不用 JSON 字典表达顺序。
+         *
+         *     Attributes:
+         *         key: 身份维度名称，例如 file/topic/frame；无单位，非空白字符串，必填，无默认值。
+         *         value: 身份值，必填的非空白字符串，无默认值；数值须由生产者转成字符串，
+         *             物理量须附单位，例如“27.067s”；拒绝数字、bool、null、集合，不自动转换。
+         */
+        DiagnosticObject: {
+            key: components["schemas"]["DiagnosticText"];
+            value: components["schemas"]["DiagnosticText"];
+        };
+        DiagnosticText: string;
+        /**
          * HealthResponse
          * @description 健康接口的固定响应结构。
          *
@@ -56,6 +138,44 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /**
+         * ProblemResponse
+         * @description RFC 9457 的不可变错误载荷；字段固定，不包含 traceback、错误链或请求内容。
+         *
+         *     Attributes:
+         *         type: 问题类型 URI，固定 about:blank，无单位，默认 about:blank；不虚构文档 URI。
+         *         title: 对应 HTTPStatus.phrase 的标准英文状态短语，非空白，无单位，必填，无默认值；
+         *             中文说明放 detail，符合 about:blank 约定。
+         *         status: HTTP 状态码，严格整数，仅 400/404/422/409/502/500；拒绝 bool；
+         *             无单位，必填，无默认值。INPUT 对应前三种，其余类别依次对应后三种。
+         *         detail: 一句安全的中文摘要，非空白，无单位，必填，无默认值；程序缺陷固定为
+         *             “平台内部错误，请把错误编号交给维护者。”，不回显 str(error)。
+         *         category: 四类 DiagnosticCategory 之一，无单位，必填，无默认值。
+         *         diagnostics: 有序 Diagnostic 元组，默认空元组；单位条；程序缺陷必须为空，
+         *             其他类别与顶层一致；通用载荷允许为空，但 build_problem 的领域异常/校验失败至少一条。
+         *         error_id: 服务端请求编号，32 位小写 uuid4.hex，匹配 v4/variant 位；无单位，必填，
+         *             无默认值；来自 request_id_context，与 X-Request-ID 一致，不接收客户端编号。
+         */
+        ProblemResponse: {
+            category: components["schemas"]["DiagnosticCategory"];
+            detail: components["schemas"]["DiagnosticText"];
+            /**
+             * Diagnostics
+             * @default []
+             */
+            diagnostics: components["schemas"]["Diagnostic"][];
+            /** Error Id */
+            error_id: string;
+            /** Status */
+            status: number;
+            title: components["schemas"]["DiagnosticText"];
+            /**
+             * Type
+             * @default about:blank
+             * @constant
+             */
+            type: "about:blank";
         };
     };
     responses: never;
@@ -82,6 +202,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
         };

@@ -6,26 +6,23 @@
 
 import logging
 import stat
-from collections.abc import Awaitable, Callable, MutableMapping
 from pathlib import Path
-from typing import Any, override
+from typing import override
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from rdp.api._asgi import ASGIApp as _ASGIApp
+from rdp.api._asgi import ASGIMessage as _ASGIMessage
+from rdp.api._asgi import Receive as _Receive
+from rdp.api._asgi import Send as _Send
+from rdp.api.errors import ErrorBoundary, install_error_handlers
 from rdp.api.health import HealthResponse, get_health
 from rdp.infra.logging import log_context
 
 logger = logging.getLogger(__name__)
-
-# ASGI 边界本身是开放字典，字段由服务器与框架定义；此处只描述调用形状，
-# 不直接 import 未声明的 starlette，不复制框架的消息字段枚举。
-type _ASGIMessage = MutableMapping[str, Any]
-type _Receive = Callable[[], Awaitable[_ASGIMessage]]
-type _Send = Callable[[_ASGIMessage], Awaitable[None]]
-type _ASGIApp = Callable[[_ASGIMessage, _Receive, _Send], Awaitable[None]]
 
 
 class RequestIdMiddleware:
@@ -109,7 +106,7 @@ class _RequestContextApp(FastAPI):
         """返回 RequestIdMiddleware 包装的父类中间件栈；构建时不绑定编号或改变路由。"""
         # 依赖 Starlette 的 build_middleware_stack 包含错误处理中间件这一行为。
         # 升级 FastAPI/Starlette 时重看此方法，并重跑框架 500 的响应头契约测试。
-        return RequestIdMiddleware(super().build_middleware_stack())
+        return RequestIdMiddleware(ErrorBoundary(super().build_middleware_stack()))
 
 
 def _unknown_api() -> Response:
@@ -134,6 +131,9 @@ def create_app(web_dist: Path | None) -> FastAPI:
         非 GET 请求不使用 SPA 回退。静态服务不允许读取目录外文件或跟随越界软链接。
         应用包含 RequestIdMiddleware，包在框架错误处理中间件之外；每次 HTTP 请求
         生成 uuid4().hex 请求编号，忽略客户端同名头，所有已发送响应含唯一 X-Request-ID。
+        统一处理四类异常和参数校验失败，返回 application/problem+json；未知异常只报告一次。
+        错误编号等于请求编号，程序缺陷响应不含 traceback；框架 HTTP 错误保留原格式。
+        OpenAPI 按需生成并合并诊断 schema 与已知 API 路由的错误响应定义。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -191,4 +191,5 @@ def create_app(web_dist: Path | None) -> FastAPI:
 
         app.add_exception_handler(404, _spa_fallback)
         app.mount("/", static_files)
+    install_error_handlers(app)
     return app
