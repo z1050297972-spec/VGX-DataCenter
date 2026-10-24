@@ -1,0 +1,18 @@
+== curl #1
+HTTP/1.1 200 OK
+date: Sat, 24 Oct 2026 01:53:59 GMT
+server: uvicorn
+content-length: 15
+content-type: application/json
+x-request-id: 85b8019900dc4fbf83afee5b3a8053ca
+
+{"status":"ok"}
+== curl #2
+HTTP/1.1 200 OK
+date: Sat, 24 Oct 2026 01:53:59 GMT
+server: uvicorn
+content-length: 15
+content-type: application/json
+x-request-id: 1bbe3650ab904ffe9b49c81657d2b556
+
+{"status":"ok"}

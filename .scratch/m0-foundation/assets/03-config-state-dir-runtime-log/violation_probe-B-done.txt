@@ -1,0 +1,94 @@
+# violation_probe：快照 refs/rdp/m0-03/B-done，2026-10-24 09:54:43 +0800
+探针工作目录：/tmp/claude-1001/-home-shawn----robot-data-platform/311bf87f-07e3-4751-ad0e-0c1d85c02fd0/scratchpad/m0-03/probe-m0-03，HEAD 9dce202；core.hooksPath=.githooks
+Python 3.12.15；ruff 0.17.1；tsc 5.9.3；eslint v10.13.0；prettier 3.9.10；vitest/5.0.5
+
+== 基线 make check
+  退出码=0，用时 11.4s
+  步骤：[1/11] ruff format --check
+  步骤：[2/11] ruff check
+  步骤：[3/11] basedpyright
+  步骤：[4/11] import-linter
+  步骤：[5/11] 契约检查
+  步骤：[6/11] pytest
+  步骤：[7/11] OpenAPI 过期检查
+  步骤：[8/11] tsc
+  步骤：[9/11] ESLint
+  步骤：[10/11] Prettier
+  步骤：[11/11] Vitest
+  All checks passed!
+  ======================== 221 passed, 1 warning in 5.26s ========================
+   Test Files  6 passed (6)
+        Tests  19 passed (19)
+  结果：通过 —— 跑完以后 git status 和跑之前相同（验收第 11 条）
+
+== 违规：ruff：print（T20）（src/rdp/infra/probe_violation.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/11] ruff check
+  输出：6:print: `print` found
+  输出：11:22 |     print("x")
+  输出：13:help: Remove `print`
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.8s）
+
+== 违规：ruff：不带时区的 datetime.now()（DTZ）（src/rdp/infra/probe_violation.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/11] ruff check
+  输出：6:call-datetime-now-without-tzinfo: `datetime.datetime.now()` called without a `tz` argument
+  输出：13:help: Pass a `datetime.timezone` object to the `tz` parameter
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.7s）
+
+== 违规：ruff：不带规则码的 noqa（blanket-noqa）（src/rdp/infra/probe_violation.py）
+  make check 退出码=2，用时 0.0s，最后一步：[2/11] ruff check
+  输出：6:blanket-noqa: Use specific rule codes when using `noqa`
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.7s）
+
+== 违规：basedpyright：类型错误（src/rdp/infra/probe_violation.py）
+  make check 退出码=2，用时 1.4s，最后一步：[3/11] basedpyright
+  输出：10:  /tmp/claude-1001/-home-shawn----robot-data-platform/311bf87f-07e3-4751-ad0e-0c1d85c02fd0/scratchpad/m0-03/probe-m0-03/src/rdp/infra/probe_violation.py:3:20 - error: Type "Literal['x']" is not assignable to declared type "int"
+  输出：12:1 error, 0 warnings, 0 notes
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.7s）
+
+== 违规：import-linter：rdp.infra 里 import uvicorn（src/rdp/infra/probe_violation.py）
+  make check 退出码=2，用时 1.5s，最后一步：[4/11] import-linter
+  输出：21:基础层不得依赖 Web 框架 BROKEN
+  输出：23:Contracts: 1 kept, 1 broken.
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.7s）
+
+== 违规：契约检查：公开函数缺 Time Semantics:（src/rdp/infra/probe_violation.py）
+  make check 退出码=2，用时 1.5s，最后一步：[5/11] 契约检查
+  输出：26:src/rdp/infra/probe_violation.py:4  rdp.infra.probe_violation.probe_missing  缺少 Time Semantics:
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.8s）
+
+== 违规：pytest：一个失败的断言（tests/test_probe_violation.py）
+  make check 退出码=2，用时 6.5s，最后一步：[6/11] pytest
+  输出：66:FAILED tests/test_probe_violation.py::test_probe_fails - assert 1 == 2
+  输出：67:=================== 1 failed, 221 passed, 1 warning in 4.84s ===================
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.9s）
+
+== 违规：ruff format：一处不合格式（src/rdp/infra/probe_violation.py）
+  make check 退出码=2，用时 0.0s，最后一步：[1/11] ruff format --check
+  输出：4: --> src/rdp/infra/probe_violation.py:3:13
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.7s）
+
+== 违规：ESLint：no-console（src/web/src/probe.ts）
+  make check 退出码=2，用时 9.3s，最后一步：[9/11] ESLint
+  输出：66:  11:3  error  Unexpected console statement  no-console
+  结果：通过 —— 失败在期望的步骤，输出里有期望的规则名
+  去掉以后：工作区和基线相同，make check 全绿（10.7s）
+
+== 不能失败：带理由的单条豁免和中文注释（src/rdp/infra/probe_violation.py）
+  make check 退出码=0，用时 11.0s，最后一步：[11/11] Vitest
+  结果：通过 —— 全绿
+
+== 钩子：提交带 print 的代码
+  | print: `print` found
+  | 6 |     print("x")
+  | help: Remove `print`
+  结果：通过 —— 提交被拒，没有产生新提交
+
+# 合计：通过 12 项，不通过 0 项
