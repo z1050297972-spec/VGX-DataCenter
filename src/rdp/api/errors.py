@@ -22,15 +22,15 @@ RFC 9457 使用 about:blank；诊断模型来自基础层，不存数据库、tr
 create_app 通过 install_error_handlers 安装统一处理，OpenAPI 在请求生成时合并模型和响应。
 """
 
+import asyncio
 import logging
 import sys
 import traceback
-from datetime import datetime
+from datetime import UTC, datetime
 from http import HTTPStatus
 from itertools import chain
 from types import UnionType
 from typing import Annotated, Any, Literal, Self, Union, cast, get_args, get_origin
-from uuid import UUID
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -38,8 +38,13 @@ from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import models_json_schema
+from sqlalchemy import Engine
 
 from rdp.api._asgi import ASGIApp, ASGIMessage, Receive, Send
+from rdp.infra.db.connection import BUSY_TIMEOUT_MS, session_scope
+from rdp.infra.db.models import MAX_EXCEPTION_REPORT_CHARS, REPORT_TRUNCATION_MARKER
+from rdp.infra.db.records import ErrorRecord, write_error
+from rdp.infra.db.validation import REQUEST_ID_PATTERN, invalid_field, is_request_id
 from rdp.infra.diagnostics import (
     ALLOWED_HTTP_STATUSES,
     ConflictError,
@@ -54,6 +59,7 @@ from rdp.infra.diagnostics import (
     render_diagnostic,
 )
 from rdp.infra.logging import request_id_context
+from rdp.infra.timeutil import ensure_utc
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +90,7 @@ class ProblemResponse(BaseModel):
     detail: DiagnosticText
     category: DiagnosticCategory
     diagnostics: tuple[Diagnostic, ...] = ()
-    error_id: str = Field(strict=True, pattern=r"^[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$")
+    error_id: str = Field(strict=True, pattern=REQUEST_ID_PATTERN)
 
     @model_validator(mode="after")
     def _validate_problem(self) -> Self:
@@ -176,15 +182,7 @@ def build_problem(request: Request, error: Exception) -> ProblemResponse:
         同步转换，必须在请求绑定范围内调用；不读时钟。
     """
     request_id = request_id_context.get()
-    try:
-        valid = (
-            request_id is not None
-            and UUID(request_id).version == 4
-            and UUID(request_id).hex == request_id
-        )
-    except (ValueError, AttributeError):
-        valid = False
-    if not valid or request_id is None:
+    if not is_request_id(request_id) or request_id is None:
         raise RuntimeError("请求编号上下文缺失或非法")
     status = HTTPStatus.INTERNAL_SERVER_ERROR
     category = DiagnosticCategory.DEFECT
@@ -212,7 +210,7 @@ def build_problem(request: Request, error: Exception) -> ProblemResponse:
 
 
 def format_exception_report(error: BaseException) -> str:
-    """生成保留异常消息和源码行、不打印局部变量的完整异常报告。
+    """生成保留异常消息和源码行、不打印局部变量的有界异常报告。
 
     Args:
         error: 当前异常及 cause/context 链，也支持 BaseExceptionGroup；不接受 None。
@@ -220,9 +218,9 @@ def format_exception_report(error: BaseException) -> str:
     Returns:
         按标准库 traceback 的格式保留每层异常的类型和消息、栈帧文件/函数/行号及源码行，
         __notes__ 沿用标准库行为，不打印局部变量。遵循显式 cause 和 suppress_context，
-        不遗漏所选链的根因；异常组不截断宽度或深度，循环引用标明已出现。
+        在字符上限内保留所选链的根因；异常组不截断宽度或深度，循环引用标明已出现。
         无 traceback 时仍输出异常类型和消息；D2 不再替换异常消息或隐藏源码行。
-        工单 05 契约变更提案（骨架不改现有函数体）：增量收集标准库 format(chain=True)
+        B2：增量收集标准库 format(chain=True)
         的前缀，最多 models.MAX_EXCEPTION_REPORT_CHARS 个 Unicode 字符；超过时预留
         REPORT_TRUNCATION_MARKER 的长度，尾部加该标记，总长度仍不超过上限。
         未超限逐字保留；显式标记有损，不另拼诊断或请求数据。日志与数据库共用同一个结果。
@@ -239,10 +237,22 @@ def format_exception_report(error: BaseException) -> str:
     report = traceback.TracebackException.from_exception(
         error, capture_locals=False, max_group_width=sys.maxsize, max_group_depth=sys.maxsize
     )
-    result = "".join(report.format(chain=True))
-    if _has_exception_cycle(error, frozenset()):
-        result += "循环引用：已出现的异常不重复展开。\n"
-    return result
+    suffix = (
+        ("循环引用：已出现的异常不重复展开。\n",)
+        if _has_exception_cycle(error, frozenset())
+        else ()
+    )
+    pieces: list[str] = []
+    remaining = MAX_EXCEPTION_REPORT_CHARS
+    for piece in chain(report.format(chain=True), suffix):
+        pieces.append(piece[:remaining])
+        if len(piece) > remaining:
+            return (
+                "".join(pieces)[: MAX_EXCEPTION_REPORT_CHARS - len(REPORT_TRUNCATION_MARKER)]
+                + REPORT_TRUNCATION_MARKER
+            )
+        remaining -= len(piece)
+    return "".join(pieces)
 
 
 async def handle_error(request: Request, error: Exception) -> JSONResponse:
@@ -260,14 +270,14 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
         同样附安全错误链。没有 traceback 的参数校验不记录框架异常正文。
         未知 Exception 这里只构造响应、不记录日志，等待 ServerErrorMiddleware 重抛后
         由 ErrorBoundary 记录；包括流式响应已经开始、框架不会发送该返回值的情况。
-        工单 05 提案：已处理异常改为 await report_error_with_database；未知异常仍由
-        ErrorBoundary 调用它，一次请求只报告/存表一次。骨架保留现有 _report_error 调用。
+        已处理异常使用 await report_error_with_database；未知异常仍由
+        ErrorBoundary 调用它，一次请求只报告/存表一次。
 
     Raises:
         RuntimeError: 请求编号未绑定或非法，由 build_problem 传播；不发送半个错误响应。
 
     Side Effects:
-        当前骨架保留仅运行日志；实现阶段新增独立报错事务，失败语义见
+        缺陷使用独立报错事务，失败语义见
         report_error_with_database；不直接调用 send，不读取请求体或凭据。
         参数校验失败将安全的字段位置和五段诊断追加到同一条 ERROR；
         不格式化 RequestValidationError，不记录请求原值。
@@ -277,13 +287,13 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
 
     Time Semantics:
         请求作用域内运行，无轮询或重试；日志时间交给 RuntimeFormatter。
-        工单 05 实现后缺陷持久化额外等待最多约 ERROR_PERSIST_TIMEOUT_S，其他类别不等数据库。
+        缺陷持久化额外等待最多约 ERROR_PERSIST_TIMEOUT_S，其他类别不等数据库。
     """
     problem = build_problem(request, error)
     if isinstance(
         error, (InputError, ConflictError, ExternalError, DefectError, RequestValidationError)
     ):
-        _report_error(request, error, problem)
+        await report_error_with_database(request, error, problem, occurred_at=datetime.now(UTC))
     return JSONResponse(
         problem.model_dump(mode="json"),
         status_code=problem.status,
@@ -342,13 +352,12 @@ class ErrorBoundary:
             调用下游一次；HTTP 未开始响应即失败时发送一份 500，失败发送可能留下前缀。
             只保存调用内响应状态；不修改 scope、contextvars 或全局 logger 配置。
             不读取查询串/请求体，不吞取消；不全局屏蔽 uvicorn 日志。
-            工单 05 提案：未知缺陷统一 await report_error_with_database，独立工作线程写表；
+            未知缺陷统一 await report_error_with_database，独立工作线程写表；
             保留原 500/已发响应前缀，持久化失败不进入本类的“报告依赖失败”重抛分支。
-            骨架阶段不接通该调用，已有错误处理行为不变。
 
         Time Semantics:
             覆盖下游流式迭代和后台任务直至退出；必须在 request_id 解绑前报告。
-            骨架不增加等待；工单 05 实现后缺陷报告等待最多约 ERROR_PERSIST_TIMEOUT_S，
+            缺陷报告等待最多约 ERROR_PERSIST_TIMEOUT_S，
             无额外重试，下游耗时仍由下游控制。
         """
         if scope["type"] != "http":
@@ -367,7 +376,7 @@ class ErrorBoundary:
         except Exception as error:
             request = Request(scope, receive=receive)
             problem = build_problem(request, error)
-            _report_error(request, error, problem)
+            await report_error_with_database(request, error, problem, occurred_at=datetime.now(UTC))
             # 已发送前缀不能改写成另一份响应，也不能伪造成功的流式结尾。
             if not started:
                 response = JSONResponse(
@@ -452,8 +461,8 @@ def _has_exception_cycle(error: BaseException, ancestors: frozenset[int]) -> boo
     )
 
 
-# 工单 05 的提案：SQLite 锁等待 5 秒之外留 1 秒调度余量，单位秒；不无限等线程池。
-ERROR_PERSIST_TIMEOUT_S = 6.0
+# 工单 05：SQLite 锁等待 BUSY_TIMEOUT_MS（5000 毫秒）之外留 1 秒调度余量，单位秒；不无限等线程池。
+ERROR_PERSIST_TIMEOUT_S = BUSY_TIMEOUT_MS / 1000 + 1.0
 
 
 async def report_error_with_database(
@@ -477,7 +486,8 @@ async def report_error_with_database(
 
     Raises:
         InputError: occurred_at 无时区或 UTC 换算溢出；报告之前拒绝，不产生半份报错。
-        DefectError: problem 编号与请求上下文不符；报告前拒绝，不伪造关联号。
+        DefectError: problem 编号与请求上下文不符时在报告前拒绝，不伪造关联号；
+            程序缺陷的格式化报告为空时拒绝保存完整报错。
         BaseException: 取消等非 Exception 原样传播，不吞取消。
         Exception: 日志 handler 或格式化本身失败，沿用第 04 张边界故障语义；不递归报告。
             数据库写入、线程调度和等待超时异常不传播，不能盖掉原始 500。
@@ -498,7 +508,106 @@ async def report_error_with_database(
         不含原有同步日志 I/O。等待期间事件循环可服务其他请求；流式/后台异常可在响应开始后落表。
         已发完 500 的未知异常可能尚在落表，立刻查询可短暂 404；客户端不自动轮询。
     """
-    raise NotImplementedError
+    try:
+        occurred_at = ensure_utc(occurred_at)
+    except (ValueError, OverflowError) as error_time:
+        time_problem = invalid_field("occurred_at", "带时区且可表示的 UTC 时刻")
+        raise time_problem from error_time
+    request_id = request_id_context.get()
+    if request_id != problem.error_id:
+        identity_error = _report_identity_error(request_id, problem.error_id)
+        raise identity_error
+    if getattr(request.state, "rdp_error_reported", False):
+        return
+    request.state.rdp_error_reported = True
+    if problem.category is not DiagnosticCategory.DEFECT:
+        _report_error(request, error, problem)
+        return
+    report = _logged_report(request, error, problem)
+    if not report:
+        formatting_error = _empty_report_error(problem.error_id)
+        raise formatting_error
+    # 纯 ASGI 边界也可独立使用；scope 尚无 FastAPI app 时沿用第 04 张只写日志的行为。
+    app_state = getattr(request.scope.get("app"), "state", None)
+    engine = getattr(app_state, "database_engine", None)
+    if engine is None:
+        return
+    try:
+        record = ErrorRecord(
+            error_id=problem.error_id,
+            occurred_at=occurred_at,
+            category=problem.category,
+            summary=problem.detail,
+            report=report,
+            source_kind="request",
+        )
+        await asyncio.wait_for(
+            asyncio.to_thread(_persist_report, engine, record), timeout=ERROR_PERSIST_TIMEOUT_S
+        )
+    except Exception as persistence_error:
+        # 报错表本身不可用时只追加安全摘要，不递归保存，也不替换原来的 500。
+        logger.error(
+            "完整报错持久化失败",
+            extra={
+                "fields": {
+                    "error_id": problem.error_id,
+                    "stage": "保存报错",
+                    "failure": type(persistence_error).__name__,
+                }
+            },
+        )
+
+
+def _report_identity_error(request_id: str | None, error_id: str) -> DefectError:
+    """指出上下文与待报告编号的差异，非法上下文原值不回显。"""
+    visible_request_id = (
+        request_id if request_id is not None and is_request_id(request_id) else "未绑定或格式非法"
+    )
+    return DefectError(
+        (
+            Diagnostic(
+                level=DiagnosticLevel.ERROR,
+                category=DiagnosticCategory.DEFECT,
+                stage="错误报告",
+                source="平台",
+                objects=(
+                    DiagnosticObject(key="request_id", value=visible_request_id),
+                    DiagnosticObject(key="error_id", value=error_id),
+                ),
+                rule="错误编号必须等于当前请求编号",
+                actual=f"当前请求编号={visible_request_id}；待报告错误编号={error_id}",
+                expected="请求编号与错误编号相同",
+                consequence="拒绝报告，未写入运行日志或报错表",
+                next_step="检查统一错误报告入口的请求上下文传递和问题响应构造",
+            ),
+        )
+    )
+
+
+def _empty_report_error(error_id: str) -> DefectError:
+    """保留错误编号并说明格式化失败的后果，不保存空报告或递归报告自身故障。"""
+    return DefectError(
+        (
+            Diagnostic(
+                level=DiagnosticLevel.ERROR,
+                category=DiagnosticCategory.DEFECT,
+                stage="错误报告",
+                source="平台",
+                objects=(DiagnosticObject(key="error_id", value=error_id),),
+                rule="程序缺陷报告必须非空",
+                actual="异常格式化结果为空",
+                expected="包含异常类型和消息的非空报告",
+                consequence="完整报错未写入报错表；运行日志可能仅有摘要",
+                next_step="检查异常格式化器和统一错误报告入口",
+            ),
+        )
+    )
+
+
+def _persist_report(engine: Engine, record: ErrorRecord) -> None:
+    """整个独立事务在线程内完成；超时后可能仍运行，但不在迟到线程里重复报告。"""
+    with session_scope(engine) as session:
+        write_error(session, record)
 
 
 def _model_fields(annotation: Any) -> dict[str, Any]:
@@ -548,7 +657,13 @@ def _validation_location(request: Request, location: Any) -> str:
 
 def _report_error(request: Request, error: Exception, problem: ProblemResponse) -> None:
     """只记录一次；校验失败仅写安全诊断，不格式化原异常，防止原值进入日志。"""
+    _logged_report(request, error, problem)
+
+
+def _logged_report(request: Request, error: Exception, problem: ProblemResponse) -> str | None:
+    """日志和持久化复用一次格式化结果，保留第 04 张安全请求字段和诊断顺序。"""
     messages = [problem.detail]
+    report: str | None = None
     if isinstance(error, RequestValidationError):
         messages.extend(render_diagnostic(item) for item in problem.diagnostics)
     elif isinstance(error, (InputError, ConflictError, ExternalError, DefectError)):
@@ -558,12 +673,15 @@ def _report_error(request: Request, error: Exception, problem: ProblemResponse) 
         or not isinstance(error, (InputError, ConflictError, ExternalError))
         or error.__cause__ is not None
     ):
-        messages.append(format_exception_report(error))
+        report = format_exception_report(error)
+        messages.append(report)
     route = request.scope.get("route")
     path = route.path if isinstance(route, APIRoute) else "未匹配路径"
     logger.error(
         "%s", "\n".join(messages), extra={"fields": {"method": request.method, "path": path}}
     )
+
+    return report
 
 
 def _document_problem_responses(schema: dict[str, Any]) -> None:

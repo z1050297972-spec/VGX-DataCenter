@@ -1,8 +1,14 @@
 """基础层 Alembic 执行环境（05），只复用 migrate 提供的连接，不配置进程日志。
 
-骨架阶段不在导入时调度入口；实现阶段由 Alembic 加载本模块时调用 run_migrations。
+Alembic 加载时已有 context.config 才调度入口；普通 import 不触发迁移。
 手写 revision，无 script.py.mako：本票不提供 revision 自动生成命令，避免模板漏掉契约。
 """
+
+from alembic import context
+from sqlalchemy import Connection
+
+from rdp.infra.db.models import metadata
+from rdp.infra.diagnostics import DefectError
 
 
 def run_migrations() -> None:
@@ -26,4 +32,21 @@ def run_migrations() -> None:
     Time Semantics:
         migrate 已取得迁移锁和数据库写事务后才运行；不读时钟、不重试。
     """
-    raise NotImplementedError
+    config = getattr(context, "config", None)
+    connection = config.attributes.get("connection") if config is not None else None
+    if not isinstance(connection, Connection) or context.is_offline_mode():
+        raise DefectError()
+    context.configure(
+        connection=connection,
+        target_metadata=metadata,
+        render_as_batch=True,
+        compare_type=True,
+        transactional_ddl=True,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+# Alembic EnvironmentContext 在加载脚本前安装 config 代理；普通 Python 导入没有此代理。
+if hasattr(context, "config"):
+    run_migrations()

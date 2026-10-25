@@ -4,14 +4,25 @@
 禁止附加请求体、SQL 参数、口令、令牌、cookie 或私钥；生产者负责安全摘要和报告来源。
 """
 
-from datetime import datetime
-from typing import Literal, Self
+import sqlite3
+from collections.abc import Generator
+from contextlib import contextmanager
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Literal, Self, cast
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError, model_validator
+from sqlalchemy import CursorResult, delete
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from rdp.infra.db.models import MAX_ERROR_SUMMARY_CHARS, MAX_EXCEPTION_REPORT_CHARS
+from rdp.infra.config import MAX_RETENTION_DAYS
+from rdp.infra.db._errors import readonly_write_error
+from rdp.infra.db.connection import translate_database_error
+from rdp.infra.db.models import MAX_ERROR_SUMMARY_CHARS, MAX_EXCEPTION_REPORT_CHARS, ErrorReportRow
+from rdp.infra.db.validation import REQUEST_ID_HEX_LENGTH, error_source_kind, invalid_field
 from rdp.infra.diagnostics import DiagnosticCategory
+from rdp.infra.timeutil import ensure_utc
 
 
 class ErrorRecord(BaseModel):
@@ -31,7 +42,7 @@ class ErrorRecord(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
 
-    error_id: str = Field(strict=True, min_length=1, max_length=32)
+    error_id: str = Field(strict=True, min_length=1, max_length=REQUEST_ID_HEX_LENGTH)
     occurred_at: AwareDatetime
     category: DiagnosticCategory
     summary: str = Field(strict=True, min_length=1, max_length=MAX_ERROR_SUMMARY_CHARS)
@@ -41,7 +52,18 @@ class ErrorRecord(BaseModel):
     @model_validator(mode="after")
     def _validate_record(self) -> Self:
         """按来源校验编号、摘要单行及 ensure_utc；ValueError 包装为不回显载荷的 ValidationError。"""
-        raise NotImplementedError
+        if error_source_kind(self.error_id) != self.source_kind:
+            raise ValueError("报错编号与来源必须匹配且格式合法")
+        if not self.summary.strip() or any(
+            character in self.summary for character in "\r\n\v\f\x85\u2028\u2029"
+        ):
+            raise ValueError("摘要必须是单行非空白文本")
+        # 冻结只禁止构造完成后的改动；模型校验阶段统一 UTC，不暴露可变快照。
+        try:
+            object.__setattr__(self, "occurred_at", ensure_utc(self.occurred_at))
+        except OverflowError as error:
+            raise ValueError("发生时刻超出 UTC 可表示范围") from error
+        return self
 
 
 def write_error(session: Session, record: ErrorRecord) -> None:
@@ -67,7 +89,9 @@ def write_error(session: Session, record: ErrorRecord) -> None:
     Time Semantics:
         发生时间由 record 决定，不读时钟；写锁已在进入工作单元时取得，无额外重试。
     """
-    raise NotImplementedError
+    with _operation(session, "写报错"):
+        session.add(ErrorReportRow(**record.model_dump()))
+        session.flush()
 
 
 def find_error(session: Session, error_id: str) -> ErrorRecord | None:
@@ -92,7 +116,12 @@ def find_error(session: Session, error_id: str) -> ErrorRecord | None:
     Time Semantics:
         返回事务内快照，时间是 UTC；不等记录将来出现，不轮询、不重试。
     """
-    raise NotImplementedError
+    if error_source_kind(error_id) is None:
+        problem = invalid_field("error_id", "uuid4 hex 或正整数作业编号")
+        raise problem
+    with _operation(session, "查报错"):
+        row = session.get(ErrorReportRow, error_id)
+        return None if row is None else ErrorRecord.model_validate(row, from_attributes=True)
 
 
 def clear_expired_errors(session: Session, *, now: datetime, retention_days: int) -> int:
@@ -123,4 +152,30 @@ def clear_expired_errors(session: Session, *, now: datetime, retention_days: int
     Time Semantics:
         UTC 的固定 24 小时，微秒严格比较，不受 -06:00 或夏令时影响；锁等待同 session_scope。
     """
-    raise NotImplementedError
+    if type(retention_days) is not int or not 1 <= retention_days <= MAX_RETENTION_DAYS:
+        problem = invalid_field("retention_days", f"1 至 {MAX_RETENTION_DAYS} 的严格整数天数")
+        raise problem
+    try:
+        cutoff = ensure_utc(now) - timedelta(days=retention_days)
+    except (ValueError, OverflowError) as error:
+        problem = invalid_field("now", "带有效时区且减去保留期后仍可表示的 UTC 时刻")
+        raise problem from error
+    with _operation(session, "清除报错"):
+        result = session.execute(delete(ErrorReportRow).where(ErrorReportRow.occurred_at < cutoff))
+        return cast(CursorResult[Any], result).rowcount
+
+
+@contextmanager
+def _operation(session: Session, operation: str) -> Generator[None, None, None]:
+    """仓储返回前转换驱动异常，回滚仍交工作单元；不记录中间层日志。"""
+    try:
+        yield
+    except ValidationError as error:
+        problem = invalid_field("error_reports", "符合报错快照的存量行")
+        raise problem from error
+    except (SQLAlchemyError, sqlite3.Error, OSError) as error:
+        database = Path(session.get_bind().engine.url.database or "未知数据库")
+        problem = readonly_write_error(session, error) or translate_database_error(
+            error, database=database, operation=operation
+        )
+        raise problem from error

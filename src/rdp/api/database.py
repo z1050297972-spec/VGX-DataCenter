@@ -7,10 +7,22 @@ Exception 经 __exit__ 回到同步 yield；默认 request scope 则在发送响
 """
 
 from collections.abc import Generator
+from pathlib import Path
+from typing import cast
 
 from fastapi import FastAPI, Request
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
+
+from rdp.infra.db.connection import session_scope
+from rdp.infra.db.migration import check_database_version
+from rdp.infra.diagnostics import (
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    ExternalError,
+)
 
 
 def configure_database(app: FastAPI, engine: Engine) -> None:
@@ -38,7 +50,17 @@ def configure_database(app: FastAPI, engine: Engine) -> None:
     Time Semantics:
         在 create_app 返回前检查，单次数据库锁等待最多约 5 秒；不得与 migrate 并发。
     """
-    raise NotImplementedError
+    if (
+        app.middleware_stack is not None
+        or hasattr(app.state, "database_engine")
+        or not isinstance(cast(object, engine), Engine)
+        or engine.dialect.name != "sqlite"
+        or not engine.get_execution_options().get("rdp_managed")
+        or not engine.url.database
+    ):
+        raise DefectError()
+    check_database_version(Path(engine.url.database))
+    app.state.database_engine = engine
 
 
 def get_session(request: Request) -> Generator[Session, None, None]:
@@ -48,10 +70,9 @@ def get_session(request: Request) -> Generator[Session, None, None]:
         request: 当前 FastAPI 请求；应用已 configure_database；依赖声明须使用
             Depends(get_session, scope="function")，默认 use_cache=True。
 
-    Returns:
-        生成器契约：实现阶段 yield 一个 session_scope 的新写 Session；同请求重复依赖复用它，不与只读依赖混用，
+    Yields:
+        一个 session_scope 的新写 Session；同请求重复依赖复用它，不与只读依赖混用，
         同一请求只能选择一种业务会话。进入 yield 前 BEGIN IMMEDIATE，关闭后不可继续使用。
-        骨架函数体只有 raise；实现添加 yield 时把本节标题改为 Yields，迭代值语义不变。
 
     Raises:
         ExternalError: 未配置数据库（离线工厂模式），诊断说明“数据库未启用”，或数据库 I/O 失败。
@@ -71,7 +92,8 @@ def get_session(request: Request) -> Generator[Session, None, None]:
         __exit__ 回传，可回滚并由统一边界报告。框架同步适配仅显式捕获 Exception，
         ASGI 取消不承诺立即打断正在运行的同步 SQL；连接必须最终关闭，不吞取消或伪造提交。
     """
-    raise NotImplementedError
+    with session_scope(_request_engine(request, False)) as session:
+        yield session
 
 
 def get_read_session(request: Request) -> Generator[Session, None, None]:
@@ -81,10 +103,9 @@ def get_read_session(request: Request) -> Generator[Session, None, None]:
         request: 已绑定数据库的当前请求；使用 Depends(get_read_session, scope="function")，
             默认缓存，同一请求不得同时使用 get_session。
 
-    Returns:
-        生成器契约：实现阶段 yield 一个 session_scope(read_only=True) 的 Session，BEGIN 加 query_only，响应发送前结束；
+    Yields:
+        一个 session_scope(read_only=True) 的 Session，BEGIN 加 query_only，响应发送前结束；
         允许与其他进程的 WAL 写事务并发读取已提交内容。
-        骨架函数体只有 raise；实现添加 yield 时把本节标题改为 Yields，迭代值语义不变。
 
     Raises:
         ExternalError: 无数据库模式，或权限/I/O 错误。
@@ -100,4 +121,34 @@ def get_read_session(request: Request) -> Generator[Session, None, None]:
         scope=function，响应发送前释放快照；不等待将来的报错记录，不重试。
         线程、取消和流式限制与 get_session 相同。
     """
-    raise NotImplementedError
+    with session_scope(_request_engine(request, True), read_only=True) as session:
+        yield session
+
+
+def _request_engine(request: Request, read_only: bool) -> Engine:
+    """无数据库模式明确返回外部失败；拒绝同请求混用读写业务会话。"""
+    engine = getattr(request.app.state, "database_engine", None)
+    if engine is None:
+        raise ExternalError(
+            (
+                Diagnostic(
+                    level=DiagnosticLevel.ERROR,
+                    category=DiagnosticCategory.EXTERNAL,
+                    stage="数据库",
+                    source="平台",
+                    objects=(),
+                    rule="业务接口必须配置数据库",
+                    actual="数据库未启用",
+                    expected="应用启动时显式绑定已迁移的数据库",
+                    consequence="本次数据库请求未执行",
+                    next_step="使用配置了数据库的生产入口启动应用",
+                ),
+            )
+        )
+    if not isinstance(engine, Engine):
+        raise DefectError()
+    previous = getattr(request.state, "rdp_business_mode", read_only)
+    if previous != read_only:
+        raise DefectError()
+    request.state.rdp_business_mode = read_only
+    return engine

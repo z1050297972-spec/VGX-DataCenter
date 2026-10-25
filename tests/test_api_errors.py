@@ -423,7 +423,7 @@ def test_handler_mappings_and_media() -> None:
         (DefectError, "defect", 500),
     )
     for cls, category, status in cases:
-        app = create_app(None)
+        app = create_app(None, database=None)
         _add_failure(app, cls((_diagnostic(category),)))
         with TestClient(app) as client:
             response = cast(httpx.Client, client).get("/api/failure")
@@ -431,7 +431,7 @@ def test_handler_mappings_and_media() -> None:
         assert response.headers["content-type"] == "application/problem+json"
         assert response.json()["category"] == category
         assert response.json()["error_id"] == response.headers["X-Request-ID"]
-    app = create_app(None)
+    app = create_app(None, database=None)
 
     async def validate(count: int) -> None:
         pass
@@ -543,7 +543,7 @@ def test_boundary_server_error_rethrow_once(
 ) -> None:
     """验证契约：验收3：实际ServerErrorMiddleware调用Exception处理器、发送500并重抛，ErrorBoundary消费异常；实际uvicorn h11 RequestResponseCycle用内存transport驱动，不出现第二份traceback。"""
     monkeypatch.setattr(caplog.handler, "formatter", RuntimeFormatter())
-    app = create_app(None)
+    app = create_app(None, database=None)
     _add_failure(app, RuntimeError("唯一根因"))
     transport = _uvicorn(app)
     assert b"500 Internal Server Error" in transport.output
@@ -559,7 +559,7 @@ def test_boundary_server_error_rethrow_once(
 
 def test_boundary_stream_failure_once(caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：验收3：流式响应start/部分body后失败，仅一份完整安全traceback，不发第二个start或伪成功末块；uvicorn关闭未完成连接，允许一条无traceback协议日志。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
 
     async def stream() -> AsyncIterator[bytes]:
         yield b"prefix"
@@ -581,7 +581,7 @@ def test_boundary_stream_failure_once(caplog: pytest.LogCaptureFixture) -> None:
 
 def test_boundary_background_failure_once(caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：验收3：完整响应已发送后后台任务失败仍报告一次且不补发响应，带原请求编号，uvicorn无第二份traceback。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
 
     async def fail() -> None:
         raise RuntimeError("后台失败")
@@ -602,7 +602,7 @@ def test_boundary_background_failure_once(caplog: pytest.LogCaptureFixture) -> N
 
 def test_boundary_exception_group_once(caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：ExceptionGroup 一次上报包含全部叶子，不逐叶重复记录，不逃逸到uvicorn。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
     _add_failure(app, ExceptionGroup("组", [ValueError("叶一"), TypeError("叶二")]))
     _uvicorn(app)
     # 规范 6.4：统一报告使用实际模块名，精确核对，避免漏掉其他 logger 的重复记录。
@@ -726,7 +726,7 @@ def test_install_after_start() -> None:
 
 def test_preserve_framework_http_errors() -> None:
     """验证契约：Starlette HTTPException 的404/405等保留原JSON/detail/headers，/api未知路径仍404 JSON，SPA回退原行为不变；业务报错用四类异常。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
     with TestClient(app) as client:
         for method, path, status in (("get", "/api/missing", 404), ("post", "/docs", 405)):
             response = getattr(client, method)(path)
@@ -738,7 +738,7 @@ def test_preserve_framework_http_errors() -> None:
 
 def test_schema_components_and_generation() -> None:
     """验证契约：create_app 按需生成 OpenAPI，包含 ProblemResponse/Diagnostic/DiagnosticObject/两枚举和 D1 字段，前端类型不手写。"""
-    schema = create_app(None).openapi()
+    schema = create_app(None, database=None).openapi()
     assert {
         "ProblemResponse",
         "Diagnostic",
@@ -751,7 +751,7 @@ def test_schema_components_and_generation() -> None:
 
 def test_schema_routes_in_implementation() -> None:
     """验证契约：每个已知API路由400/404/409/422/502/500登记problem媒体及组件引用，保留原框架JSON；后挂测试路由清缓存后也出现。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
     app.openapi()
 
     async def added(count: int) -> None:
@@ -770,7 +770,7 @@ def test_schema_routes_in_implementation() -> None:
 
 def test_install_isolation_and_cache() -> None:
     """验证契约：安装只修改目标app并清schema缓存；不配置全局日志、不注册演示接口、不写数据库或文件，不影响其他app。"""
-    first, second = create_app(None), FastAPI()
+    first, second = create_app(None, database=None), FastAPI()
     first.openapi()
     handlers = list(logging.getLogger().handlers)
     install_error_handlers(first)
@@ -787,7 +787,7 @@ def test_representative_platform_defect(
     示例二是接口请求，没有作业结果；作业结果由示例一的测试覆盖。
     """
     monkeypatch.setattr(caplog.handler, "formatter", RuntimeFormatter())
-    app = create_app(None)
+    app = create_app(None, database=None)
 
     def parse_link(raw: dict[str, Any]) -> Path:
         """复现解析器漏检 null，不包装异常，也不访问文件系统。"""
@@ -890,7 +890,7 @@ def test_validation_nested_dictionary_keys() -> None:
 def test_explicit_defect_diagnostics_and_cause(caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：显式 DefectError 的诊断和 cause 只进入同一条日志，响应仍无内部细节。"""
     diagnostic = _diagnostic("defect")
-    app = create_app(None)
+    app = create_app(None, database=None)
 
     async def endpoint() -> None:
         try:
@@ -921,7 +921,7 @@ def test_validation_log_field_locations_without_values(caplog: pytest.LogCapture
         password: str = Field(min_length=20)
         count: int
 
-    app = create_app(None)
+    app = create_app(None, database=None)
 
     async def login(body: LoginParameters) -> None:
         pass

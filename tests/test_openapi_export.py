@@ -42,11 +42,11 @@ def test_deterministic_export(tmp_path: Path) -> None:
 
 
 def test_export_matches_app(tmp_path: Path) -> None:
-    """验证导出 JSON 与 create_app(None).openapi() 一致，包含健康响应模型。"""
+    """验证导出 JSON 与 create_app(None, database=None).openapi() 一致，包含健康响应模型。"""
     target = tmp_path / "schema.json"
     export_openapi(target)
     exported = json.loads(target.read_text(encoding="utf-8"))
-    assert exported == create_app(None).openapi()
+    assert exported == create_app(None, database=None).openapi()
     assert "/api/health" in exported["paths"]
     assert "HealthResponse" in exported["components"]["schemas"]
 

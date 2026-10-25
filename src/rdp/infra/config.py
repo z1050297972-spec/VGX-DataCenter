@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # 09 号决策票限定四级；配置、运行日志设置共用此类型，避免两份枚举漂移。
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
-# 工单 03 骨架关卡已批准：保留期上限为 3650 天，防止误填大数导致无限制保留。
+# 工单 03 已批准：保留期上限为 3650 天，防止误填大数导致无限制保留。
 MAX_RETENTION_DAYS = 3650
 # M0 spec S1：平台状态目录的缺省位置，相对于显式注入的用户 home。
 _DEFAULT_STATE_DIR_RELATIVE = Path(".local/share/rdp")
@@ -85,7 +85,7 @@ class PlatformConfig(BaseModel):
         web: WebConfig，无单位；默认 WebConfig()，只允许 host/port。
         log: LogConfig，无单位；默认 LogConfig()，只允许 level/retention_days。
         errors: ErrorRetentionConfig，无单位、不可空；默认 ErrorRetentionConfig()，
-            TOML [errors] 只允许 retention_days；工单 05 对 C1 的新增已知项提案。
+            TOML [errors] 只允许 retention_days；工单 05 对 C1 的新增已知项。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True, hide_input_in_errors=True)

@@ -7,17 +7,24 @@ dialects/sqlite/base.py 的 sqlite_transactions：isolation_level=None，begin �
 """
 
 import sqlite3
-from contextlib import AbstractContextManager
+import stat
+from collections.abc import Generator
+from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 
-from sqlalchemy import Engine
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import URL, Connection, Engine, create_engine, event
+from sqlalchemy.exc import SQLAlchemyError, StatementError
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import ConnectionPoolEntry, NullPool
 
-from rdp.infra.diagnostics import ConflictError, DefectError, ExternalError, InputError
-
-# 工单 05 连接要求：SQLite 等待写锁的上限，单位毫秒；不额外自动重试。
-BUSY_TIMEOUT_MS = 5000
+from rdp.infra.db._constants import BUSY_TIMEOUT_MS as BUSY_TIMEOUT_MS
+from rdp.infra.db._errors import database_path_error, database_problem, readonly_write_error
+from rdp.infra.diagnostics import (
+    ConflictError,
+    DefectError,
+    ExternalError,
+    InputError,
+)
 
 
 def create_database_engine(database: Path) -> Engine:
@@ -48,10 +55,63 @@ def create_database_engine(database: Path) -> Engine:
         引擎由调用者最终 dispose；调用者不得绕过工作单元直接执行业务 SQL。
 
     Time Semantics:
-        不读墙钟；连接 PRAGMA 和 BEGIN 的单次锁等待最多约 5000 毫秒，无额外重试。
+        不读墙钟；连接 PRAGMA 和 BEGIN 的单次锁等待最多约 BUSY_TIMEOUT_MS（5000 毫秒），无额外重试。
         普通工作单元的写锁等待发生在任何 SELECT 之前；本地磁盘 I/O 不承诺硬实时上限。
     """
-    raise NotImplementedError
+    path_error = database_path_error(database)
+    if path_error is not None:
+        raise path_error
+    try:
+        _check_database_file(database)
+    except OSError as error:
+        problem = translate_database_error(error, database=database, operation="校验路径")
+        raise problem from error
+    engine: Engine | None = None
+    try:
+        engine = create_engine(
+            URL.create("sqlite", database=str(database)),
+            poolclass=NullPool,
+            connect_args={"check_same_thread": False},
+            hide_parameters=True,
+            execution_options={"rdp_managed": True},
+        )
+        event.listen(engine, "connect", _initialize_connection)
+        event.listen(engine, "begin", _begin_transaction)
+        return engine
+    except Exception as error:
+        if engine is not None:
+            engine.dispose()
+        problem = database_problem(DefectError, database, "构造引擎", 0)
+        raise problem from error
+
+
+def _initialize_connection(connection: sqlite3.Connection, _record: ConnectionPoolEntry) -> None:
+    """事务外设置每个连接；初始化失败关闭句柄，避免把半配置的连接交给业务。"""
+    try:
+        connection.isolation_level = None
+        cursor = connection.cursor()
+        try:
+            cursor.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
+            cursor.execute("PRAGMA journal_mode=WAL")
+            if cursor.fetchone() != ("wal",):
+                raise sqlite3.OperationalError("无法启用 WAL")
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA foreign_keys")
+            if cursor.fetchone() != (1,):
+                raise sqlite3.OperationalError("无法启用外键")
+        finally:
+            cursor.close()
+    except BaseException:
+        connection.close()
+        raise
+
+
+def _begin_transaction(connection: Connection) -> None:
+    """写者先拿写锁再读，避免 WAL 快照升级跳过 busy_timeout。"""
+    read_only = bool(connection.get_execution_options().get("rdp_read_only", False))
+    if read_only:
+        connection.exec_driver_sql("PRAGMA query_only=ON")
+    connection.exec_driver_sql("BEGIN" if read_only else "BEGIN IMMEDIATE")
 
 
 def session_scope(engine: Engine, *, read_only: bool = False) -> AbstractContextManager[Session]:
@@ -84,7 +144,59 @@ def session_scope(engine: Engine, *, read_only: bool = False) -> AbstractContext
         一次工作单元一个会话，事务范围不包含外部长任务；首次读前获取写锁，
         单次锁等待 BUSY_TIMEOUT_MS 毫秒；会话不限制调用方业务耗时，不读墙钟。
     """
-    raise NotImplementedError
+    return _work_unit(engine, read_only)
+
+
+@contextmanager
+def _work_unit(engine: Engine, read_only: bool) -> Generator[Session, None, None]:
+    """成对管理会话退出，业务异常不在此处记日志。"""
+    session = Session(engine, expire_on_commit=False)
+    session.info["rdp_read_only"] = read_only
+    primary: BaseException | None = None
+    try:
+        session.connection(execution_options={"rdp_read_only": read_only})
+        yield session
+        session.commit()
+    except BaseException as error:
+        primary = error
+        try:
+            session.rollback()
+        except Exception:
+            error.add_note("数据库回滚失败，结果未知；请检查数据库与备份。")
+            _invalidate_safely(session, error)
+        if isinstance(error, (SQLAlchemyError, sqlite3.Error, OSError)):
+            primary = readonly_write_error(session, error) or translate_database_error(
+                error, database=Path(engine.url.database or "未知数据库"), operation="工作单元"
+            )
+            raise primary from error
+        raise
+    finally:
+        try:
+            session.close()
+        except Exception as cleanup:
+            _invalidate_safely(session, primary or cleanup)
+            if primary is not None:
+                primary.add_note("数据库关闭失败，结果未知；请检查数据库与备份。")
+            elif isinstance(cleanup, (SQLAlchemyError, sqlite3.Error, OSError)):
+                problem = translate_database_error(
+                    cleanup,
+                    database=Path(engine.url.database or "未知数据库"),
+                    operation="关闭会话",
+                )
+                raise problem from cleanup
+            else:
+                problem = database_problem(
+                    DefectError, Path(engine.url.database or "未知数据库"), "关闭会话", 0
+                )
+                raise problem from cleanup
+
+
+def _invalidate_safely(session: Session, primary: BaseException) -> None:
+    """清理再失败只补安全 note，不能覆盖首先发生的业务或提交异常。"""
+    try:
+        session.invalidate()
+    except Exception:
+        primary.add_note("数据库连接失效处理也失败，结果未知；请检查数据库与备份。")
 
 
 def translate_database_error(
@@ -103,7 +215,7 @@ def translate_database_error(
         ExternalError，但只读会话违规由 session_scope 显式归 DefectError；其余为 DefectError。
         StatementError.orig 为本包 UTC 类型抛出的 InputError/DefectError 时保留该四类异常。
         诊断对象含 database/operation；锁规则为“写事务必须取得数据库写锁”，实际为
-        SQLite 码及“等待 5000 毫秒未获锁”，期望为“5000 毫秒内取得锁”，后果为
+        SQLite 码及等待 BUSY_TIMEOUT_MS（5000 毫秒）未获锁的说明，期望在该预算内取得锁，后果为
         “本次事务未提交”，下一步为“等待当前写入结束后重试，检查长事务”；
         非锁故障同样给出规则、实际码、期望、后果和修复建议，不复制 SQL/参数/异常消息。
 
@@ -115,6 +227,34 @@ def translate_database_error(
         只允许 hide_parameters=True 的 SQLAlchemy 错误链进入报告，不附请求或完整行数据。
 
     Time Semantics:
-        同步分类，不等待或重试；5000 毫秒描述 SQLite 的锁等待预算，不伪造实测耗时。
+        同步分类，不等待或重试；BUSY_TIMEOUT_MS（5000 毫秒）描述 SQLite 的锁等待预算，不伪造实测耗时。
     """
-    raise NotImplementedError
+    original = error.orig if isinstance(error, StatementError) else error
+    if isinstance(original, (InputError, DefectError)):
+        return original
+    code = getattr(original, "sqlite_errorcode", 0)
+    code = code & 0xFF if isinstance(code, int) else 0
+    kind: type[InputError] | type[ConflictError] | type[ExternalError] | type[DefectError] = (
+        DefectError
+    )
+    if code in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_CONSTRAINT):
+        kind = ConflictError
+    elif code in (sqlite3.SQLITE_NOTADB, sqlite3.SQLITE_CORRUPT):
+        kind = InputError
+    elif isinstance(original, OSError) or code in (
+        sqlite3.SQLITE_CANTOPEN,
+        sqlite3.SQLITE_FULL,
+        sqlite3.SQLITE_IOERR,
+        sqlite3.SQLITE_PERM,
+        sqlite3.SQLITE_READONLY,
+    ):
+        kind = ExternalError
+    return database_problem(kind, database, operation, code)
+
+
+def _check_database_file(database: Path) -> None:
+    """只读检查父目录与文件种类，底层路径错误交工厂统一转换。"""
+    if not stat.S_ISDIR(database.parent.stat().st_mode):
+        raise NotADirectoryError(str(database.parent))
+    if database.is_symlink() or (database.exists() and not database.is_file()):
+        raise OSError("数据库路径必须为普通文件且不能是软链接")

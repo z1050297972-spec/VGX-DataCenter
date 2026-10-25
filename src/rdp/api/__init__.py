@@ -118,15 +118,15 @@ def _unknown_api() -> Response:
     return JSONResponse({"detail": "Not Found"}, status_code=404)
 
 
-def create_app(web_dist: Path | None, *, database: Engine | None = None) -> FastAPI:
+def create_app(web_dist: Path | None, *, database: Engine | None) -> FastAPI:
     """创建健康接口及可选的前端静态托管应用，不启动服务器。
 
     Args:
         web_dist: 前端构建目录路径，无单位；相对路径按调用时工作目录解析。
             None 表示只提供 JSON 接口；否则必须是存在的目录，包含普通文件 index.html。
             调用方应传本地可信构建产物目录，不传数据目录。
-        database: 可选的 create_database_engine 引擎，无单位；默认 None 仅供离线 OpenAPI
-            与无数据库测试。生产第 11 张入口必须显式传入，不允许用默认模式服务业务。
+        database: 可选的 create_database_engine 引擎，无单位；必须显式传入；None 仅供离线 OpenAPI
+            与无数据库测试。生产第 11 张入口必须显式传入，不允许用无数据库模式服务业务。
             调用者拥有生命周期，应用停止并完成报告后由调用者 dispose，工厂不接管。
 
     Returns:
@@ -141,9 +141,9 @@ def create_app(web_dist: Path | None, *, database: Engine | None = None) -> Fast
         统一处理四类异常和参数校验失败，返回 application/problem+json；未知异常只报告一次。
         错误编号等于请求编号，程序缺陷响应不含 traceback；框架 HTTP 错误保留原格式。
         OpenAPI 按需生成并合并诊断 schema 与已知 API 路由的错误响应定义。
-        工单 05 提案：登记 GET /api/errors/{error_id} 及 ErrorRecord 响应模型；database
+        登记 GET /api/errors/{error_id} 及 ErrorRecord 响应模型；database
         非空时返回前通过 configure_database 检查版本。None 模式仍登记详情 schema，
-        实现后查询返回带诊断的 ExternalError 502，缺陷只写日志、不落表。
+        查询返回带诊断的 ExternalError 502，缺陷只写日志、不落表。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -158,10 +158,9 @@ def create_app(web_dist: Path | None, *, database: Engine | None = None) -> Fast
     Side Effects:
         无（只读构建目录及入口文件状态，注册内存中的路由；不建 socket、不写磁盘）。
         接收请求后只读构建产物；不访问导航层、存储根。
-        工单 05 提案：database 非空时只读校验版本，失败不迁移、不 dispose 调用者引擎；
+        database 非空时只读校验版本，失败不迁移、不 dispose 调用者引擎；
         请求业务会话和缺陷报错会话彼此独立，报错失败不掩盖原 500，详见
-        errors.report_error_with_database。骨架阶段仅登记路由/模型，新增函数尚未实现，
-        旧的无数据库错误处理行为保留；接通持久化与返回 502 留待契约批准后的实现。
+        errors.report_error_with_database。
         请求处理期间绑定 request_id contextvar，业务日志自动关联响应编号，退出时恢复；
         中间件本身不产生访问日志，包含 /api/health；不在应用工厂配置全局 logger。
 

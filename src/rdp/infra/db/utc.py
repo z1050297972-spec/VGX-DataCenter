@@ -3,12 +3,16 @@
 复用 TypeDecorator 和 timeutil.ensure_utc；自定义部分仅为平台的固定文本格式和拒绝规则。
 """
 
-from datetime import datetime
-from typing import override
+import re
+from datetime import UTC, datetime
+from typing import cast, override
 
 from sqlalchemy import Text
 from sqlalchemy.engine import Dialect
 from sqlalchemy.types import TypeDecorator
+
+from rdp.infra.db.validation import invalid_field
+from rdp.infra.timeutil import ensure_utc
 
 
 class UTCDateTime(TypeDecorator[datetime]):
@@ -45,7 +49,16 @@ class UTCDateTime(TypeDecorator[datetime]):
         Time Semantics:
             UTC、六位微秒；接受任意合法偏移，不推测本机 -06:00 或按日历折算。
         """
-        raise NotImplementedError
+        if value is None:
+            return None
+        if not isinstance(cast(object, value), datetime):
+            problem = invalid_field("datetime", "带有效时区的 datetime")
+            raise problem
+        try:
+            return format_utc_text(value)
+        except (ValueError, OverflowError) as error:
+            problem = invalid_field("datetime", "带有效时区且可表示的 UTC 时刻")
+            raise problem from error
 
     @override
     def process_result_value(self, value: str | None, dialect: Dialect) -> datetime | None:
@@ -69,4 +82,38 @@ class UTCDateTime(TypeDecorator[datetime]):
         Time Semantics:
             严格 UTC，不读取墙钟，无等待。
         """
-        raise NotImplementedError
+        if value is None:
+            return None
+        # fromisoformat 接受空格和可变精度，必须先限定 F3 的唯一存储形式。
+        if not isinstance(cast(object, value), str) or not re.fullmatch(
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z", value
+        ):
+            problem = invalid_field("datetime", "27 字符、六位微秒、Z 结尾的 UTC 文本")
+            raise problem
+        try:
+            return datetime.fromisoformat(value).astimezone(UTC)
+        except ValueError as error:
+            problem = invalid_field("datetime", "有效的 UTC 日期和时间")
+            raise problem from error
+
+
+def format_utc_text(value: datetime) -> str:
+    """把有时区的时刻格式化为统一的 UTC 微秒文本。
+
+    Args:
+        value: 带有效时区的 datetime，年份 1 至 9999，精度微秒；不接受 None。
+
+    Returns:
+        固定 27 字符的 YYYY-MM-DDTHH:MM:SS.ffffffZ，保留六位微秒，不舍入。
+
+    Raises:
+        ValueError: 时刻无时区或 utcoffset() 为 None；沿用 ensure_utc 的拒绝规则。
+        OverflowError: 换算后的 UTC 时刻超出 datetime 的可表示范围。
+
+    Side Effects:
+        无；不改变输入、不读取环境或写文件。
+
+    Time Semantics:
+        输入按自带时区解释，输出为同一时刻的 UTC；不读时钟或等待。
+    """
+    return ensure_utc(value).isoformat(timespec="microseconds").replace("+00:00", "Z")

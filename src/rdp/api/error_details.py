@@ -11,8 +11,20 @@ from fastapi import Depends, Path
 from sqlalchemy.orm import Session
 
 from rdp.api.database import get_read_session
-from rdp.infra.db.records import ErrorRecord
-from rdp.infra.diagnostics import InputError
+from rdp.infra.db.records import ErrorRecord, find_error
+from rdp.infra.db.validation import (
+    ERROR_ID_PATTERN,
+    REQUEST_ID_HEX_LENGTH,
+    error_source_kind,
+    invalid_field,
+)
+from rdp.infra.diagnostics import (
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    DiagnosticObject,
+    InputError,
+)
 
 
 class ErrorReportNotFoundError(InputError):
@@ -44,8 +56,8 @@ def get_error_details(
         str,
         Path(
             min_length=1,
-            max_length=32,
-            pattern=r"^([0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}|[1-9][0-9]{0,18})$",
+            max_length=REQUEST_ID_HEX_LENGTH,
+            pattern=ERROR_ID_PATTERN,
         ),
     ],
     session: Annotated[Session, Depends(get_read_session, scope="function")],
@@ -80,4 +92,26 @@ def get_error_details(
         单次查询，不等待将来的插入；时间返回 UTC，浏览器显示时转本地。
         SQLite 单次锁等待约 5 秒；客户端 5 秒超时可能先放弃，服务端不重试。
     """
-    raise NotImplementedError
+    if error_source_kind(error_id) is None:
+        raise InvalidErrorIdentifierError(
+            invalid_field("error_id", "uuid4 hex 或有符号 64 位正整数文本").diagnostics
+        )
+    record = find_error(session, error_id)
+    if record is None:
+        raise ErrorReportNotFoundError(
+            (
+                Diagnostic(
+                    level=DiagnosticLevel.ERROR,
+                    category=DiagnosticCategory.INPUT,
+                    stage="查报错",
+                    source="平台",
+                    objects=(DiagnosticObject(key="error_id", value=error_id),),
+                    rule="报错必须仍在保留期内且已成功保存",
+                    actual="不存在",
+                    expected="有一条报错",
+                    consequence="无法展示完整报错",
+                    next_step="按编号查询运行日志或联系维护者",
+                ),
+            )
+        )
+    return record

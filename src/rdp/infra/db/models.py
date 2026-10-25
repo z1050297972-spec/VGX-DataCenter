@@ -10,8 +10,9 @@ from sqlalchemy import CheckConstraint, MetaData, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from rdp.infra.db.utc import UTCDateTime
+from rdp.infra.db.validation import ERROR_SOURCE_CHECK_SQL, REQUEST_ID_HEX_LENGTH
 
-# 工单 05 对规范 2.7 的提案：报告最多 262144 个 Unicode 字符，最坏约 1 MiB UTF-8。
+# 工单 05 按规范 2.7 限制：报告最多 262144 个 Unicode 字符，最坏约 1 MiB UTF-8。
 # 日志格式化与报错表共用这一上限，数据库层不再次截断，避免 D2 的两份报告不一致。
 MAX_EXCEPTION_REPORT_CHARS = 262144
 # 报错摘要是单行安全说明，单位 Unicode 字符；512 足以容纳平台固定摘要，拒绝静默裁剪。
@@ -61,11 +62,7 @@ class ErrorReportRow(Base):
         CheckConstraint("category IN ('input','conflict','external','defect')", name="category"),
         CheckConstraint("source_kind IN ('request','job')", name="source_kind"),
         CheckConstraint(
-            "(source_kind = 'request' AND length(error_id) = 32 "
-            "AND error_id NOT GLOB '*[^0-9a-f]*' AND substr(error_id,13,1) = '4' "
-            "AND substr(error_id,17,1) IN ('8','9','a','b')) OR "
-            "(source_kind = 'job' AND CAST(error_id AS INTEGER) > 0 "
-            "AND CAST(CAST(error_id AS INTEGER) AS TEXT) = error_id)",
+            ERROR_SOURCE_CHECK_SQL,
             name="source_identifier",
         ),
         CheckConstraint(
@@ -76,7 +73,7 @@ class ErrorReportRow(Base):
         ),
     )
 
-    error_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    error_id: Mapped[str] = mapped_column(String(REQUEST_ID_HEX_LENGTH), primary_key=True)
     occurred_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, index=True)
     category: Mapped[str] = mapped_column(String(8), nullable=False)
     summary: Mapped[str] = mapped_column(String(MAX_ERROR_SUMMARY_CHARS), nullable=False)
