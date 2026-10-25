@@ -12,12 +12,7 @@ from sqlalchemy.orm import Session
 
 from rdp.api.database import get_read_session
 from rdp.infra.db.records import ErrorRecord, find_error
-from rdp.infra.db.validation import (
-    ERROR_ID_PATTERN,
-    REQUEST_ID_HEX_LENGTH,
-    error_source_kind,
-    invalid_field,
-)
+from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import (
     Diagnostic,
     DiagnosticCategory,
@@ -25,6 +20,7 @@ from rdp.infra.diagnostics import (
     DiagnosticObject,
     InputError,
 )
+from rdp.infra.ids import ERROR_ID_PATTERN, REQUEST_ID_HEX_LENGTH, error_source_kind
 
 
 class ErrorReportNotFoundError(InputError):

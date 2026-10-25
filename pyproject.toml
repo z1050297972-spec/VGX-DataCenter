@@ -125,6 +125,13 @@ source_modules = [
 ]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 
+# M0 工单 06 前置：日志和编号规则须独立于数据库包（负责人 2026-10-25 批准挪出，本合同由执行线加）。
+[[tool.importlinter.contracts]]
+name = "基础层的日志不得依赖数据库包"
+type = "forbidden"
+source_modules = ["rdp.infra.logging", "rdp.infra.ids"]
+forbidden_modules = ["rdp.infra.db"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-config --strict-markers"

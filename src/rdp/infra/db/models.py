@@ -10,7 +10,8 @@ from sqlalchemy import CheckConstraint, MetaData, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from rdp.infra.db.utc import UTCDateTime
-from rdp.infra.db.validation import ERROR_SOURCE_CHECK_SQL, REQUEST_ID_HEX_LENGTH
+from rdp.infra.db.validation import ERROR_SOURCE_CHECK_SQL
+from rdp.infra.ids import REQUEST_ID_HEX_LENGTH
 
 # 工单 05 按规范 2.7 限制：报告最多 262144 个 Unicode 字符，最坏约 1 MiB UTF-8。
 # 日志格式化与报错表共用这一上限，数据库层不再次截断，避免 D2 的两份报告不一致。

@@ -3,6 +3,7 @@
 import importlib
 import logging
 import multiprocessing
+import re
 import shutil
 import sqlite3
 import textwrap
@@ -10,6 +11,7 @@ import time
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 import pytest
 from alembic import command
@@ -24,7 +26,12 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from rdp.infra.config import PlatformConfig
 from rdp.infra.db.connection import create_database_engine
-from rdp.infra.db.migration import check_database_version, migrate, migration_config
+from rdp.infra.db.migration import (
+    BACKUP_FILENAME_PATTERN,
+    check_database_version,
+    migrate,
+    migration_config,
+)
 from rdp.infra.db.migrations.versions import v0001_error_reports
 from rdp.infra.db.models import metadata
 from rdp.infra.diagnostics import ConflictError, DefectError, ExternalError, InputError
@@ -388,6 +395,27 @@ def test_backup_filename(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     assert backups[0] != backups[1]
     assert all(path.is_file() for path in backups)
     assert len(list((paths.root / "backups").glob("*.sqlite3"))) == 2
+
+
+def test_backup_filename_pattern(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """验证搬移约束：平台生成的备份名匹配，uuid 后缀大写或少一位不匹配。"""
+    # 固定含字母的 uuid，避免随机后缀恰好全为数字，使大写拒绝用例失去区分度。
+    identifier = UUID("12345678-9abc-4def-8abc-123456789abc")
+    monkeypatch.setattr("rdp.infra.db.migration.uuid4", lambda: identifier)
+    paths = _paths(tmp_path)
+    paths.database.touch()
+    result = migrate(paths, now=datetime(2026, 10, 25, tzinfo=UTC))
+    assert result.backup is not None
+    name = result.backup.name
+    assert re.fullmatch(BACKUP_FILENAME_PATTERN, name) is not None
+    assert (
+        re.fullmatch(BACKUP_FILENAME_PATTERN, name.replace(identifier.hex, identifier.hex.upper()))
+        is None
+    )
+    assert (
+        re.fullmatch(BACKUP_FILENAME_PATTERN, name.replace(identifier.hex, identifier.hex[:-1]))
+        is None
+    )
 
 
 def test_backup_permissions(tmp_path: Path) -> None:

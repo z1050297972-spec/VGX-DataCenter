@@ -44,7 +44,7 @@ from rdp.api._asgi import ASGIApp, ASGIMessage, Receive, Send
 from rdp.infra.db.connection import BUSY_TIMEOUT_MS, session_scope
 from rdp.infra.db.models import MAX_EXCEPTION_REPORT_CHARS, REPORT_TRUNCATION_MARKER
 from rdp.infra.db.records import ErrorRecord, write_error
-from rdp.infra.db.validation import REQUEST_ID_PATTERN, invalid_field, is_request_id
+from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import (
     ALLOWED_HTTP_STATUSES,
     ConflictError,
@@ -58,6 +58,7 @@ from rdp.infra.diagnostics import (
     InputError,
     render_diagnostic,
 )
+from rdp.infra.ids import REQUEST_ID_PATTERN, is_request_id
 from rdp.infra.logging import request_id_context
 from rdp.infra.timeutil import ensure_utc
 
