@@ -1,6 +1,6 @@
 # 账号、登录与会话
 
-Status: ready-for-agent
+Status: in-progress
 
 ## 依据
 
@@ -90,3 +90,38 @@ Status: ready-for-agent
 - 2026-10-23，第 4 张骨架关卡定了状态码表（`CODING_STANDARDS.md` 6.2）。本票合并时，把 401（没登录、会话过期）、403（没权限）的用法和响应格式补进那张表，并在使用手册的简表里同步。
 - 2026-10-24，第 4 张合并时定（S1，负责人批准）：本票让 `/api/{path}` 兜底路由分清"路径不存在"（404）和"路径存在但方法不对"（405，带 `Allow` 头）；改完同步 CODING_STANDARDS 6.2 的表、`rdp.api.errors` 模块 docstring 里的表和运维手册的状态码速查。本票的受保护文件不受影响，代码在 `src/rdp/api/`。验收加一条：`POST /api/health` 返回 405，`GET /api/不存在` 返回 404。
 - 2026-10-24，第 5 张定：`GET /api/errors/{id}` 本票加登录，所有登录账号都能看。
+- 2026-10-25，开票（执行线，按 2026-10-25 修订后的派工手册）。Status `in-progress`。工作目录 `~/桌面/robot-data-platform.wt/m0-06-accounts-login-sessions`，分支 `t/m0-06-accounts-login-sessions`（从 main `39b8d59`）；基线 `make check` 全绿。`uv add argon2-cffi`（25.1.0，带入 cffi 2.1.1、pycparser 3.12），依赖提交 `bdb7165 依赖：argon2-cffi（账号、登录与会话）`，经过钩子，全绿。
+- 2026-10-25，派工 A0：前置重构（负责人"挪"）。请求编号、作业编号、错误编号的规则从 `rdp.infra.db.validation` 搬到新的 `rdp.infra.ids`，去掉切片去锚点的写法，备份后缀单独定义正则；import-linter 加一条 forbidden 合同（`rdp.infra.logging`、`rdp.infra.ids` 不得依赖 `rdp.infra.db`），执行线批准的受保护文件改动；补直接测试。行为不变。提示 `assets/06-accounts-login-sessions/prompt-A0.md`；快照 `refs/rdp/m0-06/A0`（`7475ce1`）；新会话 `01a1731f-5a5e-7190-8f6d-7ba16908e42d`，`timeout 90m`；运行日志 `<执行线临时目录>/m0-06/ev-A0.jsonl`、`err-A0.txt`。A0 通过后单独提交 `重构：编号规则移出数据库包`，再续接同一会话派工 A（提示 `prompt-A.md` 已写好）。
+- 2026-10-25，A0 交回并评审。快照 `refs/rdp/m0-06/A0-done`。
+  - `make check` 全绿，34 秒，pytest `557 passed`（新增 51 个），Vitest `77 passed`，跑前跑后 `git status` 相同。
+  - 改动全在 `src/`、`tests/`，加上 `pyproject.toml` 那一条合同；运行日志里没有安装、联网命令，没碰旧项目和 `/mnt`。
+  - 函数签名和 docstring 原样搬移，只改了模块 docstring；`ERROR_ID_PATTERN` 的值逐字不变，有测试钉住。`src/` 里不再出现切正则的 `[1:-1]`（剩下的一处在 `diagnostics.py`，切的是 JSON 字符串，无关）。
+  - 违规试验（检查链改了，只试新合同）：在 `logging.py`、`ids.py` 里各加一行 `import rdp.infra.db.connection`，新合同都报 BROKEN；还原后 3 条合同全部 KEPT（`assets/…/violation_probe-A0-done.txt`）。
+  - 纯搬移，新测试一开始就绿，符合预期。
+  - 执行线把 `pyproject.toml` 合同注释里的"负责人批准"改成如实的写法（负责人批准挪出，合同由执行线加）。
+  - 提交 `71385b4 重构：编号规则移出数据库包`，经过钩子，全绿。`followups.md` 第 5 张的"请求编号规则的归属""正则靠切片去锚点"两条，以及"公开辅助函数只有间接覆盖"里 `validation.py` 的部分，已解决。
+- 2026-10-25，派工 A（续接会话 `01a1731f-…`）。提示 `assets/…/prompt-A.md`；快照 `refs/rdp/m0-06/A`（`681451e`）；`-o assets/…/out-A.md`；运行日志 `<执行线临时目录>/m0-06/ev-A.jsonl`、`err-A.txt`。
+- 2026-10-25，派工 A 交回：Codex 没写代码就停下了。原因是提示里写了"429 不在 `ALLOWED_HTTP_STATUSES` 就停下"，这是执行线提示写得太死。它提的方案：G2 等待中返回 429，归 `InputError`，带 `Retry-After`（秒，向上取整），`ALLOWED_HTTP_STATUSES` 的 INPUT 加 429。执行线同意按这个方案写骨架，交骨架关卡统一拍板；同时放开其他"停下"条件，改成写进第 3、4 块，只有新依赖、越权改受保护文件才停。不算打回轮数（没有修复清单）。续接提示 `assets/…/prompt-A-cont.md`，`-o assets/…/out-A2.md`，运行日志 `ev-A2.jsonl`。快照仍是 `refs/rdp/m0-06/A`（工作目录没变）。
+- 2026-10-25，骨架交回（`out-A2.md`），骨架关卡（3.3）。快照 `refs/rdp/m0-06/A-done`（`464a0da`）。
+  1. 重跑 `make check`：全绿，35 秒；pytest `557 passed, 247 skipped`，Vitest `77 passed | 42 skipped`；跑前跑后 `git status` 相同。import-linter 3 条合同 KEPT。
+  2. 文件归属：全在 `src/`、`tests/`；`pyproject.toml` 只改 import-linter 段（`rdp.jobs | rdp.accounts` 同层且互不依赖、`rdp.accounts` 禁用 Web 框架），在工单允许的范围内。第 8 张要让 jobs 依赖 accounts，到时由那张票改。主仓库目录同前。
+  3. 运行日志 `ev-A2.jsonl`：没有安装、联网命令，没碰旧项目和 `/mnt`。
+  4. 审骨架：交给只读子 agent 审（`<执行线临时目录>/m0-06/skeleton-review.md`），结果待补。
+  4.（补）审骨架结果原文在 `assets/…/skeleton-review-A-done.md`。执行线抽查确认了 A2（`service.py:93–94` 时钟回拨既报 409 又取 max）、A3（`account_auth.py:100` 先查 Origin，和 `test_fallback_health_method` 期望不带 Origin 返回 405 冲突）、全局预算常量（`policy.py:28–30`）。阻塞 6 条：A1 路由和服务方法的 docstring 套模板、互相矛盾；A2 时钟回拨语义；A3 Origin、401、405 的判定顺序；A4 Argon2 没有并发上限；A5 `clear_expired_sessions` 没有调用方；A6 测试缺口（401 清 cookie、改自己后会话失效、成员被踢回靠 `refetchOnWindowFocus`、`test_api_errors.py:168` 的 403 改 418）。结论：建议"改"，与负责人的三个拍板点合成一轮修复。Status `in-review`，等负责人。
+- 2026-10-25，**负责人在骨架关卡说"改"**（逐项选了推荐）：
+  - **H1 登录防护选方案甲**：去掉全平台登录核验预算和不存在登录名的 1024 个桶；保留 G2 按账号计数；不存在或停用的登录名照样做一次假哈希，统一 401；加进程内 Argon2 并发上限 2。接受登录名是否存在能被探测出来。
+  - **H2 管理员新建的账号，首次登录也必须先改口令。**
+  - **H3 写请求不带 `Origin` 一律 403**，包括以后的命令行脚本。
+  - 同时批准：状态码表 INPUT 加 401、403、429（429 带 `Retry-After`）；`create_app` 加可选 `clock`。`CODING_STANDARDS.md` 6.2 和手册在契约提交前由主会话改。
+  - 修复轮（骨架第 1 轮）：A1–A6，加上执行线采纳的三条建议（活动刷新拿不到锁时尽力而为；cookie 只在登录、改口令、活动刷新落库时续期；`create_app` 关掉 `/docs`、`/redoc`、`/openapi.json`）。负责人选"修好后执行线复核，只有出现新的决策点才再找负责人，否则直接进实现"。提示 `assets/…/prompt-A-r1.md`；快照 `refs/rdp/m0-06/A-r1`；续接会话 `01a1731f-…`，`-o assets/…/out-A-r1.md`，运行日志 `ev-A-r1.jsonl`。Status `in-progress`。
+- 2026-10-25，骨架 r1 交回，复核。快照 `refs/rdp/m0-06/A-r1-done`。`make check` 全绿，35 秒，pytest `557 passed, 274 skipped`，Vitest `77 passed | 47 skipped`；运行日志干净；受保护文件本轮未改。全平台预算、1024 个桶、`clear_expired_sessions` 都已删干净；Argon2 并发上限 2，排队最多 1 秒，超时 `ExternalError`（502），执行线认可（方案甲范围内的技术细节）。只读子 agent 复核（`assets/…/skeleton-review-r1.md`）：决定 1–3、第 1–9 条都已落实，剩 3 个阻塞问题：改自己口令时旧口令错返回 401 会把人登出；判定顺序缺"角色"；Argon2（含排队）在 `BEGIN IMMEDIATE` 写锁里执行。都是技术问题，不需要负责人拍板。
+- 2026-10-25，骨架第 2 轮修复：上面 3 条，加上入口层把注入时钟的非法值按 500 处理、活动刷新只短等写锁、三处清理。执行线不采纳的两条建议：查库后再用 `compare_digest` 复核、改角色时撤销全部会话，都保留，汇报时说明。6.2 表 502 一行补 Argon2 繁忙的例子，由主会话改。提示 `assets/…/prompt-A-r2.md`；快照 `refs/rdp/m0-06/A-r2`；续接同一会话，`-o assets/…/out-A-r2.md`，运行日志 `ev-A-r2.jsonl`。
+- 2026-10-25，骨架 r2 交回，复核。快照 `refs/rdp/m0-06/A-r2-done`。`make check` 全绿，34 秒，pytest `557 passed, 320 skipped`，Vitest `77 passed | 50 skipped`；运行日志干净；改动在 `src/`、`tests/`。3 个阻塞问题都已落实（抽查）：
+  - `CurrentPasswordError` 返回 400；
+  - `get_admin_context` 在参数校验之前做角色检查；
+  - Argon2 的排队、核验和哈希都在事务之外，写事务里重读确认没变才提交。重读发现变了的处理：账号不可用返回 401，G2 在等待返回 429，其他变化返回 409"请重试"，执行线认可。
+  - 注入时钟非法按 500。
+  - 新增契约 `session_scope_with_lock_timeout`（活动刷新只等 100 毫秒）：在第 5 张的模块里新增函数，不改已有函数的含义，执行线批准，完工汇报里告知负责人。
+  - 对已获批契约的改动（`create_app` 加 `clock`，`ProblemResponse`、`handle_error`、`ErrorBoundary`、`InputError` 支持 401、403、429）都在负责人批准的范围内。按负责人"修好后执行线复核，没有新决策点就直接进实现"，骨架关卡通过。
+- 2026-10-25，契约提交 `55d7481 契约：账号、登录与会话`，经过钩子，全绿，提交的树和 `A-r2-done` 相同。
+- 2026-10-25，负责人说要去忙别的，请执行线"做好善后"。派工 B：提示 `assets/…/prompt-B.md`；快照 `refs/rdp/m0-06/B`；续接会话 `01a1731f-…`，`timeout 90m`，`-o assets/…/out-B.md`，运行日志 `<执行线临时目录>/m0-06/ev-B.jsonl`。之后执行线自己评审、打回（最多到第 3 轮）、演示、实现提交，停在合并关卡等负责人。

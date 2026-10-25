@@ -1,0 +1,14 @@
+== src/rdp/infra/logging.py
+入口层经领域层向下依赖基础层 KEPT
+基础层不得依赖 Web 框架 KEPT
+基础层的日志不得依赖数据库包 BROKEN
+rdp.infra.logging is not allowed to import rdp.infra.db:
+-   rdp.infra.logging -> rdp.infra.db.connection (l.10)
+== src/rdp/infra/ids.py
+入口层经领域层向下依赖基础层 KEPT
+基础层不得依赖 Web 框架 KEPT
+基础层的日志不得依赖数据库包 BROKEN
+rdp.infra.ids is not allowed to import rdp.infra.db:
+-   rdp.infra.ids -> rdp.infra.db.connection (l.7)
+== 基线
+Contracts: 3 kept, 0 broken.
