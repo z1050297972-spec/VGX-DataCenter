@@ -164,9 +164,9 @@ def test_problem_schema_fields() -> None:
 
 
 def test_problem_schema_invalid() -> None:
-    """验证契约：非法状态/标题/类别组合、跨类别诊断、DEFECT 非空诊断均触发 ValidationError；缺陷固定500，INPUT仅允许400/404/422。"""
+    """验证契约：非法状态/标题/类别组合、跨类别诊断、DEFECT 非空诊断均触发 ValidationError；缺陷固定500，INPUT按已批准状态表校验。"""
     for changes in (
-        dict(status=403),
+        dict(status=418, title="I'm a Teapot"),
         dict(title="错误标题"),
         dict(category="external"),
         dict(diagnostics=[_diagnostic("external")]),
@@ -727,8 +727,10 @@ def test_install_after_start() -> None:
 def test_preserve_framework_http_errors() -> None:
     """验证契约：Starlette HTTPException 的404/405等保留原JSON/detail/headers，/api未知路径仍404 JSON，SPA回退原行为不变；业务报错用四类异常。"""
     app = create_app(None, database=None)
+    # 自带文档已关闭，用独立 GET 测试路由继续验证框架原生 405，不依赖文档页面。
+    app.add_api_route("/framework-get", lambda: {}, methods=["GET"])
     with TestClient(app) as client:
-        for method, path, status in (("get", "/api/missing", 404), ("post", "/docs", 405)):
+        for method, path, status in (("get", "/api/missing", 404), ("post", "/framework-get", 405)):
             response = getattr(client, method)(path)
             assert response.status_code == status
             assert response.headers["content-type"] == "application/json"

@@ -235,6 +235,9 @@ const requestId = /^[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/u;
 // 类别与状态码的关联不能由生成的字段类型在运行时检查。
 const statusTable: Record<number, readonly [ProblemResponse["category"], string]> = {
   400: ["input", "Bad Request"],
+  401: ["input", "Unauthorized"],
+  403: ["input", "Forbidden"],
+  429: ["input", "Too Many Requests"],
   404: ["input", "Not Found"],
   422: ["input", "Unprocessable Entity"],
   409: ["conflict", "Conflict"],

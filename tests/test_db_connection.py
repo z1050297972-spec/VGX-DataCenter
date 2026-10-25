@@ -572,3 +572,33 @@ def test_parameters_hidden(tmp_path: Path) -> None:
         assert "credential-test-value" not in str(caught.value.diagnostics)
     finally:
         engine.dispose()
+
+
+def test_short_write_timeout_before_begin() -> None:
+    """验证契约：session_scope_with_lock_timeout在独立连接BEGIN之前设PRAGMA busy_timeout为100毫秒，事务内读到100，不能先BEGIN再设置。"""
+    pytest.skip("工单 06 契约骨架，待实现与 TDD")
+
+
+def test_short_write_timeout_contention() -> None:
+    """验证契约：另一连接持有写锁时短写入场按100毫秒预算冲突，保留SQLite BUSY/LOCKED原因与获锁阶段，不重试至5秒。"""
+    pytest.skip("工单 06 契约骨架，待实现与 TDD")
+
+
+def test_short_write_timeout_isolation() -> None:
+    """验证契约：短会话结束/入场失败后丢弃NullPool连接，不改父引擎或其他并行连接，普通session_scope仍为5000毫秒。"""
+    pytest.skip("工单 06 契约骨架，待实现与 TDD")
+
+
+def test_short_write_invalid_options() -> None:
+    """验证契约：超时bool/负值/大于5000或非受管引擎归DefectError，不打开工作单元；0和5000合法。"""
+    pytest.skip("工单 06 契约骨架，待实现与 TDD")
+
+
+def test_short_write_transaction_lifecycle() -> None:
+    """验证契约：短写正常提交、业务异常回滚，清理失败沿用session_scope保留主异常，不吞取消、不dispose调用者引擎。"""
+    pytest.skip("工单 06 契约骨架，待实现与 TDD")
+
+
+def test_short_write_error_categories() -> None:
+    """验证契约：数据损坏InputError、I/O ExternalError、SQL DefectError、非获锁阶段锁或约束ConflictError，不能被认证刷新误吞。"""
+    pytest.skip("工单 06 契约骨架，待实现与 TDD")

@@ -107,7 +107,12 @@ def _initialize_connection(connection: sqlite3.Connection, _record: ConnectionPo
 
 
 def _begin_transaction(connection: Connection) -> None:
-    """写者先拿写锁再读，避免 WAL 快照升级跳过 busy_timeout。"""
+    """写者先拿写锁再读，避免 WAL 快照升级跳过 busy_timeout。
+
+    06 骨架提案：session_scope_with_lock_timeout 的连接带 rdp_lock_timeout_ms 执行选项，
+    必须在 BEGIN 之前将该连接的 PRAGMA busy_timeout 设为指定整数毫秒；不改父引擎或其他连接。
+    无此选项时保留现有 BUSY_TIMEOUT_MS，非法选项拒绝为 DefectError；骨架阶段尚未接线。
+    """
     read_only = bool(connection.get_execution_options().get("rdp_read_only", False))
     if read_only:
         connection.exec_driver_sql("PRAGMA query_only=ON")
@@ -145,6 +150,42 @@ def session_scope(engine: Engine, *, read_only: bool = False) -> AbstractContext
         单次锁等待 BUSY_TIMEOUT_MS 毫秒；会话不限制调用方业务耗时，不读墙钟。
     """
     return _work_unit(engine, read_only)
+
+
+def session_scope_with_lock_timeout(
+    engine: Engine, *, busy_timeout_ms: int
+) -> AbstractContextManager[Session]:
+    """为短时写入提供独立连接上的有限获锁等待。
+
+    Args:
+        engine: create_database_engine 的受管 SQLite 引擎，不可空、无单位；不接管其生命周期。
+        busy_timeout_ms: 单次 SQLite 忙等待上限，整数毫秒，0 至 BUSY_TIMEOUT_MS（5000）；拒绝 bool。
+            账号活动刷新传 SESSION_TOUCH_LOCK_TIMEOUT_MS（100），其他工作单元不受影响。
+
+    Returns:
+        返回写工作单元上下文管理器，进入后产生新 Session；先设置独立连接的 busy_timeout，
+        再 BEGIN IMMEDIATE，随后才允许调用者读写。提交、回滚、关闭和清理失败语义复用 session_scope。
+
+    Raises:
+        DefectError: 引擎或超时参数非法、执行选项不能安全应用，或 SQL/映射错误。
+        ConflictError: BEGIN 在指定忙等待内未取得锁，或后续 SQL/提交的锁与约束冲突；
+            保留原始 SQLite 码和失败阶段，调用者只能把获锁阶段的 BUSY/LOCKED 视为可跳过。
+        InputError: SQLite 数据损坏。
+        ExternalError: 本地数据库 I/O、提交或清理失败。
+        BaseException: 工作单元内的业务异常原对象传播并回滚；不掩盖取消或原始失败。
+
+    Side Effects:
+        实现时用 engine.execution_options(rdp_lock_timeout_ms=busy_timeout_ms) 的局部派生引擎，
+        在 _begin_transaction 中于 BEGIN 前设置本连接 PRAGMA；复用 _work_unit 的资源管理。
+        不修改父引擎、默认 BUSY_TIMEOUT_MS 或全局事件监听器；不 dispose 派生引擎以免影响共享池。
+        NullPool 使本连接关闭后丢弃，后续普通 session_scope 仍为 5000 毫秒；失败不遗留短超时配置。
+        连接初始化和 WAL/外键校验仍复用现有受管引擎；不新增表或记录日志。
+
+    Time Semantics:
+        指定值约束 BEGIN 的 SQLite 忙等待，配置在发出 BEGIN 前完成，不能在 Session 已开启后再改。
+        不是整个连接初始化、文件 I/O 或业务 SQL 的硬实时期限；没有自动重试，也不读取业务墙钟。
+    """
+    raise NotImplementedError
 
 
 @contextmanager

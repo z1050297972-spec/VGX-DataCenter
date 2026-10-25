@@ -43,10 +43,10 @@ def test_health_response() -> None:
 
 
 def test_health_openapi(tmp_path: Path) -> None:
-    """使用 TestClient 验证健康响应模型进入 OpenAPI 且仅允许 ok。"""
-    response = _request(create_app(None, database=None), "/openapi.json")
-    assert response.status_code == 200
-    schema = response.json()
+    """验证关闭在线文档后，离线 OpenAPI 仍包含健康响应模型且仅允许 ok。"""
+    app = create_app(None, database=None)
+    assert app.docs_url is None and app.redoc_url is None and app.openapi_url is None
+    schema = app.openapi()
     health = schema["paths"]["/api/health"]["get"]["responses"]["200"]
     assert health["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/HealthResponse"
@@ -569,9 +569,9 @@ def test_request_wrapper_outside_error_stack(tmp_path: Path) -> None:
     app = create_app(None, database=None)
     assert isinstance(app.build_middleware_stack(), RequestIdMiddleware)
     assert request_id_context.get() is None
-    response = _request(app, "/openapi.json")
+    response = _request(app, "/api/health")
     assert response.status_code == 200
-    assert "/api/health" in response.json()["paths"]
+    assert "/api/health" in app.openapi()["paths"]
     assert "X-Request-ID" in response.headers
 
 

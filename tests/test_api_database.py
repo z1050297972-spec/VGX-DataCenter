@@ -200,10 +200,13 @@ def test_configure_defect(engine: Engine) -> None:
 
 
 def test_factory_compat(tmp_path: Path) -> None:
-    """验证契约：create_app(None, database=None) 仍可健康查询/导出 OpenAPI，不接触真实 home；无引擎详情为诊断 502。"""
-    with _client(create_app(None, database=None)) as client:
+    """验证契约：无数据库工厂仍可健康查询及离线 OpenAPI，在线文档关闭；无引擎详情为诊断502，不碰真实home。"""
+    app = create_app(None, database=None)
+    assert "/api/health" in app.openapi()["paths"]
+    with _client(app) as client:
         assert client.get("/api/health").status_code == 200
-        assert client.get("/openapi.json").status_code == 200
+        for path in ("/docs", "/redoc", "/openapi.json"):
+            assert client.get(path).status_code == 404
         response = client.get("/api/errors/1")
     assert response.status_code == 502
     assert response.json()["diagnostics"][0]["actual"] == "数据库未启用"

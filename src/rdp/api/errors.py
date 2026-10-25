@@ -12,7 +12,9 @@ D2 直接沿用标准库异常消息和源码行，不打印局部变量；参�
 | 409 | 冲突 | 和当前状态冲突，例如预览之后数据集被别的作业改过 | problem+json，带诊断 |
 | 502 | 外部失败 | 依赖的外部东西出错，例如存储根离线、外部工具失败 | problem+json，带诊断 |
 | 500 | 程序缺陷 | 平台自己的 bug，以及任何没被归入前三类的异常 | problem+json，一句话加错误编号，不带内部细节 |
-| 401、403 | （第 6 张定） | 没登录、没权限 | 第 6 张「账号与登录」补进本表 |
+| 401 | 输入或数据问题 | 未登录、会话失效或登录凭据错误 | problem+json，带安全诊断 |
+| 403 | 输入或数据问题 | 角色不足、必须先改口令或 Origin 拒绝 | problem+json，带诊断 |
+| 429 | 输入或数据问题 | 启用账号的 G2 等待，不校验口令 | problem+json，带诊断和 Retry-After 秒数 |
 | 404、405 | （框架） | 接口路径不存在、方法不对，由 Starlette 直接返回 | 保持框架原格式；前端显示"请求失败" |
 
 RFC 9457 使用 about:blank；诊断模型来自基础层，不存数据库、traceback 或请求载荷。
@@ -72,8 +74,8 @@ class ProblemResponse(BaseModel):
         type: 问题类型 URI，固定 about:blank，无单位，默认 about:blank；不虚构文档 URI。
         title: 对应 HTTPStatus.phrase 的标准英文状态短语，非空白，无单位，必填，无默认值；
             中文说明放 detail，符合 about:blank 约定。
-        status: HTTP 状态码，严格整数，仅 400/404/422/409/502/500；拒绝 bool；
-            无单位，必填，无默认值。INPUT 对应前三种，其余类别依次对应后三种。
+        status: HTTP 状态码，严格整数，仅 400/404/422/401/403/429/409/502/500；拒绝 bool；
+            无单位，必填，无默认值。INPUT 对应前六种，其余类别依次对应后三种。
         detail: 一句安全的中文摘要，非空白，无单位，必填，无默认值；程序缺陷固定为
             “平台内部错误，请把错误编号交给维护者。”，不回显 str(error)。
         category: 四类 DiagnosticCategory 之一，无单位，必填，无默认值。
@@ -164,7 +166,7 @@ def build_problem(request: Request, error: Exception) -> ProblemResponse:
         error: 四类异常、RequestValidationError 或任意意外 Exception；不修改异常链。
 
     Returns:
-        四类映射为 INPUT 的 400/404/422（基类 400）、CONFLICT 409、EXTERNAL 502、DEFECT 500。
+        四类映射为 INPUT 的 400/404/422/401/403/429（基类 400）、CONFLICT 409、EXTERNAL 502、DEFECT 500。
         输入/冲突/外部失败保留全部诊断和顺序，不用聚合样例替代；detail 固定为
         “输入或数据不符合要求，请查看诊断。”、“操作发生冲突，请查看诊断。”、
         “外部服务或工具失败，请查看诊断。”。参数校验映射 INPUT 422，使用
@@ -273,6 +275,9 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
         由 ErrorBoundary 记录；包括流式响应已经开始、框架不会发送该返回值的情况。
         已处理异常使用 await report_error_with_database；未知异常仍由
         ErrorBoundary 调用它，一次请求只报告/存表一次。
+        06 契约提案：账号业务请求及任何路由认证阶段的未知异常先经 sanitize_account_error；两个响应出口均调用
+        account_error_headers 输出 429 Retry-After，并在 401 清 cookie；账号报错的 occurred_at
+        复用注入的请求 now，不重新读取系统时钟；骨架阶段尚未接线。
 
     Raises:
         RuntimeError: 请求编号未绑定或非法，由 build_problem 传播；不发送半个错误响应。
@@ -355,6 +360,9 @@ class ErrorBoundary:
             不读取查询串/请求体，不吞取消；不全局屏蔽 uvicorn 日志。
             未知缺陷统一 await report_error_with_database，独立工作线程写表；
             保留原 500/已发响应前缀，持久化失败不进入本类的“报告依赖失败”重抛分支。
+            06 契约提案：账号入口与 handle_error 共用秘密脱敏和 Retry-After/401 cookie 处理；
+            范围包括所有路由在认证阶段抛出的异常，读取只含阶段的请求标记，不能只匹配账号路径；
+            未开始的 401 响应清 cookie，已发送响应不再发头。认证通过后的非账号业务仍保留完整报告；骨架尚未接线。
 
         Time Semantics:
             覆盖下游流式迭代和后台任务直至退出；必须在 request_id 解绑前报告。
@@ -400,7 +408,7 @@ def install_error_handlers(app: FastAPI) -> None:
         _RequestContextApp.build_middleware_stack 返回
         RequestIdMiddleware(ErrorBoundary(super().build_middleware_stack()))，
         请求编号中间件包在错误报告边界之外，保持工厂签名。
-        OpenAPI 登记 ProblemResponse 及其引用的组件；每个 /api 已知路由的 400/404/409/422/502/500
+        OpenAPI 登记 ProblemResponse 及其引用的组件；每个 /api 已知路由的 400/401/403/404/409/422/429/502/500
         responses 增加 application/problem+json 的 $ref，同时保留原有合法 application/json
         错误（如框架 404）。使用 FastAPI responses 元数据和 Pydantic schema，不手写字段。
         生成 schema 时合并，支持后挂的测试路由；重复安装幂等，不重复包裹或记日志。
@@ -707,3 +715,51 @@ def _document_problem_responses(schema: dict[str, Any]) -> None:
                 content["application/problem+json"] = {
                     "schema": {"$ref": "#/components/schemas/ProblemResponse"}
                 }
+
+
+def account_error_headers(error: Exception) -> dict[str, str]:
+    """为账号限流提供安全的 Retry-After 响应头。
+
+    Args:
+        error: 已由领域安全边界转换的异常；允许任意 Exception，不读取其原始字符串。
+
+    Returns:
+        LoginWaitError 返回仅有 Retry-After 的字典，值为 1-60 的整数秒文本；其他异常返回空字典。
+
+    Raises:
+        DefectError: LoginWaitError 的 retry_after_s 类型或范围损坏，拒绝把原值写入头。
+
+    Side Effects:
+        无；不改变异常，不写日志，不计算或延长等待。实现阶段 handle_error 与 ErrorBoundary
+        两个响应出口共用本函数，不能只给其中一条路径加头；骨架阶段尚未接线。
+
+    Time Semantics:
+        使用领域已按请求 now 向上取整的剩余秒数，不重新读时钟。
+    """
+    raise NotImplementedError
+
+
+def sanitize_account_error(error: Exception) -> Exception:
+    """隔离账号业务及所有路由认证阶段的未知异常消息。
+
+    Args:
+        error: 账号业务请求或任意路由认证阶段捕获的异常，不可空；
+            调用者用安全的请求阶段标记识别认证失败，不依赖 URL 前缀，不 stringify 原对象或读取载荷。
+
+    Returns:
+        可信领域四类安全异常和 RequestValidationError 原样返回；其他异常转换为固定 DefectError，
+        不保留原始 message/cause/context/notes，只保留不含局部变量的定位信息。
+
+    Raises:
+        无。
+
+    Side Effects:
+        不修改原异常、不记录日志；账号业务及任意路由认证失败的两个统一错误出口均先调用此函数，
+        再用既有 report_error_with_database 报告一次，避免未知错误把口令/cookie 写入完整报错。
+        口令、会话令牌、cookie 不得出现在响应、诊断、异常消息、运行日志或报错表。
+        认证成功后的其他业务完整异常报告契约不变；骨架不接线，不能把它误当作已生效保护。
+
+    Time Semantics:
+        同步转换，无时钟或数据库读取。
+    """
+    raise NotImplementedError
