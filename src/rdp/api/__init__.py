@@ -21,6 +21,7 @@ from rdp.api._asgi import ASGIApp as _ASGIApp
 from rdp.api._asgi import ASGIMessage as _ASGIMessage
 from rdp.api._asgi import Receive as _Receive
 from rdp.api._asgi import Send as _Send
+from rdp.api.account_auth import install_account_security
 from rdp.api.accounts import router as accounts_router
 from rdp.api.database import configure_database
 from rdp.api.error_details import get_error_details
@@ -134,7 +135,7 @@ def create_app(
             与无数据库测试。生产第 11 张入口必须显式传入，不允许用无数据库模式服务业务。
             调用者拥有生命周期，应用停止并完成报告后由调用者 dispose，工厂不接管。
         clock: 请求时钟，无单位；None 为 UTC 墙钟，测试可注入固定 aware datetime 回调；
-            账号请求只取一次，不接受客户端时刻；非法返回值或回调失败由入口归 DefectError，骨架仅保存不调用。
+            账号请求只取一次，不接受客户端时刻；非法返回值或回调失败由入口归 DefectError。
 
     Returns:
         独立的 FastAPI 应用；GET /api/health 返回 200 和 {"status": "ok"}，
@@ -153,11 +154,10 @@ def create_app(
         非空时返回前通过 configure_database 检查版本。None 模式仍登记详情 schema，
         查询返回带诊断的 ExternalError 502，缺陷只写日志、不落表。
 
-        06 契约提案：新增账号路由进入 OpenAPI；实现阶段统一安装 account_auth 的默认拒绝边界，
+        账号路由进入 OpenAPI；统一安装 account_auth 的默认拒绝边界，
         仅 GET 健康和 POST 登录免身份检查；详情接口所有已登录且已完成改密的账号可看。
         请求判定按 Origin→公开操作→认证→强制改密→角色→路由匹配→参数校验；S1 兜底最后区分 404/405。
         健康/登录公开路径的错误方法不要求身份，但非安全方法必须先有正确 Origin 才返回 405/Allow。
-        骨架仅登记新路由，旧路径暂不启用鉴权/S1，避免执行未实现函数。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -170,7 +170,8 @@ def create_app(
         DefectError: 引擎或迁移图配置错误。
 
     Side Effects:
-        无（只读构建目录及入口文件状态，注册内存中的路由；不建 socket、不写磁盘）。
+        只读构建目录及入口文件状态，注册内存路由；有数据库时初始化默认 Argon2 编码器及假哈希，
+        其资源和失败语义见 install_account_security；不建 socket、不写磁盘。
         接收请求后只读构建产物；不访问导航层、存储根。
         database 非空时只读校验版本，失败不迁移、不 dispose 调用者引擎；
         请求业务会话和缺陷报错会话彼此独立，报错失败不掩盖原 500，详见
@@ -196,10 +197,10 @@ def create_app(
         get_error_details,
         methods=["GET"],
         response_model=ErrorRecord,
-        # 06 骨架声明最终安全契约，运行时依赖在实现阶段统一安装，不提前调用桩函数。
+        # 详情允许所有登录账号访问；运行时由统一边界保护，文档显式声明 cookie。
         openapi_extra={"security": [{"SessionCookie": []}]},
     )
-    # 06 骨架只登记新接口 schema；全局鉴权、时钟和 S1 在实现阶段接通，保留现有接口行为。
+    # 账号路由与既有 API 共用鉴权、时钟和 S1 兜底。
     app.include_router(accounts_router)
     # 已知接口优先；兜底必须在静态挂载之前，不能让构建目录里的 api/ 文件遮蔽接口。
     for path in ("/api", "/api/{unknown:path}"):
@@ -239,4 +240,5 @@ def create_app(
         app.add_exception_handler(404, _spa_fallback)
         app.mount("/", static_files)
     install_error_handlers(app)
+    install_account_security(app)
     return app

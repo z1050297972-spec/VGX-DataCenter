@@ -5,10 +5,11 @@
 """
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, cast
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
+from rdp.accounts import _records as records
 from rdp.accounts.policy import (
     ACCOUNT_PAGE_LIMIT,
     DISPLAY_NAME_MAX_CHARS,
@@ -19,6 +20,8 @@ from rdp.accounts.policy import (
     PASSWORD_MIN_CHARS,
 )
 from rdp.accounts.types import AccountStatus, AccountView, Role
+from rdp.infra.diagnostics import DefectError
+from rdp.infra.timeutil import ensure_utc
 
 AccountId = Annotated[str, Field(strict=True, pattern=r"^[1-9][0-9]{0,18}$", max_length=19)]
 LoginName = Annotated[
@@ -185,4 +188,36 @@ def account_response(account: AccountView) -> AccountResponse:
     Time Semantics:
         同步转换，保留微秒，不读取时钟。
     """
-    raise NotImplementedError
+    try:
+        if (
+            not isinstance(cast(object, account), AccountView)
+            or type(account.must_change_password) is not bool
+        ):
+            raise DefectError()
+        created, updated = ensure_utc(account.created_at), ensure_utc(account.updated_at)
+        if updated < created:
+            raise DefectError()
+        return AccountResponse(
+            account_id=str(records.identifier(account.account_id)),
+            login_name=records.login_name(account.login_name),
+            display_name=records.display_name(account.display_name),
+            role=account.role,
+            status=account.status,
+            must_change_password=account.must_change_password,
+            created_at=created,
+            updated_at=updated,
+            created_by=ActorResponse(
+                account_id=None
+                if account.created_by.account_id is None
+                else str(records.identifier(account.created_by.account_id)),
+                name=records.display_name(account.created_by.name),
+            ),
+            updated_by=ActorResponse(
+                account_id=None
+                if account.updated_by.account_id is None
+                else str(records.identifier(account.updated_by.account_id)),
+                name=records.display_name(account.updated_by.name),
+            ),
+        )
+    except Exception:
+        raise DefectError() from None

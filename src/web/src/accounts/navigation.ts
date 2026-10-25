@@ -1,4 +1,7 @@
 // 账号导航规则（06），只负责站内回跳和权限路由，不读写 cookie 或浏览器持久存储。
+import { redirect } from "@tanstack/react-router";
+import { fetchCurrentAccount } from "../api/accounts";
+import { toFailureView } from "../api/problems";
 import type { HealthClient } from "../api/client";
 import type { Account } from "../api/accounts";
 import type { QueryClient } from "@tanstack/react-query";
@@ -35,9 +38,23 @@ export interface UnauthorizedNavigation {
  * @sideEffects 无；不导航、不发请求、不写浏览器存储。
  * @timeSemantics 同步校验，无时钟或重试。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架参数待实现，B 阶段删除。
 export function safeReturnTo(value: unknown): string {
-  throw new Error("未实现");
+  if (typeof value !== "string" || value.length > 2048) return "/";
+  let decoded = value;
+  // 每次解码会缩短百分号转义；长度上界同时限制多重编码的工作量。
+  for (let remaining = value.length + 1; remaining > 0; remaining--) {
+    if (unsafePath(decoded)) return "/";
+    try {
+      const path = new URL(decoded, "http://rdp.invalid").pathname.replace(/\/$/u, "");
+      if (path === "/login" || path === "/change-password") return "/";
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) return value;
+      decoded = next;
+    } catch {
+      return "/";
+    }
+  }
+  return "/";
 }
 
 /**
@@ -50,9 +67,27 @@ export function safeReturnTo(value: unknown): string {
  * @sideEffects 本次路由守卫最多一次身份 GET，不加载受保护页内容直到身份确定；进入页面后由布局的 refetchOnWindowFocus: true 身份 Query 负责切回窗口重查。路由取消则取消请求并忽略迟到结果。
  * @timeSemantics 使用 ACCOUNT_TIMEOUT_MS，不轮询、不重试；身份 staleTime 为 0。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架参数待实现，B 阶段删除。
 export function guardAccountRoute(input: AccountGuardInput): Promise<Account> {
-  throw new Error("未实现");
+  return fetchCurrentAccount({ client: input.client, payload: undefined, signal: input.signal })
+    .then((account) => {
+      const target = safeReturnTo(input.destination);
+      if (
+        account.must_change_password &&
+        input.destination.split(/[?#]/u)[0] !== "/change-password"
+      ) {
+        routeRedirect("/change-password?returnTo=" + encodeURIComponent(target));
+      }
+      if (input.administratorOnly && account.role !== "administrator")
+        routeRedirect("/?permission=denied");
+      return account;
+    })
+    .catch((error: unknown) => {
+      const failure = toFailureView(error);
+      if (failure.kind === "problem" && failure.problem.status === 401) {
+        routeRedirect("/login?returnTo=" + encodeURIComponent(safeReturnTo(input.destination)));
+      }
+      throw error;
+    });
 }
 
 /**
@@ -65,7 +100,39 @@ export function guardAccountRoute(input: AccountGuardInput): Promise<Account> {
  * 不读写 cookie/localStorage/sessionStorage。登录后的目的地和强制改密完成后的目标都重新校验。
  * @timeSemantics 同步请求导航；清理期间忽略迟到响应，不自动重试登录。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架参数待实现，B 阶段删除。
 export function handleUnauthorized(input: UnauthorizedNavigation): void {
-  throw new Error("未实现");
+  if (pendingNavigation.has(input.queryClient)) return;
+  pendingNavigation.add(input.queryClient);
+  try {
+    void input.queryClient.cancelQueries().catch(() => undefined);
+    input.queryClient.clear();
+    if (input.currentPath.split(/[?#]/u)[0] !== "/login") {
+      input.replace("/login?returnTo=" + encodeURIComponent(safeReturnTo(input.currentPath)));
+    }
+  } catch {
+    /* 导航适配器失效也不能把异常或敏感位置带到页面。 */
+  } finally {
+    queueMicrotask(() => {
+      pendingNavigation.delete(input.queryClient);
+    });
+  }
+}
+
+// 同一批未授权响应只导航一次；下一任务重新允许，避免新登录后永远不能退出。
+const pendingNavigation = new WeakSet<QueryClient>();
+
+// ASCII 控制字符按码元检测即可，不拆分或重写正常 Unicode 文本。
+function unsafePath(value: string): boolean {
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return true;
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    if (code < 32 || code === 127) return true;
+  }
+  return false;
+}
+
+// TanStack Router 用 Response 控制导航，不是供错误视图展示的异常。
+function routeRedirect(href: string): never {
+  // eslint-disable-next-line @typescript-eslint/only-throw-error -- TanStack Router 要求抛出 redirect 返回的 Response 来中断页面加载。
+  throw redirect({ href });
 }

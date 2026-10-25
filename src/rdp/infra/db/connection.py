@@ -11,6 +11,7 @@ import stat
 from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
+from typing import cast
 
 from sqlalchemy import URL, Connection, Engine, create_engine, event
 from sqlalchemy.exc import SQLAlchemyError, StatementError
@@ -109,11 +110,16 @@ def _initialize_connection(connection: sqlite3.Connection, _record: ConnectionPo
 def _begin_transaction(connection: Connection) -> None:
     """写者先拿写锁再读，避免 WAL 快照升级跳过 busy_timeout。
 
-    06 骨架提案：session_scope_with_lock_timeout 的连接带 rdp_lock_timeout_ms 执行选项，
+    session_scope_with_lock_timeout 的连接带 rdp_lock_timeout_ms 执行选项，
     必须在 BEGIN 之前将该连接的 PRAGMA busy_timeout 设为指定整数毫秒；不改父引擎或其他连接。
-    无此选项时保留现有 BUSY_TIMEOUT_MS，非法选项拒绝为 DefectError；骨架阶段尚未接线。
+    无此选项时保留现有 BUSY_TIMEOUT_MS，非法选项拒绝为 DefectError。
     """
-    read_only = bool(connection.get_execution_options().get("rdp_read_only", False))
+    options = connection.get_execution_options()
+    if "rdp_lock_timeout_ms" in options:
+        timeout = _checked_lock_timeout(options["rdp_lock_timeout_ms"])
+        # 必须在 BEGIN 之前设置，入场失败才能遵守短等待预算。
+        connection.exec_driver_sql(f"PRAGMA busy_timeout={timeout}")
+    read_only = bool(options.get("rdp_read_only", False))
     if read_only:
         connection.exec_driver_sql("PRAGMA query_only=ON")
     connection.exec_driver_sql("BEGIN" if read_only else "BEGIN IMMEDIATE")
@@ -185,7 +191,14 @@ def session_scope_with_lock_timeout(
         指定值约束 BEGIN 的 SQLite 忙等待，配置在发出 BEGIN 前完成，不能在 Session 已开启后再改。
         不是整个连接初始化、文件 I/O 或业务 SQL 的硬实时期限；没有自动重试，也不读取业务墙钟。
     """
-    raise NotImplementedError
+    if (
+        not isinstance(cast(object, engine), Engine)
+        or engine.dialect.name != "sqlite"
+        or not engine.get_execution_options().get("rdp_managed")
+    ):
+        raise DefectError()
+    timeout = _checked_lock_timeout(busy_timeout_ms)
+    return _work_unit(engine.execution_options(rdp_lock_timeout_ms=timeout), False)
 
 
 @contextmanager
@@ -299,3 +312,10 @@ def _check_database_file(database: Path) -> None:
         raise NotADirectoryError(str(database.parent))
     if database.is_symlink() or (database.exists() and not database.is_file()):
         raise OSError("数据库路径必须为普通文件且不能是软链接")
+
+
+def _checked_lock_timeout(value: object) -> int:
+    """执行选项只允许受限整数，不能把未校验内容拼入 PRAGMA。"""
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= BUSY_TIMEOUT_MS:
+        raise DefectError()
+    return value

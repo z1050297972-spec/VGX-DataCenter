@@ -15,6 +15,8 @@ export type RequestFailureView =
       kind: "problem";
       /** 生成类型的完整响应；程序缺陷的 diagnostics 必须为空。 */
       problem: ProblemResponse;
+      /** 429 的安全剩余等待秒数，1–60 整数；头缺失或非法时省略，无默认值。 */
+      retryAfterSeconds?: number;
     }
   | {
       /** 网络、超时、无效响应或未知拒绝值；无单位，固定 unavailable。 */
@@ -62,7 +64,7 @@ export function readProblemResponse(response: Response): Promise<ProblemResponse
  *
  * @param fetchImpl - 已注入的传输函数，无单位；与 openapi-fetch 的 fetch 契约相同。
  * @returns 独立 FetchImplementation；2xx/3xx 返回原 Response 对象，4xx/5xx 读取 problem 后拒绝；
- * 不改变成功响应的 body、headers、请求 URL 或取消信号。适配器创建本身不发送请求。
+ * 不改变成功响应的 body、headers、请求 URL 或取消信号。429 仅附加合法的 1–60 整数秒 Retry-After，非法头省略。适配器创建本身不发送请求。
  * @throws Error 返回的传输函数在 HTTP 失败、网络断开、超时或取消时拒绝；message 固定为
  * “请求失败”，cause 是 RequestFailureView：合法 problem 原样保留，其余使用固定不可用文案。
  * 无效 problem 的 X-Request-ID 合法时保留编号；网络失败无编号。绝不把原始异常放进 cause。
@@ -83,7 +85,11 @@ export function createProblemFetch(fetchImpl: FetchImplementation): FetchImpleme
     const problem = await readProblemResponse(response);
     throw new Error("请求失败", {
       cause: problem
-        ? { kind: "problem", problem }
+        ? {
+            kind: "problem",
+            problem,
+            ...retryDelay(problem.status, response.headers.get("Retry-After")),
+          }
         : unavailable(response.headers.get("X-Request-ID") ?? undefined),
     });
   };
@@ -94,7 +100,7 @@ export function createProblemFetch(fetchImpl: FetchImplementation): FetchImpleme
  *
  * @param error - TanStack Query 的未知拒绝值，无单位，允许 null/undefined/任意对象。
  * @returns 验证原生 Error.cause 后返回 RequestFailureView；合法 problem 和合法的不可用状态
- * 保持内容，其余（包括访问属性抛错的对象）统一为无编号的固定不可用提示。
+ * 保持内容；429 的可选 retryAfterSeconds 只保留 1–60 整数。其余（包括访问属性抛错的对象）统一为无编号的固定不可用提示。
  * 不把 HTTP 状态或本地失败伪装成程序缺陷，不自动从 error.message 取内容。
  * @throws 无。未知载荷和非法编号都走固定兜底。
  * @sideEffects 无；不发请求、不记录日志、不改变 error 或页面 URL。
@@ -106,7 +112,12 @@ export function toFailureView(error: unknown): RequestFailureView {
       const cause: Record<string, unknown> = error.cause;
       if (cause.kind === "problem") {
         const problem = parseProblem(cause.problem);
-        if (problem) return { kind: "problem", problem };
+        if (problem)
+          return {
+            kind: "problem",
+            problem,
+            ...retryDelay(problem.status, cause.retryAfterSeconds),
+          };
       }
       if (cause.kind === "unavailable")
         return unavailable(typeof cause.errorId === "string" ? cause.errorId : undefined);
@@ -251,4 +262,16 @@ function unavailable(errorId?: string): RequestFailureView {
     message: "请求失败，请检查网络或稍后重试。",
     ...(errorId && requestId.test(errorId) ? { errorId } : {}),
   };
+}
+
+// 只接受 G2 的有界整数秒，不能把任意头文本带到页面或自动重试。
+function retryDelay(status: number, value: unknown): { retryAfterSeconds?: number } {
+  const seconds = typeof value === "string" && /^[1-9][0-9]?$/u.test(value) ? Number(value) : value;
+  return status === 429 &&
+    typeof seconds === "number" &&
+    Number.isInteger(seconds) &&
+    seconds >= 1 &&
+    seconds <= 60
+    ? { retryAfterSeconds: seconds }
+    : {};
 }

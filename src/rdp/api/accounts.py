@@ -1,21 +1,26 @@
 """账号 HTTP 路由契约（06），只编排领域服务、响应和 cookie，不自行写 SQL。
 
-新增路由用于 OpenAPI 骨架评审；处理函数尚未实现。现有路由的全局鉴权在实现阶段统一启用。
+账号路由进入 OpenAPI；全局鉴权在读取请求体和执行路由之前统一生效。
 每个写操作只在领域提交后返回成功，异常交统一 problem 边界，不在中间层重复报告。
 所有路由都禁止记录或报告口令、cookie、令牌及哈希，中间层不打日志，入口只报告一次。
 注入时钟统一由 get_account_now 校验；非法时钟是 DefectError，不把它混入用户字段的 422。
 """
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import Response
 
+from rdp.accounts._issues import problem
+from rdp.accounts.errors import AccountInputError, AuthenticationError
+from rdp.accounts.types import Credentials, NewAccount, PasswordChange, SessionIdentity
 from rdp.api.account_auth import (
     AccountRequestContext,
+    clear_session_cookie,
     get_admin_context,
     get_authenticated_context,
     get_login_context,
+    set_session_cookie,
 )
 from rdp.api.account_schemas import (
     AccountListResponse,
@@ -26,7 +31,9 @@ from rdp.api.account_schemas import (
     ResetPasswordRequest,
     RoleRequest,
     StatusRequest,
+    account_response,
 )
+from rdp.infra.ids import MAX_SQLITE_INTEGER
 
 # 所有失败响应由 install_error_handlers 合并 ProblemResponse；这里额外声明 G2 的安全重试头。
 router = APIRouter(
@@ -82,7 +89,9 @@ def login(body: LoginRequest, response: Response, context: LoginContext) -> Acco
         Argon2 排队最多 1 秒，短写事务获锁最多约 5 秒，二者不重叠。
         回拨不报 409、不改已有等待截止；请求取消不保证已经开始的提交被取消。
     """
-    raise NotImplementedError
+    grant = context.service.login(Credentials(body.login_name, body.password), now=context.now)
+    set_session_cookie(response, grant)
+    return account_response(grant.identity.account)
 
 
 @router.post("/auth/logout", response_class=Response, status_code=204, operation_id="logout")
@@ -111,7 +120,10 @@ def logout(response: Response, context: AuthenticatedContext) -> Response:
         使用 context.now，不根据时间延长当前会话；允许强制改密账号登出，不运行 Argon2。
         同步撤销事务提交后才返回 204 并清 cookie，SQLite 单次锁等待约 5 秒，无自动重试。
     """
-    raise NotImplementedError
+    context.service.logout(_identity(context), now=context.now)
+    clear_session_cookie(response)
+    response.status_code = 204
+    return response
 
 
 @router.get("/auth/me", response_model=AccountResponse, status_code=200, operation_id="who_am_i")
@@ -139,7 +151,7 @@ def who_am_i(context: AuthenticatedContext) -> AccountResponse:
         返回前结束认证查询，若发生必要的活动刷新则按认证契约处理；本路由没有额外业务写事务。
         仅活动更新实际提交时可续 cookie；初始查询/过期删除沿用普通锁预算，活动刷新 BEGIN 最多等 100 毫秒。
     """
-    raise NotImplementedError
+    return account_response(_identity(context).account)
 
 
 @router.post(
@@ -181,7 +193,13 @@ def change_own_password(
         只读快照结束后在事务外核验旧口令并算好新哈希，再进短写事务复核、提交，之后才发送 200/新 cookie；旧口令失败计数提交后才发送 400/429。
         Argon2 入场及运算不持有数据库事务；每次排队最多 1 秒，完成并释放名额后写锁最多约 5 秒，无重试。
     """
-    raise NotImplementedError
+    grant = context.service.change_password(
+        _identity(context),
+        PasswordChange(body.current_password, body.new_password),
+        now=context.now,
+    )
+    set_session_cookie(response, grant)
+    return account_response(grant.identity.account)
 
 
 @router.get(
@@ -218,7 +236,13 @@ def list_accounts(
         没有列表写入、Argon2 或 G2 判定；负会话经过时长按 0，不因回拨报错。
         SQLite 单次读取锁等待约 5 秒，无轮询或重试；认证活动更新独立于本查询。
     """
-    raise NotImplementedError
+    page = context.service.list_accounts(
+        _identity(context), after_id=_identifier(after_id, cursor=True), now=context.now
+    )
+    return AccountListResponse(
+        items=tuple(account_response(item) for item in page.items),
+        next_after_id=None if page.next_after_id is None else str(page.next_after_id),
+    )
 
 
 @router.post(
@@ -251,7 +275,10 @@ def create_account(body: CreateAccountRequest, context: AdminContext) -> Account
         以 context.now 作为创建和修改的 UTC 时刻；事务内重验管理员权限，回拨不拒绝。
         哈希入场最多排队 1 秒且不持数据库事务，完成后才申请约 5 秒预算的写锁；提交后发 201，不建目标 cookie、不重试。
     """
-    raise NotImplementedError
+    command = NewAccount(Credentials(body.login_name, body.password), body.display_name, body.role)
+    return account_response(
+        context.service.create_account(_identity(context), command, now=context.now)
+    )
 
 
 @router.patch(
@@ -292,7 +319,11 @@ def set_account_role(
         角色与会话撤销在同事务提交后才发送 200，操作自己成功后旧 cookie 下一请求 401。
         同步 SQL 的写锁等待约 5 秒，无 Argon2 或自动重试。
     """
-    raise NotImplementedError
+    return account_response(
+        context.service.set_role(
+            _identity(context), _identifier(account_id), body.role, now=context.now
+        )
+    )
 
 
 @router.patch(
@@ -333,7 +364,11 @@ def set_account_status(
         停用和会话删除原子提交后才发送 200，停用自己后旧 cookie 下一请求 401；启用不恢复旧会话。
         SQLite 写锁等待约 5 秒，无 Argon2 或自动重试。
     """
-    raise NotImplementedError
+    return account_response(
+        context.service.set_status(
+            _identity(context), _identifier(account_id), body.status, now=context.now
+        )
+    )
 
 
 @router.post(
@@ -374,7 +409,11 @@ def reset_account_password(
         哈希在事务外最多排队 1 秒计算，释放名额后再以约 5 秒预算申请写锁；
         保存已计算结果、强制改密和删除会话同事务提交后发 200，不签发目标 cookie、不自动重试。
     """
-    raise NotImplementedError
+    return account_response(
+        context.service.reset_password(
+            _identity(context), _identifier(account_id), body.password, now=context.now
+        )
+    )
 
 
 @router.delete(
@@ -412,4 +451,29 @@ def delete_account(account_id: TargetId, context: AdminContext) -> Response:
         账号及会话删除提交后发送 204；删除自己后旧 cookie 下一请求 401。
         同步写锁等待约 5 秒，无 Argon2 或自动重试；超时不能推断服务端已回滚。
     """
-    raise NotImplementedError
+    context.service.delete_account(_identity(context), _identifier(account_id), now=context.now)
+    return Response(status_code=204)
+
+
+def _identity(context: AccountRequestContext) -> SessionIdentity:
+    """认证依赖必须交付身份，直接调用入口时同样失败关闭。"""
+    if context.identity is None:
+        raise problem(AuthenticationError, "请先登录")
+    return context.identity
+
+
+def _identifier(value: str, *, cursor: bool = False) -> int:
+    """在转换前限制十进制文本长度与规范形状，避免64位编号精度丢失。"""
+    field = "after_id" if cursor else "account_id"
+    if (
+        not isinstance(cast(object, value), str)
+        or len(value) > 19
+        or not value.isascii()
+        or not value.isdecimal()
+        or str(int(value)) != value
+    ):
+        raise problem(AccountInputError, "编号必须为规范十进制文本", field=field)
+    number = int(value)
+    if not (0 if cursor else 1) <= number <= MAX_SQLITE_INTEGER:
+        raise problem(AccountInputError, "编号超出允许范围", field=field)
+    return number

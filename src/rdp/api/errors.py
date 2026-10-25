@@ -3,19 +3,23 @@
 使用 FastAPI/Pydantic 的响应、模型和校验异常，以及标准库 traceback 的栈提取能力；
 D2 直接沿用标准库异常消息和源码行，不打印局部变量；参数校验不回显原值，
 自己的 Pydantic 模型均 hide_input_in_errors=True，不新增依赖或自行解析栈。
-状态码以主仓库 CODING_STANDARDS.md 6.2 为准；新状态码先改那张表，再改代码。
-| 状态码 | 类别 | 什么时候用 | 响应 |
+状态码简表以主仓库 docs/standards/CODING_STANDARDS.md 6.2 为准；新增状态码先更新规范。
+| 状态码 | 类别 | 用途 | 响应 |
 |---|---|---|---|
-| 400 | 输入或数据问题 | 默认：请求合格，但内容或数据有问题，例如数据集缺文件 | problem+json，带诊断 |
-| 404 | 输入或数据问题 | 要操作的对象不存在，例如数据集、账号、作业编号查不到 | problem+json，带诊断 |
-| 422 | 输入或数据问题 | 请求参数不合格（类型、范围、缺项）；不回显原值 | problem+json，带诊断 |
-| 409 | 冲突 | 和当前状态冲突，例如预览之后数据集被别的作业改过 | problem+json，带诊断 |
-| 502 | 外部失败 | 依赖的外部东西出错，例如存储根离线、外部工具失败 | problem+json，带诊断 |
-| 500 | 程序缺陷 | 平台自己的 bug，以及任何没被归入前三类的异常 | problem+json，一句话加错误编号，不带内部细节 |
-| 401 | 输入或数据问题 | 未登录、会话失效或登录凭据错误 | problem+json，带安全诊断 |
+| 400 | 输入或数据问题 | 请求内容或数据有问题 | problem+json，带诊断 |
+| 404 | 输入或数据问题 | 要操作的对象不存在 | problem+json，带诊断 |
+| 422 | 输入或数据问题 | 参数类型、范围或缺项不合格；不回显原值 | problem+json，带诊断 |
+| 409 | 冲突 | 与当前状态冲突 | problem+json，带诊断 |
+| 502 | 外部失败 | 外部依赖失败；口令哈希资源繁忙、排队超时 | problem+json，带诊断 |
+| 500 | 程序缺陷 | 平台 bug 或未归入前三类的异常 | problem+json，安全摘要与错误编号 |
+| 401 | 输入或数据问题 | 未登录、会话失效或登录凭据错误 | problem+json，带诊断并清会话 cookie |
 | 403 | 输入或数据问题 | 角色不足、必须先改口令或 Origin 拒绝 | problem+json，带诊断 |
-| 429 | 输入或数据问题 | 启用账号的 G2 等待，不校验口令 | problem+json，带诊断和 Retry-After 秒数 |
-| 404、405 | （框架） | 接口路径不存在、方法不对，由 Starlette 直接返回 | 保持框架原格式；前端显示"请求失败" |
+| 429 | 输入或数据问题 | G2 等待 | problem+json，带诊断；Retry-After 为向上取整的剩余秒数 |
+| 404 | （框架格式） | /api 路径不存在，由 S1 兜底返回 | 保持框架 JSON 格式；前端显示"请求失败" |
+| 405 | （框架格式） | /api 路径存在但方法不对，由 S1 兜底返回 | 保持框架 JSON 格式，带 Allow 头 |
+| 405 | （框架） | /api 以外页面路径使用非 GET 方法 | 保持框架原格式；前端显示"请求失败" |
+
+/api 的 S1 兜底位于全局访问检查之后，遵循 6.2 的 Origin、白名单、认证、强制改密、角色、路由顺序。
 
 RFC 9457 使用 about:blank；诊断模型来自基础层，不存数据库、traceback 或请求载荷。
 只报告一次需要 ASGI 外层配合：本地 starlette/middleware/errors.py 的 ServerErrorMiddleware
@@ -42,7 +46,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import models_json_schema
 from sqlalchemy import Engine
 
+from rdp.accounts.errors import LoginWaitError
 from rdp.api._asgi import ASGIApp, ASGIMessage, Receive, Send
+from rdp.api.account_auth import clear_session_cookie
 from rdp.infra.db.connection import BUSY_TIMEOUT_MS, session_scope
 from rdp.infra.db.models import MAX_EXCEPTION_REPORT_CHARS, REPORT_TRUNCATION_MARKER
 from rdp.infra.db.records import ErrorRecord, write_error
@@ -275,9 +281,9 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
         由 ErrorBoundary 记录；包括流式响应已经开始、框架不会发送该返回值的情况。
         已处理异常使用 await report_error_with_database；未知异常仍由
         ErrorBoundary 调用它，一次请求只报告/存表一次。
-        06 契约提案：账号业务请求及任何路由认证阶段的未知异常先经 sanitize_account_error；两个响应出口均调用
+        账号边界：账号业务请求及任何路由认证阶段的未知异常先经 sanitize_account_error；两个响应出口均调用
         account_error_headers 输出 429 Retry-After，并在 401 清 cookie；账号报错的 occurred_at
-        复用注入的请求 now，不重新读取系统时钟；骨架阶段尚未接线。
+        复用注入的请求 now，不重新读取系统时钟。
 
     Raises:
         RuntimeError: 请求编号未绑定或非法，由 build_problem 传播；不发送半个错误响应。
@@ -295,16 +301,17 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
         请求作用域内运行，无轮询或重试；日志时间交给 RuntimeFormatter。
         缺陷持久化额外等待最多约 ERROR_PERSIST_TIMEOUT_S，其他类别不等数据库。
     """
-    problem = build_problem(request, error)
-    if isinstance(
+    original = error
+    handled = isinstance(
         error, (InputError, ConflictError, ExternalError, DefectError, RequestValidationError)
-    ):
-        await report_error_with_database(request, error, problem, occurred_at=datetime.now(UTC))
-    return JSONResponse(
-        problem.model_dump(mode="json"),
-        status_code=problem.status,
-        media_type="application/problem+json",
     )
+    error = _safe_request_error(request, error)
+    problem = build_problem(request, error)
+    response = _problem_response(problem, error)
+    if handled:
+        await report_error_with_database(request, error, problem, occurred_at=_report_time(request))
+        request.state.reported_error_id = id(original)
+    return response
 
 
 class ErrorBoundary:
@@ -360,9 +367,9 @@ class ErrorBoundary:
             不读取查询串/请求体，不吞取消；不全局屏蔽 uvicorn 日志。
             未知缺陷统一 await report_error_with_database，独立工作线程写表；
             保留原 500/已发响应前缀，持久化失败不进入本类的“报告依赖失败”重抛分支。
-            06 契约提案：账号入口与 handle_error 共用秘密脱敏和 Retry-After/401 cookie 处理；
+            账号边界：账号入口与 handle_error 共用秘密脱敏和 Retry-After/401 cookie 处理；
             范围包括所有路由在认证阶段抛出的异常，读取只含阶段的请求标记，不能只匹配账号路径；
-            未开始的 401 响应清 cookie，已发送响应不再发头。认证通过后的非账号业务仍保留完整报告；骨架尚未接线。
+            未开始的 401 响应清 cookie，已发送响应不再发头。认证通过后的非账号业务仍保留完整报告。
 
         Time Semantics:
             覆盖下游流式迭代和后台任务直至退出；必须在 request_id 解绑前报告。
@@ -384,16 +391,16 @@ class ErrorBoundary:
             await self._app(scope, receive, track_send)
         except Exception as error:
             request = Request(scope, receive=receive)
+            original = error
+            error = _safe_request_error(request, error)
             problem = build_problem(request, error)
-            await report_error_with_database(request, error, problem, occurred_at=datetime.now(UTC))
+            if getattr(request.state, "reported_error_id", None) != id(original):
+                await report_error_with_database(
+                    request, error, problem, occurred_at=_report_time(request)
+                )
             # 已发送前缀不能改写成另一份响应，也不能伪造成功的流式结尾。
             if not started:
-                response = JSONResponse(
-                    problem.model_dump(mode="json"),
-                    status_code=problem.status,
-                    media_type="application/problem+json",
-                )
-                await response(scope, receive, send)
+                await _problem_response(problem, error)(scope, receive, send)
 
 
 def install_error_handlers(app: FastAPI) -> None:
@@ -731,12 +738,17 @@ def account_error_headers(error: Exception) -> dict[str, str]:
 
     Side Effects:
         无；不改变异常，不写日志，不计算或延长等待。实现阶段 handle_error 与 ErrorBoundary
-        两个响应出口共用本函数，不能只给其中一条路径加头；骨架阶段尚未接线。
+        两个响应出口共用本函数，不能只给其中一条路径加头。
 
     Time Semantics:
         使用领域已按请求 now 向上取整的剩余秒数，不重新读时钟。
     """
-    raise NotImplementedError
+    if not isinstance(error, LoginWaitError):
+        return {}
+    seconds = error.retry_after_s
+    if type(seconds) is not int or not 1 <= seconds <= 60:
+        raise DefectError()
+    return {"Retry-After": str(seconds)}
 
 
 def sanitize_account_error(error: Exception) -> Exception:
@@ -757,9 +769,54 @@ def sanitize_account_error(error: Exception) -> Exception:
         不修改原异常、不记录日志；账号业务及任意路由认证失败的两个统一错误出口均先调用此函数，
         再用既有 report_error_with_database 报告一次，避免未知错误把口令/cookie 写入完整报错。
         口令、会话令牌、cookie 不得出现在响应、诊断、异常消息、运行日志或报错表。
-        认证成功后的其他业务完整异常报告契约不变；骨架不接线，不能把它误当作已生效保护。
+        认证成功后的其他业务完整异常报告契约不变。
 
     Time Semantics:
         同步转换，无时钟或数据库读取。
     """
-    raise NotImplementedError
+    if isinstance(
+        error, (InputError, ConflictError, ExternalError, DefectError, RequestValidationError)
+    ):
+        return error
+    safe = DefectError()
+    # 只保留定位信息，不保留原 traceback 对象，以免源码行或上下文包含凭据。
+    locations: list[str] = []
+    for frame, line in traceback.walk_tb(error.__traceback__):
+        locations.append(f"{frame.f_code.co_filename}:{line} {frame.f_code.co_name}")
+        if len(locations) > 20:
+            locations.pop(0)
+    if locations:
+        safe.add_note("定位：" + " | ".join(locations))
+    return safe
+
+
+def _safe_request_error(request: Request, error: Exception) -> Exception:
+    """认证阶段覆盖所有路径；账号业务也必须隔离未知异常消息。"""
+    path = request.url.path
+    if (
+        getattr(request.state, "account_auth_phase", False)
+        or path.startswith("/api/auth/")
+        or path == "/api/accounts"
+        or path.startswith("/api/accounts/")
+    ):
+        return sanitize_account_error(error)
+    return error
+
+
+def _problem_response(problem: ProblemResponse, error: Exception) -> JSONResponse:
+    """两个错误出口共用状态、重试头和401清cookie，避免分支行为漂移。"""
+    response = JSONResponse(
+        problem.model_dump(mode="json"),
+        status_code=problem.status,
+        media_type="application/problem+json",
+        headers=account_error_headers(error),
+    )
+    if problem.status == 401:
+        clear_session_cookie(response)
+    return response
+
+
+def _report_time(request: Request) -> datetime:
+    """优先复用已校验请求时刻；时钟本身失败时仅报告使用UTC墙钟兜底。"""
+    moment = getattr(request.state, "account_now", None)
+    return moment if isinstance(moment, datetime) else datetime.now(UTC)

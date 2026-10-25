@@ -5,7 +5,7 @@ import sqlite3
 import time
 from pathlib import Path
 from queue import Empty
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from db_support import reap_processes as _reap
@@ -15,7 +15,12 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError, StatementError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-from rdp.infra.db.connection import create_database_engine, session_scope, translate_database_error
+from rdp.infra.db.connection import (
+    create_database_engine,
+    session_scope,
+    session_scope_with_lock_timeout,
+    translate_database_error,
+)
 from rdp.infra.diagnostics import ConflictError, DefectError, ExternalError, InputError
 
 
@@ -574,31 +579,108 @@ def test_parameters_hidden(tmp_path: Path) -> None:
         engine.dispose()
 
 
-def test_short_write_timeout_before_begin() -> None:
+def test_short_write_timeout_before_begin(tmp_path: Path) -> None:
     """验证契约：session_scope_with_lock_timeout在独立连接BEGIN之前设PRAGMA busy_timeout为100毫秒，事务内读到100，不能先BEGIN再设置。"""
-    pytest.skip("工单 06 契约骨架，待实现与 TDD")
+    engine = create_database_engine(tmp_path / "short.sqlite3")
+    statements: list[str] = []
+
+    def trace(conn: Any, cursor: Any, statement: str, *args: Any) -> None:
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", trace)
+    try:
+        with session_scope_with_lock_timeout(engine, busy_timeout_ms=100) as session:
+            assert session.scalar(text("PRAGMA busy_timeout")) == 100
+        assert statements.index("PRAGMA busy_timeout=100") < statements.index("BEGIN IMMEDIATE")
+    finally:
+        event.remove(engine, "before_cursor_execute", trace)
+        engine.dispose()
 
 
-def test_short_write_timeout_contention() -> None:
+def test_short_write_timeout_contention(tmp_path: Path) -> None:
     """验证契约：另一连接持有写锁时短写入场按100毫秒预算冲突，保留SQLite BUSY/LOCKED原因与获锁阶段，不重试至5秒。"""
-    pytest.skip("工单 06 契约骨架，待实现与 TDD")
+    engine = create_database_engine(tmp_path / "short.sqlite3")
+    try:
+        with session_scope(engine):
+            started = time.monotonic()
+            with (
+                pytest.raises(ConflictError) as caught,
+                session_scope_with_lock_timeout(engine, busy_timeout_ms=100),
+            ):
+                pytest.fail("不应获得被占用的写锁")
+            assert time.monotonic() - started < 1.5
+            assert caught.value.__cause__ is not None
+    finally:
+        engine.dispose()
 
 
-def test_short_write_timeout_isolation() -> None:
+def test_short_write_timeout_isolation(tmp_path: Path) -> None:
     """验证契约：短会话结束/入场失败后丢弃NullPool连接，不改父引擎或其他并行连接，普通session_scope仍为5000毫秒。"""
-    pytest.skip("工单 06 契约骨架，待实现与 TDD")
+    engine = create_database_engine(tmp_path / "short.sqlite3")
+    try:
+        with session_scope_with_lock_timeout(engine, busy_timeout_ms=100) as short:
+            assert short.scalar(text("PRAGMA busy_timeout")) == 100
+        with session_scope(engine) as normal:
+            assert normal.scalar(text("PRAGMA busy_timeout")) == 5000
+        assert "rdp_lock_timeout_ms" not in engine.get_execution_options()
+    finally:
+        engine.dispose()
 
 
-def test_short_write_invalid_options() -> None:
+def test_short_write_invalid_options(tmp_path: Path) -> None:
     """验证契约：超时bool/负值/大于5000或非受管引擎归DefectError，不打开工作单元；0和5000合法。"""
-    pytest.skip("工单 06 契约骨架，待实现与 TDD")
+    engine = create_database_engine(tmp_path / "short.sqlite3")
+    try:
+        for invalid in (True, -1, 5001, "100", None):
+            with pytest.raises(DefectError):
+                session_scope_with_lock_timeout(engine, busy_timeout_ms=cast(Any, invalid))
+        for valid in (0, 5000):
+            with session_scope_with_lock_timeout(engine, busy_timeout_ms=valid) as session:
+                assert session.scalar(text("PRAGMA busy_timeout")) == valid
+    finally:
+        engine.dispose()
 
 
-def test_short_write_transaction_lifecycle() -> None:
+def test_short_write_transaction_lifecycle(tmp_path: Path) -> None:
     """验证契约：短写正常提交、业务异常回滚，清理失败沿用session_scope保留主异常，不吞取消、不dispose调用者引擎。"""
-    pytest.skip("工单 06 契约骨架，待实现与 TDD")
+    engine = create_database_engine(tmp_path / "short.sqlite3")
+    try:
+        with session_scope(engine) as session:
+            session.execute(text("CREATE TABLE counter(value INTEGER)"))
+        with (
+            pytest.raises(KeyboardInterrupt),
+            session_scope_with_lock_timeout(engine, busy_timeout_ms=100) as session,
+        ):
+            session.execute(text("INSERT INTO counter VALUES (1)"))
+            raise KeyboardInterrupt()
+        with session_scope(engine, read_only=True) as session:
+            assert session.scalar(text("SELECT count(*) FROM counter")) == 0
+        with session_scope_with_lock_timeout(engine, busy_timeout_ms=100) as session:
+            session.execute(text("INSERT INTO counter VALUES (2)"))
+        with session_scope(engine, read_only=True) as session:
+            assert session.scalar(text("SELECT value FROM counter")) == 2
+    finally:
+        engine.dispose()
 
 
-def test_short_write_error_categories() -> None:
+def test_short_write_error_categories(tmp_path: Path) -> None:
     """验证契约：数据损坏InputError、I/O ExternalError、SQL DefectError、非获锁阶段锁或约束ConflictError，不能被认证刷新误吞。"""
-    pytest.skip("工单 06 契约骨架，待实现与 TDD")
+    engine = create_database_engine(tmp_path / "short.sqlite3")
+    try:
+        for code, expected in (
+            (sqlite3.SQLITE_CORRUPT, InputError),
+            (sqlite3.SQLITE_IOERR, ExternalError),
+            (sqlite3.SQLITE_BUSY, ConflictError),
+        ):
+            with (
+                pytest.raises(expected),
+                session_scope_with_lock_timeout(engine, busy_timeout_ms=100),
+            ):
+                raise _sqlite_error(code)
+        with (
+            pytest.raises(DefectError),
+            session_scope_with_lock_timeout(engine, busy_timeout_ms=100) as session,
+        ):
+            session.execute(text("SELECT missing FROM absent"))
+    finally:
+        engine.dispose()

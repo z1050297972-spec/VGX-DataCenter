@@ -4,12 +4,23 @@
 不写运行、操作或登录日志，不把口令放命令行参数、环境变量或异常消息。
 """
 
+import hmac
+import warnings
 from collections.abc import Callable
 from datetime import datetime
-from getpass import getpass
+from getpass import GetPassWarning, getpass
+from typing import cast
 
+from pydantic import SecretStr
+
+from rdp.accounts._inputs import password_text
+from rdp.accounts._issues import problem
+from rdp.accounts.errors import AccountInputError
+from rdp.accounts.policy import LOGIN_WAIT
 from rdp.accounts.service import AccountService
-from rdp.accounts.types import AccountView
+from rdp.accounts.types import AccountView, Credentials, NewAccount, Role
+from rdp.infra.diagnostics import DefectError, ExternalError
+from rdp.infra.timeutil import ensure_utc
 
 
 def create_first_admin(
@@ -52,7 +63,11 @@ def create_first_admin(
         PasswordCodec 入场最多排队 1 秒，排队/运算不持数据库事务，释放名额后才申请最多约 5 秒的写锁；
         超时不计失败、不留账号；不 dispose 引擎。
     """
-    raise NotImplementedError
+    moment = _moment(now)
+    secret = _read_pair(read_password)
+    return service.create_first_admin(
+        NewAccount(Credentials(login_name, secret), display_name, Role.ADMINISTRATOR), now=moment
+    )
 
 
 def reset_account_password(
@@ -91,4 +106,39 @@ def reset_account_password(
     Time Semantics:
         输入和 Argon2 排队/运算均不持锁；哈希最多排队 1 秒，结束后才申请约 5 秒的写锁，now 来自调用方，无重试。
     """
-    raise NotImplementedError
+    moment = _moment(now)
+    secret = _read_pair(read_password)
+    return service.reset_password_from_ops(login_name, secret, now=moment)
+
+
+def _moment(value: datetime) -> datetime:
+    """调用者提供的时钟错误属于平台缺陷，必须在任何口令读取前拒绝。"""
+    try:
+        moment = ensure_utc(value)
+        _ = moment + LOGIN_WAIT
+        return moment
+    except Exception:
+        raise DefectError() from None
+
+
+def _read_pair(reader: Callable[[str], str]) -> SecretStr:
+    """拒绝 getpass 的有回显降级；输入失败只保留安全类别，取消原样传播。"""
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", GetPassWarning)
+            first = reader("请输入口令：")
+            second = reader("请再次输入口令：")
+        if not isinstance(cast(object, first), str) or not isinstance(cast(object, second), str):
+            raise DefectError()
+    except EOFError:
+        raise
+    except (OSError, GetPassWarning):
+        raise problem(ExternalError, "无法安全读取口令，请使用支持无回显输入的终端") from None
+    except Exception:
+        raise DefectError() from None
+    secret = SecretStr(first)
+    first = password_text(secret)
+    second = password_text(SecretStr(second))
+    if not hmac.compare_digest(first.encode("utf-8"), second.encode("utf-8")):
+        raise problem(AccountInputError, "两次输入的口令不一致")
+    return secret

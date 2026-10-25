@@ -5,7 +5,7 @@ import * as ReactDOMClient from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import type { FetchImplementation } from "./api/client";
 import type { paths } from "./api/schema";
-import { mountWeb } from "./mountWeb";
+import { account } from "./accounts/testSupport";
 
 const transport = vi.hoisted(() => vi.fn<FetchImplementation>());
 vi.mock("react-dom/client", { spy: true });
@@ -20,7 +20,8 @@ vi.mock("openapi-fetch", async (importOriginal) => {
   };
 });
 
-it("验证契约：空容器同步报错且不挂载", () => {
+it("验证契约：空容器同步报错且不挂载", async () => {
+  const { mountWeb } = await import("./mountWeb");
   const before = document.body.innerHTML;
   expect(() => {
     mountWeb(null);
@@ -29,7 +30,12 @@ it("验证契约：空容器同步报错且不挂载", () => {
 });
 
 it("验证契约：有效容器创建 React 根并提供查询和路由上下文", async () => {
-  transport.mockImplementation(() => Promise.resolve(Response.json({ status: "ok" })));
+  const { mountWeb } = await import("./mountWeb");
+  transport.mockImplementation((request) =>
+    Promise.resolve(
+      Response.json(new URL(request.url).pathname === "/api/auth/me" ? account : { status: "ok" }),
+    ),
+  );
   const container = document.createElement("div");
   document.body.append(container);
   // 只记录渲染器创建的资源以便释放，不替换渲染行为，不断言内部调用顺序。
@@ -42,7 +48,7 @@ it("验证契约：有效容器创建 React 根并提供查询和路由上下文
     });
     expect(await screen.findByText("后端正常")).toBeTruthy();
     expect(container.textContent).toContain("后端正常");
-    expect(transport.mock.calls[0]?.[0].url).toBe(new URL("/api/health", location.href).href);
+    expect(transport.mock.calls[0]?.[0].url).toBe(new URL("/api/auth/me", location.href).href);
   } finally {
     await act(() => {
       for (const result of rootSpy.mock.results) {
@@ -52,5 +58,7 @@ it("验证契约：有效容器创建 React 根并提供查询和路由上下文
     });
     rootSpy.mockRestore();
     container.remove();
+    const { appQueryClient } = await import("./router");
+    appQueryClient.clear();
   }
 });

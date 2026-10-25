@@ -462,7 +462,7 @@ export interface paths {
          *     Returns:
          *         ErrorRecord，HTTP 200 JSON；包含编号、UTC 时间、类别、摘要、同日志的报告和来源种类；
          *         来源编号就是 error_id。响应模型进入 OpenAPI；不返回 SQL、请求体或额外日志上下文。
-         *         本票暂不鉴权，第 06 张加“所有登录账号可看”的登录依赖，不仅管理员。
+         *         HTTP 请求先通过第 06 张的全局登录与强制改密检查，所有通过检查的账号均可查看，不仅管理员。
          *
          *     Raises:
          *         ErrorReportNotFoundError: 找不到记录（含过期清除），404；诊断对象 error_id，规则为

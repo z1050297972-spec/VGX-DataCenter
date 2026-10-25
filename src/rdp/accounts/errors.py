@@ -1,7 +1,7 @@
 """账号领域四类异常的状态细分（06），只携带安全诊断，不记录或拼接凭据。"""
 
 from http import HTTPStatus
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from rdp.infra.diagnostics import Diagnostic, InputError
 
@@ -112,4 +112,11 @@ class LoginWaitError(InputError):
         Time Semantics:
             同步构造；剩余秒数以调用者传入的 now 计算，无等待。
         """
-        raise NotImplementedError
+        if (
+            isinstance(retry_after_s, bool)
+            or not isinstance(cast(object, retry_after_s), int)
+            or not 1 <= retry_after_s <= 60
+        ):
+            raise ValueError("等待秒数必须是 1 至 60 的整数")
+        super().__init__(diagnostics)
+        self.retry_after_s = retry_after_s

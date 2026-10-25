@@ -1,6 +1,8 @@
 // 账号 HTTP 边界（06）：仅使用生成类型和统一 openapi-fetch；不把秘密放 URL、日志或持久缓存。
 import type { FetchImplementation, HealthClient } from "./client";
+import { createHealthClient } from "./client";
 import type { components } from "./schema";
+import { toFailureView } from "./problems";
 
 /** 安全账号快照；编号为文本，禁止 Number 转换以免丢失 64 位精度。 */
 export type Account = components["schemas"]["AccountResponse"];
@@ -65,9 +67,13 @@ export interface ListAccountCall extends AccountCall {
  * @sideEffects 每次传输仅一次；任何 API 的 401（即使 body 非法）先通知 onUnauthorized，再保留安全失败供登录页显示；429 保留 problem 和安全 Retry-After。创建不读 cookie、不改全局 fetch。
  * @timeSemantics 同步构造；请求取消/10 秒超时由调用函数负责，不自动重试。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架仅保留参数契约，实现阶段删除本条豁免。
 export function createAccountClient(options: AccountClientOptions): HealthClient {
-  throw new Error("未实现");
+  const { fetchImpl } = options;
+  return createHealthClient(async (...args) => {
+    const response = await fetchImpl(...args);
+    if (response.status === 401) options.onUnauthorized();
+    return response;
+  });
 }
 
 /**
@@ -76,12 +82,14 @@ export function createAccountClient(options: AccountClientOptions): HealthClient
  * @param input - 客户端、仅内存的登录载荷和取消信号。
  * @returns POST /api/auth/login 的 200 Account；浏览器保存 HttpOnly cookie，代码不读取 Set-Cookie。
  * @throws Error 网络、超时、取消、401/403/422/429/502 或其他失败，沿用 toFailureView；429 只展示 G2 的安全倒计时；Argon2 容量不足的 502 显示资源繁忙，不自动重试。
- * @sideEffects 一次 POST；不把口令放 query、localStorage、日志或 Query 缓存；成功和失败均清空表单秘密。
+ * @sideEffects 一次 POST；不把口令放 query、localStorage、日志或 Query 缓存；表单秘密由调用页面在成功和失败后清空。
  * @timeSemantics 最多 ACCOUNT_TIMEOUT_MS 毫秒；失败不自动重试，取消不保证服务端撤销。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架仅保留参数契约，实现阶段删除本条豁免。
 export function login(input: AccountCall<LoginInput>): Promise<Account> {
-  throw new Error("未实现");
+  return bounded(input.signal, async (signal) => {
+    const result = await input.client.POST("/api/auth/login", { body: input.payload, signal });
+    return required(result.data);
+  });
 }
 
 /**
@@ -90,12 +98,14 @@ export function login(input: AccountCall<LoginInput>): Promise<Account> {
  * @param input - 已认证客户端、undefined payload 和取消信号。
  * @returns POST /api/auth/logout 的 204，无数据；401 也统一清理本地身份。
  * @throws Error 其他失败经 toFailureView 显示，不能把网络失败伪装为服务端登出成功。
- * @sideEffects 一次 POST；成功或 401 清空 Query 身份/账号/详情缓存并去登录页，cookie 由服务器删除。
- * @timeSemantics 10 秒上限，无重试；等待结果期间禁用重复点击。
+ * @sideEffects 一次 POST；cookie 由服务器删除；成功或 401 后的清缓存和导航由 AccountMenu 与统一导航边界负责。
+ * @timeSemantics 10 秒上限，无重试；等待期间的重复点击由页面禁用。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架仅保留参数契约，实现阶段删除本条豁免。
 export function logout(input: AccountCall): Promise<void> {
-  throw new Error("未实现");
+  return bounded(input.signal, async (signal) => {
+    const result = await input.client.POST("/api/auth/logout", { signal });
+    if (result.response.status !== 204) throw new Error("请求失败", { cause: toFailureView(null) });
+  });
 }
 
 /**
@@ -104,12 +114,14 @@ export function logout(input: AccountCall): Promise<void> {
  * @param input - 客户端、undefined payload、取消信号。
  * @returns GET /api/auth/me 的 200 Account。
  * @throws Error 401 统一跳登录，其他失败保留诊断；不把 502 当匿名身份。
- * @sideEffects 一次调用发一次 GET；身份仅在内存 Query 缓存，staleTime/gcTime 均为 0，身份查询设置 refetchOnWindowFocus: true，无自动重试。
- * @timeSemantics 10 秒上限；路由跳转前等待，切回窗口由活跃身份查询重新调用；401 统一跳登录，忽略取消后的迟到结果。
+ * @sideEffects 一次调用发一次 GET；内存身份缓存、staleTime/gcTime=0 和 refetchOnWindowFocus:true 由 AccountLayout/AccountMenu 的查询配置负责。
+ * @timeSemantics 10 秒上限；遵守传入的 AbortSignal，忽略取消后的迟到结果；路由等待与窗口聚焦重查由调用方负责。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架仅保留参数契约，实现阶段删除本条豁免。
 export function fetchCurrentAccount(input: AccountCall): Promise<Account> {
-  throw new Error("未实现");
+  return bounded(input.signal, async (signal) => {
+    const result = await input.client.GET("/api/auth/me", { signal });
+    return required(result.data);
+  });
 }
 
 /**
@@ -118,12 +130,14 @@ export function fetchCurrentAccount(input: AccountCall): Promise<Account> {
  * @param input - 当前和新口令只在 payload 内存中，不接受目标编号。
  * @returns POST /api/auth/password 的 200 Account，must_change_password=False；浏览器接收轮换 cookie。
  * @throws Error 经 toFailureView；当前口令错误以 400 显示“当前口令不正确”，保留身份和当前页；第五次起 429。真实会话失效的 401 仍统一跳登录，不输出原文或自动重试。
- * @sideEffects 一次 POST；结束后清空两份口令，成功使身份缓存失效，旧会话全部作废。
+ * @sideEffects 一次 POST；服务器使旧会话全部作废；两份口令清理与身份缓存失效由改密页面负责。
  * @timeSemantics 10 秒上限，写请求不自动重试。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架仅保留参数契约，实现阶段删除本条豁免。
 export function changePassword(input: AccountCall<PasswordInput>): Promise<Account> {
-  throw new Error("未实现");
+  return bounded(input.signal, async (signal) => {
+    const result = await input.client.POST("/api/auth/password", { body: input.payload, signal });
+    return required(result.data);
+  });
 }
 
 /**
@@ -133,11 +147,16 @@ export function changePassword(input: AccountCall<PasswordInput>): Promise<Accou
  * @returns GET /api/accounts?after_id=... 的有序一页，最多 100 项；next_after_id=null 表示末页。
  * @throws Error 401 跳登录，403 显示权限诊断，其他失败用 DiagnosticCard。
  * @sideEffects 一次 GET，不把编号转 Number；不全量拉取列表。
- * @timeSemantics 10 秒上限；取消旧分页请求，忽略旧响应，无轮询。
+ * @timeSemantics 10 秒上限；遵守传入信号并忽略取消后结果；旧分页请求由账号管理页取消，无轮询。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架仅保留参数契约，实现阶段删除本条豁免。
 export function listAccounts(input: ListAccountCall): Promise<AccountList> {
-  throw new Error("未实现");
+  return bounded(input.signal, async (signal) => {
+    const result = await input.client.GET("/api/accounts", {
+      params: { query: { after_id: input.afterId } },
+      signal,
+    });
+    return required(result.data);
+  });
 }
 
 /**
@@ -146,12 +165,14 @@ export function listAccounts(input: ListAccountCall): Promise<AccountList> {
  * @param input - 生成类型的新建载荷、客户端和取消信号。
  * @returns POST /api/accounts 的 201 Account，必须首次改密。
  * @throws Error 409 登录名冲突及其他失败统一显示 DiagnosticCard，不回显初始口令。
- * @sideEffects 一次 POST；成功使列表失效，结束后清空口令和 mutation 中的秘密引用，不持久缓存请求。
- * @timeSemantics 10 秒上限，禁止重复提交，无自动重试。
+ * @sideEffects 一次 POST；列表失效和结束后的口令清理由账号管理页负责，本函数不持久缓存请求。
+ * @timeSemantics 10 秒上限，无自动重试；账号管理页负责禁止重复提交。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架仅保留参数契约，实现阶段删除本条豁免。
 export function createAccount(input: AccountCall<NewAccountInput>): Promise<Account> {
-  throw new Error("未实现");
+  return bounded(input.signal, async (signal) => {
+    const result = await input.client.POST("/api/accounts", { body: input.payload, signal });
+    return required(result.data);
+  });
 }
 
 /**
@@ -160,12 +181,18 @@ export function createAccount(input: AccountCall<NewAccountInput>): Promise<Acco
  * @param input - 目标编号文本、生成的 role 载荷、客户端和信号。
  * @returns PATCH /api/accounts/{account_id}/role 的 200 Account。
  * @throws Error 最后管理员 409、无权限 403 等以 DiagnosticCard 显示。
- * @sideEffects 一次 PATCH；成功刷新列表及当前身份；目标会话可能被撤销。
+ * @sideEffects 一次 PATCH；服务器可能撤销目标会话；列表及当前身份的刷新由账号管理页负责。
  * @timeSemantics 10 秒上限，不乐观确认、不自动重试。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架仅保留参数契约，实现阶段删除本条豁免。
 export function setAccountRole(input: TargetAccountCall<RoleInput>): Promise<Account> {
-  throw new Error("未实现");
+  return bounded(input.signal, async (signal) => {
+    const result = await input.client.PATCH("/api/accounts/{account_id}/role", {
+      body: input.payload,
+      params: { path: { account_id: input.accountId } },
+      signal,
+    });
+    return required(result.data);
+  });
 }
 
 /**
@@ -174,12 +201,18 @@ export function setAccountRole(input: TargetAccountCall<RoleInput>): Promise<Acc
  * @param input - 目标编号文本和 status 载荷；停用须由页面完成二次确认。
  * @returns PATCH /api/accounts/{account_id}/status 的 200 Account。
  * @throws Error 409/403/其他失败统一诊断。
- * @sideEffects 一次 PATCH；成功刷新列表，停用使目标全部会话失效；客户端确认不替代服务端不变量。
+ * @sideEffects 一次 PATCH；停用使目标全部会话失效；列表刷新和二次确认由账号管理页负责，不能替代服务端不变量。
  * @timeSemantics 10 秒上限，不自动重试。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架仅保留参数契约，实现阶段删除本条豁免。
 export function setAccountStatus(input: TargetAccountCall<StatusInput>): Promise<Account> {
-  throw new Error("未实现");
+  return bounded(input.signal, async (signal) => {
+    const result = await input.client.PATCH("/api/accounts/{account_id}/status", {
+      body: input.payload,
+      params: { path: { account_id: input.accountId } },
+      signal,
+    });
+    return required(result.data);
+  });
 }
 
 /**
@@ -188,12 +221,18 @@ export function setAccountStatus(input: TargetAccountCall<StatusInput>): Promise
  * @param input - 目标编号文本、新 SecretStr 对应的请求文本、客户端和信号。
  * @returns POST /api/accounts/{account_id}/password 的 200 Account，必须改密。
  * @throws Error 404/403/其他失败经 DiagnosticCard，不泄漏口令。
- * @sideEffects 一次 POST；成功使列表失效，结束后清空秘密；不显示或复制服务端哈希。
+ * @sideEffects 一次 POST；列表失效和结束后的秘密清理由账号管理页负责；不显示或复制服务端哈希。
  * @timeSemantics 10 秒上限，不自动重试。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架仅保留参数契约，实现阶段删除本条豁免。
 export function resetAccountPassword(input: TargetAccountCall<ResetInput>): Promise<Account> {
-  throw new Error("未实现");
+  return bounded(input.signal, async (signal) => {
+    const result = await input.client.POST("/api/accounts/{account_id}/password", {
+      body: input.payload,
+      params: { path: { account_id: input.accountId } },
+      signal,
+    });
+    return required(result.data);
+  });
 }
 
 /**
@@ -202,10 +241,43 @@ export function resetAccountPassword(input: TargetAccountCall<ResetInput>): Prom
  * @param input - 目标编号文本、undefined payload、客户端和信号。
  * @returns DELETE /api/accounts/{account_id} 的 204，无数据。
  * @throws Error 最后管理员 409、目标已删 404、无权限 403 等用 DiagnosticCard，保留列表。
- * @sideEffects 一次 DELETE；成功才移除列表项并使查询失效，不乐观删除。
- * @timeSemantics 10 秒上限，不自动重试；超时后重新查询确认状态。
+ * @sideEffects 一次 DELETE；账号管理页在成功后才使列表查询失效，不乐观删除。
+ * @timeSemantics 10 秒上限，不自动重试；超时后的状态确认由账号管理页重新查询。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 骨架仅保留参数契约，实现阶段删除本条豁免。
 export function deleteAccount(input: TargetAccountCall): Promise<void> {
-  throw new Error("未实现");
+  return bounded(input.signal, async (signal) => {
+    const result = await input.client.DELETE("/api/accounts/{account_id}", {
+      params: { path: { account_id: input.accountId } },
+      signal,
+    });
+    if (result.response.status !== 204) throw new Error("请求失败", { cause: toFailureView(null) });
+  });
+}
+
+// 传输可能忽略取消；竞争取消 Promise 后也不会把迟到结果交还页面。
+function bounded<T>(signal: AbortSignal, action: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  if (signal.aborted) return Promise.reject(new Error("请求失败", { cause: toFailureView(null) }));
+  const controller = new AbortController();
+  const combined = AbortSignal.any([signal, controller.signal]);
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, ACCOUNT_TIMEOUT_MS);
+  let aborted: () => void = () => undefined;
+  const pending = new Promise<T>((resolve, reject) => {
+    aborted = () => {
+      reject(new Error("请求失败", { cause: toFailureView(null) }));
+    };
+    combined.addEventListener("abort", aborted, { once: true });
+    void action(combined).then(resolve, reject);
+  });
+  return pending.finally(() => {
+    clearTimeout(timer);
+    combined.removeEventListener("abort", aborted);
+  });
+}
+
+function required<T>(data: T | undefined): T {
+  if (data === undefined || data === null)
+    throw new Error("请求失败", { cause: toFailureView(null) });
+  return data;
 }

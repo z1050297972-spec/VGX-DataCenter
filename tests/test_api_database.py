@@ -16,10 +16,10 @@ from typing import Annotated, Any, cast
 
 import httpx
 import pytest
+from auth_support import authenticated_client
 from db_support import sqlite_connection
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import StreamingResponse
-from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -75,7 +75,7 @@ def _route(app: FastAPI, endpoint: Any, *, response_model: Any = None) -> None:
     app.router.routes.insert(0, app.router.routes.pop())
 
 
-def _api_fault(engine: Engine, code: int, status: int) -> None:
+def _api_fault(engine: Engine, code: int, status: int, *, root: Path) -> None:
     """驱动执行边界注入故障，验证真实依赖、仓储和 HTTP 错误映射，不 mock 领域函数。"""
     app = create_app(None, database=engine)
 
@@ -87,7 +87,7 @@ def _api_fault(engine: Engine, code: int, status: int) -> None:
 
     event.listen(engine, "before_cursor_execute", fail)
     try:
-        with _client(app) as client:
+        with _client(app, root=root) as client:
             response = client.get("/api/errors/1")
         assert response.status_code == status
         assert response.headers["content-type"] == "application/problem+json"
@@ -123,8 +123,8 @@ def test_configure_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     assert source is not None
     package = tmp_path / "newer_code"
     shutil.copytree(source, package / "migrations")
-    (package / "migrations" / "versions" / "v0002_test.py").write_text(
-        "revision = '0002_test'\ndown_revision = '0001_error_reports'\n"
+    (package / "migrations" / "versions" / "v0003_test.py").write_text(
+        "revision = '0003_test'\ndown_revision = '0002_accounts_sessions'\n"
     )
     for case in ("missing", "unversioned", "behind", "future_or_unknown"):
         paths = state_paths(PlatformConfig(state_dir=tmp_path / case), ())
@@ -203,7 +203,7 @@ def test_factory_compat(tmp_path: Path) -> None:
     """验证契约：无数据库工厂仍可健康查询及离线 OpenAPI，在线文档关闭；无引擎详情为诊断502，不碰真实home。"""
     app = create_app(None, database=None)
     assert "/api/health" in app.openapi()["paths"]
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         assert client.get("/api/health").status_code == 200
         for path in ("/docs", "/redoc", "/openapi.json"):
             assert client.get(path).status_code == 404
@@ -225,17 +225,17 @@ def test_factory_schema(tmp_path: Path) -> None:
     )
 
 
-def test_factory_lifecycle(engine: Engine) -> None:
+def test_factory_lifecycle(tmp_path: Path, engine: Engine) -> None:
     """验证契约：工厂不 dispose 外部引擎、不配置 logger；调用者完成请求和在途报告后 dispose。"""
     before = tuple(logging.getLogger().handlers)
-    with _client(create_app(None, database=engine)) as client:
+    with _client(create_app(None, database=engine), root=tmp_path) as client:
         assert client.get("/api/health").status_code == 200
     with session_scope(engine) as session:
         assert session.execute(text("SELECT 1")).scalar_one() == 1
     assert tuple(logging.getLogger().handlers) == before
 
 
-def test_session_cached(engine: Engine) -> None:
+def test_session_cached(tmp_path: Path, engine: Engine) -> None:
     """验证契约：同请求 Depends(get_session,scope='function') 缓存同一 Session，不同请求不同会话。"""
     app = create_app(None, database=engine)
     sessions: list[Session] = []
@@ -248,13 +248,13 @@ def test_session_cached(engine: Engine) -> None:
         return {"same": first is second}
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         assert client.get("/api/probe").json() == {"same": True}
         assert client.get("/api/probe").json() == {"same": True}
     assert sessions[0] is not sessions[1]
 
 
-def test_session_commit_before_send(engine: Engine) -> None:
+def test_session_commit_before_send(tmp_path: Path, engine: Engine) -> None:
     """验证契约：FastAPI 同步 yield 的 function scope 在 http.response.start 之前提交，提交失败可返回统一错误。"""
     app = create_app(None, database=engine)
 
@@ -271,11 +271,11 @@ def test_session_commit_before_send(engine: Engine) -> None:
         return StreamingResponse(chunks())
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         assert client.get("/api/probe").text == "committed"
 
 
-def test_session_route_exception(engine: Engine) -> None:
+def test_session_route_exception(tmp_path: Path, engine: Engine) -> None:
     """验证契约：路由异常传回 yield，回滚后无业务记录，原四类异常身份保持。"""
     app = create_app(None, database=engine)
 
@@ -284,13 +284,13 @@ def test_session_route_exception(engine: Engine) -> None:
         get_error_details("8", session)
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         assert client.get("/api/probe").status_code == 404
     with session_scope(engine, read_only=True) as reader:
         assert find_error(reader, "7") is None
 
 
-def test_session_serialization_exception(engine: Engine) -> None:
+def test_session_serialization_exception(tmp_path: Path, engine: Engine) -> None:
     """验证契约：响应序列化失败同样回滚，错误边界可另开事务记报错。"""
     app = create_app(None, database=engine)
 
@@ -301,7 +301,7 @@ def test_session_serialization_exception(engine: Engine) -> None:
         return {"wrong": "response"}
 
     _route(app, probe, response_model=int)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         assert client.get("/api/probe").status_code == 500
     with session_scope(engine, read_only=True) as reader:
         assert find_error(reader, "7") is None
@@ -315,10 +315,10 @@ def test_session_no_database(tmp_path: Path) -> None:
             next(dependency(request))
 
 
-def test_session_database_errors(engine: Engine) -> None:
+def test_session_database_errors(tmp_path: Path, engine: Engine) -> None:
     """验证契约：依赖对 InputError/ConflictError/ExternalError/DefectError 原分类传播，不重复报告。"""
     for code, status in ((26, 400), (5, 409), (13, 502), (1, 500)):
-        _api_fault(engine, code, status)
+        _api_fault(engine, code, status, root=tmp_path)
 
 
 def test_session_cleanup(engine: Engine) -> None:
@@ -334,7 +334,7 @@ def test_session_cleanup(engine: Engine) -> None:
         pass
 
 
-def test_session_thread(engine: Engine) -> None:
+def test_session_thread(tmp_path: Path, engine: Engine) -> None:
     """验证契约：同步会话进入/查询/退出顺序跨线程不并发，SQL 不在事件循环执行。"""
     app = create_app(None, database=engine)
     thread_ids: list[int] = []
@@ -347,12 +347,12 @@ def test_session_thread(engine: Engine) -> None:
         return {"ok": True}
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         assert client.get("/api/probe").status_code == 200
     assert thread_ids and thread_ids[0] != threading.get_ident()
 
 
-def test_read_session(engine: Engine) -> None:
+def test_read_session(tmp_path: Path, engine: Engine) -> None:
     """验证契约：get_read_session 使用只读 BEGIN/query_only，查询与 WAL 写入并发，响应发出前释放。"""
     app = create_app(None, database=engine)
 
@@ -362,7 +362,7 @@ def test_read_session(engine: Engine) -> None:
         return {"readonly": session.execute(text("PRAGMA query_only")).scalar_one()}
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         assert client.get("/api/probe").json() == {"readonly": 1}
 
 
@@ -388,28 +388,28 @@ def test_read_exception(engine: Engine) -> None:
         )
 
 
-def test_details_request(engine: Engine) -> None:
+def test_details_request(tmp_path: Path, engine: Engine) -> None:
     """验证契约：get_error_details 返回请求编号对应完整时间/类别/摘要/报告/来源，UTC 微秒不丢。"""
     with session_scope(engine) as session:
         write_error(session, _record())
-    with _client(create_app(None, database=engine)) as client:
+    with _client(create_app(None, database=engine), root=tmp_path) as client:
         response = client.get("/api/errors/" + _record().error_id)
     assert response.status_code == 200
     assert response.json() == _record().model_dump(mode="json")
 
 
-def test_details_job(engine: Engine) -> None:
+def test_details_job(tmp_path: Path, engine: Engine) -> None:
     """验证契约：get_error_details 支持规范作业编号，不放宽 ProblemResponse.error_id。"""
     with session_scope(engine) as session:
         write_error(session, _record("7", "job"))
-    with _client(create_app(None, database=engine)) as client:
+    with _client(create_app(None, database=engine), root=tmp_path) as client:
         response = client.get("/api/errors/7")
     assert response.status_code == 200 and response.json()["source_kind"] == "job"
 
 
-def test_details_not_found(engine: Engine) -> None:
+def test_details_not_found(tmp_path: Path, engine: Engine) -> None:
     """验证契约：详情查不到或过期为 InputError 的 404 子类，诊断含编号、规则、实际、期望、后果、下一步。"""
-    with _client(create_app(None, database=engine)) as client:
+    with _client(create_app(None, database=engine), root=tmp_path) as client:
         response = client.get("/api/errors/7")
     assert response.status_code == 404
     diagnostic = response.json()["diagnostics"][0]
@@ -419,9 +419,9 @@ def test_details_not_found(engine: Engine) -> None:
     )
 
 
-def test_details_invalid(engine: Engine) -> None:
+def test_details_invalid(tmp_path: Path, engine: Engine) -> None:
     """验证契约：HTTP 编号形状非法为统一 422 且不回显原值，作业超 2^63-1/直接调用非法值为 InvalidErrorIdentifierError。"""
-    with _client(create_app(None, database=engine)) as client:
+    with _client(create_app(None, database=engine), root=tmp_path) as client:
         for value in ("secret-invalid", "01", "9223372036854775808"):
             response = client.get("/api/errors/" + value)
             assert response.status_code == 422
@@ -436,40 +436,40 @@ def test_details_invalid(engine: Engine) -> None:
         get_error_details("bad", session)
 
 
-def test_details_corrupt(engine: Engine) -> None:
+def test_details_corrupt(tmp_path: Path, engine: Engine) -> None:
     """验证契约：详情读损坏 UTC/数据库为 InputError，不返回半份详情。"""
     with session_scope(engine) as session:
         write_error(session, _record("7", "job"))
         session.execute(text("UPDATE error_reports SET occurred_at='bad'"))
-    with _client(create_app(None, database=engine)) as client:
+    with _client(create_app(None, database=engine), root=tmp_path) as client:
         assert client.get("/api/errors/7").status_code == 400
 
 
-def test_details_busy(engine: Engine) -> None:
+def test_details_busy(tmp_path: Path, engine: Engine) -> None:
     """验证契约：详情读取锁冲突为 ConflictError 409。"""
-    _api_fault(engine, 5, 409)
+    _api_fault(engine, 5, 409, root=tmp_path)
 
 
-def test_details_external(engine: Engine) -> None:
+def test_details_external(tmp_path: Path, engine: Engine) -> None:
     """验证契约：详情权限/I/O 故障为 ExternalError 502。"""
-    _api_fault(engine, 13, 502)
+    _api_fault(engine, 13, 502, root=tmp_path)
 
 
-def test_details_defect(engine: Engine) -> None:
+def test_details_defect(tmp_path: Path, engine: Engine) -> None:
     """验证契约：详情 SQL/映射错误为 DefectError 500。"""
-    _api_fault(engine, 1, 500)
+    _api_fault(engine, 1, 500, root=tmp_path)
 
 
-def test_details_auth(engine: Engine) -> None:
+def test_details_auth(tmp_path: Path, engine: Engine) -> None:
     """验证契约：本票查询无登录依赖；第 06 张须允许所有登录账号，OpenAPI/函数文档明确临时边界。"""
     with session_scope(engine) as session:
         write_error(session, _record("7", "job"))
-    with _client(create_app(None, database=engine)) as client:
+    with _client(create_app(None, database=engine), root=tmp_path) as client:
         assert client.get("/api/errors/7").status_code == 200
     assert "第 06 张" in (get_error_details.__doc__ or "")
 
 
-def test_report_unknown(engine: Engine) -> None:
+def test_report_unknown(tmp_path: Path, engine: Engine) -> None:
     """验证契约：验收 8：未知接口异常返回 500 后待请求处理完成，用 X-Request-ID 可查询唯一完整报错。"""
     app = create_app(None, database=engine)
 
@@ -477,7 +477,7 @@ def test_report_unknown(engine: Engine) -> None:
         raise RuntimeError("安全演示异常")
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         response = client.get("/api/probe")
         assert response.status_code == 500
         details = client.get("/api/errors/" + response.headers["X-Request-ID"])
@@ -485,7 +485,7 @@ def test_report_unknown(engine: Engine) -> None:
     assert "RuntimeError: 安全演示异常" in details.json()["report"]
 
 
-def test_report_explicit(engine: Engine, caplog: pytest.LogCaptureFixture) -> None:
+def test_report_explicit(tmp_path: Path, engine: Engine, caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：DefectError 由 handle_error 报告一次；未知异常由 ErrorBoundary 报告一次，无 uvicorn 重复 traceback。"""
     app = create_app(None, database=engine)
 
@@ -493,14 +493,14 @@ def test_report_explicit(engine: Engine, caplog: pytest.LogCaptureFixture) -> No
         raise DefectError()
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         response = client.get("/api/probe")
         assert client.get("/api/errors/" + response.headers["X-Request-ID"]).status_code == 200
     records = [record for record in caplog.records if record.name == "rdp.api.errors"]
     assert len(records) == 1 and records[0].levelno == logging.ERROR
 
 
-def test_report_same_text(engine: Engine, caplog: pytest.LogCaptureFixture) -> None:
+def test_report_same_text(tmp_path: Path, engine: Engine, caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：报告只格式化一次，日志 traceback 段与表字段逐字一致，不额外附请求或 SQL 数据。"""
     app = create_app(None, database=engine)
 
@@ -508,7 +508,7 @@ def test_report_same_text(engine: Engine, caplog: pytest.LogCaptureFixture) -> N
         raise RuntimeError("安全异常链")
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         response = client.get("/api/probe")
     with session_scope(engine, read_only=True) as session:
         record = find_error(session, response.headers["X-Request-ID"])
@@ -518,7 +518,7 @@ def test_report_same_text(engine: Engine, caplog: pytest.LogCaptureFixture) -> N
     assert record.report.count("RuntimeError: 安全异常链") == 1
 
 
-def test_report_nondefect(engine: Engine, caplog: pytest.LogCaptureFixture) -> None:
+def test_report_nondefect(tmp_path: Path, engine: Engine, caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：输入/冲突/外部/参数校验及无引擎仅写运行日志，不写报错表。"""
     error_types = {"input": InputError, "conflict": ConflictError, "external": ExternalError}
 
@@ -544,7 +544,7 @@ def test_report_nondefect(engine: Engine, caplog: pytest.LogCaptureFixture) -> N
     for database in (engine, None):
         app = create_app(None, database=database)
         _route(app, probe)
-        with _client(app) as client:
+        with _client(app, root=tmp_path) as client:
             for kind, status in (("input", 400), ("conflict", 409), ("external", 502)):
                 response = client.get("/api/probe", params={"kind": kind})
                 assert response.status_code == status
@@ -577,7 +577,7 @@ def test_report_reentry(engine: Engine, caplog: pytest.LogCaptureFixture) -> Non
         assert session.execute(text("SELECT count(*) FROM error_reports")).scalar_one() == 1
 
 
-def test_report_independent(engine: Engine) -> None:
+def test_report_independent(tmp_path: Path, engine: Engine) -> None:
     """验证契约：业务 Session 回滚不删除独立报错事务，先释放业务锁再存表。"""
     app = create_app(None, database=engine)
 
@@ -586,14 +586,14 @@ def test_report_independent(engine: Engine) -> None:
         raise RuntimeError("事务失败")
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         response = client.get("/api/probe")
     with session_scope(engine, read_only=True) as session:
         assert find_error(session, "7") is None
         assert find_error(session, response.headers["X-Request-ID"]) is not None
 
 
-def test_report_failure(engine: Engine, caplog: pytest.LogCaptureFixture) -> None:
+def test_report_failure(tmp_path: Path, engine: Engine, caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：持久化锁超时/磁盘满/调度失败不覆盖原 500；仅额外一条 ERROR，无第二个 traceback、不递归入库。"""
     app = create_app(None, database=engine)
 
@@ -609,7 +609,7 @@ def test_report_failure(engine: Engine, caplog: pytest.LogCaptureFixture) -> Non
     _route(app, probe)
     event.listen(engine, "before_cursor_execute", fail)
     try:
-        with _client(app) as client:
+        with _client(app, root=tmp_path) as client:
             response = client.get("/api/probe")
         assert response.status_code == 500
         logs = [item.getMessage() for item in caplog.records if item.name == "rdp.api.errors"]
@@ -812,7 +812,7 @@ def test_report_boundary_failure(tmp_path: Path) -> None:
         handler.close()
 
 
-def test_report_stream(engine: Engine) -> None:
+def test_report_stream(tmp_path: Path, engine: Engine) -> None:
     """验证契约：响应开始/结束后的缺陷保留已发内容且只存一条；早查可能 404，不自动轮询。"""
     app = create_app(None, database=engine)
 
@@ -824,7 +824,7 @@ def test_report_stream(engine: Engine) -> None:
         return StreamingResponse(chunks())
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         response = client.get("/api/probe")
     assert response.status_code == 200
     with session_scope(engine, read_only=True) as session:
@@ -848,7 +848,9 @@ def test_report_bound(tmp_path: Path) -> None:
             assert len(report) == limit and report.endswith(marker)
 
 
-def test_report_truncated_same_text(engine: Engine, caplog: pytest.LogCaptureFixture) -> None:
+def test_report_truncated_same_text(
+    tmp_path: Path, engine: Engine, caplog: pytest.LogCaptureFixture
+) -> None:
     """验证 B2：超长缺陷经真实 HTTP 边界后，日志和报错表保存同一份有界截断报告。"""
     app = create_app(None, database=engine)
     message = "x" * 262145
@@ -857,7 +859,7 @@ def test_report_truncated_same_text(engine: Engine, caplog: pytest.LogCaptureFix
         raise RuntimeError(message)
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         response = client.get("/api/probe")
     assert response.status_code == 500
     with session_scope(engine, read_only=True) as session:
@@ -874,7 +876,7 @@ def test_report_truncated_same_text(engine: Engine, caplog: pytest.LogCaptureFix
         assert report.endswith("\n[报告超出字符上限，后续内容已截断]\n")
 
 
-def test_report_sensitive(engine: Engine, caplog: pytest.LogCaptureFixture) -> None:
+def test_report_sensitive(tmp_path: Path, engine: Engine, caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：参数校验原值、请求体/query/headers/cookie 和 SQL 绑定凭据不进入日志、报错表或接口响应。"""
     app = create_app(None, database=engine)
 
@@ -882,10 +884,13 @@ def test_report_sensitive(engine: Engine, caplog: pytest.LogCaptureFixture) -> N
         return value
 
     _route(app, probe)
-    with _client(app) as client:
+    with _client(app, root=tmp_path) as client:
         response = client.get(
             "/api/probe?value=credential-marker&token=credential-marker",
-            headers={"Cookie": "session=credential-marker", "Authorization": "credential-marker"},
+            headers={
+                "Cookie": client.headers["Cookie"] + "; session=credential-marker",
+                "Authorization": "credential-marker",
+            },
         )
     assert response.status_code == 422
     assert "credential-marker" not in response.text
@@ -895,7 +900,7 @@ def test_report_sensitive(engine: Engine, caplog: pytest.LogCaptureFixture) -> N
 
 
 @contextmanager
-def _client(app: FastAPI) -> Generator[httpx.Client, None, None]:
+def _client(app: FastAPI, *, root: Path) -> Generator[httpx.Client, None, None]:
     """桥接 Starlette 的 httpx 回退类型，真实 TestClient 生命周期和传输不变。"""
-    with TestClient(app) as raw:
-        yield cast(httpx.Client, raw)
+    with authenticated_client(app, root) as client:
+        yield client

@@ -12,10 +12,34 @@ Argon2 库异常转换成固定安全 DefectError 并 suppress_context，避免�
 只在内存中解包 SecretStr；不记录日志，不把秘密放入异常、诊断、repr 或 OpenAPI 示例。
 """
 
+import base64
+import hashlib
+import re
+import secrets
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
+from threading import BoundedSemaphore
+from typing import cast
 
-from argon2 import PasswordHasher
+from argon2 import PasswordHasher, Type, extract_parameters
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from pydantic import SecretStr
+
+from rdp.accounts._inputs import password_text
+from rdp.accounts._issues import problem
+from rdp.accounts.errors import AuthenticationError
+from rdp.accounts.policy import (
+    ARGON2_MAX_CONCURRENCY,
+    ARGON2_QUEUE_TIMEOUT_S,
+    MAX_ARGON_MEMORY_KIB,
+    MAX_ARGON_PARALLELISM,
+    MAX_ARGON_TIME_COST,
+    PASSWORD_HASH_MAX_CHARS,
+    SESSION_TOKEN_BYTES,
+    SESSION_TOKEN_PATTERN,
+)
+from rdp.infra.diagnostics import DefectError, ExternalError, InputError
 
 
 @dataclass(frozen=True)
@@ -63,7 +87,20 @@ class PasswordCodec:
         Time Semantics:
             启动时假哈希也申请共享名额，最多排队 1 秒；运算成本由库参数决定，无硬实时承诺或重试。
         """
-        raise NotImplementedError
+        try:
+            self.hasher = PasswordHasher() if hasher is None else hasher
+            if (
+                not isinstance(cast(object, self.hasher), PasswordHasher)
+                or self.hasher.type is not Type.ID
+            ):
+                raise DefectError()
+            # 初始化的假哈希也须计入全进程并发上限。
+            with _capacity():
+                self.dummy_hash = self.hasher.hash(secrets.token_bytes(32))
+        except ExternalError:
+            raise
+        except Exception:
+            raise DefectError() from None
 
     def hash(self, password: SecretStr) -> str:
         """校验长度并生成带独立随机盐的 Argon2id 口令哈希。
@@ -85,7 +122,12 @@ class PasswordCodec:
         Time Semantics:
             在同步工作线程最多排队 1 秒，以 monotonic 测量；哈希期间占一个名额，退出必释放，无重试。
         """
-        raise NotImplementedError
+        raw = password_text(password)
+        with _capacity():
+            try:
+                return self.hasher.hash(raw)
+            except Exception:
+                raise DefectError() from None
 
     def verify(self, encoded: str | None, password: SecretStr) -> PasswordCheck:
         """验证口令，并在成功且参数过时时产生替代哈希。
@@ -112,7 +154,25 @@ class PasswordCodec:
         Time Semantics:
             最多排队 1 秒，monotonic 计时；已入场的验证/重哈希无硬实时上限，不自动重试或保证网络级恒定耗时。
         """
-        raise NotImplementedError
+        raw = password_text(password)
+        if encoded is not None:
+            _check_encoded(encoded)
+        with _capacity():
+            try:
+                self.hasher.verify(self.dummy_hash if encoded is None else encoded, raw)
+                replacement = (
+                    self.hasher.hash(raw)
+                    if encoded is not None and self.hasher.check_needs_rehash(encoded)
+                    else None
+                )
+                return PasswordCheck(matched=encoded is not None, replacement_hash=replacement)
+            except VerifyMismatchError:
+                return PasswordCheck(matched=False, replacement_hash=None)
+            except (InvalidHashError, VerificationError):
+                failure = problem(InputError, "已存口令编码不合法", field="password_hash")
+                raise failure from None
+            except Exception:
+                raise DefectError() from None
 
 
 def new_session_token() -> SecretStr:
@@ -133,7 +193,10 @@ def new_session_token() -> SecretStr:
     Time Semantics:
         同步生成，无时钟读取或重试。
     """
-    raise NotImplementedError
+    try:
+        return SecretStr(secrets.token_urlsafe(SESSION_TOKEN_BYTES))
+    except Exception:
+        raise DefectError() from None
 
 
 def session_digest(token: SecretStr) -> str:
@@ -154,4 +217,52 @@ def session_digest(token: SecretStr) -> str:
     Time Semantics:
         同步、无时钟；查库后还须 hmac.compare_digest 复核固定长度摘要，避免普通字符串比较。
     """
-    raise NotImplementedError
+    if not isinstance(cast(object, token), SecretStr):
+        failure = problem(AuthenticationError, "会话无效", field="session")
+        raise failure
+    raw = token.get_secret_value()
+    if re.fullmatch(SESSION_TOKEN_PATTERN, raw) is None:
+        failure = problem(AuthenticationError, "会话无效", field="session")
+        raise failure
+    decoded = base64.urlsafe_b64decode(raw + "=")
+    if (
+        len(decoded) != SESSION_TOKEN_BYTES
+        or base64.urlsafe_b64encode(decoded).decode("ascii").rstrip("=") != raw
+    ):
+        failure = problem(AuthenticationError, "会话无效", field="session")
+        raise failure
+    return hashlib.sha256(decoded).hexdigest()
+
+
+def _check_encoded(encoded: object) -> None:
+    """先限定存量编码与资源成本，再交 Argon2，避免损坏参数造成失控分配。"""
+    try:
+        if not isinstance(encoded, str) or not 1 <= len(encoded) <= PASSWORD_HASH_MAX_CHARS:
+            raise ValueError()
+        value = extract_parameters(encoded)
+        if (
+            value.type is not Type.ID
+            or not 1 <= value.memory_cost <= MAX_ARGON_MEMORY_KIB
+            or not 1 <= value.time_cost <= MAX_ARGON_TIME_COST
+            or not 1 <= value.parallelism <= MAX_ARGON_PARALLELISM
+        ):
+            raise ValueError()
+    except Exception:
+        failure = problem(InputError, "已存口令编码或成本不合法", field="password_hash")
+        raise failure from None
+
+
+# 跨实例共享名额，不能按每个请求另建信号量而放大内存峰值。
+_slots = BoundedSemaphore(ARGON2_MAX_CONCURRENCY)
+
+
+@contextmanager
+def _capacity() -> Generator[None]:
+    """只限制进入运算的排队时间，名额必须留到真实运算结束才释放。"""
+    if not _slots.acquire(timeout=ARGON2_QUEUE_TIMEOUT_S):
+        failure = problem(ExternalError, "哈希资源繁忙，请稍后重试。", field="password")
+        raise failure
+    try:
+        yield
+    finally:
+        _slots.release()

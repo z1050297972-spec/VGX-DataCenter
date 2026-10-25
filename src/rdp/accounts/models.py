@@ -1,7 +1,6 @@
 """账号领域表声明（06），共享 infra.db.models.Base 的 MetaData 和命名约定。
 
-骨架阶段两个模型暂标 __abstract__，不注册表、不影响现有 0001 建表一致性检查；
-实现阶段删除 __abstract__，由 api/ops 入口导入模型，基础层不得反向 import accounts。
+由 api/ops 入口导入并注册两表；基础层不得反向 import accounts。
 历史操作者快照不建账号外键，否则删号会破坏记录；会话外键则 ON DELETE CASCADE。
 """
 
@@ -36,7 +35,6 @@ class AccountRow(Base):
         blocked_until: 等待截止 UTCDateTime、微秒、默认 NULL；未等待为 NULL。
     """
 
-    __abstract__ = True
     __tablename__ = "accounts"
     __table_args__ = (
         CheckConstraint("account_id > 0", name="positive_id"),
@@ -97,7 +95,6 @@ class SessionRow(Base):
         last_seen_at: 最后持久化活动时刻，UTCDateTime、微秒、不可空、无默认，不早于 created_at；索引供清理。
     """
 
-    __abstract__ = True
     __tablename__ = "account_sessions"
     __table_args__ = (
         CheckConstraint(

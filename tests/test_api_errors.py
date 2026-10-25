@@ -9,13 +9,12 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, ClassVar, cast, override
 
-import httpx
 import pytest
+from auth_support import authenticated_client, authenticated_context
 from fastapi import FastAPI, Request
 from fastapi.background import BackgroundTasks
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import Response, StreamingResponse
-from fastapi.testclient import TestClient
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from uvicorn import Config
 from uvicorn.protocols.http.h11_impl import H11Protocol
@@ -401,7 +400,7 @@ def test_report_secret_redaction() -> None:
     assert private_value not in report
 
 
-def test_handler_mappings_and_media() -> None:
+def test_handler_mappings_and_media(tmp_path: Path) -> None:
     """验证契约：验收2：四类与校验失败经真实 ASGI 返回400/404/422/409/502/500，载荷status一致，媒体类型application/problem+json，唯一X-Request-ID。"""
 
     class MissingObjectError(InputError):
@@ -425,8 +424,8 @@ def test_handler_mappings_and_media() -> None:
     for cls, category, status in cases:
         app = create_app(None, database=None)
         _add_failure(app, cls((_diagnostic(category),)))
-        with TestClient(app) as client:
-            response = cast(httpx.Client, client).get("/api/failure")
+        with authenticated_client(app, tmp_path) as client:
+            response = client.get("/api/failure")
         assert response.status_code == status
         assert response.headers["content-type"] == "application/problem+json"
         assert response.json()["category"] == category
@@ -438,8 +437,8 @@ def test_handler_mappings_and_media() -> None:
 
     app.add_api_route("/api/validation", validate)
     app.router.routes.insert(0, app.router.routes.pop())
-    with TestClient(app) as client:
-        response = cast(httpx.Client, client).get("/api/validation?count=bad")
+    with authenticated_client(app, tmp_path) as client:
+        response = client.get("/api/validation?count=bad")
     assert response.status_code == 422
     assert response.headers["content-type"] == "application/problem+json"
     assert response.json()["category"] == "input"
@@ -539,13 +538,13 @@ def test_boundary_no_response_fallback(caplog: pytest.LogCaptureFixture) -> None
 
 
 def test_boundary_server_error_rethrow_once(
-    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """验证契约：验收3：实际ServerErrorMiddleware调用Exception处理器、发送500并重抛，ErrorBoundary消费异常；实际uvicorn h11 RequestResponseCycle用内存transport驱动，不出现第二份traceback。"""
     monkeypatch.setattr(caplog.handler, "formatter", RuntimeFormatter())
     app = create_app(None, database=None)
     _add_failure(app, RuntimeError("唯一根因"))
-    transport = _uvicorn(app)
+    transport = _uvicorn(app, root=tmp_path)
     assert b"500 Internal Server Error" in transport.output
     identifier = re.search(rb"x-request-id: ([0-9a-f]{32})", transport.output)
     assert identifier is not None
@@ -557,7 +556,7 @@ def test_boundary_server_error_rethrow_once(
     assert transport.closed
 
 
-def test_boundary_stream_failure_once(caplog: pytest.LogCaptureFixture) -> None:
+def test_boundary_stream_failure_once(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：验收3：流式响应start/部分body后失败，仅一份完整安全traceback，不发第二个start或伪成功末块；uvicorn关闭未完成连接，允许一条无traceback协议日志。"""
     app = create_app(None, database=None)
 
@@ -570,7 +569,7 @@ def test_boundary_stream_failure_once(caplog: pytest.LogCaptureFixture) -> None:
 
     app.add_api_route("/api/failure", endpoint)
     app.router.routes.insert(0, app.router.routes.pop())
-    transport = _uvicorn(app)
+    transport = _uvicorn(app, root=tmp_path)
     assert transport.output.count(b"HTTP/1.1") == 1
     assert b"prefix" in transport.output and not transport.output.endswith(b"0\r\n\r\n")
     assert transport.closed
@@ -579,7 +578,7 @@ def test_boundary_stream_failure_once(caplog: pytest.LogCaptureFixture) -> None:
     assert not any(record.exc_info for record in caplog.records)
 
 
-def test_boundary_background_failure_once(caplog: pytest.LogCaptureFixture) -> None:
+def test_boundary_background_failure_once(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：验收3：完整响应已发送后后台任务失败仍报告一次且不补发响应，带原请求编号，uvicorn无第二份traceback。"""
     app = create_app(None, database=None)
 
@@ -593,18 +592,18 @@ def test_boundary_background_failure_once(caplog: pytest.LogCaptureFixture) -> N
 
     app.add_api_route("/api/failure", endpoint)
     app.router.routes.insert(0, app.router.routes.pop())
-    transport = _uvicorn(app)
+    transport = _uvicorn(app, root=tmp_path)
     assert transport.output.count(b"HTTP/1.1") == 1
     assert "完成".encode() in transport.output
     assert caplog.text.count("Traceback (most recent call last)") == 1
     assert not any(record.exc_info for record in caplog.records)
 
 
-def test_boundary_exception_group_once(caplog: pytest.LogCaptureFixture) -> None:
+def test_boundary_exception_group_once(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：ExceptionGroup 一次上报包含全部叶子，不逐叶重复记录，不逃逸到uvicorn。"""
     app = create_app(None, database=None)
     _add_failure(app, ExceptionGroup("组", [ValueError("叶一"), TypeError("叶二")]))
-    _uvicorn(app)
+    _uvicorn(app, root=tmp_path)
     # 规范 6.4：统一报告使用实际模块名，精确核对，避免漏掉其他 logger 的重复记录。
     assert len([record for record in caplog.records if record.name == "rdp.api.errors"]) == 1
     assert "叶一" in caplog.text and "叶二" in caplog.text
@@ -724,12 +723,12 @@ def test_install_after_start() -> None:
     assert app.exception_handlers == before and app.openapi_schema is schema
 
 
-def test_preserve_framework_http_errors() -> None:
+def test_preserve_framework_http_errors(tmp_path: Path) -> None:
     """验证契约：Starlette HTTPException 的404/405等保留原JSON/detail/headers，/api未知路径仍404 JSON，SPA回退原行为不变；业务报错用四类异常。"""
     app = create_app(None, database=None)
     # 自带文档已关闭，用独立 GET 测试路由继续验证框架原生 405，不依赖文档页面。
     app.add_api_route("/framework-get", lambda: {}, methods=["GET"])
-    with TestClient(app) as client:
+    with authenticated_client(app, tmp_path) as client:
         for method, path, status in (("get", "/api/missing", 404), ("post", "/framework-get", 405)):
             response = getattr(client, method)(path)
             assert response.status_code == status
@@ -782,7 +781,7 @@ def test_install_isolation_and_cache() -> None:
 
 
 def test_representative_platform_defect(
-    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """验证契约：示例二：未包装的 TypeError 经真实应用返回安全的 500，只记录一次完整 traceback。
 
@@ -804,8 +803,8 @@ def test_representative_platform_defect(
 
     app.add_api_route("/api/datasets/r1lite_叠衣服", endpoint)
     app.router.routes.insert(0, app.router.routes.pop())
-    with TestClient(app) as client:
-        response = cast(httpx.Client, client).get("/api/datasets/r1lite_叠衣服")
+    with authenticated_client(app, tmp_path) as client:
+        response = client.get("/api/datasets/r1lite_叠衣服")
 
     assert response.status_code == 500
     assert response.headers["content-type"] == "application/problem+json"
@@ -848,7 +847,7 @@ class _MemoryTransport(asyncio.Transport):
         return {"sockname": ("test", 80), "peername": ("client", 1234)}.get(name, default)
 
 
-def _uvicorn(app: FastAPI) -> _MemoryTransport:
+def _uvicorn(app: FastAPI, *, root: Path) -> _MemoryTransport:
     """执行真实 HTTP 协议与应用栈；等待该请求的后台任务完成。"""
 
     async def run() -> _MemoryTransport:
@@ -862,13 +861,16 @@ def _uvicorn(app: FastAPI) -> _MemoryTransport:
         transport = _MemoryTransport()
         protocol.connection_made(transport)
         protocol.data_received(
-            b"GET /api/failure HTTP/1.1\r\nHost: test\r\nConnection: close\r\n\r\n"
+            b"GET /api/failure HTTP/1.1\r\nHost: test\r\nCookie: "
+            + headers["Cookie"].encode("ascii")
+            + b"\r\nConnection: close\r\n\r\n"
         )
         await asyncio.gather(*state.tasks)
         protocol.connection_lost(None)
         return transport
 
-    return asyncio.run(run())
+    with authenticated_context(app, root) as headers:
+        return asyncio.run(run())
 
 
 def test_validation_nested_dictionary_keys() -> None:
@@ -889,7 +891,9 @@ def test_validation_nested_dictionary_keys() -> None:
     assert location == "body.未声明字段.未声明字段"
 
 
-def test_explicit_defect_diagnostics_and_cause(caplog: pytest.LogCaptureFixture) -> None:
+def test_explicit_defect_diagnostics_and_cause(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     """验证契约：显式 DefectError 的诊断和 cause 只进入同一条日志，响应仍无内部细节。"""
     diagnostic = _diagnostic("defect")
     app = create_app(None, database=None)
@@ -902,8 +906,8 @@ def test_explicit_defect_diagnostics_and_cause(caplog: pytest.LogCaptureFixture)
 
     app.add_api_route("/api/explicit-defect", endpoint)
     app.router.routes.insert(0, app.router.routes.pop())
-    with TestClient(app) as client:
-        response = cast(httpx.Client, client).get("/api/explicit-defect")
+    with authenticated_client(app, tmp_path) as client:
+        response = client.get("/api/explicit-defect")
     assert response.status_code == 500
     assert response.json()["diagnostics"] == []
     assert "显式缺陷的原始原因" not in response.text
@@ -913,7 +917,9 @@ def test_explicit_defect_diagnostics_and_cause(caplog: pytest.LogCaptureFixture)
     assert "direct cause" in caplog.text
 
 
-def test_validation_log_field_locations_without_values(caplog: pytest.LogCaptureFixture) -> None:
+def test_validation_log_field_locations_without_values(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     """验证契约：真实 422 日志包含各字段五段诊断，但不含口令、其他原值或校验异常正文。"""
 
     class LoginParameters(BaseModel):
@@ -931,8 +937,8 @@ def test_validation_log_field_locations_without_values(caplog: pytest.LogCapture
     app.add_api_route("/api/test-validation", login, methods=["POST"])
     app.router.routes.insert(0, app.router.routes.pop())
     raw_values = {"password": "不应出现在日志的原始口令", "count": "不应出现的数量原值"}
-    with TestClient(app) as client:
-        response = cast(httpx.Client, client).post("/api/test-validation", json=raw_values)
+    with authenticated_client(app, tmp_path) as client:
+        response = client.post("/api/test-validation", json=raw_values)
     assert response.status_code == 422
     assert len(caplog.records) == 1
     assert caplog.records[0].name == "rdp.api.errors"

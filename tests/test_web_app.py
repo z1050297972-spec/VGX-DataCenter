@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable, MutableMapping
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -10,6 +11,7 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
+from auth_support import authenticated_client, authenticated_context
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.testclient import TestClient
@@ -28,9 +30,17 @@ from rdp.infra.logging import (
 )
 
 
-def _request(app: FastAPI, path: str, method: str = "GET") -> Response:
+def _request(
+    app: FastAPI, path: str, method: str = "GET", *, auth_root: Path | None = None
+) -> Response:
     """用真实 TestClient 观察 HTTP 边界；类型桥接只适配 Starlette 的 httpx 回退。"""
-    with TestClient(app) as client:
+    empty_headers: dict[str, str] = {}
+    context = (
+        authenticated_context(app, auth_root)
+        if auth_root is not None
+        else nullcontext(empty_headers)
+    )
+    with context as headers, TestClient(app, headers=headers) as client:
         return cast(Client, client).request(method, path)
 
 
@@ -101,7 +111,7 @@ def test_unknown_api(tmp_path: Path) -> None:
     for directory in (None, tmp_path):
         app = create_app(directory, database=None)
         for path in ("/api", "/api/不存在", "/api/asset.txt"):
-            response = _request(app, path)
+            response = _request(app, path, auth_root=tmp_path)
             assert response.status_code == 404
             assert response.json() == {"detail": "Not Found"}
 
@@ -122,7 +132,7 @@ def test_api_404_preserves_detail(tmp_path: Path) -> None:
     app.add_api_route("/api/missing-record", missing_record, methods=["GET"])
     # 后加的测试接口须排在兜底路由与静态挂载之前，确保请求真正进入抛错接口。
     app.router.routes.insert(0, app.router.routes.pop())
-    response = _request(app, "/api/missing-record")
+    response = _request(app, "/api/missing-record", auth_root=tmp_path)
     assert response.status_code == 404
     assert response.json() == {"detail": {"reason": "记录不存在", "record_id": "missing"}}
     assert response.headers["content-type"] == "application/json"
@@ -246,7 +256,7 @@ def test_api_namespace_all_methods(tmp_path: Path) -> None:
     app = create_app(tmp_path, database=None)
     for method in ("HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE"):
         for path in ("/api", "/api/不存在", "/api/asset.txt"):
-            response = _request(app, path, method)
+            response = _request(app, path, method, auth_root=tmp_path)
             assert response.status_code == 404
             assert response.headers["content-type"] == "application/json"
             if method != "HEAD":
@@ -322,7 +332,7 @@ def test_response_and_log_id_match(tmp_path: Path) -> None:
 
     app.add_api_route("/api/business", business)
     app.router.routes.insert(0, app.router.routes.pop())
-    response = _request(app, "/api/business")
+    response = _request(app, "/api/business", auth_root=tmp_path)
     assert response.status_code == 200
     text = (tmp_path / "web.log").read_text(encoding="utf-8")
     assert f"request_id={response.headers['X-Request-ID']}" in text
@@ -354,8 +364,13 @@ def test_concurrent_request_ids(tmp_path: Path) -> None:
 
         app.add_api_route("/api/pair/{slot}", business)
         app.router.routes.insert(0, app.router.routes.pop())
-        async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
-            responses = await asyncio.gather(client.get("/api/pair/0"), client.get("/api/pair/1"))
+        with authenticated_context(app, tmp_path) as headers:
+            async with AsyncClient(
+                transport=ASGITransport(app), base_url="http://test", headers=headers
+            ) as client:
+                responses = await asyncio.gather(
+                    client.get("/api/pair/0"), client.get("/api/pair/1")
+                )
         ids = [response.headers["X-Request-ID"] for response in responses]
         assert ids[0] != ids[1]
         assert observed == {0: [ids[0], ids[0]], 1: [ids[1], ids[1]]}
@@ -398,7 +413,7 @@ def test_request_ids_on_all_response_statuses(tmp_path: Path) -> None:
     ):
         app.add_api_route(path, endpoint)
         app.router.routes.insert(0, app.router.routes.pop())
-    with TestClient(app, raise_server_exceptions=False) as client:
+    with authenticated_client(app, tmp_path, raise_server_exceptions=False) as client:
         for path, status in (
             ("/api/health", 200),
             ("/asset.txt", 200),
@@ -408,7 +423,7 @@ def test_request_ids_on_all_response_statuses(tmp_path: Path) -> None:
             ("/api/validate?count=bad", 422),
             ("/api/broken", 500),
         ):
-            response = cast(Client, client).get(path, follow_redirects=False)
+            response = client.get(path, follow_redirects=False)
             assert response.status_code == status
             assert UUID(response.headers["X-Request-ID"]).version == 4
 
@@ -518,7 +533,7 @@ def test_streaming_and_background_context(tmp_path: Path) -> None:
 
     app.add_api_route("/api/stream", endpoint)
     app.router.routes.insert(0, app.router.routes.pop())
-    response = _request(app, "/api/stream")
+    response = _request(app, "/api/stream", auth_root=tmp_path)
     assert response.content == b"firstsecond"
     assert observed == [response.headers["X-Request-ID"]] * 3
     assert request_id_context.get() is None

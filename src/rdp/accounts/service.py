@@ -8,16 +8,33 @@
 计算完成并释放名额后才进入 BEGIN IMMEDIATE。写事务内只重验状态并保存已算好的结果，禁止调用 PasswordCodec。
 """
 
+import hmac
+import sqlite3
 from datetime import datetime
+from typing import cast
 
 from pydantic import SecretStr
-from sqlalchemy import Engine
+from sqlalchemy import Engine, delete, select
 
-from rdp.accounts.security import PasswordCodec
+from rdp.accounts import _records as records
+from rdp.accounts import _sessions as sessions
+from rdp.accounts._boundary import protect
+from rdp.accounts._inputs import password_text
+from rdp.accounts._issues import problem
+from rdp.accounts.errors import AccountInputError, AccountNotFoundError
+from rdp.accounts.models import AccountRow, SessionRow
+from rdp.accounts.policy import (
+    ACCOUNT_PAGE_LIMIT,
+    SESSION_IDLE_TIMEOUT,
+    SESSION_TOUCH_INTERVAL,
+    SESSION_TOUCH_LOCK_TIMEOUT_MS,
+)
+from rdp.accounts.security import PasswordCodec, session_digest
 from rdp.accounts.types import (
     AccountPage,
     AccountStatus,
     AccountView,
+    ActorRef,
     Credentials,
     NewAccount,
     PasswordChange,
@@ -25,6 +42,8 @@ from rdp.accounts.types import (
     SessionGrant,
     SessionIdentity,
 )
+from rdp.infra.db.connection import session_scope, session_scope_with_lock_timeout
+from rdp.infra.diagnostics import ConflictError, DefectError, InputError
 
 
 class AccountService:
@@ -57,8 +76,17 @@ class AccountService:
         Time Semantics:
             同步构造，不读时钟、无等待。
         """
-        raise NotImplementedError
+        if (
+            not isinstance(cast(object, engine), Engine)
+            or engine.dialect.name != "sqlite"
+            or not engine.get_execution_options().get("rdp_managed")
+            or not isinstance(cast(object, passwords), PasswordCodec)
+        ):
+            raise DefectError()
+        self.engine = engine
+        self.passwords = passwords
 
+    @protect
     def login(self, credentials: Credentials, *, now: datetime) -> SessionGrant:
         """验证登录并签发新的服务端会话。
 
@@ -98,8 +126,40 @@ class AccountService:
             只读查询结束后最多排队 1 秒再运算；Argon2 不持有任何数据库事务或写锁，完成后才等待写锁约 5 秒。
             原始 G2 快照比较包含已过期但尚未清零的状态，不能仅比较“当前是否等待”；整个操作不自动重试。
         """
-        raise NotImplementedError
+        moment = records.utc(now, wait=True)
+        if not isinstance(cast(object, credentials), Credentials):
+            failure = problem(AccountInputError, "登录字段不合法")
+            raise failure
+        name = records.login_name(credentials.login_name)
+        password_text(credentials.password)
+        with session_scope(self.engine, read_only=True) as session:
+            previous = session.scalar(select(AccountRow).where(AccountRow.login_name == name))
+        if previous is None or previous.status != AccountStatus.ENABLED.value:
+            self.passwords.verify(None, credentials.password)
+            failure = sessions.authentication_error()
+            raise failure
+        waiting = sessions.wait_error(previous, moment)
+        if waiting is not None:
+            raise waiting
+        checked = self.passwords.verify(previous.password_hash, credentials.password)
+        failure: InputError | None = None
+        result: SessionGrant | None = None
+        with session_scope(self.engine) as session:
+            row = sessions.confirm(session.get(AccountRow, previous.account_id), previous, moment)
+            if not checked.matched:
+                failure = sessions.wrong_password(row, moment)
+            else:
+                row.failed_attempts, row.blocked_until = 0, None
+                if checked.replacement_hash is not None:
+                    row.password_hash = checked.replacement_hash
+                result = sessions.grant(session, row, moment)
+        if failure is not None:
+            raise failure
+        if result is None:
+            raise DefectError()
+        return result
 
+    @protect
     def authenticate(self, token: SecretStr | None, *, now: datetime) -> SessionIdentity:
         """核验当前会话并按最小间隔持久化活动时间。
 
@@ -139,8 +199,22 @@ class AccountService:
             PRAGMA 必须在 BEGIN 前设置，不能等已获写锁后才改。获锁超时跳过，不再重试或退回 5 秒等待；
             这不承诺连接初始化、磁盘 I/O 或 SQL 运算的总耗时上限。
         """
-        raise NotImplementedError
+        moment = records.utc(now)
+        if token is None:
+            failure = sessions.authentication_error()
+            raise failure
+        digest = session_digest(token)
+        with session_scope(self.engine, read_only=True) as session:
+            account, saved = sessions.load(session, digest)
+            previous = sessions.identity(account, saved)
+        elapsed = moment - previous.last_seen_at
+        if elapsed < SESSION_TOUCH_INTERVAL:
+            return previous
+        return _refresh_identity(
+            self.engine, digest, moment, previous, expired=elapsed >= SESSION_IDLE_TIMEOUT
+        )
 
+    @protect
     def logout(self, identity: SessionIdentity, *, now: datetime) -> None:
         """撤销当前会话，保留同账号其他会话。
 
@@ -166,8 +240,13 @@ class AccountService:
             now 只做 aware/UTC 输入校验，本操作不根据时刻延长会话、计算 G2 或更改审计时间。
             回拨不阻止撤销；SQLite 单次写锁等待约 5 秒，无 Argon2、时钟读取或重试。
         """
-        raise NotImplementedError
+        records.utc(now)
+        with session_scope(self.engine) as session:
+            session.execute(
+                delete(SessionRow).where(SessionRow.token_digest == identity.token_digest)
+            )
 
+    @protect
     def change_password(
         self, identity: SessionIdentity, change: PasswordChange, *, now: datetime
     ) -> SessionGrant:
@@ -208,8 +287,45 @@ class AccountService:
             只读事务先结束，再分别进行旧口令核验和新口令哈希，每次入场最多排队 1 秒；所有名额在写事务前释放。
             修改时间取 max(已存, now)，新会话用 now；短写事务获锁约 5 秒，无重试。
         """
-        raise NotImplementedError
+        moment = records.utc(now, wait=True)
+        if not isinstance(cast(object, change), PasswordChange):
+            failure = problem(AccountInputError, "改密字段不合法")
+            raise failure
+        current = password_text(change.current_password)
+        fresh = password_text(change.new_password)
+        if hmac.compare_digest(current.encode("utf-8"), fresh.encode("utf-8")):
+            failure = problem(AccountInputError, "新口令不能与当前口令相同")
+            raise failure
+        with session_scope(self.engine, read_only=True) as session:
+            previous = sessions.authorize(session, identity, moment, allow_change=True)
+        waiting = sessions.wait_error(previous, moment)
+        if waiting is not None:
+            raise waiting
+        checked = self.passwords.verify(previous.password_hash, change.current_password)
+        encoded = self.passwords.hash(change.new_password) if checked.matched else None
+        failure: InputError | None = None
+        result: SessionGrant | None = None
+        with session_scope(self.engine) as session:
+            current_row = sessions.authorize(session, identity, moment, allow_change=True)
+            row = sessions.confirm(current_row, previous, moment)
+            if not checked.matched:
+                failure = sessions.wrong_password(row, moment, current=True)
+            else:
+                if encoded is None:
+                    raise DefectError()
+                row.password_hash = encoded
+                row.must_change_password = False
+                row.failed_attempts, row.blocked_until = 0, None
+                records.stamp(row, ActorRef(row.account_id, row.display_name), moment)
+                sessions.revoke_all(session, row.account_id)
+                result = sessions.grant(session, row, moment)
+        if failure is not None:
+            raise failure
+        if result is None:
+            raise DefectError()
+        return result
 
+    @protect
     def list_accounts(
         self, identity: SessionIdentity, *, after_id: int = 0, now: datetime
     ) -> AccountPage:
@@ -241,8 +357,21 @@ class AccountService:
             now 只用于同一只读快照的会话有效性检查，转换 UTC 保留微秒；负经过时长按 0，回拨不报错。
             不申请写锁、不执行 Argon2，也不读墙钟；SQLite 单次读取锁等待沿用约 5 秒预算，查询不重试。
         """
-        raise NotImplementedError
+        moment = records.utc(now)
+        cursor = records.identifier(after_id, zero=True)
+        with session_scope(self.engine, read_only=True) as session:
+            sessions.authorize(session, identity, moment, admin=True)
+            rows = session.scalars(
+                select(AccountRow)
+                .where(AccountRow.account_id > cursor)
+                .order_by(AccountRow.account_id)
+                .limit(ACCOUNT_PAGE_LIMIT + 1)
+            ).all()
+            items = tuple(records.view(row) for row in rows[:ACCOUNT_PAGE_LIMIT])
+            following = items[-1].account_id if len(rows) > ACCOUNT_PAGE_LIMIT else None
+        return AccountPage(items, following)
 
+    @protect
     def create_account(
         self, identity: SessionIdentity, command: NewAccount, *, now: datetime
     ) -> AccountView:
@@ -277,8 +406,22 @@ class AccountService:
             初始口令哈希在所有读事务结束后最多排队 1 秒，完成后才进入最长约 5 秒获锁的短写事务。
             回拨不拒绝创建，不读墙钟，无 G2 更新或自动重试。
         """
-        raise NotImplementedError
+        moment = records.utc(now)
+        command = records.new_account(command)
+        with session_scope(self.engine, read_only=True) as session:
+            sessions.authorize(session, identity, moment, admin=True)
+        encoded = self.passwords.hash(command.credentials.password)
+        with session_scope(self.engine) as session:
+            actor = sessions.authorize(session, identity, moment, admin=True)
+            row = records.make_row(
+                command, encoded, ActorRef(actor.account_id, actor.display_name), moment, True
+            )
+            session.add(row)
+            session.flush()
+            result = records.view(row)
+        return result
 
+    @protect
     def set_role(
         self, identity: SessionIdentity, account_id: int, role: Role, *, now: datetime
     ) -> AccountView:
@@ -313,8 +456,24 @@ class AccountService:
             now 转 UTC 后用于目标修改时间，取 max(目标已存 updated_at, now)，不倒退。
             重验会话负经过时长按 0，回拨不抛冲突；同角色不改时间。仅同步 SQL，写锁单次约 5 秒，无 Argon2 或重试。
         """
-        raise NotImplementedError
+        moment = records.utc(now)
+        key = records.identifier(account_id)
+        if not isinstance(cast(object, role), Role):
+            failure = problem(AccountInputError, "角色不合法", field="role")
+            raise failure
+        with session_scope(self.engine) as session:
+            actor = sessions.authorize(session, identity, moment, admin=True)
+            row = records.target(session, key)
+            if row.role != role.value:
+                if role is Role.MEMBER:
+                    records.keep_admin(session, row)
+                row.role = role.value
+                records.stamp(row, ActorRef(actor.account_id, actor.display_name), moment)
+                sessions.revoke_all(session, key)
+            result = records.view(row)
+        return result
 
+    @protect
     def set_status(
         self, identity: SessionIdentity, account_id: int, status: AccountStatus, *, now: datetime
     ) -> AccountView:
@@ -349,8 +508,24 @@ class AccountService:
             使用 aware now 的 UTC 微秒，修改时间取 max(已存 updated_at, now)。
             操作者会话的负经过时长按 0；回拨不报错，也不延长 G2 截止。写锁单次约 5 秒，无 Argon2 或额外重试。
         """
-        raise NotImplementedError
+        moment = records.utc(now)
+        key = records.identifier(account_id)
+        if not isinstance(cast(object, status), AccountStatus):
+            failure = problem(AccountInputError, "状态不合法", field="status")
+            raise failure
+        with session_scope(self.engine) as session:
+            actor = sessions.authorize(session, identity, moment, admin=True)
+            row = records.target(session, key)
+            if row.status != status.value:
+                if status is AccountStatus.DISABLED:
+                    records.keep_admin(session, row)
+                    sessions.revoke_all(session, key)
+                row.status = status.value
+                records.stamp(row, ActorRef(actor.account_id, actor.display_name), moment)
+            result = records.view(row)
+        return result
 
+    @protect
     def reset_password(
         self, identity: SessionIdentity, account_id: int, password: SecretStr, *, now: datetime
     ) -> AccountView:
@@ -388,8 +563,25 @@ class AccountService:
             新口令哈希最多排队 1 秒且不占任何数据库事务；运算完成后才等 SQLite 写锁约 5 秒。
             G2 清零来自本次明确重置，无自动重试。
         """
-        raise NotImplementedError
+        moment = records.utc(now)
+        key = records.identifier(account_id)
+        password_text(password)
+        with session_scope(self.engine, read_only=True) as session:
+            sessions.authorize(session, identity, moment, admin=True)
+            records.target(session, key)
+        encoded = self.passwords.hash(password)
+        with session_scope(self.engine) as session:
+            actor = sessions.authorize(session, identity, moment, admin=True)
+            row = records.target(session, key)
+            row.password_hash = encoded
+            row.must_change_password = True
+            row.failed_attempts, row.blocked_until = 0, None
+            records.stamp(row, ActorRef(actor.account_id, actor.display_name), moment)
+            sessions.revoke_all(session, key)
+            result = records.view(row)
+        return result
 
+    @protect
     def delete_account(self, identity: SessionIdentity, account_id: int, *, now: datetime) -> None:
         """永久删除账号及其全部会话，保留历史操作者快照。
 
@@ -421,8 +613,16 @@ class AccountService:
             aware now 只用于操作者会话有效性检查，UTC 换算后负经过时长按 0，回拨不拒绝删除。
             本操作不更新已删除账号的修改时间、不读墙钟；SQLite 写锁等待约 5 秒，无 Argon2 或重试。
         """
-        raise NotImplementedError
+        moment = records.utc(now)
+        key = records.identifier(account_id)
+        with session_scope(self.engine) as session:
+            sessions.authorize(session, identity, moment, admin=True)
+            row = records.target(session, key)
+            records.keep_admin(session, row)
+            sessions.revoke_all(session, key)
+            session.delete(row)
 
+    @protect
     def create_first_admin(self, command: NewAccount, *, now: datetime) -> AccountView:
         """仅在没有任何管理员时通过本地运维创建首个管理员。
 
@@ -450,8 +650,23 @@ class AccountService:
             使用调用方 aware now 的 UTC 微秒作为创建和初始修改时刻；交互在本函数调用前完成。
             只读预检退出后最多排队 1 秒计算哈希，释放名额后才申请约 5 秒预算的写锁，不自动重试。
         """
-        raise NotImplementedError
+        moment = records.utc(now)
+        command = records.new_account(command)
+        if command.role is not Role.ADMINISTRATOR:
+            failure = problem(AccountInputError, "首个账号必须为管理员", field="role")
+            raise failure
+        with session_scope(self.engine, read_only=True) as session:
+            records.require_no_admin(session)
+        encoded = self.passwords.hash(command.credentials.password)
+        with session_scope(self.engine) as session:
+            records.require_no_admin(session)
+            row = records.make_row(command, encoded, ActorRef(None, "运维"), moment, False)
+            session.add(row)
+            session.flush()
+            result = records.view(row)
+        return result
 
+    @protect
     def reset_password_from_ops(
         self, login_name: str, password: SecretStr, *, now: datetime
     ) -> AccountView:
@@ -484,4 +699,75 @@ class AccountService:
             只读确认退出后最多排队 1 秒计算哈希；释放名额后再申请 SQLite 写锁约 5 秒。
             G2 因显式重置清空，不重新计算等待，不自动重试。
         """
-        raise NotImplementedError
+        moment = records.utc(now)
+        name = records.login_name(login_name)
+        password_text(password)
+        with session_scope(self.engine, read_only=True) as session:
+            previous = session.scalar(select(AccountRow).where(AccountRow.login_name == name))
+            if previous is None:
+                failure = problem(AccountNotFoundError, "账号不存在")
+                raise failure
+            key = previous.account_id
+        encoded = self.passwords.hash(password)
+        with session_scope(self.engine) as session:
+            row = records.target(session, key)
+            if row.login_name != name:
+                failure = problem(AccountNotFoundError, "账号不存在")
+                raise failure
+            row.password_hash = encoded
+            row.must_change_password = True
+            row.failed_attempts, row.blocked_until = 0, None
+            records.stamp(row, ActorRef(None, "运维"), moment)
+            sessions.revoke_all(session, key)
+            result = records.view(row)
+        return result
+
+
+def _refresh_identity(
+    engine: Engine, digest: str, now: datetime, previous: SessionIdentity, *, expired: bool
+) -> SessionIdentity:
+    """活动刷新与过期删除分别选择短等待和普通事务；只有获锁忙可跳过刷新。"""
+    context = (
+        session_scope(engine)
+        if expired
+        else session_scope_with_lock_timeout(engine, busy_timeout_ms=SESSION_TOUCH_LOCK_TIMEOUT_MS)
+    )
+    entered = False
+    result: SessionIdentity | None = None
+    try:
+        with context as session:
+            entered = True
+            account, saved = sessions.load(session, digest)
+            elapsed = now - saved.last_seen_at
+            if elapsed >= SESSION_IDLE_TIMEOUT:
+                session.delete(saved)
+            elif elapsed >= SESSION_TOUCH_INTERVAL:
+                saved.last_seen_at = max(saved.last_seen_at, now)
+                result = sessions.identity(account, saved, True)
+            else:
+                result = sessions.identity(account, saved)
+    except ConflictError as error:
+        if not expired and not entered and _begin_was_busy(error):
+            return previous
+        raise
+    if result is None:
+        failure = sessions.authentication_error()
+        raise failure
+    return result
+
+
+def _begin_was_busy(error: BaseException) -> bool:
+    """仅识别驱动的忙码；有清理失败说明时不能伪装为可忽略的获锁失败。"""
+    current: BaseException | None = error
+    busy = False
+    for _ in range(8):
+        if current is None:
+            break
+        if getattr(current, "__notes__", ()):
+            return False
+        code = getattr(current, "sqlite_errorcode", None)
+        if isinstance(code, int) and code & 0xFF in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
+            busy = True
+        nested = getattr(current, "orig", None) or current.__cause__
+        current = nested if isinstance(nested, BaseException) else None
+    return busy

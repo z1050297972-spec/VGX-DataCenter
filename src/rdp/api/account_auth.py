@@ -1,21 +1,30 @@
 """HTTP 账号鉴权边界（06），默认拒绝、显式白名单；领域层不理解 Request/cookie。
 
-骨架不调用 install_account_security，现有接口保持原行为；实现阶段由 create_app 统一安装，
+create_app 统一调用 install_account_security 安装默认拒绝边界，
 不是由每条路由手工决定是否鉴权。所有同步 SQL/Argon2 移入 FastAPI 工作线程。
 认证用独立短事务，业务 get_read_session 不升级；账号写操作由领域在写锁内再次校验。
 """
 
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Annotated
+from datetime import UTC, datetime
+from typing import Annotated, cast
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request, Security
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
+from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 from fastapi.security import APIKeyCookie
+from pydantic import SecretStr
+from starlette.routing import BaseRoute
 
-from rdp.accounts.policy import SESSION_IDLE_TIMEOUT
+from rdp.accounts._issues import problem
+from rdp.accounts.errors import AuthenticationError, AuthorizationError, PasswordChangeRequiredError
+from rdp.accounts.policy import LOGIN_WAIT, SESSION_IDLE_TIMEOUT
+from rdp.accounts.security import PasswordCodec, session_digest
 from rdp.accounts.service import AccountService
-from rdp.accounts.types import SessionGrant, SessionIdentity
+from rdp.accounts.types import Role, SessionGrant, SessionIdentity
+from rdp.infra.diagnostics import DefectError, ExternalError
+from rdp.infra.timeutil import ensure_utc
 
 # HTTP 阶段不能使用 __Host- 前缀（要求 Secure）；M5 上 HTTPS 时同时升级 cookie 策略。
 SESSION_COOKIE_NAME = "rdp_session"
@@ -69,12 +78,24 @@ def install_account_security(app: FastAPI) -> None:
         修改内存中的应用依赖/中间件和 OpenAPI 安全声明；不打开会话或在安装时生成用户令牌。
         有数据库时 PasswordCodec 初始化会生成一次 dummy_hash，需读取系统熵源和执行一次哈希。
         docs/redoc/openapi.json 由 create_app 无条件禁用，不由本函数有条件控制。
-        骨架阶段不调用本函数；实现后任何遗漏单路由 Depends 都不能绕过全局边界。
+        任何遗漏单路由 Depends 都不能绕过全局边界。
 
     Time Semantics:
         只在应用启动前同步安装，不读业务墙钟；初始化最多排队 1 秒，Argon2 运算无硬实时保证或重试。
     """
-    raise NotImplementedError
+    if app.middleware_stack is not None or getattr(app.state, "account_security_installed", False):
+        raise DefectError()
+    paths = {route.path for route in iter_route_contexts(app.routes)}
+    if not {"/api/health", "/api/auth/login"} <= paths:
+        raise DefectError()
+    engine = getattr(app.state, "database_engine", None)
+    service = None if engine is None else AccountService(engine, PasswordCodec())
+    # 所有可能失败的构造先完成，防止留下半安装的安全边界。
+    from rdp.api._account_middleware import AccountSecurityBoundary
+
+    app.add_middleware(AccountSecurityBoundary)
+    app.state.account_service = service
+    app.state.account_security_installed = True
 
 
 def enforce_api_access(request: Request) -> None:
@@ -122,7 +143,37 @@ def enforce_api_access(request: Request) -> None:
         回拨的负经过时长按 0，不报冲突、不改变已存期限；活动刷新通过独立连接把 BEGIN 的 busy_timeout 设置为 100 毫秒，失败跳过且不重试。
         过期删除或其他存储失败不放行，沿用 AccountService.authenticate 的区分，不执行 Argon2。
     """
-    raise NotImplementedError
+    check_origin(request)
+    path = request.url.path
+    operation = (request.method, path)
+    if operation in PUBLIC_API_OPERATIONS or path in {"/api/health", "/api/auth/login"}:
+        if operation not in PUBLIC_API_OPERATIONS:
+            request.state.account_fallback = account_api_fallback(request)
+        return
+    request.state.account_auth_phase = True
+    raw = request.cookies.get(SESSION_COOKIE_NAME)
+    if not raw:
+        failure = problem(AuthenticationError, "请先登录")
+        raise failure
+    service = _account_service(request)
+    moment = get_account_now(request)
+    identity = service.authenticate(SecretStr(raw), now=moment)
+    context = AccountRequestContext(service, moment, identity)
+    request.state.account_context = context
+    request.state.account_cookie = SecretStr(raw)
+    if identity.account.must_change_password and operation not in PASSWORD_CHANGE_OPERATIONS:
+        failure = problem(PasswordChangeRequiredError, "必须先修改口令")
+        raise failure
+    matched = _matched_routes(request)
+    if (
+        any(_requires_admin(route) for route in matched)
+        and identity.account.role is not Role.ADMINISTRATOR
+    ):
+        failure = problem(AuthorizationError, "需要管理员权限")
+        raise failure
+    request.state.account_auth_phase = False
+    if not matched or not any(request.method in (route.methods or set()) for route in matched):
+        request.state.account_fallback = account_api_fallback(request)
 
 
 def check_origin(request: Request) -> None:
@@ -147,7 +198,13 @@ def check_origin(request: Request) -> None:
     Time Semantics:
         同步纯校验，在任何认证刷新、登录计数或业务写入前执行，无时钟或等待。
     """
-    raise NotImplementedError
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+    try:
+        _check_origin_headers(request)
+    except Exception:
+        failure = problem(AuthorizationError, "写请求必须携带本站 Origin")
+        raise failure from None
 
 
 def get_account_now(request: Request) -> datetime:
@@ -173,7 +230,20 @@ def get_account_now(request: Request) -> datetime:
         同步获取一次，不根据请求阶段重复取时刻；回拨的有效时刻照常传入领域，不能误当非法。
         无等待或重试；取消等非 Exception 的控制流由外层保持原语义。
     """
-    raise NotImplementedError
+    cached = getattr(request.state, "account_now", None)
+    if cached is not None:
+        return cast(datetime, cached)
+    try:
+        clock = getattr(request.app.state, "accounts_clock", None)
+        value = datetime.now(UTC) if clock is None else clock()
+        if not isinstance(value, datetime):
+            raise DefectError()
+        moment = ensure_utc(value)
+        _ = moment + LOGIN_WAIT
+    except Exception:
+        raise DefectError() from None
+    request.state.account_now = moment
+    return moment
 
 
 def get_login_context(request: Request) -> AccountRequestContext:
@@ -196,7 +266,14 @@ def get_login_context(request: Request) -> AccountRequestContext:
     Time Semantics:
         clock 同请求只调用一次，使用 UTC 微秒，无重试。
     """
-    raise NotImplementedError
+    check_origin(request)
+    cached = getattr(request.state, "login_context", None)
+    if isinstance(cached, AccountRequestContext):
+        return cached
+    service = _account_service(request)
+    context = AccountRequestContext(service, get_account_now(request), None)
+    request.state.login_context = context
+    return context
 
 
 def get_authenticated_context(
@@ -228,7 +305,14 @@ def get_authenticated_context(
     Time Semantics:
         同请求复用时刻与身份；在业务执行前完成。
     """
-    raise NotImplementedError
+    context = getattr(request.state, "account_context", None)
+    if context is None:
+        enforce_api_access(request)
+        context = getattr(request.state, "account_context", None)
+    if not isinstance(context, AccountRequestContext) or context.identity is None:
+        failure = problem(AuthenticationError, "请先登录")
+        raise failure
+    return context
 
 
 def get_admin_context(
@@ -262,7 +346,14 @@ def get_admin_context(
         角色检查发生在路由方法判定和 FastAPI 参数校验前；方法错误的成员也先得 403。
         不另读时钟或执行 Argon2；复用认证阶段的短刷新等待语义，不自动重试。
     """
-    raise NotImplementedError
+    context = get_authenticated_context(request, cookie)
+    if context.identity is None:
+        failure = problem(AuthenticationError, "请先登录")
+        raise failure
+    if context.identity.account.role is not Role.ADMINISTRATOR:
+        failure = problem(AuthorizationError, "需要管理员权限")
+        raise failure
+    return context
 
 
 def set_session_cookie(response: Response, grant: SessionGrant) -> None:
@@ -277,7 +368,7 @@ def set_session_cookie(response: Response, grant: SessionGrant) -> None:
         无；设置 rdp_session、HttpOnly、SameSite=Lax、Path=/、Max-Age=604800、无 Domain。
 
     Raises:
-        DefectError: grant 或响应状态非法；只输出安全诊断，不附令牌异常链。
+        DefectError: grant 或响应对象类型非法、响应头不可修改；只输出安全诊断，不附令牌异常链。
 
     Side Effects:
         只在登录成功、本人改密成功或 activity_refreshed=True 时修改 Set-Cookie，普通响应不重发；
@@ -287,7 +378,24 @@ def set_session_cookie(response: Response, grant: SessionGrant) -> None:
     Time Semantics:
         同步设置；Max-Age 为相对秒数，不依赖浏览器与服务端墙钟一致；无等待。
     """
-    raise NotImplementedError
+    try:
+        if (
+            not isinstance(cast(object, response), Response)
+            or not isinstance(cast(object, grant), SessionGrant)
+            or session_digest(grant.token) != grant.identity.token_digest
+        ):
+            raise DefectError()
+        response.set_cookie(
+            SESSION_COOKIE_NAME,
+            grant.token.get_secret_value(),
+            max_age=SESSION_COOKIE_MAX_AGE_S,
+            httponly=True,
+            samesite="lax",
+            secure=False,
+            path="/",
+        )
+    except Exception:
+        raise DefectError() from None
 
 
 def clear_session_cookie(response: Response) -> None:
@@ -300,7 +408,7 @@ def clear_session_cookie(response: Response) -> None:
         无；rdp_session 的 Max-Age=0，Path=/、无 Domain、HttpOnly、SameSite=Lax。
 
     Raises:
-        DefectError: 响应已发送或不可修改，不回显请求/响应头。
+        DefectError: 响应对象类型非法或头不可修改，不回显请求/响应头；调用方负责保证发送前调用。
 
     Side Effects:
         只改响应头，不替代服务端撤销；发送失败不能保证浏览器已删除，但已撤销令牌仍不能使用。
@@ -308,7 +416,14 @@ def clear_session_cookie(response: Response) -> None:
     Time Semantics:
         登出事务提交后或 401 响应时执行，同步无等待。
     """
-    raise NotImplementedError
+    if not isinstance(cast(object, response), Response):
+        raise DefectError()
+    try:
+        response.delete_cookie(
+            SESSION_COOKIE_NAME, path="/", httponly=True, samesite="lax", secure=False
+        )
+    except Exception:
+        raise DefectError() from None
 
 
 def account_api_fallback(request: Request) -> Response:
@@ -332,4 +447,84 @@ def account_api_fallback(request: Request) -> Response:
     Time Semantics:
         同步匹配，无时钟、等待或重试；原有响应请求编号中间件继续生效。
     """
-    raise NotImplementedError
+    matched = _matched_routes(request)
+    if not matched:
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+    allowed = sorted({method for route in matched for method in (route.methods or set())})
+    if not allowed:
+        raise DefectError()
+    return JSONResponse(
+        {"detail": "Method Not Allowed"}, status_code=405, headers={"Allow": ", ".join(allowed)}
+    )
+
+
+def _origin_key(value: str) -> tuple[str, str, int]:
+    """仅解析规范 Origin，不接受可改写主机含义的路径、用户信息或空白。"""
+    if not value or any(c.isspace() or ord(c) < 32 for c in value) or "\\" in value:
+        raise ValueError()
+    parts = urlsplit(value)
+    if (
+        parts.scheme not in {"http", "https"}
+        or not parts.hostname
+        or parts.username is not None
+        or parts.password is not None
+        or parts.path
+        or parts.query
+        or parts.fragment
+    ):
+        raise ValueError()
+    port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
+    if not 1 <= port <= 65535:
+        raise ValueError()
+    return parts.scheme, parts.hostname.lower(), port
+
+
+def _account_service(request: Request) -> AccountService:
+    """应用服务由启动阶段绑定，离线模式不得悄悄放行。"""
+    service = getattr(request.app.state, "account_service", None)
+    if service is None:
+        failure = problem(ExternalError, "数据库未启用")
+        raise failure
+    if not isinstance(service, AccountService):
+        raise DefectError()
+    return service
+
+
+def _matched_routes(request: Request) -> list[RouteContext]:
+    """先按有效模板识别权限范围，不让方法或参数校验抢在角色检查前。"""
+    try:
+        routes: list[RouteContext] = []
+        for route in iter_route_contexts(request.app.routes):
+            if not isinstance(cast(object, route.original_route), BaseRoute):
+                raise DefectError()
+            if not isinstance(route.original_route, APIRoute) or route.path in {
+                "/api",
+                "/api/{unknown:path}",
+            }:
+                continue
+            if route.path_regex.fullmatch(request.url.path):
+                routes.append(route)
+        return routes
+    except Exception:
+        raise DefectError() from None
+
+
+def _requires_admin(route: RouteContext) -> bool:
+    """沿依赖声明寻找管理员边界，支持包含路由和嵌套依赖。"""
+    pending = list(route.dependant.dependencies)
+    while pending:
+        dependency = pending.pop()
+        if dependency.call is get_admin_context:
+            return True
+        pending.extend(dependency.dependencies)
+    return False
+
+
+def _check_origin_headers(request: Request) -> None:
+    """隔离解析器的内部错误，外层只暴露固定的来源诊断。"""
+    origins = request.headers.getlist("origin")
+    hosts = request.headers.getlist("host")
+    if len(origins) != 1 or len(hosts) != 1:
+        raise ValueError()
+    if _origin_key(origins[0]) != _origin_key(request.url.scheme + "://" + hosts[0]):
+        raise ValueError()
