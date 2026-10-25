@@ -1,0 +1,21 @@
+[抓到] 等锁上限改成 0（另一个进程写着就立刻失败）：1 failed, 1 passed in 1.00s
+[抓到] 约束冲突不归冲突：1 failed in 0.21s
+[抓到] 库损坏归成外部失败：3 failed, 1 passed in 0.28s
+[抓到] 异常退出时提交而不是回滚：2 failed in 0.12s
+[漏网] 只读会话不设 query_only：1 passed, 1 warning in 0.56s
+[抓到] 版本检查只拦没迁移过的库（落后、未知都放行）：2 failed, 1 passed, 1 warning in 0.29s
+[抓到] 备份不复制任何内容：1 failed, 1 passed in 0.17s
+[漏网] 旧备份清理不认文件名，凡 .sqlite3 都算：1 passed in 0.14s
+[漏网] 备份文件名去掉随机后缀（同一时刻两次备份互相覆盖）：1 passed in 0.15s
+[抓到] 新建 backups/ 用 0755：1 failed in 0.16s
+[抓到] 清除边界含等于（恰好等于保留天数的也删）：2 failed in 0.12s
+[抓到] 保留天数不拒绝 bool：1 failed in 0.11s
+[抓到] 同一请求重复报告不去重：1 failed, 1 warning in 0.27s
+[漏网] 四类里非缺陷的也写进报错表：1 passed, 1 warning in 0.25s
+[抓到] 写表失败不再记那条 ERROR：1 failed, 1 warning in 0.28s
+[抓到] 报告不截断：2 failed, 1 warning in 0.26s
+[抓到] 查不到时返回 400 而不是 404：1 failed, 1 warning in 0.27s
+[抓到] 报错保留天数默认改成 31：1 failed in 0.01s
+[抓到] 详情查询失败时自动重试一次：⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+[漏网] 详情结果长期缓存：   Duration  823ms (import 61%, environment 34%, transform 3%, tests 1%)
+合计：抓到 15，漏网或跳过 5

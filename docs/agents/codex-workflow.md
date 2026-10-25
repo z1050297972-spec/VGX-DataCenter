@@ -18,6 +18,7 @@
 | Codex | 契约骨架、TDD 实现、修复 | 只在工作目录里写，不能提交（0009） |
 
 - **一次只做一张实现票。** 开票前扫一遍 `.scratch/m*/issues/*.md` 的 `Status:` 行，确认没有别的实现票处在 `in-progress`、`in-review` 或 `changes-requested`。
+  - **例外：下一张可以提前开**（2026-10-25 起，负责人要求提速、不降质量）。前一张已经做了实现提交、只等负责人说"合并"时，下一张从前一张的分支开（`git worktree add -b t/<下一张> <工作目录> t/<前一张>`），派工 A 照常进行。前一张合并后，下一张的分支已经包含它，不用变基；负责人在合并关卡要求修改时，下一张停在当前步骤，等前一张改完再 `git rebase` 到新的实现提交上，重跑 `make check`。同时在进行的实现票最多两张，而且前一张必须已经过了评审。
 - **执行线到关卡就交回主会话，然后停下。** 关卡过后，主会话续接同一个执行线，或者新开一个；新开的先读工单的 Comments，接上进度。
 - **Comments 做完一步记一步**，写法和规划票一致，例如：`- 2026-10-22，派工 B。会话 <编号>，快照 refs/rdp/m0-01/B，提示 assets/01-repo-skeleton-check-chain/prompt-B.md，运行日志 <路径>。结论：……`
 
@@ -108,7 +109,7 @@ M0 第 1 张票开票时还没有 `pyproject.toml` 和 `make check`，第 4、5 
      续接时忘了先 `cd`，Codex 就会把文件写进主仓库目录（0009），这条能抓到。
    - 越界直接打回。
 3. **对比契约**：`git -C <工作目录> diff <契约提交> -- <骨架涉及的文件>`。已获批的签名、类型和 docstring 没有变化；有变化按 6.2 处理。
-4. **先红后绿**：在运行日志里核对，每个测试在实现之前都有一次失败的运行。没有失败记录、Codex 也没说明理由的，记进修复清单。
+4. **先红后绿**：提示里仍然要求 Codex 逐个测试单独先跑、并在最终回复第 5 块说明一开始就通过的测试。评审不再从运行日志逐条解析，改用**变异抽查**验证测试真能区分对错：对本票每个公开函数的关键行为（报错条件、边界、副作用、时间语义）各做一处变异，脚本放 assets（`mutation_probe.py`，输出 `mutation_probe-<快照名>.txt`），每个变异改完立即还原。漏掉的变异，排除等价变异以后，每个都进修复清单。第 5 块缺失、或者说明对不上的，也进修复清单。修复轮复用上一轮的脚本，只补新增的行为。
 5. **运行日志**：`grep -nE 'data_check|Data_Collection_System' <运行日志>` 没有结果，因为沙箱的读权限挡不住两个旧项目（0009）。出现 `/mnt` 的命令逐条看一遍。再查安装和联网命令（0012），有一条就整轮打回：
 
    ```bash
@@ -119,7 +120,17 @@ M0 第 1 张票开票时还没有 `pyproject.toml` 和 `make check`，第 4、5 
 6. **两轴评审**：拍快照 `B-done`（修复轮是 `r<N>-done`），在检出这个快照的探针工作目录里（5.2）跑 `/code-review main`，并把主仓库目录里的工单路径给它当 spec。涉及同步、录制、转换的模块，再跑 `algorithm-code-review`。
    - 要在探针工作目录里跑，是因为 `/code-review` 比较的是 `main...HEAD` 之间的提交，而这时实现还没有提交。
 7. **违规试验**：在同一个探针工作目录里放进违规，确认每种都在对应的那一步失败。按 ruff 输出里的规则名（例如 `print`）匹配，不按规则码匹配，因为同一条规则在不同版本里可能换码。试验用例和输出放进 assets。
+   - 违规试验测的是检查链本身，不是本票代码。**只在本票改了检查链时做**：`Makefile`、`scripts/`、`.githooks/`、`pyproject.toml` 里 ruff、basedpyright、import-linter、pytest 的配置段，`src/web/` 下 ESLint、Prettier、tsc、Vitest 的配置。而且只试本票新加或改过的那几条规则（例如新登记的 import-linter 依赖方向），再加一条"钩子拒绝带 print 的提交"做冒烟。检查链没动的票，这一项记"检查链未改，不做"。
 8. **记录**：每项的结论写进 Comments，不通过的整理成修复清单。
+
+**什么算不通过**（2026-10-25 起）。只有阻塞问题进修复清单、触发打回：
+
+- 第 1、2、3、5 项不通过；
+- 漏网的变异（第 4 项）；
+- 两轴评审里的**硬性违规**（违反 `CODING_STANDARDS.md` 或 `AGENTS.md` 写明的条款），以及 Spec 轴的缺失、错误实现、范围蔓延；
+- 第 7 项有违规没被拦住。
+
+两轴评审里的**判断题和坏味道**（重复代码、命名、可以更好的写法）不打回，写进完工汇报的"遗留事项"，并汇总到该里程碑的 `.scratch/<里程碑目录>/followups.md`。里程碑结束前，由 `/retro` 决定哪些改进编码规范，哪些单开一张整理票。同一类判断题在两张票里反复出现的，`/retro` 考虑把它写进编码规范，变成硬性条款。
 
 **完成**：八项都有结论记在 Comments。
 
@@ -158,7 +169,7 @@ M0 第 1 张票开票时还没有 `pyproject.toml` 和 `make check`，第 4、5 
 ```bash
 # 新会话：派工 A
 cd <工作目录>
-timeout 60m codex exec -C <工作目录> -s workspace-write \
+timeout 90m codex exec -C <工作目录> -s workspace-write \
   -c 'sandbox_workspace_write.network_access=true' \
   -m gpt-6-astra -c 'model_reasoning_effort="high"' \
   --json -o <assets>/out-A.md \
@@ -167,7 +178,7 @@ timeout 60m codex exec -C <工作目录> -s workspace-write \
 
 # 续接同一会话：派工 B、修复轮
 cd <工作目录>
-timeout 60m codex exec resume \
+timeout 90m codex exec resume \
   -m gpt-6-astra -c 'model_reasoning_effort="high"' \
   -c 'sandbox_mode="workspace-write"' \
   -c 'sandbox_workspace_write.network_access=true' \
@@ -182,7 +193,7 @@ timeout 60m codex exec resume \
 - **会话编号**：运行日志第一条事件 `thread.started` 里的 `thread_id`，即 `grep -o '"thread_id":"[^"]*"' ev-A.jsonl | head -1 | cut -d'"' -f4`。一张实现票只用一个会话；只有 6.3 的升级选了 (b)，才开新会话。
 - **跑完的标志**：运行日志最后一条是 `turn.completed`，`-o` 文件存在。
 - **后台运行**：用 Bash 的后台方式运行，Codex 退出时会收到通知，不用轮询输出文件。
-- **超时**：60 分钟（`timeout 60m`，退出码 124 表示超时）。M0 第 1 张票每次派工都在这个时间内跑完，先不调。
+- **超时**：90 分钟（`timeout 90m`，退出码 124 表示超时）。M0 第 5 张派工 B 在 60 分钟时被中止，当时只差最后一次 `make check`；2026-10-25 起调到 90 分钟，免得白白多算一轮。
 - **沙箱**：实现票用 `workspace-write`，并打开 `sandbox_workspace_write.network_access=true`（0012，负责人 2026-10-23 授权）。不打开时沙箱禁止 socket 的发送调用，FastAPI 的测试会一直挂住。代价是 Codex 的命令能上网，所以 3.5 第 5 项要查安装和联网命令。非代码任务不打开，见第 8 节。
 
 ## 5. 提交与快照
