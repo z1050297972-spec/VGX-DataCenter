@@ -419,6 +419,9 @@ def test_exception_subclass_status_validation() -> None:
             HTTPStatus.BAD_REQUEST,
             HTTPStatus.NOT_FOUND,
             HTTPStatus.UNPROCESSABLE_ENTITY,
+            HTTPStatus.UNAUTHORIZED,
+            HTTPStatus.FORBIDDEN,
+            HTTPStatus.TOO_MANY_REQUESTS,
         ),
         DiagnosticCategory.CONFLICT: (HTTPStatus.CONFLICT,),
         DiagnosticCategory.EXTERNAL: (HTTPStatus.BAD_GATEWAY,),
@@ -431,7 +434,7 @@ def test_exception_subclass_status_validation() -> None:
     )
     # 基类默认值和各子类允许/禁止值也逐项写出，不从常量推导期望。
     table = (
-        (InputError, "input", (400, 404, 422), 403),
+        (InputError, "input", (400, 404, 422, 401, 403, 429), 418),
         (ConflictError, "conflict", (409,), 400),
         (ExternalError, "external", (502,), 503),
         (DefectError, "defect", (500,), 502),

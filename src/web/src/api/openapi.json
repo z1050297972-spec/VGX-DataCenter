@@ -1,6 +1,210 @@
 {
   "components": {
     "schemas": {
+      "AccountListResponse": {
+        "additionalProperties": false,
+        "description": "管理员账号列表的一页。\n\nAttributes:\n    items: 按内部编号升序的 0-100 条 AccountResponse，不可空、无默认。\n    next_after_id: 下一页的规范十进制编号，无单位、无默认；没有后续页为 null。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AccountResponse"
+            },
+            "maxItems": 100,
+            "title": "Items",
+            "type": "array"
+          },
+          "next_after_id": {
+            "anyOf": [
+              {
+                "maxLength": 19,
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next After Id"
+          }
+        },
+        "required": [
+          "items",
+          "next_after_id"
+        ],
+        "title": "AccountListResponse",
+        "type": "object"
+      },
+      "AccountResponse": {
+        "additionalProperties": false,
+        "description": "账号安全响应，对应领域快照，不含任何秘密或限流内部状态。\n\nAttributes:\n    account_id: 1 至 2^63-1 的规范十进制文本、无单位、不可空、无默认。\n    login_name: 严格登录名，3-32 字符、不可空、无默认。\n    display_name: 显示名，1-64 个码点、不可空、无默认。\n    role: administrator/member，无单位、不可空、无默认。\n    status: enabled/disabled，无单位、不可空、无默认。\n    must_change_password: 布尔、无单位、不可空、无默认。\n    created_at: aware UTC 时刻，微秒精度、不可空、无默认。\n    updated_at: aware UTC 修改时刻，微秒精度、不早于创建时刻、不可空、无默认。\n    created_by: ActorResponse 快照，不可空、无单位、无默认。\n    updated_by: ActorResponse 快照，不可空、无单位、无默认。",
+        "properties": {
+          "account_id": {
+            "maxLength": 19,
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/ActorResponse"
+          },
+          "display_name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "login_name": {
+            "maxLength": 32,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_.-]{2,31}$",
+            "title": "Login Name",
+            "type": "string"
+          },
+          "must_change_password": {
+            "title": "Must Change Password",
+            "type": "boolean"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AccountStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "$ref": "#/components/schemas/ActorResponse"
+          }
+        },
+        "required": [
+          "account_id",
+          "login_name",
+          "display_name",
+          "role",
+          "status",
+          "must_change_password",
+          "created_at",
+          "updated_at",
+          "created_by",
+          "updated_by"
+        ],
+        "title": "AccountResponse",
+        "type": "object"
+      },
+      "AccountStatus": {
+        "description": "账号可恢复的启停状态，删除不作为状态保留。\n\nAttributes:\n    ENABLED: 启用，固定 enabled，无单位、不可空、新建账号默认状态。\n    DISABLED: 停用，固定 disabled，无单位、不可空、无默认选择。",
+        "enum": [
+          "enabled",
+          "disabled"
+        ],
+        "title": "AccountStatus",
+        "type": "string"
+      },
+      "ActorResponse": {
+        "additionalProperties": false,
+        "description": "历史操作者的安全 JSON 表达。\n\nAttributes:\n    account_id: 正整数十进制文本，1 至 2^63-1、无单位、无默认；运维为 null。\n    name: 当时显示名，1-64 个码点、不可空、无默认；运维固定“运维”。",
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "maxLength": 19,
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "name"
+        ],
+        "title": "ActorResponse",
+        "type": "object"
+      },
+      "ChangePasswordRequest": {
+        "additionalProperties": false,
+        "description": "本人改口令请求，无目标账号字段。\n\nAttributes:\n    current_password: 当前 SecretStr，10-128 个码点，不可空、无默认、无单位。\n    new_password: 新 SecretStr，10-128 个码点，不可空、无默认、不得等于当前口令。",
+        "properties": {
+          "current_password": {
+            "format": "password",
+            "maxLength": 128,
+            "minLength": 10,
+            "title": "Current Password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "new_password": {
+            "format": "password",
+            "maxLength": 128,
+            "minLength": 10,
+            "title": "New Password",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "ChangePasswordRequest",
+        "type": "object"
+      },
+      "CreateAccountRequest": {
+        "additionalProperties": false,
+        "description": "管理员创建账号的请求，不能伪造创建人或状态。\n\nAttributes:\n    login_name: 继承的严格登录名，不可空、无默认、3-32 字符。\n    password: 继承的初始 SecretStr，不可空、无默认、10-128 个码点。\n    display_name: 1-64 个码点，无首尾空白/控制字符、不可空、无默认。\n    role: administrator/member，无单位、不可空、无默认。",
+        "properties": {
+          "display_name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "login_name": {
+            "maxLength": 32,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_.-]{2,31}$",
+            "title": "Login Name",
+            "type": "string"
+          },
+          "password": {
+            "format": "password",
+            "maxLength": 128,
+            "minLength": 10,
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "login_name",
+          "password",
+          "display_name",
+          "role"
+        ],
+        "title": "CreateAccountRequest",
+        "type": "object"
+      },
       "Diagnostic": {
         "additionalProperties": false,
         "description": "工具与平台共用的不可变五段诊断；JSON 字段名与属性同名，禁止额外字段。\n\n所有文本保留原内容，不接受空串或纯空白；除 expected 外不接受 null。\n使用 model_validate/model_validate_json 校验，model_dump(mode=\"json\") 生成可序列化对象，\nmodel_dump_json 生成 JSON 文本；枚举输出其值，tuple 输出数组，expected=None 输出 null。\n这三个 Pydantic 方法是唯一 JSON 转换入口，不另写转换结构；不使用 model_construct\n或未校验的 model_copy(update=...) 绕开校验。字段校验失败为 Pydantic ValidationError。\n\nAttributes:\n    level: 级别，DiagnosticLevel 两种之一；无单位，必填，无默认值。\n    category: 类别，DiagnosticCategory 四种之一；无单位，必填，无默认值。\n    stage: 阶段名称，非空白文本；无单位，必填，无默认值；确实未知时写“未知阶段”。\n    source: “平台”或非空白工具名；无单位，必填，无默认值；不存工具版本。\n    objects: 按生产者顺序的 DiagnosticObject 元组；无单位，必填，无默认值；\n        允许空元组表示全局问题，键不得重复；JSON 数组保持顺序，嵌套对象同样不可变。\n    rule: 被违反的规则的稳定文本，兼作来源内的聚合标识；非空白，无单位，必填。\n        同一规则不能嵌入文件名、实测值或随条目变化的内容；无默认值。\n    actual: 实际情况，非空白文本，必填，无默认值；数值及单位由生产者明确写出。\n    expected: 期望情况，非空白文本或 None；默认 None 表示没有可比较的期望，\n        不代表实际为空；数值及单位由生产者明确写出。\n    consequence: 后果，非空白文本，必填，无默认值；写明丢失/跳过和剩余结果是否可用。\n    next_step: 下一步检查建议，非空白文本，必填，无默认值；没有补救时明确写“无需处理”。\n    error_chain: D1 的可选文本错误链，从外到内每层一句非空白文本；单位层，\n        默认空元组，不接受 null；JSON 输出有序字符串数组，不包含 traceback。",
@@ -191,9 +395,36 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "LoginRequest": {
+        "additionalProperties": false,
+        "description": "登录请求，只能通过 POST body 传递。\n\nAttributes:\n    login_name: 3-32 位严格小写 ASCII 名称，无单位、不可空、无默认。\n    password: 10-128 个 Unicode 码点的 SecretStr，不归一化、不可空、无默认、无单位；不入日志。",
+        "properties": {
+          "login_name": {
+            "maxLength": 32,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_.-]{2,31}$",
+            "title": "Login Name",
+            "type": "string"
+          },
+          "password": {
+            "format": "password",
+            "maxLength": 128,
+            "minLength": 10,
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "login_name",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
       "ProblemResponse": {
         "additionalProperties": false,
-        "description": "RFC 9457 的不可变错误载荷；字段固定，不包含 traceback、错误链或请求内容。\n\nAttributes:\n    type: 问题类型 URI，固定 about:blank，无单位，默认 about:blank；不虚构文档 URI。\n    title: 对应 HTTPStatus.phrase 的标准英文状态短语，非空白，无单位，必填，无默认值；\n        中文说明放 detail，符合 about:blank 约定。\n    status: HTTP 状态码，严格整数，仅 400/404/422/409/502/500；拒绝 bool；\n        无单位，必填，无默认值。INPUT 对应前三种，其余类别依次对应后三种。\n    detail: 一句安全的中文摘要，非空白，无单位，必填，无默认值；程序缺陷固定为\n        “平台内部错误，请把错误编号交给维护者。”，不回显 str(error)。\n    category: 四类 DiagnosticCategory 之一，无单位，必填，无默认值。\n    diagnostics: 有序 Diagnostic 元组，默认空元组；单位条；程序缺陷必须为空，\n        其他类别与顶层一致；通用载荷允许为空，但 build_problem 的领域异常/校验失败至少一条。\n    error_id: 服务端请求编号，32 位小写 uuid4.hex，匹配 v4/variant 位；无单位，必填，\n        无默认值；来自 request_id_context，与 X-Request-ID 一致，不接收客户端编号。",
+        "description": "RFC 9457 的不可变错误载荷；字段固定，不包含 traceback、错误链或请求内容。\n\nAttributes:\n    type: 问题类型 URI，固定 about:blank，无单位，默认 about:blank；不虚构文档 URI。\n    title: 对应 HTTPStatus.phrase 的标准英文状态短语，非空白，无单位，必填，无默认值；\n        中文说明放 detail，符合 about:blank 约定。\n    status: HTTP 状态码，严格整数，仅 400/404/422/401/403/429/409/502/500；拒绝 bool；\n        无单位，必填，无默认值。INPUT 对应前六种，其余类别依次对应后三种。\n    detail: 一句安全的中文摘要，非空白，无单位，必填，无默认值；程序缺陷固定为\n        “平台内部错误，请把错误编号交给维护者。”，不回显 str(error)。\n    category: 四类 DiagnosticCategory 之一，无单位，必填，无默认值。\n    diagnostics: 有序 Diagnostic 元组，默认空元组；单位条；程序缺陷必须为空，\n        其他类别与顶层一致；通用载荷允许为空，但 build_problem 的领域异常/校验失败至少一条。\n    error_id: 服务端请求编号，32 位小写 uuid4.hex，匹配 v4/variant 位；无单位，必填，\n        无默认值；来自 request_id_context，与 X-Request-ID 一致，不接收客户端编号。",
         "properties": {
           "category": {
             "$ref": "#/components/schemas/DiagnosticCategory"
@@ -240,6 +471,62 @@
         "title": "ProblemResponse",
         "type": "object"
       },
+      "ResetPasswordRequest": {
+        "additionalProperties": false,
+        "description": "管理员重置口令请求，不接受解除强制改密标记。\n\nAttributes:\n    password: 新 SecretStr，10-128 个 Unicode 码点，不可空、无默认、无单位。",
+        "properties": {
+          "password": {
+            "format": "password",
+            "maxLength": 128,
+            "minLength": 10,
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "ResetPasswordRequest",
+        "type": "object"
+      },
+      "Role": {
+        "description": "仅有管理员和成员两种角色。\n\nAttributes:\n    ADMINISTRATOR: 管理员，固定 administrator，无单位、不可空、无默认选择。\n    MEMBER: 成员，固定 member，无单位、不可空、无默认选择。",
+        "enum": [
+          "administrator",
+          "member"
+        ],
+        "title": "Role",
+        "type": "string"
+      },
+      "RoleRequest": {
+        "additionalProperties": false,
+        "description": "角色修改请求。\n\nAttributes:\n    role: administrator/member，无单位、不可空、无默认。",
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "RoleRequest",
+        "type": "object"
+      },
+      "StatusRequest": {
+        "additionalProperties": false,
+        "description": "启停修改请求。\n\nAttributes:\n    status: enabled/disabled，无单位、不可空、无默认。",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/AccountStatus"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "StatusRequest",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -280,6 +567,13 @@
         "title": "ValidationError",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "SessionCookie": {
+        "in": "cookie",
+        "name": "rdp_session",
+        "type": "apiKey"
+      }
     }
   },
   "info": {
@@ -288,9 +582,1384 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/accounts": {
+      "get": {
+        "description": "为管理员按内部编号游标分页列出账号。\n\nArgs:\n    context: 已完成改密的管理员身份，领域在事务内再次核验角色。\n    after_id: 规范十进制文本 0 至 2^63-1，默认 0；转换前校验上限，不接受前导零。\n\nReturns:\n    HTTP 200 AccountListResponse，每页最多 100 项、编号升序；空页合法，末页 next_after_id=null。\n\nRaises:\n    AccountInputError: after_id 不是规范十进制游标、超出 0 至 2^63-1，422。\n    AuthenticationError: 当前会话缺失/失效或账号不可用，401。\n    PasswordChangeRequiredError: 当前账号必须先改口令，403。\n    AuthorizationError: 当前角色不是管理员，403；GET 不检查 Origin。\n    InputError: 数据库或 UTC 列损坏，400。\n    ConflictError: 认证/列表只读查询或必要的过期删除 SQLite 锁冲突，409；刷新获锁失败不抛 409。\n    ExternalError: 数据库未启用、查询或结束读事务时 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或列表 SQL、映射或安全响应转换错误，500。\n\nSide Effects:\n    查询是独立只读工作单元，认证刷新另用短事务；不泄漏口令或令牌。\n\nTime Semantics:\n    使用 context.now 核验身份，业务列表在单独 BEGIN/query_only 快照内完成，结束读事务后发送响应。\n    没有列表写入、Argon2 或 G2 判定；负会话经过时长按 0，不因回拨报错。\n    SQLite 单次读取锁等待约 5 秒，无轮询或重试；认证活动更新独立于本查询。",
+        "operationId": "list_accounts",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "after_id",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "maxLength": 19,
+              "pattern": "^(0|[1-9][0-9]{0,18})$",
+              "title": "After Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "等待后重试",
+            "headers": {
+              "Retry-After": {
+                "description": "向上取整的剩余秒数，1-60",
+                "schema": {
+                  "maximum": 60,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "List Accounts",
+        "tags": [
+          "账号与会话"
+        ]
+      },
+      "post": {
+        "description": "管理员新建启用且首次必须改口令的账号。\n\nArgs:\n    body: 登录名、显示名、角色和初始 SecretStr，不接受审计身份或状态覆盖。\n    context: 已完成改密的管理员身份。\n\nReturns:\n    HTTP 201 AccountResponse，status=enabled、must_change_password=True，不为目标签发会话。\n\nRaises:\n    AccountInputError: 登录名、显示名、初始口令或角色不合格，422。\n    AuthenticationError: 当前会话缺失/失效或账号不可用，401。\n    PasswordChangeRequiredError: 当前管理员必须先改口令，403。\n    AuthorizationError: POST 的 Origin 不合格或当前角色不是管理员，403。\n    InputError: 数据库或 UTC 列损坏，400。\n    ConflictError: 登录名重复或创建事务 SQLite 锁/约束冲突，409。\n    ExternalError: 数据库不可用/I/O 失败或 Argon2 入场排队超过 1 秒，502。\n    DefectError: 注入时钟非法/回调失败，或初始口令哈希、创建 SQL 或响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    领域先在事务外算好初始哈希，再在写事务重验管理员并创建；失败不留账号，登录名冲突为 409。\n\nTime Semantics:\n    以 context.now 作为创建和修改的 UTC 时刻；事务内重验管理员权限，回拨不拒绝。\n    哈希入场最多排队 1 秒且不持数据库事务，完成后才申请约 5 秒预算的写锁；提交后发 201，不建目标 cookie、不重试。",
+        "operationId": "create_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "等待后重试",
+            "headers": {
+              "Retry-After": {
+                "description": "向上取整的剩余秒数，1-60",
+                "schema": {
+                  "maximum": 60,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Create Account",
+        "tags": [
+          "账号与会话"
+        ]
+      }
+    },
+    "/api/accounts/{account_id}": {
+      "delete": {
+        "description": "管理员永久删除账号，历史名字快照不受影响。\n\nArgs:\n    account_id: 目标规范正整数文本，1 至 2^63-1。\n    context: 已完成改密的管理员身份；客户端确认不能代替服务端检查。\n\nReturns:\n    HTTP 204，无响应体；目标不存在为 404，删除最后启用管理员为 409。\n\nRaises:\n    AccountInputError: 目标编号不合格，422。\n    AuthenticationError: 当前会话缺失/失效或账号不可用，401。\n    PasswordChangeRequiredError: 当前管理员必须先改口令，403。\n    AuthorizationError: DELETE 的 Origin 不合格或当前角色不是管理员，403。\n    AccountNotFoundError: 目标账号不存在，404。\n    InputError: 数据库或 UTC 列损坏，400。\n    ConflictError: 删除会失去最后启用管理员，或SQLite 写锁/约束冲突，409。\n    ExternalError: 数据库不可用或删除/提交/清理 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或删除 SQL 或映射错误，500。\n\nSide Effects:\n    领域写事务中删除目标及全部会话，失败全回滚；同名重建使用新编号。\n\nTime Semantics:\n    context.now 只用于当前会话检查，负经过时长取 0；不写已删除账号的修改时间，回拨不报错。\n    账号及会话删除提交后发送 204；删除自己后旧 cookie 下一请求 401。\n    同步写锁等待约 5 秒，无 Argon2 或自动重试；超时不能推断服务端已回滚。",
+        "operationId": "delete_account",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maxLength": 19,
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "等待后重试",
+            "headers": {
+              "Retry-After": {
+                "description": "向上取整的剩余秒数，1-60",
+                "schema": {
+                  "maximum": 60,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Delete Account",
+        "tags": [
+          "账号与会话"
+        ]
+      }
+    },
+    "/api/accounts/{account_id}/password": {
+      "post": {
+        "description": "管理员重置口令并要求目标再次登录后改密。\n\nArgs:\n    account_id: 目标规范正整数文本，1 至 2^63-1。\n    body: 新 SecretStr，10-128 个 Unicode 码点。\n    context: 已完成改密的管理员身份。\n\nReturns:\n    HTTP 200 AccountResponse，must_change_password=True；不返回或签发目标 cookie。\n\nRaises:\n    AccountInputError: 目标编号或新口令不合格，422。\n    AuthenticationError: 当前会话缺失/失效或账号不可用，401。\n    PasswordChangeRequiredError: 当前管理员必须先改口令，403。\n    AuthorizationError: POST 的 Origin 不合格或当前角色不是管理员，403。\n    AccountNotFoundError: 目标账号不存在，404。\n    InputError: 数据库或 UTC 列损坏，400。\n    ConflictError: 重置事务 SQLite 写锁或约束冲突，409。\n    ExternalError: 数据库 I/O 或 Argon2 入场排队超过 1 秒，502。\n    DefectError: 注入时钟非法/回调失败，或新口令哈希、重置 SQL 或响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    先在事务外算好新哈希；写事务仅重验权限/目标并保存预计算哈希、清 G2、强制改密和删除会话，失败全回滚。\n\nTime Semantics:\n    以 context.now 的 UTC 值更新时刻，取 max(已存, now)；回拨不报错，清 G2 是显式重置动作。\n    哈希在事务外最多排队 1 秒计算，释放名额后再以约 5 秒预算申请写锁；\n    保存已计算结果、强制改密和删除会话同事务提交后发 200，不签发目标 cookie、不自动重试。",
+        "operationId": "reset_account_password",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maxLength": 19,
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "等待后重试",
+            "headers": {
+              "Retry-After": {
+                "description": "向上取整的剩余秒数，1-60",
+                "schema": {
+                  "maximum": 60,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Reset Account Password",
+        "tags": [
+          "账号与会话"
+        ]
+      }
+    },
+    "/api/accounts/{account_id}/role": {
+      "patch": {
+        "description": "管理员修改角色并保护最后一个启用管理员。\n\nArgs:\n    account_id: 目标正整数十进制文本，1 至 2^63-1，直接调用也检查。\n    body: role 为 administrator/member。\n    context: 已完成改密的管理员身份。\n\nReturns:\n    HTTP 200 AccountResponse；值不变时原样返回、不写审计时间。\n\nRaises:\n    AccountInputError: 目标编号或 Role 不合格，422。\n    AuthenticationError: 当前会话缺失/失效或账号不可用，401。\n    PasswordChangeRequiredError: 当前管理员必须先改口令，403。\n    AuthorizationError: PATCH 的 Origin 不合格或当前角色不是管理员，403。\n    AccountNotFoundError: 目标账号不存在，404。\n    InputError: 数据库或 UTC 列损坏，400。\n    ConflictError: 降级会失去最后启用管理员，或SQLite 写锁/约束冲突，409。\n    ExternalError: 数据库未启用或角色变更/会话撤销/提交/清理 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或角色修改 SQL、映射或响应转换错误，500。\n\nSide Effects:\n    写锁内重验权限/目标/管理员计数，角色实际改变同事务撤销目标全部会话；最后管理员冲突 409。\n\nTime Semantics:\n    以 context.now 核验身份；实际角色改变的修改时间取 max(已存, now)，同角色不改时间，回拨不报错。\n    角色与会话撤销在同事务提交后才发送 200，操作自己成功后旧 cookie 下一请求 401。\n    同步 SQL 的写锁等待约 5 秒，无 Argon2 或自动重试。",
+        "operationId": "set_account_role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maxLength": 19,
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "等待后重试",
+            "headers": {
+              "Retry-After": {
+                "description": "向上取整的剩余秒数，1-60",
+                "schema": {
+                  "maximum": 60,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Set Account Role",
+        "tags": [
+          "账号与会话"
+        ]
+      }
+    },
+    "/api/accounts/{account_id}/status": {
+      "patch": {
+        "description": "管理员启停账号并在停用时撤销全部会话。\n\nArgs:\n    account_id: 1 至 2^63-1 的规范十进制文本。\n    body: status 为 enabled/disabled。\n    context: 已完成改密的管理员身份。\n\nReturns:\n    HTTP 200 AccountResponse；相同状态不产生写入；启用不恢复旧会话。\n\nRaises:\n    AccountInputError: 目标编号或 AccountStatus 不合格，422。\n    AuthenticationError: 当前会话缺失/失效或账号不可用，401。\n    PasswordChangeRequiredError: 当前管理员必须先改口令，403。\n    AuthorizationError: PATCH 的 Origin 不合格或当前角色不是管理员，403。\n    AccountNotFoundError: 目标账号不存在，404。\n    InputError: 数据库或 UTC 列损坏，400。\n    ConflictError: 停用会失去最后启用管理员，或SQLite 写锁/约束冲突，409。\n    ExternalError: 数据库不可用或启停/会话删除/提交/清理 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或状态修改 SQL、映射或响应转换错误，500。\n\nSide Effects:\n    领域写锁内执行不变量检查、修改和必要的会话删除；失败整体回滚，不能停用最后管理员。\n\nTime Semantics:\n    使用 context.now；实际变更的修改时刻不小于已存值，同状态不改时间，回拨不报错。\n    停用和会话删除原子提交后才发送 200，停用自己后旧 cookie 下一请求 401；启用不恢复旧会话。\n    SQLite 写锁等待约 5 秒，无 Argon2 或自动重试。",
+        "operationId": "set_account_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maxLength": 19,
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "等待后重试",
+            "headers": {
+              "Retry-After": {
+                "description": "向上取整的剩余秒数，1-60",
+                "schema": {
+                  "maximum": 60,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Set Account Status",
+        "tags": [
+          "账号与会话"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "description": "验证登录并设置新会话 cookie。\n\nArgs:\n    body: 登录名和 SecretStr 口令，无默认、不在 query 或日志中传递。\n    response: 未发送的响应，供设置 cookie。\n    context: 已验证 Origin 的免登录上下文，identity=None。\n\nReturns:\n    HTTP 200 AccountResponse，必须改口令标记原样返回；原文仅进入 HttpOnly cookie，不进入 JSON。\n\nRaises:\n    AccountInputError: 登录名/口令字段不合法，422；框架校验不回显 body。\n    AuthenticationError: 未知、停用或错口令，统一“账号或口令错误”的 401。\n    AuthorizationError: POST 登录缺失/null/非法或不同源 Origin，403。\n    LoginWaitError: 启用账号仍在 G2 等待或连续第五次错误，429 带 Retry-After，等待期间不哈希。\n    InputError: 数据库、UTC 列或已存口令编码损坏，400。\n    ConflictError: 重读哈希/G2 状态已变化需重试，或SQLite 写锁/约束冲突，409；不计失败、不签发会话。\n    ExternalError: 数据库不可用/I/O 失败或 Argon2 名额排队超过 1 秒，502，不计错口令。\n    DefectError: 注入时钟非法/回调失败，或登录装配、哈希、熵源或响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    调用 service.login；只有事务提交后才设置新 cookie，登录成功不复用传入的旧令牌。\n    本次增加的失败计数由领域提交后才响应；429 输出 Retry-After，失败不设置新 cookie、无登录日志。\n\nTime Semantics:\n    POST 先检查 Origin，领域事务完成后才发新 cookie；本次增加的失败计数必须提交后才发送对应 401/429，已有等待的 429 不新增写入。\n    只用 context.now；先结束只读快照，在事务外核验/按需重哈希，释放 Argon2 名额后再重读写入。\n    Argon2 排队最多 1 秒，短写事务获锁最多约 5 秒，二者不重叠。\n    回拨不报 409、不改已有等待截止；请求取消不保证已经开始的提交被取消。",
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "等待后重试",
+            "headers": {
+              "Retry-After": {
+                "description": "向上取整的剩余秒数，1-60",
+                "schema": {
+                  "maximum": 60.0,
+                  "minimum": 1.0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "账号与会话"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "description": "撤销当前登录并删除 cookie。\n\nArgs:\n    response: 未发送的响应，供清除 cookie。\n    context: 有效当前身份，强制改密账号也可使用。\n\nReturns:\n    HTTP 204，无响应体；服务端撤销提交后清 cookie。\n\nRaises:\n    AuthenticationError: cookie 缺失/过期/撤销或账号不可用，401 并清 cookie。\n    AuthorizationError: POST 的 Origin 缺失/null/不合法或不同源，403。\n    InputError: 认证或撤销会话时数据库损坏，400。\n    ConflictError: 初始认证查询、过期删除或当前会话撤销的 SQLite 锁冲突，409；活动刷新获锁失败不在此列。\n    ExternalError: 数据库未启用、读取、撤销、提交或清理 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或认证装配、撤销 SQL 或 cookie 响应状态错误，500；报告前脱敏。\n\nSide Effects:\n    只撤销当前会话，不撤销其他会话；失败不返回伪成功。重复 HTTP 请求因已无身份返回 401 并清 cookie。\n\nTime Semantics:\n    使用 context.now，不根据时间延长当前会话；允许强制改密账号登出，不运行 Argon2。\n    同步撤销事务提交后才返回 204 并清 cookie，SQLite 单次锁等待约 5 秒，无自动重试。",
+        "operationId": "logout",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "等待后重试",
+            "headers": {
+              "Retry-After": {
+                "description": "向上取整的剩余秒数，1-60",
+                "schema": {
+                  "maximum": 60.0,
+                  "minimum": 1.0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Logout",
+        "tags": [
+          "账号与会话"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "description": "返回当前账号身份以驱动页面权限和强制改密。\n\nArgs:\n    context: 有效当前身份，允许 must_change_password=True，不接受指定目标账号。\n\nReturns:\n    HTTP 200 AccountResponse，不返回任何哈希、cookie 或失败计数。\n\nRaises:\n    AuthenticationError: 无有效会话、过期、撤销或账号不可用，401 并清 cookie。\n    InputError: 认证读取的数据库或 UTC 列损坏，400。\n    ConflictError: 初始认证只读查询或必要的过期删除锁冲突，409；活动刷新获锁失败不抛 409。\n    ExternalError: 认证数据库未启用或 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或请求上下文装配、认证 SQL 或快照响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    仅把认证得到的快照转换为安全响应；认证活动刷新独立提交，不另开业务写会话。\n\nTime Semantics:\n    GET 不检查 Origin；身份阶段使用同请求 context.now，允许强制改密账号访问，不运行 Argon2。\n    返回前结束认证查询，若发生必要的活动刷新则按认证契约处理；本路由没有额外业务写事务。\n    仅活动更新实际提交时可续 cookie；初始查询/过期删除沿用普通锁预算，活动刷新 BEGIN 最多等 100 毫秒。",
+        "operationId": "who_am_i",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "等待后重试",
+            "headers": {
+              "Retry-After": {
+                "description": "向上取整的剩余秒数，1-60",
+                "schema": {
+                  "maximum": 60.0,
+                  "minimum": 1.0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Who Am I",
+        "tags": [
+          "账号与会话"
+        ]
+      }
+    },
+    "/api/auth/password": {
+      "post": {
+        "description": "本人改口令并轮换 cookie。\n\nArgs:\n    body: 当前和新 SecretStr，10-128 个码点，不能相同。\n    response: 未发送的响应，供设置新 cookie。\n    context: 当前身份，允许强制改密账号访问。\n\nReturns:\n    HTTP 200 AccountResponse，must_change_password=False，Set-Cookie 为新令牌。\n\nRaises:\n    AccountInputError: 当前/新口令字段不合格或新旧相同，422。\n    CurrentPasswordError: AccountInputError 的 400 子类，提示“当前口令不正确”，不清 cookie、不跳登录。\n    AuthenticationError: 会话失效/账号不可用，401；单纯旧口令错误不属于此类。\n    AuthorizationError: POST 的 Origin 缺失/null/不合法或不同源，403。\n    LoginWaitError: 当前启用账号的 G2 等待或旧口令连续第五次失败，429 带 Retry-After。\n    InputError: 数据库、UTC 列或已存口令编码损坏，400。\n    ConflictError: 写事务重读哈希/G2 与快照不一致需重试，或数据库锁/约束冲突，409；不应用旧验证结果。\n    ExternalError: 数据库 I/O 或 Argon2 名额排队超过 1 秒，502，不计为旧口令错误。\n    DefectError: 注入时钟非法/回调失败，或改密哈希、SQL、会话令牌生成或响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    调用 service.change_password；同事务撤销全部旧会话、新建当前会话，提交后才发 cookie。\n    旧口令错误前四次提交计数后 400，第五次 429/Retry-After；均不清 cookie，保留改密页面。\n\nTime Semantics:\n    允许强制改密账号；采用 context.now，回拨不报错、不改已有 G2 截止，修改时间不倒退。\n    只读快照结束后在事务外核验旧口令并算好新哈希，再进短写事务复核、提交，之后才发送 200/新 cookie；旧口令失败计数提交后才发送 400/429。\n    Argon2 入场及运算不持有数据库事务；每次排队最多 1 秒，完成并释放名额后写锁最多约 5 秒，无重试。",
+        "operationId": "change_own_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "等待后重试",
+            "headers": {
+              "Retry-After": {
+                "description": "向上取整的剩余秒数，1-60",
+                "schema": {
+                  "maximum": 60.0,
+                  "minimum": 1.0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Change Own Password",
+        "tags": [
+          "账号与会话"
+        ]
+      }
+    },
     "/api/errors/{error_id}": {
       "get": {
-        "description": "为 GET /api/errors/{error_id} 返回一条完整报错。\n\nArgs:\n    error_id: 请求 uuid4 hex 或作业规范正整数十进制文本，无单位；作业最大 2^63-1，\n        无前导零，不接受路径、SQL 或任意字符串；框架先校验形状，函数再校验整数上界。\n    session: 本请求缓存的只读 Session；仅供同步路由线程使用，响应发送前关闭。\n\nReturns:\n    ErrorRecord，HTTP 200 JSON；包含编号、UTC 时间、类别、摘要、同日志的报告和来源种类；\n    来源编号就是 error_id。响应模型进入 OpenAPI；不返回 SQL、请求体或额外日志上下文。\n    本票暂不鉴权，第 06 张加“所有登录账号可看”的登录依赖，不仅管理员。\n\nRaises:\n    ErrorReportNotFoundError: 找不到记录（含过期清除），404；诊断对象 error_id，规则为\n        “报错必须仍在保留期内且已成功保存”，实际“不存在”，期望“有一条报错”，\n        后果“无法展示完整报错”，下一步“按编号查询运行日志或联系维护者”。\n    InvalidErrorIdentifierError: 直接调用时格式错误，或作业编号越界，422；不回显非法原值。\n        HTTP 形状错误由框架 RequestValidationError 返回同类 422。\n    InputError: 数据库/时间列损坏；拒绝返回部分详情。\n    ConflictError: 读取锁冲突。\n    ExternalError: 数据库未启用、权限或 I/O 失败。\n    DefectError: 其他 SQL/映射程序错误。\n\nSide Effects:\n    无（只读一条记录）；不查任意日志文件、不延长保留期、不自行记日志。\n\nTime Semantics:\n    单次查询，不等待将来的插入；时间返回 UTC，浏览器显示时转本地。\n    SQLite 单次锁等待约 5 秒；客户端 5 秒超时可能先放弃，服务端不重试。",
+        "description": "为 GET /api/errors/{error_id} 返回一条完整报错。\n\nArgs:\n    error_id: 请求 uuid4 hex 或作业规范正整数十进制文本，无单位；作业最大 2^63-1，\n        无前导零，不接受路径、SQL 或任意字符串；框架先校验形状，函数再校验整数上界。\n    session: 本请求缓存的只读 Session；仅供同步路由线程使用，响应发送前关闭。\n\nReturns:\n    ErrorRecord，HTTP 200 JSON；包含编号、UTC 时间、类别、摘要、同日志的报告和来源种类；\n    来源编号就是 error_id。响应模型进入 OpenAPI；不返回 SQL、请求体或额外日志上下文。\n    HTTP 请求先通过第 06 张的全局登录与强制改密检查，所有通过检查的账号均可查看，不仅管理员。\n\nRaises:\n    ErrorReportNotFoundError: 找不到记录（含过期清除），404；诊断对象 error_id，规则为\n        “报错必须仍在保留期内且已成功保存”，实际“不存在”，期望“有一条报错”，\n        后果“无法展示完整报错”，下一步“按编号查询运行日志或联系维护者”。\n    InvalidErrorIdentifierError: 直接调用时格式错误，或作业编号越界，422；不回显非法原值。\n        HTTP 形状错误由框架 RequestValidationError 返回同类 422。\n    InputError: 数据库/时间列损坏；拒绝返回部分详情。\n    ConflictError: 读取锁冲突。\n    ExternalError: 数据库未启用、权限或 I/O 失败。\n    DefectError: 其他 SQL/映射程序错误。\n\nSide Effects:\n    无（只读一条记录）；不查任意日志文件、不延长保留期、不自行记日志。\n\nTime Semantics:\n    单次查询，不等待将来的插入；时间返回 UTC，浏览器显示时转本地。\n    SQLite 单次锁等待约 5 秒；客户端 5 秒超时可能先放弃，服务端不重试。",
         "operationId": "get_error_details_api_errors__error_id__get",
         "parameters": [
           {
@@ -327,6 +1996,26 @@
             },
             "description": "Bad Request"
           },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/problem+json": {
@@ -357,6 +2046,16 @@
             },
             "description": "Validation Error"
           },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
           "500": {
             "content": {
               "application/problem+json": {
@@ -378,6 +2077,11 @@
             "description": "Bad Gateway"
           }
         },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
         "summary": "Get Error Details"
       }
     },
@@ -405,6 +2109,26 @@
               }
             },
             "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -435,6 +2159,16 @@
               }
             },
             "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
           },
           "500": {
             "content": {

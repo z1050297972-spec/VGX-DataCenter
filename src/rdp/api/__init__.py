@@ -6,6 +6,8 @@
 
 import logging
 import stat
+from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import override
 from uuid import uuid4
@@ -19,6 +21,8 @@ from rdp.api._asgi import ASGIApp as _ASGIApp
 from rdp.api._asgi import ASGIMessage as _ASGIMessage
 from rdp.api._asgi import Receive as _Receive
 from rdp.api._asgi import Send as _Send
+from rdp.api.account_auth import install_account_security
+from rdp.api.accounts import router as accounts_router
 from rdp.api.database import configure_database
 from rdp.api.error_details import get_error_details
 from rdp.api.errors import ErrorBoundary, install_error_handlers
@@ -118,7 +122,9 @@ def _unknown_api() -> Response:
     return JSONResponse({"detail": "Not Found"}, status_code=404)
 
 
-def create_app(web_dist: Path | None, *, database: Engine | None) -> FastAPI:
+def create_app(
+    web_dist: Path | None, *, database: Engine | None, clock: Callable[[], datetime] | None = None
+) -> FastAPI:
     """创建健康接口及可选的前端静态托管应用，不启动服务器。
 
     Args:
@@ -128,6 +134,8 @@ def create_app(web_dist: Path | None, *, database: Engine | None) -> FastAPI:
         database: 可选的 create_database_engine 引擎，无单位；必须显式传入；None 仅供离线 OpenAPI
             与无数据库测试。生产第 11 张入口必须显式传入，不允许用无数据库模式服务业务。
             调用者拥有生命周期，应用停止并完成报告后由调用者 dispose，工厂不接管。
+        clock: 请求时钟，无单位；None 为 UTC 墙钟，测试可注入固定 aware datetime 回调；
+            账号请求只取一次，不接受客户端时刻；非法返回值或回调失败由入口归 DefectError。
 
     Returns:
         独立的 FastAPI 应用；GET /api/health 返回 200 和 {"status": "ok"}，
@@ -140,10 +148,16 @@ def create_app(web_dist: Path | None, *, database: Engine | None) -> FastAPI:
         生成 uuid4().hex 请求编号，忽略客户端同名头，所有已发送响应含唯一 X-Request-ID。
         统一处理四类异常和参数校验失败，返回 application/problem+json；未知异常只报告一次。
         错误编号等于请求编号，程序缺陷响应不含 traceback；框架 HTTP 错误保留原格式。
-        OpenAPI 按需生成并合并诊断 schema 与已知 API 路由的错误响应定义。
+        FastAPI 自带的 /docs、/redoc、/openapi.json 无条件关闭，与 database 是否提供无关。
+        app.openapi() 仍按需生成诊断 schema 和路由定义，openapi_export 继续离线导出。
         登记 GET /api/errors/{error_id} 及 ErrorRecord 响应模型；database
         非空时返回前通过 configure_database 检查版本。None 模式仍登记详情 schema，
         查询返回带诊断的 ExternalError 502，缺陷只写日志、不落表。
+
+        账号路由进入 OpenAPI；统一安装 account_auth 的默认拒绝边界，
+        仅 GET 健康和 POST 登录免身份检查；详情接口所有已登录且已完成改密的账号可看。
+        请求判定按 Origin→公开操作→认证→强制改密→角色→路由匹配→参数校验；S1 兜底最后区分 404/405。
+        健康/登录公开路径的错误方法不要求身份，但非安全方法必须先有正确 Origin 才返回 405/Allow。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -156,7 +170,8 @@ def create_app(web_dist: Path | None, *, database: Engine | None) -> FastAPI:
         DefectError: 引擎或迁移图配置错误。
 
     Side Effects:
-        无（只读构建目录及入口文件状态，注册内存中的路由；不建 socket、不写磁盘）。
+        只读构建目录及入口文件状态，注册内存路由；有数据库时初始化默认 Argon2 编码器及假哈希，
+        其资源和失败语义见 install_account_security；不建 socket、不写磁盘。
         接收请求后只读构建产物；不访问导航层、存储根。
         database 非空时只读校验版本，失败不迁移、不 dispose 调用者引擎；
         请求业务会话和缺陷报错会话彼此独立，报错失败不掩盖原 500，详见
@@ -170,13 +185,23 @@ def create_app(web_dist: Path | None, *, database: Engine | None) -> FastAPI:
         构建产物由部署方保持稳定，创建时校验不保证后续请求时文件仍存在。
         请求绑定持续到下游 ASGI 调用结束（含流式响应、后台任务），异常或取消也恢复。
     """
-    app = _RequestContextApp(title="机器人数据管理平台", version="0.1.0")
+    app = _RequestContextApp(
+        title="机器人数据管理平台", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None
+    )
+    app.state.accounts_clock = clock
     if database is not None:
         configure_database(app, database)
     app.add_api_route("/api/health", get_health, methods=["GET"], response_model=HealthResponse)
     app.add_api_route(
-        "/api/errors/{error_id}", get_error_details, methods=["GET"], response_model=ErrorRecord
+        "/api/errors/{error_id}",
+        get_error_details,
+        methods=["GET"],
+        response_model=ErrorRecord,
+        # 详情允许所有登录账号访问；运行时由统一边界保护，文档显式声明 cookie。
+        openapi_extra={"security": [{"SessionCookie": []}]},
     )
+    # 账号路由与既有 API 共用鉴权、时钟和 S1 兜底。
+    app.include_router(accounts_router)
     # 已知接口优先；兜底必须在静态挂载之前，不能让构建目录里的 api/ 文件遮蔽接口。
     for path in ("/api", "/api/{unknown:path}"):
         app.add_api_route(
@@ -215,4 +240,5 @@ def create_app(web_dist: Path | None, *, database: Engine | None) -> FastAPI:
         app.add_exception_handler(404, _spa_fallback)
         app.mount("/", static_files)
     install_error_handlers(app)
+    install_account_security(app)
     return app

@@ -24,7 +24,7 @@ from typing import Literal, cast, override
 from zoneinfo import ZoneInfo
 
 from rdp.infra.config import LoadedConfig, LogConfig
-from rdp.infra.db.validation import is_request_id
+from rdp.infra.ids import is_request_id
 from rdp.infra.state import DirectoryPermissionWarning
 from rdp.infra.timeutil import ensure_utc
 

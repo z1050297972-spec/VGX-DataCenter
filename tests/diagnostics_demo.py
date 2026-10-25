@@ -12,7 +12,8 @@ def mount_diagnostic_demo(app: FastAPI) -> None:
     """为执行线的演示应用挂载五个内存故障接口。
 
     Args:
-        app: create_app(None, database=None) 或 create_app(测试构建目录, database=None) 的新应用；未构建中间件栈。
+        app: create_app 创建的新测试应用，未构建中间件栈；HTTP 调用须先建立测试登录，
+            认证与报错存储只使用临时数据库或测试注入的独立临时认证服务。
 
     Returns:
         无；在 /api/_diagnostics-demo/ 下挂 GET input、conflict、external、defect、validation。

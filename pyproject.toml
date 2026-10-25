@@ -8,6 +8,7 @@ requires-python = "==3.12.*"
 # A1 只提供最小包；后续依赖由 Claude 用 uv add 写入。
 dependencies = [
     "alembic>=1.20.1",
+    "argon2-cffi>=25.1.0",
     "fastapi>=0.161.1",
     "pydantic>=2.14.1",
     "sqlalchemy>=2.1.6",
@@ -109,8 +110,8 @@ type = "layers"
 layers = [
     # 两个入口互不依赖，避免 Web 入口与运维入口之间耦合。
     "rdp.api | rdp.ops",
-    # M0 工单 04：作业结果属于领域规则，禁止 jobs 反向依赖 api/ops，infra 反向依赖 jobs。
-    "rdp.jobs",
+    # M0 工单 04/06：jobs 与 accounts 同属领域层且互不依赖，infra 不得反向依赖它们。
+    "rdp.jobs | rdp.accounts",
     "rdp.infra",
 ]
 
@@ -121,8 +122,17 @@ source_modules = [
     "rdp.infra",
     # M0 工单 04：作业结果必须可脱离入口调用，领域层同样禁用 Web 框架（规范 1.3）。
     "rdp.jobs",
+    # M0 工单 06：账号领域不依赖 Web 框架，与 jobs 同层且互不依赖。
+    "rdp.accounts",
 ]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
+
+# M0 工单 06 前置：日志和编号规则须独立于数据库包（负责人 2026-10-25 批准挪出，本合同由执行线加）。
+[[tool.importlinter.contracts]]
+name = "基础层的日志不得依赖数据库包"
+type = "forbidden"
+source_modules = ["rdp.infra.logging", "rdp.infra.ids"]
+forbidden_modules = ["rdp.infra.db"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

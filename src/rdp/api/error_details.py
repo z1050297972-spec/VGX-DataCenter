@@ -1,6 +1,6 @@
 """Web 入口层报错查询（05/E2），只查有界报错，不读取日志文件或任意路径。
 
-本票尚无登录，暂不鉴权；第 06 张必须限制为所有登录账号可看，不限定管理员。
+HTTP 全局边界要求登录并完成强制改密；所有这样的账号都可查看，不限定管理员。
 响应模型直接使用基础层快照，经 OpenAPI 生成前端类型，不放宽 ProblemResponse 的 uuid4 限制。
 """
 
@@ -12,12 +12,7 @@ from sqlalchemy.orm import Session
 
 from rdp.api.database import get_read_session
 from rdp.infra.db.records import ErrorRecord, find_error
-from rdp.infra.db.validation import (
-    ERROR_ID_PATTERN,
-    REQUEST_ID_HEX_LENGTH,
-    error_source_kind,
-    invalid_field,
-)
+from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import (
     Diagnostic,
     DiagnosticCategory,
@@ -25,6 +20,7 @@ from rdp.infra.diagnostics import (
     DiagnosticObject,
     InputError,
 )
+from rdp.infra.ids import ERROR_ID_PATTERN, REQUEST_ID_HEX_LENGTH, error_source_kind
 
 
 class ErrorReportNotFoundError(InputError):
@@ -72,7 +68,7 @@ def get_error_details(
     Returns:
         ErrorRecord，HTTP 200 JSON；包含编号、UTC 时间、类别、摘要、同日志的报告和来源种类；
         来源编号就是 error_id。响应模型进入 OpenAPI；不返回 SQL、请求体或额外日志上下文。
-        本票暂不鉴权，第 06 张加“所有登录账号可看”的登录依赖，不仅管理员。
+        HTTP 请求先通过第 06 张的全局登录与强制改密检查，所有通过检查的账号均可查看，不仅管理员。
 
     Raises:
         ErrorReportNotFoundError: 找不到记录（含过期清除），404；诊断对象 error_id，规则为

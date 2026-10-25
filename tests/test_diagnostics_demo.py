@@ -1,12 +1,10 @@
 """工单 04 的公开契约测试；只用内存输入和临时目录，验证诊断与失败边界。"""
 
 from pathlib import Path
-from typing import cast
 
-import httpx
 import pytest
+from auth_support import authenticated_client
 from diagnostics_demo import mount_diagnostic_demo
-from fastapi.testclient import TestClient
 
 from rdp.api import create_app
 
@@ -23,11 +21,11 @@ def test_mount_demo_only_in_tests() -> None:
     )
 
 
-def test_demo_five_errors() -> None:
+def test_demo_five_errors(tmp_path: Path) -> None:
     """验证契约：演示的input/conflict/external/defect/validation五条路由分别触发400/409/502/500/422且错误编号可关联日志。"""
     app = create_app(None, database=None)
     mount_diagnostic_demo(app)
-    with TestClient(app) as client:
+    with authenticated_client(app, tmp_path) as client:
         for name, status, category in (
             ("input", 400, "input"),
             ("conflict", 409, "conflict"),
@@ -35,7 +33,7 @@ def test_demo_five_errors() -> None:
             ("defect", 500, "defect"),
             ("validation", 422, "input"),
         ):
-            response = cast(httpx.Client, client).get("/api/_diagnostics-demo/" + name)
+            response = client.get("/api/_diagnostics-demo/" + name)
             assert response.status_code == status
             assert response.json()["category"] == category
             assert response.json()["error_id"] == response.headers["X-Request-ID"]
@@ -65,7 +63,7 @@ def test_demo_no_external_effects(tmp_path: Path) -> None:
     app = create_app(None, database=None)
     mount_diagnostic_demo(app)
     assert not list(tmp_path.iterdir())
-    with TestClient(app) as client:
-        response = cast(httpx.Client, client).get("/api/_diagnostics-demo/validation?count=3")
+    with authenticated_client(app, tmp_path) as client:
+        response = client.get("/api/_diagnostics-demo/validation?count=3")
     assert response.status_code == 200 and response.json() == {"count": 3}
     assert not list(tmp_path.iterdir())

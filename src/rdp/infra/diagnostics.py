@@ -55,6 +55,7 @@ class DiagnosticCategory(StrEnum):
 
 # 各诊断类别允许使用的 HTTP 状态码，无单位；只维护这一份后端允许值。
 # 以 CODING_STANDARDS 6.2 为准，新状态码先改规范表，再改此常量；只读映射防止运行时漂移。
+# 工单 06 执行线同意先写 401/403/429 契约骨架，规范表由 Claude 在骨架关卡后同步。
 ALLOWED_HTTP_STATUSES: Final[Mapping[DiagnosticCategory, tuple[HTTPStatus, ...]]] = (
     MappingProxyType(
         {
@@ -62,6 +63,9 @@ ALLOWED_HTTP_STATUSES: Final[Mapping[DiagnosticCategory, tuple[HTTPStatus, ...]]
                 HTTPStatus.BAD_REQUEST,
                 HTTPStatus.NOT_FOUND,
                 HTTPStatus.UNPROCESSABLE_ENTITY,
+                HTTPStatus.UNAUTHORIZED,
+                HTTPStatus.FORBIDDEN,
+                HTTPStatus.TOO_MANY_REQUESTS,
             ),
             DiagnosticCategory.CONFLICT: (HTTPStatus.CONFLICT,),
             DiagnosticCategory.EXTERNAL: (HTTPStatus.BAD_GATEWAY,),
@@ -271,7 +275,7 @@ class InputError(Exception):
         diagnostics: 已校验的诊断元组，至少一条，无默认值；单位条；
             全部为 ERROR 且 category=INPUT，顺序不变。
         category: 类级别类别，固定 DiagnosticCategory.INPUT；无单位，不允许覆盖。
-        http_status: 类级别 HTTPStatus，默认 400；子类只允许覆盖为 400、404、422；无单位。
+        http_status: 类级别 HTTPStatus，默认 400；子类只允许覆盖为 400、404、422、401、403、429；无单位。
     """
 
     category: ClassVar[DiagnosticCategory] = DiagnosticCategory.INPUT

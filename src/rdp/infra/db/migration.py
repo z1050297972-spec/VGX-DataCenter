@@ -32,7 +32,7 @@ from rdp.infra.db.connection import (
     translate_database_error,
 )
 from rdp.infra.db.utc import format_utc_text
-from rdp.infra.db.validation import REQUEST_ID_PATTERN, invalid_field
+from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import (
     ConflictError,
     DefectError,
@@ -50,6 +50,12 @@ from rdp.infra.timeutil import ensure_utc
 MIGRATION_BACKUP_LIMIT = 5
 # F1 的状态目录内固定相对位置；只由本模块管理，目录权限复用 STATE_DIRECTORY_MODE。
 BACKUPS_DIRECTORY_NAME = "backups"
+# 备份名由 uuid4().hex 生成；独立约束小写、版本位和 variant 位，与请求编号无关。
+BACKUP_UUID_HEX_PATTERN = r"[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}"
+# F1：只识别平台生成的 UTC 时间戳、revision 和 uuid 后缀，避免清理人工备份。
+BACKUP_FILENAME_PATTERN = (
+    r"rdp-before-[0-9]{8}T[0-9]{12}Z-[A-Za-z0-9_]+-" + BACKUP_UUID_HEX_PATTERN + r"\.sqlite3"
+)
 # 备份 progress 回调以 monotonic 检查预算，防止 backup 在繁忙源库上无限等待；单位秒。
 BACKUP_TIMEOUT_S = 5.0
 # 本票的备份预算：分批页数限制 progress 检查间隔，单位 SQLite 页，不改变页大小。
@@ -441,12 +447,11 @@ def _migration_external(paths: StatePaths, stage: str, target: Path) -> External
 
 def _backup_names(directory: Path) -> Iterator[str]:
     """逐项筛选平台完整备份，不跟随软链接，也不把半成品或人工文件纳入清理。"""
-    pattern = (
-        r"rdp-before-[0-9]{8}T[0-9]{12}Z-[A-Za-z0-9_]+-" + REQUEST_ID_PATTERN[1:-1] + r"\.sqlite3"
-    )
     with os.scandir(directory) as entries:
         for entry in entries:
-            if entry.is_file(follow_symlinks=False) and re.fullmatch(pattern, entry.name):
+            if entry.is_file(follow_symlinks=False) and re.fullmatch(
+                BACKUP_FILENAME_PATTERN, entry.name
+            ):
                 yield entry.name
 
 

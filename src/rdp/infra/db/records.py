@@ -20,8 +20,9 @@ from rdp.infra.config import MAX_RETENTION_DAYS
 from rdp.infra.db._errors import readonly_write_error
 from rdp.infra.db.connection import translate_database_error
 from rdp.infra.db.models import MAX_ERROR_SUMMARY_CHARS, MAX_EXCEPTION_REPORT_CHARS, ErrorReportRow
-from rdp.infra.db.validation import REQUEST_ID_HEX_LENGTH, error_source_kind, invalid_field
+from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import DiagnosticCategory
+from rdp.infra.ids import REQUEST_ID_HEX_LENGTH, error_source_kind
 from rdp.infra.timeutil import ensure_utc
 
 
