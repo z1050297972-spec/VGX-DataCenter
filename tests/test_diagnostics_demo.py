@@ -13,8 +13,8 @@ from rdp.api import create_app
 
 def test_mount_demo_only_in_tests() -> None:
     """验证契约：mount_diagnostic_demo 只挂测试app；create_app返回的生产app不存在/api/_diagnostics-demo，配置不新增字段。"""
-    production = create_app(None)
-    demo = create_app(None)
+    production = create_app(None, database=None)
+    demo = create_app(None, database=None)
     mount_diagnostic_demo(demo)
     assert not any("_diagnostics-demo" in getattr(route, "path", "") for route in production.routes)
     assert (
@@ -25,7 +25,7 @@ def test_mount_demo_only_in_tests() -> None:
 
 def test_demo_five_errors() -> None:
     """验证契约：演示的input/conflict/external/defect/validation五条路由分别触发400/409/502/500/422且错误编号可关联日志。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
     mount_diagnostic_demo(app)
     with TestClient(app) as client:
         for name, status, category in (
@@ -43,7 +43,7 @@ def test_demo_five_errors() -> None:
 
 def test_demo_route_order_and_schema() -> None:
     """验证契约：演示路由排在/api兜底前，挂载后清OpenAPI缓存；重复挂载和已启动应用均抛ValueError且不留下部分路由。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
     app.openapi()
     mount_diagnostic_demo(app)
     assert app.openapi_schema is None
@@ -52,7 +52,7 @@ def test_demo_route_order_and_schema() -> None:
     with pytest.raises(ValueError):
         mount_diagnostic_demo(app)
     assert app.routes == before
-    started = create_app(None)
+    started = create_app(None, database=None)
     started.middleware_stack = started.build_middleware_stack()
     before = list(started.routes)
     with pytest.raises(ValueError):
@@ -62,7 +62,7 @@ def test_demo_route_order_and_schema() -> None:
 
 def test_demo_no_external_effects(tmp_path: Path) -> None:
     """验证契约：演示仅使用内存造诊断和异常；不建socket、不写磁盘、不访问导航层或存储根，不含真实凭据。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
     mount_diagnostic_demo(app)
     assert not list(tmp_path.iterdir())
     with TestClient(app) as client:

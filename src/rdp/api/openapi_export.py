@@ -34,11 +34,11 @@ def export_openapi(output_path: Path) -> None:
 
     Raises:
         OSError: 输出父目录不存在、目标是目录、无写权限，或创建、写入、替换、清理临时文件失败。
-        TypeError: create_app(None).openapi() 含无法序列化为 JSON 的值。
+        TypeError: create_app(None, database=None).openapi() 含无法序列化为 JSON 的值。
         ValueError: OpenAPI 含非有限数，无法输出标准 JSON。
 
     Side Effects:
-        先完整序列化 create_app(None).openapi()，再写同目录临时文件；键排序，缩进为 2 个空格，
+        先完整序列化 create_app(None, database=None).openapi()，再写同目录临时文件；键排序，缩进为 2 个空格，
         ensure_ascii=False、allow_nan=False，末尾一个换行，编码 UTF-8。
         临时文件关闭成功后用 os.replace 原子替换目标；序列化、写入或替换失败时目标保持原样，
         并删除临时文件。若文件系统连清理也拒绝，抛出该 OSError，不把清理失败伪装成成功。
@@ -48,7 +48,11 @@ def export_openapi(output_path: Path) -> None:
         同步导出，不读时钟、不写生成时刻；相同应用定义重复导出逐字节一致。
     """
     content = json.dumps(
-        create_app(None).openapi(), sort_keys=True, indent=2, ensure_ascii=False, allow_nan=False
+        create_app(None, database=None).openapi(),
+        sort_keys=True,
+        indent=2,
+        ensure_ascii=False,
+        allow_nan=False,
     )
     temporary_path: Path | None = None
     try:

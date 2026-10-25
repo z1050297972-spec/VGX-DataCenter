@@ -36,7 +36,7 @@ def _request(app: FastAPI, path: str, method: str = "GET") -> Response:
 
 def test_health_response() -> None:
     """使用 TestClient 验证 /api/health 返回 200 和固定 ok JSON。"""
-    response = _request(create_app(None), "/api/health")
+    response = _request(create_app(None, database=None), "/api/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
     assert response.headers["content-type"] == "application/json"
@@ -44,7 +44,7 @@ def test_health_response() -> None:
 
 def test_health_openapi(tmp_path: Path) -> None:
     """使用 TestClient 验证健康响应模型进入 OpenAPI 且仅允许 ok。"""
-    response = _request(create_app(None), "/openapi.json")
+    response = _request(create_app(None, database=None), "/openapi.json")
     assert response.status_code == 200
     schema = response.json()
     health = schema["paths"]["/api/health"]["get"]["responses"]["200"]
@@ -60,7 +60,7 @@ def test_health_openapi(tmp_path: Path) -> None:
 
 def test_api_only_root(tmp_path: Path) -> None:
     """使用 TestClient 验证 web_dist=None 时首页返回 404。"""
-    response = _request(create_app(None), "/")
+    response = _request(create_app(None, database=None), "/")
     assert response.status_code == 404
     assert response.json() == {"detail": "Not Found"}
 
@@ -68,7 +68,7 @@ def test_api_only_root(tmp_path: Path) -> None:
 def test_spa_root(tmp_path: Path) -> None:
     """使用 TestClient 验证 tmp_path 构建目录首页返回 index.html。"""
     (tmp_path / "index.html").write_text("<main>平台首页</main>", encoding="utf-8")
-    response = _request(create_app(tmp_path), "/")
+    response = _request(create_app(tmp_path, database=None), "/")
     assert response.status_code == 200
     assert response.text == "<main>平台首页</main>"
     assert response.headers["content-type"].startswith("text/html")
@@ -77,7 +77,7 @@ def test_spa_root(tmp_path: Path) -> None:
 def test_spa_nested_route(tmp_path: Path) -> None:
     """使用 TestClient 验证不存在的嵌套路由 GET 返回 index.html。"""
     (tmp_path / "index.html").write_text("<main>前端路由入口</main>", encoding="utf-8")
-    response = _request(create_app(tmp_path), "/datasets/x")
+    response = _request(create_app(tmp_path, database=None), "/datasets/x")
     assert response.status_code == 200
     assert response.text == "<main>前端路由入口</main>"
 
@@ -87,7 +87,7 @@ def test_static_file(tmp_path: Path) -> None:
     (tmp_path / "index.html").write_text("首页", encoding="utf-8")
     expected = b"console.log('static asset');\n"
     (tmp_path / "app.js").write_bytes(expected)
-    response = _request(create_app(tmp_path), "/app.js")
+    response = _request(create_app(tmp_path, database=None), "/app.js")
     assert response.status_code == 200
     assert response.content == expected
     assert "javascript" in response.headers["content-type"]
@@ -99,7 +99,7 @@ def test_unknown_api(tmp_path: Path) -> None:
     (tmp_path / "api").mkdir()
     (tmp_path / "api" / "asset.txt").write_text("不能作为 API 返回", encoding="utf-8")
     for directory in (None, tmp_path):
-        app = create_app(directory)
+        app = create_app(directory, database=None)
         for path in ("/api", "/api/不存在", "/api/asset.txt"):
             response = _request(app, path)
             assert response.status_code == 404
@@ -109,7 +109,7 @@ def test_unknown_api(tmp_path: Path) -> None:
 def test_api_404_preserves_detail(tmp_path: Path) -> None:
     """验证 API 404 契约：接口抛出的业务 detail 和响应头原样保留，不回退为首页。"""
     (tmp_path / "index.html").write_text("不能返回的首页", encoding="utf-8")
-    app = create_app(tmp_path)
+    app = create_app(tmp_path, database=None)
 
     def missing_record() -> None:
         """通过真实接口抛出带业务上下文的 404。"""
@@ -132,7 +132,7 @@ def test_api_404_preserves_detail(tmp_path: Path) -> None:
 def test_non_get_no_fallback(tmp_path: Path) -> None:
     """使用 TestClient 验证非 GET 请求不使用 SPA 回退。"""
     (tmp_path / "index.html").write_text("首页", encoding="utf-8")
-    app = create_app(tmp_path)
+    app = create_app(tmp_path, database=None)
     for method in ("POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"):
         response = _request(app, "/datasets/x", method)
         assert response.status_code in (404, 405)
@@ -147,7 +147,7 @@ def test_static_boundary(tmp_path: Path) -> None:
     secret = tmp_path / "secret.txt"
     secret.write_text("目录外内容不可读取", encoding="utf-8")
     (dist / "escape.txt").symlink_to(secret)
-    app = create_app(dist)
+    app = create_app(dist, database=None)
     for path in ("/%2e%2e/secret.txt", "/escape.txt"):
         response = _request(app, path)
         assert "目录外内容不可读取" not in response.text
@@ -158,7 +158,7 @@ def test_static_boundary(tmp_path: Path) -> None:
 def test_missing_dist(tmp_path: Path) -> None:
     """验证不存在的构建目录在 create_app 调用时抛 FileNotFoundError。"""
     with pytest.raises(FileNotFoundError):
-        create_app(tmp_path / "missing")
+        create_app(tmp_path / "missing", database=None)
 
 
 def test_dist_is_file(tmp_path: Path) -> None:
@@ -166,20 +166,20 @@ def test_dist_is_file(tmp_path: Path) -> None:
     target = tmp_path / "dist"
     target.write_text("不是目录", encoding="utf-8")
     with pytest.raises(NotADirectoryError):
-        create_app(target)
+        create_app(target, database=None)
 
 
 def test_missing_index(tmp_path: Path) -> None:
     """验证缺少 index.html 时在创建阶段抛 FileNotFoundError。"""
     with pytest.raises(FileNotFoundError):
-        create_app(tmp_path)
+        create_app(tmp_path, database=None)
 
 
 def test_index_is_directory(tmp_path: Path) -> None:
     """验证 index.html 是目录时在创建阶段抛 ValueError。"""
     (tmp_path / "index.html").mkdir()
     with pytest.raises(ValueError, match="index.html"):
-        create_app(tmp_path)
+        create_app(tmp_path, database=None)
 
 
 def test_index_symlink_outside(tmp_path: Path) -> None:
@@ -190,7 +190,7 @@ def test_index_symlink_outside(tmp_path: Path) -> None:
     outside.write_text("外部页面", encoding="utf-8")
     (dist / "index.html").symlink_to(outside)
     with pytest.raises(ValueError, match="index.html"):
-        create_app(dist)
+        create_app(dist, database=None)
 
 
 def test_dist_permission_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -205,7 +205,7 @@ def test_dist_permission_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
     monkeypatch.setattr(Path, "stat", denied)
     with pytest.raises(PermissionError, match="构建目录不可读"):
-        create_app(tmp_path)
+        create_app(tmp_path, database=None)
 
 
 def test_relative_dist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -214,7 +214,7 @@ def test_relative_dist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     dist.mkdir()
     (dist / "index.html").write_text("创建时的页面", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    app = create_app(Path("dist"))
+    app = create_app(Path("dist"), database=None)
     monkeypatch.chdir(dist)
     response = _request(app, "/")
     assert response.status_code == 200
@@ -231,8 +231,8 @@ def test_independent_apps(tmp_path: Path) -> None:
     before = {path: path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
     # 只在创建阶段拦截系统边界；TestClient 本身的本地线程通信不属于应用创建。
     with patch("socket.socket", side_effect=AssertionError("创建应用不得建立 socket")):
-        first_app = create_app(first)
-        second_app = create_app(second)
+        first_app = create_app(first, database=None)
+        second_app = create_app(second, database=None)
     assert _request(first_app, "/").text == "第一份"
     assert _request(second_app, "/").text == "第二份"
     assert {path: path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()} == before
@@ -243,7 +243,7 @@ def test_api_namespace_all_methods(tmp_path: Path) -> None:
     (tmp_path / "index.html").write_text("首页", encoding="utf-8")
     (tmp_path / "api").mkdir()
     (tmp_path / "api" / "asset.txt").write_text("静态内容", encoding="utf-8")
-    app = create_app(tmp_path)
+    app = create_app(tmp_path, database=None)
     for method in ("HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE"):
         for path in ("/api", "/api/不存在", "/api/asset.txt"):
             response = _request(app, path, method)
@@ -257,7 +257,7 @@ def test_custom_404_does_not_override_spa(tmp_path: Path) -> None:
     """验证 SPA 回退契约：构建目录自带 404.html 也不能代替首页处理前端路由。"""
     (tmp_path / "index.html").write_text("首页路由入口", encoding="utf-8")
     (tmp_path / "404.html").write_text("不能回退到这里", encoding="utf-8")
-    response = _request(create_app(tmp_path), "/datasets/x")
+    response = _request(create_app(tmp_path, database=None), "/datasets/x")
     assert response.status_code == 200
     assert response.text == "首页路由入口"
 
@@ -282,7 +282,7 @@ def test_request_middleware_construction(tmp_path: Path) -> None:
 
 def test_response_request_id(tmp_path: Path) -> None:
     """验证工单 03 契约：验收 7：TestClient 请求 /api/health，两次响应均带唯一合法 uuid4.hex 编号且互不相同。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
     first = _request(app, "/api/health").headers["X-Request-ID"]
     second = _request(app, "/api/health").headers["X-Request-ID"]
     assert first != second
@@ -294,7 +294,7 @@ def test_response_request_id(tmp_path: Path) -> None:
 
 def test_client_request_id_ignored(tmp_path: Path) -> None:
     """验证工单 03 契约：RequestIdMiddleware：客户端合法、非法或重复 X-Request-ID 均忽略，响应使用服务端新编号。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
     for headers in (
         {"X-Request-ID": "bad"},
         {"X-Request-ID": "123456789abc4def8123456789abcdef"},
@@ -313,7 +313,7 @@ def test_response_and_log_id_match(tmp_path: Path) -> None:
     configure_logging(
         LoggingSettings("web", tmp_path), time_source=LogTime(lambda: moment, lambda: UTC)
     )
-    app = create_app(None)
+    app = create_app(None, database=None)
 
     async def business() -> dict[str, str]:
         """只在测试中提供会写业务日志的接口，不为演示增加访问日志。"""
@@ -339,7 +339,7 @@ def test_concurrent_request_ids(tmp_path: Path) -> None:
 
     async def scenario() -> None:
         """交错两个真实 ASGI 请求，验证绑定跨 await 保持独立。"""
-        app = create_app(None)
+        app = create_app(None, database=None)
         events = [asyncio.Event(), asyncio.Event()]
         observed: dict[int, list[str | None]] = {}
 
@@ -380,7 +380,7 @@ def test_request_ids_on_all_response_statuses(tmp_path: Path) -> None:
     """验证工单 03 契约：create_app 新契约：API、静态文件、SPA、重定向、404、校验错误及框架 500 响应均带编号。"""
     (tmp_path / "index.html").write_text("首页", encoding="utf-8")
     (tmp_path / "asset.txt").write_text("文件", encoding="utf-8")
-    app = create_app(tmp_path)
+    app = create_app(tmp_path, database=None)
 
     async def redirect() -> RedirectResponse:
         return RedirectResponse("/api/health")
@@ -444,7 +444,7 @@ def test_health_has_no_access_log(tmp_path: Path) -> None:
     configure_logging(
         LoggingSettings("web", tmp_path), time_source=LogTime(lambda: moment, lambda: UTC)
     )
-    assert _request(create_app(None), "/api/health").status_code == 200
+    assert _request(create_app(None, database=None), "/api/health").status_code == 200
     logging.getLogger("uvicorn.access").info("GET /api/health 200")
     text = (tmp_path / "web.log").read_text(encoding="utf-8")
     assert "uvicorn.access" not in text
@@ -500,7 +500,7 @@ def test_request_context_restored_after_cancel(tmp_path: Path) -> None:
 
 def test_streaming_and_background_context(tmp_path: Path) -> None:
     """验证工单 03 契约：RequestIdMiddleware 时间语义：流式响应与后台任务内日志保留请求编号，整个下游调用完成才恢复。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
     observed: list[str | None] = []
 
     async def background() -> None:
@@ -566,7 +566,7 @@ def test_failure_before_response_start(tmp_path: Path) -> None:
 
 def test_request_wrapper_outside_error_stack(tmp_path: Path) -> None:
     """验证工单 03 契约：_RequestContextApp.build_middleware_stack 返回：包装完整父类栈，框架 500 在上下文内且不改变路由/OpenAPI。"""
-    app = create_app(None)
+    app = create_app(None, database=None)
     assert isinstance(app.build_middleware_stack(), RequestIdMiddleware)
     assert request_id_context.get() is None
     response = _request(app, "/openapi.json")
@@ -578,8 +578,8 @@ def test_request_wrapper_outside_error_stack(tmp_path: Path) -> None:
 def test_app_does_not_configure_logging(tmp_path: Path) -> None:
     """验证工单 03 契约：create_app 副作用：创建多个应用不安装全局 handler、不写日志文件；请求关联中间件实例互相独立。"""
     before = (logging.getLogger().handlers[:], logging.getLogger().level, logging.raiseExceptions)
-    first = create_app(None)
-    second = create_app(None)
+    first = create_app(None, database=None)
+    second = create_app(None, database=None)
     assert first is not second
     assert (
         logging.getLogger().handlers,

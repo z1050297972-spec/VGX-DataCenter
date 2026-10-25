@@ -1,11 +1,149 @@
 // 工单 02 的公开边界测试；传输显式注入，缓存和 DOM 在测试结束时清理。
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { createHealthClient, type FetchImplementation } from "./api/client";
 import { HealthPage } from "./HealthPage";
 
+// 工单 05：通过页面公开入口验证详情加载、取消和稳定回调。
+it("验证契约：HealthPage 为 DiagnosticCard 传稳定的 createErrorDetailsLoader，普通重渲染不重复请求", async () => {
+  const transport = vi.fn<FetchImplementation>((request) =>
+    Promise.resolve(request.url.endsWith("/api/health") ? defectResponse() : detailsResponse()),
+  );
+  const client = createHealthClient(transport);
+  const cache = queryClient();
+  const view = render(
+    <QueryClientProvider client={cache}>
+      <HealthPage client={client} />
+    </QueryClientProvider>,
+  );
+  await screen.findByText("平台内部错误");
+  fireEvent.click(screen.getByRole("button", { name: "完整报错" }));
+  expect(await screen.findByText(/TypeError: 页面详情/)).toBeTruthy();
+  view.rerender(
+    <QueryClientProvider client={cache}>
+      <HealthPage client={client} />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByText(/TypeError: 页面详情/)).toBeTruthy();
+  expect(transport).toHaveBeenCalledTimes(2);
+});
+it("验证契约：程序缺陷默认折叠不查详情，首次展开显示完整报错，折叠再展开复用本次结果", async () => {
+  const transport = vi.fn<FetchImplementation>((request) =>
+    Promise.resolve(request.url.endsWith("/api/health") ? defectResponse() : detailsResponse()),
+  );
+  render(
+    <QueryClientProvider client={queryClient()}>
+      <HealthPage client={createHealthClient(transport)} />
+    </QueryClientProvider>,
+  );
+  await screen.findByText("平台内部错误");
+  expect(transport).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: "完整报错" }));
+  await screen.findByText(/TypeError: 页面详情/);
+  fireEvent.click(screen.getByRole("button", { name: "完整报错" }));
+  fireEvent.click(screen.getByRole("button", { name: "完整报错" }));
+  expect(screen.getByText(/TypeError: 页面详情/)).toBeTruthy();
+  expect(transport).toHaveBeenCalledTimes(2);
+});
+it("验证契约：健康成功和非缺陷卡片不发送详情请求，既有健康缓存与五秒超时不变", async () => {
+  const transport = vi.fn<FetchImplementation>().mockResolvedValue(Response.json({ status: "ok" }));
+  render(
+    <QueryClientProvider client={queryClient()}>
+      <HealthPage client={createHealthClient(transport)} />
+    </QueryClientProvider>,
+  );
+  await screen.findByText("后端正常");
+  expect(screen.queryByRole("button", { name: "完整报错" })).toBeNull();
+  expect(transport).toHaveBeenCalledTimes(1);
+});
+it("验证契约：详情 404、失败或五秒超时显示固定提示，保持原错误编号和摘要", async () => {
+  const transport = vi.fn<FetchImplementation>((request) =>
+    Promise.resolve(
+      request.url.endsWith("/api/health")
+        ? defectResponse()
+        : new Response("missing", { status: 404 }),
+    ),
+  );
+  render(
+    <QueryClientProvider client={queryClient()}>
+      <HealthPage client={createHealthClient(transport)} />
+    </QueryClientProvider>,
+  );
+  await screen.findByText("平台内部错误");
+  fireEvent.click(screen.getByRole("button", { name: "完整报错" }));
+  expect(await screen.findByText("完整报错暂不可用，请按编号查询运行日志。")).toBeTruthy();
+  expect(screen.getByText("错误编号：" + errorId)).toBeTruthy();
+  expect(screen.getByText("平台内部错误")).toBeTruthy();
+});
+it("验证契约：客户端变更重建加载器并取消旧查询，不跨账号复用报告", async () => {
+  const first = vi.fn<FetchImplementation>((request) =>
+    request.url.endsWith("/api/health")
+      ? Promise.resolve(defectResponse())
+      : new Promise((_resolve, reject) => {
+          request.signal.addEventListener(
+            "abort",
+            () => {
+              reject(new Error("cancelled"));
+            },
+            { once: true },
+          );
+        }),
+  );
+  const second = vi.fn<FetchImplementation>((request) =>
+    Promise.resolve(
+      request.url.endsWith("/api/health") ? defectResponse() : detailsResponse("新的详情"),
+    ),
+  );
+  const cache = queryClient();
+  const view = render(
+    <QueryClientProvider client={cache}>
+      <HealthPage client={createHealthClient(first)} />
+    </QueryClientProvider>,
+  );
+  await screen.findByText("平台内部错误");
+  fireEvent.click(screen.getByRole("button", { name: "完整报错" }));
+  await waitFor(() => {
+    expect(first).toHaveBeenCalledTimes(2);
+  });
+  view.rerender(
+    <QueryClientProvider client={cache}>
+      <HealthPage client={createHealthClient(second)} />
+    </QueryClientProvider>,
+  );
+  await screen.findByText("平台内部错误");
+  expect(first.mock.calls[1]?.[0].signal.aborted).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "完整报错" }));
+  expect(await screen.findByText(/新的详情/)).toBeTruthy();
+});
+
 const queryClients: QueryClient[] = [];
+
+const errorId = "123456789abc4def8abc123456789abc";
+function defectResponse() {
+  return Response.json(
+    {
+      type: "about:blank",
+      title: "Internal Server Error",
+      status: 500,
+      category: "defect",
+      detail: "平台内部错误",
+      diagnostics: [],
+      error_id: errorId,
+    },
+    { status: 500, headers: { "Content-Type": "application/problem+json" } },
+  );
+}
+function detailsResponse(report = "TypeError: 页面详情") {
+  return Response.json({
+    error_id: errorId,
+    occurred_at: "2026-10-24T12:00:00Z",
+    category: "defect",
+    summary: "安全摘要",
+    report,
+    source_kind: "request",
+  });
+}
 
 function queryClient() {
   const client = new QueryClient();

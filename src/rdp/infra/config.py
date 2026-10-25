@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # 09 号决策票限定四级；配置、运行日志设置共用此类型，避免两份枚举漂移。
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
-# 工单 03 骨架关卡已批准：保留期上限为 3650 天，防止误填大数导致无限制保留。
+# 工单 03 已批准：保留期上限为 3650 天，防止误填大数导致无限制保留。
 MAX_RETENTION_DAYS = 3650
 # M0 spec S1：平台状态目录的缺省位置，相对于显式注入的用户 home。
 _DEFAULT_STATE_DIR_RELATIVE = Path(".local/share/rdp")
@@ -62,6 +62,18 @@ class LogConfig(BaseModel):
     retention_days: int = Field(default=30, ge=1, le=MAX_RETENTION_DAYS)
 
 
+class ErrorRetentionConfig(BaseModel):
+    """报错表保留配置（工单 05），不与运行日志的当地日历天混用。
+
+    Attributes:
+        retention_days: 保留期，单位 UTC 的 24 小时；严格整数 1-MAX_RETENTION_DAYS（3650），
+            不可空、拒绝 bool 和字符串，默认 30；用于 clear_expired_errors，不负责调度。
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True, hide_input_in_errors=True)
+    retention_days: int = Field(default=30, ge=1, le=MAX_RETENTION_DAYS)
+
+
 class PlatformConfig(BaseModel):
     """不可变的最终生效配置；嵌套模型也不可变，未知字段全部拒绝。
 
@@ -72,12 +84,15 @@ class PlatformConfig(BaseModel):
             不接受相对路径、~其他用户或环境变量展开，不解析软链接、不要求已存在。
         web: WebConfig，无单位；默认 WebConfig()，只允许 host/port。
         log: LogConfig，无单位；默认 LogConfig()，只允许 level/retention_days。
+        errors: ErrorRetentionConfig，无单位、不可空；默认 ErrorRetentionConfig()，
+            TOML [errors] 只允许 retention_days；工单 05 对 C1 的新增已知项。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True, hide_input_in_errors=True)
     state_dir: Path
     web: WebConfig = Field(default_factory=WebConfig)
     log: LogConfig = Field(default_factory=LogConfig)
+    errors: ErrorRetentionConfig = Field(default_factory=ErrorRetentionConfig)
 
     @field_validator("state_dir")
     @classmethod

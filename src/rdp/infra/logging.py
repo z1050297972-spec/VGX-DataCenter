@@ -24,13 +24,12 @@ from typing import Literal, cast, override
 from zoneinfo import ZoneInfo
 
 from rdp.infra.config import LoadedConfig, LogConfig
+from rdp.infra.db.validation import is_request_id
 from rdp.infra.state import DirectoryPermissionWarning
 from rdp.infra.timeutil import ensure_utc
 
 logger = logging.getLogger(__name__)
 
-# 对应 src/rdp/api/__init__.py 生成的 uuid4().hex，校验小写、v4 版本和 RFC variant 位。
-_REQUEST_ID_PATTERN = re.compile(r"[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}")
 # 运行日志字段键采用标识符形式；不符合时加引号，避免歧义而不丢整行。
 _FIELD_KEY_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # 只把标准日期后缀识别为候选归档，避免误删其他日志文件。
@@ -480,7 +479,7 @@ def _bound_context(job_id: int | None, request_id: str | None) -> Generator[None
     # 两项均校验后才 set，避免一个合法、另一个非法时留下部分绑定。
     if job_id is not None and (type(job_id) is not int or job_id <= 0):
         raise ValueError("作业编号必须是正整数且不是 bool")
-    if request_id is not None and not _REQUEST_ID_PATTERN.fullmatch(request_id):
+    if request_id is not None and not is_request_id(request_id):
         raise ValueError("请求编号必须是小写 uuid4.hex")
     job_token = job_id_context.set(job_id) if job_id is not None else None
     request_token = request_id_context.set(request_id) if request_id is not None else None

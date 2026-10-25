@@ -13,13 +13,17 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import Engine
 
 from rdp.api._asgi import ASGIApp as _ASGIApp
 from rdp.api._asgi import ASGIMessage as _ASGIMessage
 from rdp.api._asgi import Receive as _Receive
 from rdp.api._asgi import Send as _Send
+from rdp.api.database import configure_database
+from rdp.api.error_details import get_error_details
 from rdp.api.errors import ErrorBoundary, install_error_handlers
 from rdp.api.health import HealthResponse, get_health
+from rdp.infra.db.records import ErrorRecord
 from rdp.infra.logging import log_context
 
 logger = logging.getLogger(__name__)
@@ -114,13 +118,16 @@ def _unknown_api() -> Response:
     return JSONResponse({"detail": "Not Found"}, status_code=404)
 
 
-def create_app(web_dist: Path | None) -> FastAPI:
+def create_app(web_dist: Path | None, *, database: Engine | None) -> FastAPI:
     """创建健康接口及可选的前端静态托管应用，不启动服务器。
 
     Args:
         web_dist: 前端构建目录路径，无单位；相对路径按调用时工作目录解析。
             None 表示只提供 JSON 接口；否则必须是存在的目录，包含普通文件 index.html。
             调用方应传本地可信构建产物目录，不传数据目录。
+        database: 可选的 create_database_engine 引擎，无单位；必须显式传入；None 仅供离线 OpenAPI
+            与无数据库测试。生产第 11 张入口必须显式传入，不允许用无数据库模式服务业务。
+            调用者拥有生命周期，应用停止并完成报告后由调用者 dispose，工厂不接管。
 
     Returns:
         独立的 FastAPI 应用；GET /api/health 返回 200 和 {"status": "ok"}，
@@ -134,26 +141,42 @@ def create_app(web_dist: Path | None) -> FastAPI:
         统一处理四类异常和参数校验失败，返回 application/problem+json；未知异常只报告一次。
         错误编号等于请求编号，程序缺陷响应不含 traceback；框架 HTTP 错误保留原格式。
         OpenAPI 按需生成并合并诊断 schema 与已知 API 路由的错误响应定义。
+        登记 GET /api/errors/{error_id} 及 ErrorRecord 响应模型；database
+        非空时返回前通过 configure_database 检查版本。None 模式仍登记详情 schema，
+        查询返回带诊断的 ExternalError 502，缺陷只写日志、不落表。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
         NotADirectoryError: 创建时 web_dist 存在但不是目录。
         ValueError: 创建时 index.html 存在但不是普通文件，或解析后越出构建目录。
         OSError: 创建时读取构建目录或入口文件状态失败，例如权限不足。
+        InputError: 数据库缺失/无版本/落后/领先/未知，拒绝创建并提示先运行 migrate。
+        ConflictError: 数据库版本检查锁冲突。
+        ExternalError: 数据库权限或 I/O 失败。
+        DefectError: 引擎或迁移图配置错误。
 
     Side Effects:
         无（只读构建目录及入口文件状态，注册内存中的路由；不建 socket、不写磁盘）。
-        接收请求后只读构建产物；不访问导航层、存储根或数据库。
+        接收请求后只读构建产物；不访问导航层、存储根。
+        database 非空时只读校验版本，失败不迁移、不 dispose 调用者引擎；
+        请求业务会话和缺陷报错会话彼此独立，报错失败不掩盖原 500，详见
+        errors.report_error_with_database。
         请求处理期间绑定 request_id contextvar，业务日志自动关联响应编号，退出时恢复；
         中间件本身不产生访问日志，包含 /api/health；不在应用工厂配置全局 logger。
 
     Time Semantics:
         同步创建，返回前完成目录校验；无重试、轮询或时区转换。
+        database 非空时版本检查可等待 SQLite 锁约 5 秒；业务和报错会话的时间预算见各自契约。
         构建产物由部署方保持稳定，创建时校验不保证后续请求时文件仍存在。
         请求绑定持续到下游 ASGI 调用结束（含流式响应、后台任务），异常或取消也恢复。
     """
     app = _RequestContextApp(title="机器人数据管理平台", version="0.1.0")
+    if database is not None:
+        configure_database(app, database)
     app.add_api_route("/api/health", get_health, methods=["GET"], response_model=HealthResponse)
+    app.add_api_route(
+        "/api/errors/{error_id}", get_error_details, methods=["GET"], response_model=ErrorRecord
+    )
     # 已知接口优先；兜底必须在静态挂载之前，不能让构建目录里的 api/ 文件遮蔽接口。
     for path in ("/api", "/api/{unknown:path}"):
         app.add_api_route(
