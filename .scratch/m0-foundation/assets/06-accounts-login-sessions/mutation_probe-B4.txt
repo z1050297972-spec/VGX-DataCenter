@@ -1,0 +1,29 @@
+origin-skip CAUGHT
+admin-role SURVIVED
+g2-limit CAUGHT
+retry-ceil CAUGHT
+wait-reset SURVIVED
+idle-expiry SURVIVED
+session-cap CAUGHT
+disabled-login CAUGHT
+disabled-auth CAUGHT
+last-admin CAUGHT
+create-force CAUGHT
+reset-force ANCHOR 2
+401-cookie CAUGHT
+dummy-verify CAUGHT
+argon-slots CAUGHT
+fe-focus CAUGHT
+fe-401-nav CAUGHT
+fe-open-redirect CAUGHT
+fe-admin-guard CAUGHT
+reset-force-api CAUGHT
+reset-force-ops CAUGHT
+mw-role CAUGHT
+both-api-role CAUGHT
+domain-admin CAUGHT
+all-role CAUGHT
+admin-role SURVIVED
+wait-reset CAUGHT
+idle-expiry CAUGHT
+m1 defaultFetch=fetch CAUGHT / m2 options.fetchImpl() CAUGHT (r1b)
