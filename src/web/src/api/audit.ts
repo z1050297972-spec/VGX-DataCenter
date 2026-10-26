@@ -1,5 +1,7 @@
 // 日志 HTTP 契约（07）：只复用生成类型和账号感知客户端，不保存原生 fetch 为对象方法。
 // 浏览器装配继续使用 api/client.ts 的 defaultFetch；不新建绕过 401 清缓存的传输通道。
+import { boundedRequest } from "./_request";
+import { toFailureView } from "./problems";
 import type { AccountCall } from "./accounts";
 import type { components, operations } from "./schema";
 
@@ -13,6 +15,15 @@ export type AuditRetention = components["schemas"]["RetentionPayload"];
 export type OperationSearch = NonNullable<operations["list_operation_logs"]["parameters"]["query"]>;
 /** 登录日志 query 字段；筛选中的 account_id 是历史内部编号。 */
 export type LoginSearch = NonNullable<operations["list_login_logs"]["parameters"]["query"]>;
+
+/** 日志列表每页最多 100 条（07），传输与路由校验共用此上限。 */
+export const AUDIT_PAGE_LIMIT = 100;
+/** opaque 游标最长 512 字符（07），不在客户端解码其内部结构。 */
+export const AUDIT_CURSOR_MAX_CHARS = 512;
+/** H1 共同保留期下界，单位天。 */
+export const AUDIT_MIN_RETENTION_DAYS = 7;
+/** H1 共同保留期上界，单位天。 */
+export const AUDIT_MAX_RETENTION_DAYS = 365;
 
 /** 请求超时 10 秒（毫秒），与账号页面一致；超时不证明写操作已回滚。 */
 export const AUDIT_TIMEOUT_MS = 10000;
@@ -29,9 +40,14 @@ export const AUDIT_GC_TIME_MS = 0;
  * @sideEffects 一次同源 GET；参数以生成类型传给 openapi-fetch，客户端来自 useAccountClient，不读取 cookie 或保存原始 fetch 的 this。
  * @timeSemantics 上限 AUDIT_TIMEOUT_MS，结合调用方 AbortSignal；不重试，取消后忽略迟到结果。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 参数由调用契约要求，函数当前只抛错；开始使用该参数后删除此豁免。
 export function listOperationLogs(_input: AccountCall<OperationSearch>): Promise<OperationLogPage> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, AUDIT_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.GET("/api/audit/operations", {
+      params: { query: _input.payload },
+      signal,
+    });
+    return page(response.data);
+  });
 }
 
 /**
@@ -42,9 +58,14 @@ export function listOperationLogs(_input: AccountCall<OperationSearch>): Promise
  * @sideEffects 一次 GET，无自动翻页、全量拉取、凭据持久化或浏览器原生方法缓存。
  * @timeSemantics 10 秒上限，遵守取消信号并丢弃迟到结果，无轮询或重试。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 参数由调用契约要求，函数当前只抛错；开始使用该参数后删除此豁免。
 export function listLoginLogs(_input: AccountCall<LoginSearch>): Promise<LoginLogPage> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, AUDIT_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.GET("/api/audit/logins", {
+      params: { query: _input.payload },
+      signal,
+    });
+    return page(response.data);
+  });
 }
 
 /**
@@ -55,9 +76,11 @@ export function listLoginLogs(_input: AccountCall<LoginSearch>): Promise<LoginLo
  * @sideEffects 一次 GET，仅内存缓存，不修改 URL。
  * @timeSemantics 最多 AUDIT_TIMEOUT_MS，无重试；离页取消请求并忽略迟到结果。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 参数由调用契约要求，函数当前只抛错；开始使用该参数后删除此豁免。
 export function getAuditRetention(_input: AccountCall): Promise<AuditRetention> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, AUDIT_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.GET("/api/audit/retention", { signal });
+    return retention(response.data);
+  });
 }
 
 /**
@@ -68,7 +91,46 @@ export function getAuditRetention(_input: AccountCall): Promise<AuditRetention> 
  * @sideEffects 一次同源 PUT，浏览器带 Origin；成功由调用方失效保留期和操作日志查询，失败保留表单。不直接清除日志或读取 cookie。
  * @timeSemantics 10 秒上限，无自动重试；页面禁用重复提交，取消不保证服务器停止。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 参数由调用契约要求，函数当前只抛错；开始使用该参数后删除此豁免。
 export function setAuditRetention(_input: AccountCall<AuditRetention>): Promise<AuditRetention> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, AUDIT_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.PUT("/api/audit/retention", {
+      body: retention(_input.payload),
+      signal,
+    });
+    return retention(response.data);
+  });
+}
+
+// 响应类型生成不能替代运行时的基本形状检查；错误正文统一交既有诊断视图。
+function page<T extends OperationLogPage | LoginLogPage>(data: T | undefined): T {
+  if (
+    !data ||
+    !Array.isArray(data.items) ||
+    data.items.length > AUDIT_PAGE_LIMIT ||
+    !(
+      data.next_cursor === null ||
+      (typeof data.next_cursor === "string" && data.next_cursor.length <= AUDIT_CURSOR_MAX_CHARS)
+    ) ||
+    !data.items.every(
+      (item: unknown) =>
+        item !== null &&
+        typeof item === "object" &&
+        "log_id" in item &&
+        typeof item.log_id === "string" &&
+        "occurred_at" in item &&
+        typeof item.occurred_at === "string",
+    )
+  )
+    throw new Error("请求失败", { cause: toFailureView(null) });
+  return data;
+}
+function retention(data: AuditRetention | undefined): AuditRetention {
+  if (
+    !data ||
+    !Number.isInteger(data.days) ||
+    data.days < AUDIT_MIN_RETENTION_DAYS ||
+    data.days > AUDIT_MAX_RETENTION_DAYS
+  )
+    throw new Error("请求失败", { cause: toFailureView(null) });
+  return data;
 }

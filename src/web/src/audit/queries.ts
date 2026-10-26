@@ -1,5 +1,22 @@
 // 日志 Query/Mutation 契约：共享第 6 张的客户端上下文和账号切换清理，不复制传输实现。
-import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useQuery,
+  type UseMutationResult,
+  type UseQueryResult,
+} from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { getRouteApi } from "@tanstack/react-router";
+import { useAccountClient } from "../accounts/runtime";
+import {
+  listOperationLogs,
+  listLoginLogs,
+  getAuditRetention,
+  setAuditRetention,
+  AUDIT_STALE_TIME_MS,
+  AUDIT_GC_TIME_MS,
+} from "../api/audit";
 import type {
   AuditRetention,
   LoginLogPage,
@@ -16,9 +33,17 @@ import type {
  * @sideEffects 用 useAccountClient 发一次列表查询，queryKey 同时含操作人、对象账号和其余规范化筛选；变更筛选/离页取消旧请求，401 由统一客户端清缓存。
  * @timeSemantics AUDIT_STALE_TIME_MS/AUDIT_GC_TIME_MS 均 0，refetchOnWindowFocus=true，无轮询、retry=false；单请求 AUDIT_TIMEOUT_MS。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 参数由调用契约要求，函数当前只抛错；开始使用该参数后删除此豁免。
 export function useOperationLogs(_search: OperationSearch): UseQueryResult<OperationLogPage> {
-  throw new Error("未实现");
+  const client = useAccountClient();
+  return useQuery({
+    queryKey: ["audit", "operations", _search],
+    queryFn: ({ signal }) => listOperationLogs({ client, payload: _search, signal }),
+    staleTime: AUDIT_STALE_TIME_MS,
+    gcTime: AUDIT_GC_TIME_MS,
+    retry: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: false,
+  });
 }
 
 /**
@@ -29,9 +54,17 @@ export function useOperationLogs(_search: OperationSearch): UseQueryResult<Opera
  * @sideEffects 同源列表请求，queryKey 与操作日志隔离；身份切换由现有客户端取消并清空，旧响应不得污染新身份。
  * @timeSemantics 缓存 staleTime/gcTime 为 0，聚焦重查，不轮询、不重试；10 秒上限和调用方取消信号共同生效。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 参数由调用契约要求，函数当前只抛错；开始使用该参数后删除此豁免。
 export function useLoginLogs(_search: LoginSearch): UseQueryResult<LoginLogPage> {
-  throw new Error("未实现");
+  const client = useAccountClient();
+  return useQuery({
+    queryKey: ["audit", "logins", _search],
+    queryFn: ({ signal }) => listLoginLogs({ client, payload: _search, signal }),
+    staleTime: AUDIT_STALE_TIME_MS,
+    gcTime: AUDIT_GC_TIME_MS,
+    retry: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: false,
+  });
 }
 
 /**
@@ -42,7 +75,16 @@ export function useLoginLogs(_search: LoginSearch): UseQueryResult<LoginLogPage>
  * @timeSemantics staleTime/gcTime=0，聚焦重查，10 秒请求上限，不轮询、不重试。
  */
 export function useAuditRetention(): UseQueryResult<AuditRetention> {
-  throw new Error("未实现");
+  const client = useAccountClient();
+  return useQuery({
+    queryKey: ["audit", "retention"],
+    queryFn: ({ signal }) => getAuditRetention({ client, payload: undefined, signal }),
+    staleTime: AUDIT_STALE_TIME_MS,
+    gcTime: AUDIT_GC_TIME_MS,
+    retry: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: false,
+  });
 }
 
 /**
@@ -53,5 +95,35 @@ export function useAuditRetention(): UseQueryResult<AuditRetention> {
  * @timeSemantics 无自动重试，10 秒上限，离页取消；不声明取消或超时必然回滚服务端事务。
  */
 export function useSetAuditRetention(): UseMutationResult<AuditRetention, Error, AuditRetention> {
-  throw new Error("未实现");
+  const client = useAccountClient();
+  const cache = useQueryClient();
+  const navigate = getRouteApi("/audit/operations").useNavigate();
+  const active = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      active.current?.abort();
+    },
+    [],
+  );
+  return useMutation({
+    mutationFn: async (payload) => {
+      const controller = new AbortController();
+      active.current = controller;
+      try {
+        return await setAuditRetention({ client, payload, signal: controller.signal });
+      } finally {
+        if (active.current === controller) active.current = null;
+      }
+    },
+    onSuccess: async () => {
+      // 只有服务器确认成功才丢弃旧游标；先导航，避免在旧页刷新后留下游标。
+      await navigate({ search: (previous) => ({ ...previous, cursor: undefined }) });
+      await Promise.all([
+        cache.invalidateQueries({ queryKey: ["audit", "retention"] }),
+        cache.invalidateQueries({ queryKey: ["audit", "operations"] }),
+      ]);
+    },
+    retry: false,
+    gcTime: AUDIT_GC_TIME_MS,
+  });
 }

@@ -23,6 +23,7 @@ from rdp.accounts.policy import LOGIN_WAIT, SESSION_IDLE_TIMEOUT
 from rdp.accounts.security import PasswordCodec, session_digest
 from rdp.accounts.service import AccountService
 from rdp.accounts.types import Role, SessionGrant, SessionIdentity
+from rdp.audit.types import AuditContext
 from rdp.infra.diagnostics import DefectError, ExternalError
 from rdp.infra.timeutil import ensure_utc
 
@@ -50,11 +51,13 @@ class AccountRequestContext:
         service: AccountService，不可空、无单位、无默认；应用启动时构造，应用不拥有引擎生命周期。
         now: 请求开始时注入的 aware UTC 时刻，微秒、不可空、无默认，同请求只取一次。
         identity: 会话快照，无单位、无默认；只有登录及健康白名单可为 None。
+        audit: 同请求的来源IP和服务器编号，无默认；请求入口显式提取，不接受客户端声明。
     """
 
     service: AccountService
     now: datetime
     identity: SessionIdentity | None
+    audit: AuditContext
 
 
 def install_account_security(app: FastAPI) -> None:
@@ -126,7 +129,7 @@ def enforce_api_access(request: Request) -> None:
         AuthorizationError: 不安全方法的 Origin 缺失/null/非法/不同源，或成员访问管理员路径（包括错方法），403 带诊断。
         PasswordChangeRequiredError: 强制改密账号请求 PASSWORD_CHANGE_OPERATIONS 以外接口，403 带诊断。
         InputError: 数据库损坏。
-        ConflictError: 初始认证查询、过期删除或非获锁阶段的数据库锁/约束冲突；仅活动刷新获锁失败继续放行。
+        ConflictError: 初始认证查询及已获锁后的删除/刷新写入约束冲突；过期删除入场忙仍抛 AuthenticationError。
         ExternalError: 数据库缺失或 I/O 失败，不按匿名放行。
         DefectError: 服务、SQL 或注入时钟非法/回调失败，500；不带秘密的原始异常链。
 
@@ -136,12 +139,12 @@ def enforce_api_access(request: Request) -> None:
         未到间隔、并发已刷新或 BUSY 跳过均不重发 Set-Cookie；登录/改密签发覆盖旧续期，登出及 401 的清除优先。
         在任何路由读取 cookie 或调用认证前设置仅含阶段的请求标记，认证成功后清除，失败时保留；
         handle_error 和 ErrorBoundary 据此对所有路由的认证异常脱敏，不能只按账号路径决定。
-        不缓存角色、不记录请求头/体或日志；同步数据库工作在工作线程执行。
+        不缓存角色、不记录请求头/体；认证触发的过期删除与登录日志同事务，同步数据库工作在工作线程执行。
 
     Time Semantics:
         同请求由 get_account_now 校验并缓存时刻，clock 仅调用一次；默认 UTC 墙钟，可通过 create_app(clock=...) 注入。
         回拨的负经过时长按 0，不报冲突、不改变已存期限；活动刷新通过独立连接把 BEGIN 的 busy_timeout 设置为 100 毫秒，失败跳过且不重试。
-        过期删除或其他存储失败不放行，沿用 AccountService.authenticate 的区分，不执行 Argon2。
+        过期删除同样使用100毫秒短锁，入场忙不删不记且仍拒绝身份；已获锁后的存储失败照常报告，不执行 Argon2。
     """
     check_origin(request)
     path = request.url.path
@@ -157,8 +160,12 @@ def enforce_api_access(request: Request) -> None:
         raise failure
     service = _account_service(request)
     moment = get_account_now(request)
-    identity = service.authenticate(SecretStr(raw), now=moment)
-    context = AccountRequestContext(service, moment, identity)
+    # audit 路由反向导入本模块的上下文和鉴权依赖；延迟导入避免模块初始化循环。
+    from rdp.api.audit import request_audit_context
+
+    audit = request_audit_context(request)
+    identity = service.authenticate(SecretStr(raw), now=moment, audit=audit)
+    context = AccountRequestContext(service, moment, identity, audit)
     request.state.account_context = context
     request.state.account_cookie = SecretStr(raw)
     if identity.account.must_change_password and operation not in PASSWORD_CHANGE_OPERATIONS:
@@ -271,7 +278,12 @@ def get_login_context(request: Request) -> AccountRequestContext:
     if isinstance(cached, AccountRequestContext):
         return cached
     service = _account_service(request)
-    context = AccountRequestContext(service, get_account_now(request), None)
+    # audit 路由反向导入本模块的上下文和鉴权依赖；延迟导入避免模块初始化循环。
+    from rdp.api.audit import request_audit_context
+
+    context = AccountRequestContext(
+        service, get_account_now(request), None, request_audit_context(request)
+    )
     request.state.login_context = context
     return context
 
@@ -294,7 +306,7 @@ def get_authenticated_context(
         AuthorizationError: 写请求来源不合法，403。
         PasswordChangeRequiredError: 强制改密尚未完成且当前路径不在允许集合，403。
         InputError: 数据库损坏。
-        ConflictError: 初始认证查询、过期删除或非获锁阶段的数据库锁/约束冲突；活动刷新获锁失败不抛 409。
+        ConflictError: 初始认证查询及已获锁后的过期删除/刷新冲突；过期删除入场忙归401，活动刷新入场忙继续放行。
         ExternalError: 无数据库或存储失败。
         DefectError: 装配错误或 get_account_now 判定时钟非法/回调失败，禁止把 cookie 内容拼入异常。
 
@@ -333,7 +345,7 @@ def get_admin_context(
         PasswordChangeRequiredError: 当前账号必须先改口令，403。
         AuthorizationError: Origin 不合格或当前角色不是管理员，403；角色拒绝必须早于坏 JSON/参数的 422。
         InputError: 认证数据库损坏。
-        ConflictError: 初始认证或过期删除的锁冲突；活动刷新获锁超时只跳过刷新。
+        ConflictError: 初始认证或已获锁后的过期删除冲突；删除入场忙仍401，活动刷新入场忙仅跳过刷新。
         ExternalError: 数据库未启用或 I/O 失败。
         DefectError: 安全装配错误、注入时钟非法/回调失败或认证程序错误，不回显凭据。
 

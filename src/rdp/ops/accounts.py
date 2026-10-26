@@ -1,7 +1,7 @@
 """本地账号恢复入口（06），只读交互口令并调用领域服务，不在此实现权限或 SQL。
 
 复用 getpass；不提供命令解析，第 11 张再接 CLI。所有输入先完成，再开始领域写事务。
-不写运行、操作或登录日志，不把口令放命令行参数、环境变量或异常消息。
+操作日志由领域事务负责；本入口只额外报告补记失败，不把口令放命令行参数、环境变量或异常消息。
 """
 
 import hmac
@@ -19,8 +19,10 @@ from rdp.accounts.errors import AccountInputError
 from rdp.accounts.policy import LOGIN_WAIT
 from rdp.accounts.service import AccountService
 from rdp.accounts.types import AccountView, Credentials, NewAccount, Role
+from rdp.audit.types import OPS_AUDIT_CONTEXT
 from rdp.infra.diagnostics import DefectError, ExternalError
 from rdp.infra.timeutil import ensure_utc
+from rdp.ops.audit import report_audit_append_failure
 
 
 def create_first_admin(
@@ -65,9 +67,15 @@ def create_first_admin(
     """
     moment = _moment(now)
     secret = _read_pair(read_password)
-    return service.create_first_admin(
-        NewAccount(Credentials(login_name, secret), display_name, Role.ADMINISTRATOR), now=moment
-    )
+    try:
+        return service.create_first_admin(
+            NewAccount(Credentials(login_name, secret), display_name, Role.ADMINISTRATOR),
+            now=moment,
+            audit=OPS_AUDIT_CONTEXT,
+        )
+    except Exception as error:
+        report_audit_append_failure(error)
+        raise
 
 
 def reset_account_password(
@@ -108,7 +116,13 @@ def reset_account_password(
     """
     moment = _moment(now)
     secret = _read_pair(read_password)
-    return service.reset_password_from_ops(login_name, secret, now=moment)
+    try:
+        return service.reset_password_from_ops(
+            login_name, secret, now=moment, audit=OPS_AUDIT_CONTEXT
+        )
+    except Exception as error:
+        report_audit_append_failure(error)
+        raise
 
 
 def _moment(value: datetime) -> datetime:

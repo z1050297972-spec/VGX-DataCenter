@@ -1,6 +1,6 @@
-"""日志领域表的隔离声明（07）；共享 Base，当前不注册表或改变已合并迁移 head。
+"""日志领域表声明（07）；共享 Base 和约束命名，表结构由 0003 迁移创建。
 
-__abstract__=True 保持当前 MetaData 与 0002 一致；移除隔离标记必须与 0003 进入 versions 同步。
+模块导入仅登记 MetaData，不连接数据库或自动建表。
 不建账号外键，删除账号不级联日志；操作码用文本而非数据库枚举，方便第 8 张扩展。
 JSON 复用 SQLAlchemy，字段白名单由 records 的追加及解码边界验证，不存完整业务载荷。
 """
@@ -34,7 +34,6 @@ class OperationLogRow(Base):
         details: OperationDetails 的 v1 JSON，必填；UTF-8 至多 MAX_DETAILS_BYTES，由追加边界验证。
     """
 
-    __abstract__ = True
     __tablename__ = "operation_logs"
     __table_args__ = (
         CheckConstraint("log_id > 0", name="positive_id"),
@@ -96,7 +95,6 @@ class LoginLogRow(Base):
         failure_category: failure 结果必填四类之一，其他结果 NULL；不存异常消息。
     """
 
-    __abstract__ = True
     __tablename__ = "login_logs"
     __table_args__ = (
         CheckConstraint("log_id > 0", name="positive_id"),
@@ -153,7 +151,6 @@ class AuditSettingsRow(Base):
         retention_days: 非空整数，7-365 天；新行默认 30，无行也按 30 解释。
     """
 
-    __abstract__ = True
     __tablename__ = "audit_settings"
     __table_args__ = (
         CheckConstraint("settings_id = 1", name="singleton"),

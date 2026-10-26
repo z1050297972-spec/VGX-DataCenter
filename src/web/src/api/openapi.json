@@ -1085,7 +1085,7 @@
   "paths": {
     "/api/accounts": {
       "get": {
-        "description": "为管理员按内部编号游标分页列出账号。\n\nArgs:\n    context: 已完成改密的管理员身份，领域在事务内再次核验角色。\n    after_id: 规范十进制文本 0 至 2^63-1，默认 0；转换前校验上限，不接受前导零。\n\nReturns:\n    HTTP 200 AccountListResponse，每页最多 100 项、编号升序；空页合法，末页 next_after_id=null。\n\nRaises:\n    AccountInputError: after_id 不是规范十进制游标、超出 0 至 2^63-1，422。\n    AuthenticationError: 当前会话缺失/失效或账号不可用，401。\n    PasswordChangeRequiredError: 当前账号必须先改口令，403。\n    AuthorizationError: 当前角色不是管理员，403；GET 不检查 Origin。\n    InputError: 数据库或 UTC 列损坏，400。\n    ConflictError: 认证/列表只读查询或必要的过期删除 SQLite 锁冲突，409；刷新获锁失败不抛 409。\n    ExternalError: 数据库未启用、查询或结束读事务时 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或列表 SQL、映射或安全响应转换错误，500。\n\nSide Effects:\n    查询是独立只读工作单元，认证刷新另用短事务；不泄漏口令或令牌。\n\nTime Semantics:\n    使用 context.now 核验身份，业务列表在单独 BEGIN/query_only 快照内完成，结束读事务后发送响应。\n    没有列表写入、Argon2 或 G2 判定；负会话经过时长按 0，不因回拨报错。\n    SQLite 单次读取锁等待约 5 秒，无轮询或重试；认证活动更新独立于本查询。",
+        "description": "为管理员按内部编号游标分页列出账号。\n\nArgs:\n    context: 已完成改密的管理员身份，领域在事务内再次核验角色。\n    after_id: 规范十进制文本 0 至 2^63-1，默认 0；转换前校验上限，不接受前导零。\n\nReturns:\n    HTTP 200 AccountListResponse，每页最多 100 项、编号升序；空页合法，末页 next_after_id=null。\n\nRaises:\n    AccountInputError: after_id 不是规范十进制游标、超出 0 至 2^63-1，422。\n    AuthenticationError: 当前会话缺失/失效或账号不可用，401。\n    PasswordChangeRequiredError: 当前账号必须先改口令，403。\n    AuthorizationError: 当前角色不是管理员，403；GET 不检查 Origin。\n    InputError: 数据库或 UTC 列损坏，400。\n    ConflictError: 认证/列表只读查询或已获锁后的过期删除 SQLite 冲突，409；刷新获锁失败不抛 409。\n    ExternalError: 数据库未启用、查询或结束读事务时 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或列表 SQL、映射或安全响应转换错误，500。\n\nSide Effects:\n    查询是独立只读工作单元，认证刷新另用短事务；不泄漏口令或令牌。\n\nTime Semantics:\n    使用 context.now 核验身份，业务列表在单独 BEGIN/query_only 快照内完成，结束读事务后发送响应。\n    没有列表写入、Argon2 或 G2 判定；负会话经过时长按 0，不因回拨报错。\n    SQLite 单次读取锁等待约 5 秒，无轮询或重试；认证活动更新独立于本查询。",
         "operationId": "list_accounts",
         "parameters": [
           {
@@ -2802,7 +2802,7 @@
     },
     "/api/auth/logout": {
       "post": {
-        "description": "撤销当前登录并删除 cookie。\n\nArgs:\n    response: 未发送的响应，供清除 cookie。\n    context: 有效当前身份，强制改密账号也可使用。\n\nReturns:\n    HTTP 204，无响应体；服务端撤销提交后清 cookie。\n\nRaises:\n    AuthenticationError: cookie 缺失/过期/撤销或账号不可用，401 并清 cookie。\n    AuthorizationError: POST 的 Origin 缺失/null/不合法或不同源，403。\n    InputError: 认证或撤销会话时数据库损坏，400。\n    ConflictError: 初始认证查询、过期删除或当前会话撤销的 SQLite 锁冲突，409；活动刷新获锁失败不在此列。\n    ExternalError: 数据库未启用、读取、撤销、提交或清理 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或认证装配、撤销 SQL 或 cookie 响应状态错误，500；报告前脱敏。\n\nSide Effects:\n    只撤销当前会话，不撤销其他会话；失败不返回伪成功。重复 HTTP 请求因已无身份返回 401 并清 cookie。\n\nTime Semantics:\n    使用 context.now，不根据时间延长当前会话；允许强制改密账号登出，不运行 Argon2。\n    同步撤销事务提交后才返回 204 并清 cookie，SQLite 单次锁等待约 5 秒，无自动重试。",
+        "description": "撤销当前登录并删除 cookie。\n\nArgs:\n    response: 未发送的响应，供清除 cookie。\n    context: 有效当前身份，强制改密账号也可使用。\n\nReturns:\n    HTTP 204，无响应体；服务端撤销提交后清 cookie。\n\nRaises:\n    AuthenticationError: cookie 缺失/过期/撤销或账号不可用，401 并清 cookie。\n    AuthorizationError: POST 的 Origin 缺失/null/不合法或不同源，403。\n    InputError: 认证或撤销会话时数据库损坏，400。\n    ConflictError: 初始认证查询、已获锁后的过期删除或当前会话撤销的 SQLite 锁冲突，409；活动刷新获锁失败不在此列。\n    ExternalError: 数据库未启用、读取、撤销、提交或清理 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或认证装配、撤销 SQL 或 cookie 响应状态错误，500；报告前脱敏。\n\nSide Effects:\n    只撤销当前会话，不撤销其他会话；失败不返回伪成功。重复 HTTP 请求因已无身份返回 401 并清 cookie。\n\nTime Semantics:\n    使用 context.now，不根据时间延长当前会话；允许强制改密账号登出，不运行 Argon2。\n    同步撤销事务提交后才返回 204 并清 cookie，SQLite 单次锁等待约 5 秒，无自动重试。",
         "operationId": "logout",
         "responses": {
           "204": {
@@ -2922,7 +2922,7 @@
     },
     "/api/auth/me": {
       "get": {
-        "description": "返回当前账号身份以驱动页面权限和强制改密。\n\nArgs:\n    context: 有效当前身份，允许 must_change_password=True，不接受指定目标账号。\n\nReturns:\n    HTTP 200 AccountResponse，不返回任何哈希、cookie 或失败计数。\n\nRaises:\n    AuthenticationError: 无有效会话、过期、撤销或账号不可用，401 并清 cookie。\n    InputError: 认证读取的数据库或 UTC 列损坏，400。\n    ConflictError: 初始认证只读查询或必要的过期删除锁冲突，409；活动刷新获锁失败不抛 409。\n    ExternalError: 认证数据库未启用或 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或请求上下文装配、认证 SQL 或快照响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    仅把认证得到的快照转换为安全响应；认证活动刷新独立提交，不另开业务写会话。\n\nTime Semantics:\n    GET 不检查 Origin；身份阶段使用同请求 context.now，允许强制改密账号访问，不运行 Argon2。\n    返回前结束认证查询，若发生必要的活动刷新则按认证契约处理；本路由没有额外业务写事务。\n    仅活动更新实际提交时可续 cookie；初始查询/过期删除沿用普通锁预算，活动刷新 BEGIN 最多等 100 毫秒。",
+        "description": "返回当前账号身份以驱动页面权限和强制改密。\n\nArgs:\n    context: 有效当前身份，允许 must_change_password=True，不接受指定目标账号。\n\nReturns:\n    HTTP 200 AccountResponse，不返回任何哈希、cookie 或失败计数。\n\nRaises:\n    AuthenticationError: 无有效会话、过期、撤销或账号不可用，401 并清 cookie。\n    InputError: 认证读取的数据库或 UTC 列损坏，400。\n    ConflictError: 初始认证只读查询或已获锁后的过期删除冲突，409；活动刷新获锁失败不抛 409。\n    ExternalError: 认证数据库未启用或 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或请求上下文装配、认证 SQL 或快照响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    仅把认证得到的快照转换为安全响应；认证活动刷新独立提交，不另开业务写会话。\n\nTime Semantics:\n    GET 不检查 Origin；身份阶段使用同请求 context.now，允许强制改密账号访问，不运行 Argon2。\n    返回前结束认证查询，若发生必要的活动刷新则按认证契约处理；本路由没有额外业务写事务。\n    仅活动更新实际提交时可续 cookie；初始查询沿用普通锁预算，过期删除和活动刷新 BEGIN 都最多等 100 毫秒。",
         "operationId": "who_am_i",
         "responses": {
           "200": {

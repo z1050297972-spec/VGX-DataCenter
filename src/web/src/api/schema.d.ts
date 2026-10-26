@@ -28,7 +28,7 @@ export interface paths {
          *         PasswordChangeRequiredError: 当前账号必须先改口令，403。
          *         AuthorizationError: 当前角色不是管理员，403；GET 不检查 Origin。
          *         InputError: 数据库或 UTC 列损坏，400。
-         *         ConflictError: 认证/列表只读查询或必要的过期删除 SQLite 锁冲突，409；刷新获锁失败不抛 409。
+         *         ConflictError: 认证/列表只读查询或已获锁后的过期删除 SQLite 冲突，409；刷新获锁失败不抛 409。
          *         ExternalError: 数据库未启用、查询或结束读事务时 I/O 失败，502。
          *         DefectError: 注入时钟非法/回调失败，或列表 SQL、映射或安全响应转换错误，500。
          *
@@ -498,7 +498,7 @@ export interface paths {
          *         AuthenticationError: cookie 缺失/过期/撤销或账号不可用，401 并清 cookie。
          *         AuthorizationError: POST 的 Origin 缺失/null/不合法或不同源，403。
          *         InputError: 认证或撤销会话时数据库损坏，400。
-         *         ConflictError: 初始认证查询、过期删除或当前会话撤销的 SQLite 锁冲突，409；活动刷新获锁失败不在此列。
+         *         ConflictError: 初始认证查询、已获锁后的过期删除或当前会话撤销的 SQLite 锁冲突，409；活动刷新获锁失败不在此列。
          *         ExternalError: 数据库未启用、读取、撤销、提交或清理 I/O 失败，502。
          *         DefectError: 注入时钟非法/回调失败，或认证装配、撤销 SQL 或 cookie 响应状态错误，500；报告前脱敏。
          *
@@ -536,7 +536,7 @@ export interface paths {
          *     Raises:
          *         AuthenticationError: 无有效会话、过期、撤销或账号不可用，401 并清 cookie。
          *         InputError: 认证读取的数据库或 UTC 列损坏，400。
-         *         ConflictError: 初始认证只读查询或必要的过期删除锁冲突，409；活动刷新获锁失败不抛 409。
+         *         ConflictError: 初始认证只读查询或已获锁后的过期删除冲突，409；活动刷新获锁失败不抛 409。
          *         ExternalError: 认证数据库未启用或 I/O 失败，502。
          *         DefectError: 注入时钟非法/回调失败，或请求上下文装配、认证 SQL 或快照响应转换错误，500；报告前脱敏。
          *
@@ -546,7 +546,7 @@ export interface paths {
          *     Time Semantics:
          *         GET 不检查 Origin；身份阶段使用同请求 context.now，允许强制改密账号访问，不运行 Argon2。
          *         返回前结束认证查询，若发生必要的活动刷新则按认证契约处理；本路由没有额外业务写事务。
-         *         仅活动更新实际提交时可续 cookie；初始查询/过期删除沿用普通锁预算，活动刷新 BEGIN 最多等 100 毫秒。
+         *         仅活动更新实际提交时可续 cookie；初始查询沿用普通锁预算，过期删除和活动刷新 BEGIN 都最多等 100 毫秒。
          */
         get: operations["who_am_i"];
         put?: never;

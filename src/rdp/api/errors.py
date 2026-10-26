@@ -49,6 +49,7 @@ from sqlalchemy import Engine
 from rdp.accounts.errors import LoginWaitError
 from rdp.api._asgi import ASGIApp, ASGIMessage, Receive, Send
 from rdp.api.account_auth import clear_session_cookie
+from rdp.api.audit import report_audit_append_failure
 from rdp.infra.db.connection import BUSY_TIMEOUT_MS, session_scope
 from rdp.infra.db.models import MAX_EXCEPTION_REPORT_CHARS, REPORT_TRUNCATION_MARKER
 from rdp.infra.db.records import ErrorRecord, write_error
@@ -301,6 +302,7 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
         请求作用域内运行，无轮询或重试；日志时间交给 RuntimeFormatter。
         缺陷持久化额外等待最多约 ERROR_PERSIST_TIMEOUT_S，其他类别不等数据库。
     """
+    report_audit_append_failure(error)
     original = error
     handled = isinstance(
         error, (InputError, ConflictError, ExternalError, DefectError, RequestValidationError)
@@ -391,6 +393,7 @@ class ErrorBoundary:
             await self._app(scope, receive, track_send)
         except Exception as error:
             request = Request(scope, receive=receive)
+            report_audit_append_failure(error)
             original = error
             error = _safe_request_error(request, error)
             problem = build_problem(request, error)
@@ -737,7 +740,7 @@ def account_error_headers(error: Exception) -> dict[str, str]:
         DefectError: LoginWaitError 的 retry_after_s 类型或范围损坏，拒绝把原值写入头。
 
     Side Effects:
-        无；不改变异常，不写日志，不计算或延长等待。实现阶段 handle_error 与 ErrorBoundary
+        无；不改变异常，不写日志，不计算或延长等待。handle_error 与 ErrorBoundary
         两个响应出口共用本函数，不能只给其中一条路径加头。
 
     Time Semantics:

@@ -14,5 +14,8 @@ AUDIT_SHORT_LOCK_TIMEOUT_MS = 100
 DETAILS_VERSION = 1
 # UTF-8 编码后明细的硬上限，单位字节；本票账号及设置字段远小于 16 KiB。
 MAX_DETAILS_BYTES = 16384
-# 补记失败只允许这个固定标记穿过账号脱敏边界；第二异常文本及原始 notes 均禁止复制。
+# 补记失败只允许以下固定标记穿过账号脱敏边界；第二异常文本及原始 notes 均禁止复制。
 AUDIT_APPEND_FAILED = "AUDIT_APPEND_FAILED"
+
+# 登录补记同时附此种类标记；保留通用标记的既有契约，不把任意异常文本带到边界。
+LOGIN_AUDIT_APPEND_FAILED = "LOGIN_AUDIT_APPEND_FAILED"

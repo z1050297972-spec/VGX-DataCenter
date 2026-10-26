@@ -4,11 +4,26 @@
 只用已批准 session_scope/session_scope_with_lock_timeout，避免嵌套 SQLite 写锁。
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Any, cast
 
-from sqlalchemy import Engine
+from sqlalchemy import CursorResult, Engine, delete
 
-from rdp.audit.types import LoginEvent, OperationEvent, PurgeResult
+from rdp.audit import _validation as validate
+from rdp.audit._storage import operation
+from rdp.audit.models import LoginLogRow, OperationLogRow
+from rdp.audit.policy import AUDIT_SHORT_LOCK_TIMEOUT_MS
+from rdp.audit.records import append_login, append_operation, get_retention
+from rdp.audit.types import (
+    LoginEvent,
+    LoginKind,
+    LoginResult,
+    OperationEvent,
+    OperationResult,
+    PurgeResult,
+)
+from rdp.infra.db.connection import session_scope, session_scope_with_lock_timeout
+from rdp.infra.diagnostics import DefectError
 
 
 def append_failed_operation(engine: Engine, event: OperationEvent) -> None:
@@ -40,7 +55,14 @@ def append_failed_operation(engine: Engine, event: OperationEvent) -> None:
         独立连接 BEGIN 的等待上限 AUDIT_SHORT_LOCK_TIMEOUT_MS=100 毫秒，一次尝试，无重试；
         只限制锁等待，SQLite 磁盘 I/O 无硬实时总耗时保证。
     """
-    raise NotImplementedError
+    event = validate.operation(event)
+    if event.result is not OperationResult.FAILURE:
+        failure = validate.invalid("result")
+        raise failure
+    with session_scope_with_lock_timeout(
+        engine, busy_timeout_ms=AUDIT_SHORT_LOCK_TIMEOUT_MS
+    ) as session:
+        append_operation(session, event)
 
 
 def append_missing_login(engine: Engine, event: LoginEvent) -> None:
@@ -68,7 +90,14 @@ def append_missing_login(engine: Engine, event: LoginEvent) -> None:
         UTC 微秒来自 event，不读时钟；BEGIN 最多等 AUDIT_SHORT_LOCK_TIMEOUT_MS，无重试。
         dummy verify 在进入事务前已释放 Argon2 名额，不把密码计算放进写锁。
     """
-    raise NotImplementedError
+    event = validate.login(event)
+    if event.kind is not LoginKind.LOGIN or event.result is not LoginResult.ACCOUNT_MISSING:
+        failure = validate.invalid("result")
+        raise failure
+    with session_scope_with_lock_timeout(
+        engine, busy_timeout_ms=AUDIT_SHORT_LOCK_TIMEOUT_MS
+    ) as session:
+        append_login(session, event)
 
 
 def append_failed_login(engine: Engine, event: LoginEvent) -> None:
@@ -97,7 +126,14 @@ def append_failed_login(engine: Engine, event: LoginEvent) -> None:
     Time Semantics:
         UTC 微秒沿用原请求时间，回拨不修改事件；独立连接 BEGIN 最多等待 100 毫秒，一次尝试，无重试。
     """
-    raise NotImplementedError
+    event = validate.login(event)
+    if event.kind is not LoginKind.LOGIN or event.result is not LoginResult.FAILURE:
+        failure = validate.invalid("result")
+        raise failure
+    with session_scope_with_lock_timeout(
+        engine, busy_timeout_ms=AUDIT_SHORT_LOCK_TIMEOUT_MS
+    ) as session:
+        append_login(session, event)
 
 
 class AuditMaintenance:
@@ -127,7 +163,13 @@ class AuditMaintenance:
         Time Semantics:
             同步构造，无时钟、等待或重试。
         """
-        raise NotImplementedError
+        if (
+            not isinstance(cast(object, engine), Engine)
+            or engine.dialect.name != "sqlite"
+            or not engine.get_execution_options().get("rdp_managed")
+        ):
+            raise DefectError()
+        self.engine = engine
 
     def purge_expired(self, now: datetime) -> PurgeResult:
         """原子清除严格超过共同保留期的两种日志。
@@ -157,4 +199,22 @@ class AuditMaintenance:
             已清除的记录无法恢复，不声称跨时钟回拨保留已删除内容；不把负经过时长当冲突。
             SQLite BEGIN 最多等 5000 毫秒，无自动重试；不承诺磁盘 I/O 的硬实时上限。
         """
-        raise NotImplementedError
+        moment = validate.moment(now)
+        with session_scope(self.engine) as session, operation(session, write=True):
+            days = get_retention(session)
+            try:
+                cutoff = moment - timedelta(days=days)
+            except OverflowError:
+                failure = validate.invalid("now")
+                raise failure from None
+            operations = session.execute(
+                delete(OperationLogRow).where(OperationLogRow.occurred_at < cutoff)
+            )
+            logins = session.execute(delete(LoginLogRow).where(LoginLogRow.occurred_at < cutoff))
+            result = PurgeResult(
+                cast(CursorResult[Any], operations).rowcount,
+                cast(CursorResult[Any], logins).rowcount,
+                days,
+                cutoff,
+            )
+        return result

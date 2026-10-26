@@ -12,8 +12,9 @@ from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import Response
 
 from rdp.accounts._issues import problem
-from rdp.accounts.errors import AccountInputError, AuthenticationError
-from rdp.accounts.types import Credentials, NewAccount, PasswordChange, SessionIdentity
+from rdp.accounts.errors import AccountInputError
+from rdp.accounts.types import Credentials, NewAccount, PasswordChange
+from rdp.api._account_context import identity as _identity
 from rdp.api.account_auth import (
     AccountRequestContext,
     clear_session_cookie,
@@ -89,7 +90,9 @@ def login(body: LoginRequest, response: Response, context: LoginContext) -> Acco
         Argon2 排队最多 1 秒，短写事务获锁最多约 5 秒，二者不重叠。
         回拨不报 409、不改已有等待截止；请求取消不保证已经开始的提交被取消。
     """
-    grant = context.service.login(Credentials(body.login_name, body.password), now=context.now)
+    grant = context.service.login(
+        Credentials(body.login_name, body.password), now=context.now, audit=context.audit
+    )
     set_session_cookie(response, grant)
     return account_response(grant.identity.account)
 
@@ -109,7 +112,7 @@ def logout(response: Response, context: AuthenticatedContext) -> Response:
         AuthenticationError: cookie 缺失/过期/撤销或账号不可用，401 并清 cookie。
         AuthorizationError: POST 的 Origin 缺失/null/不合法或不同源，403。
         InputError: 认证或撤销会话时数据库损坏，400。
-        ConflictError: 初始认证查询、过期删除或当前会话撤销的 SQLite 锁冲突，409；活动刷新获锁失败不在此列。
+        ConflictError: 初始认证查询、已获锁后的过期删除或当前会话撤销的 SQLite 锁冲突，409；活动刷新获锁失败不在此列。
         ExternalError: 数据库未启用、读取、撤销、提交或清理 I/O 失败，502。
         DefectError: 注入时钟非法/回调失败，或认证装配、撤销 SQL 或 cookie 响应状态错误，500；报告前脱敏。
 
@@ -120,7 +123,7 @@ def logout(response: Response, context: AuthenticatedContext) -> Response:
         使用 context.now，不根据时间延长当前会话；允许强制改密账号登出，不运行 Argon2。
         同步撤销事务提交后才返回 204 并清 cookie，SQLite 单次锁等待约 5 秒，无自动重试。
     """
-    context.service.logout(_identity(context), now=context.now)
+    context.service.logout(_identity(context), now=context.now, audit=context.audit)
     clear_session_cookie(response)
     response.status_code = 204
     return response
@@ -139,7 +142,7 @@ def who_am_i(context: AuthenticatedContext) -> AccountResponse:
     Raises:
         AuthenticationError: 无有效会话、过期、撤销或账号不可用，401 并清 cookie。
         InputError: 认证读取的数据库或 UTC 列损坏，400。
-        ConflictError: 初始认证只读查询或必要的过期删除锁冲突，409；活动刷新获锁失败不抛 409。
+        ConflictError: 初始认证只读查询或已获锁后的过期删除冲突，409；活动刷新获锁失败不抛 409。
         ExternalError: 认证数据库未启用或 I/O 失败，502。
         DefectError: 注入时钟非法/回调失败，或请求上下文装配、认证 SQL 或快照响应转换错误，500；报告前脱敏。
 
@@ -149,7 +152,7 @@ def who_am_i(context: AuthenticatedContext) -> AccountResponse:
     Time Semantics:
         GET 不检查 Origin；身份阶段使用同请求 context.now，允许强制改密账号访问，不运行 Argon2。
         返回前结束认证查询，若发生必要的活动刷新则按认证契约处理；本路由没有额外业务写事务。
-        仅活动更新实际提交时可续 cookie；初始查询/过期删除沿用普通锁预算，活动刷新 BEGIN 最多等 100 毫秒。
+        仅活动更新实际提交时可续 cookie；初始查询沿用普通锁预算，过期删除和活动刷新 BEGIN 都最多等 100 毫秒。
     """
     return account_response(_identity(context).account)
 
@@ -197,6 +200,7 @@ def change_own_password(
         _identity(context),
         PasswordChange(body.current_password, body.new_password),
         now=context.now,
+        audit=context.audit,
     )
     set_session_cookie(response, grant)
     return account_response(grant.identity.account)
@@ -224,7 +228,7 @@ def list_accounts(
         PasswordChangeRequiredError: 当前账号必须先改口令，403。
         AuthorizationError: 当前角色不是管理员，403；GET 不检查 Origin。
         InputError: 数据库或 UTC 列损坏，400。
-        ConflictError: 认证/列表只读查询或必要的过期删除 SQLite 锁冲突，409；刷新获锁失败不抛 409。
+        ConflictError: 认证/列表只读查询或已获锁后的过期删除 SQLite 冲突，409；刷新获锁失败不抛 409。
         ExternalError: 数据库未启用、查询或结束读事务时 I/O 失败，502。
         DefectError: 注入时钟非法/回调失败，或列表 SQL、映射或安全响应转换错误，500。
 
@@ -277,7 +281,9 @@ def create_account(body: CreateAccountRequest, context: AdminContext) -> Account
     """
     command = NewAccount(Credentials(body.login_name, body.password), body.display_name, body.role)
     return account_response(
-        context.service.create_account(_identity(context), command, now=context.now)
+        context.service.create_account(
+            _identity(context), command, now=context.now, audit=context.audit
+        )
     )
 
 
@@ -321,7 +327,11 @@ def set_account_role(
     """
     return account_response(
         context.service.set_role(
-            _identity(context), _identifier(account_id), body.role, now=context.now
+            _identity(context),
+            _identifier(account_id),
+            body.role,
+            now=context.now,
+            audit=context.audit,
         )
     )
 
@@ -366,7 +376,11 @@ def set_account_status(
     """
     return account_response(
         context.service.set_status(
-            _identity(context), _identifier(account_id), body.status, now=context.now
+            _identity(context),
+            _identifier(account_id),
+            body.status,
+            now=context.now,
+            audit=context.audit,
         )
     )
 
@@ -411,7 +425,11 @@ def reset_account_password(
     """
     return account_response(
         context.service.reset_password(
-            _identity(context), _identifier(account_id), body.password, now=context.now
+            _identity(context),
+            _identifier(account_id),
+            body.password,
+            now=context.now,
+            audit=context.audit,
         )
     )
 
@@ -451,15 +469,10 @@ def delete_account(account_id: TargetId, context: AdminContext) -> Response:
         账号及会话删除提交后发送 204；删除自己后旧 cookie 下一请求 401。
         同步写锁等待约 5 秒，无 Argon2 或自动重试；超时不能推断服务端已回滚。
     """
-    context.service.delete_account(_identity(context), _identifier(account_id), now=context.now)
+    context.service.delete_account(
+        _identity(context), _identifier(account_id), now=context.now, audit=context.audit
+    )
     return Response(status_code=204)
-
-
-def _identity(context: AccountRequestContext) -> SessionIdentity:
-    """认证依赖必须交付身份，直接调用入口时同样失败关闭。"""
-    if context.identity is None:
-        raise problem(AuthenticationError, "请先登录")
-    return context.identity
 
 
 def _identifier(value: str, *, cursor: bool = False) -> int:

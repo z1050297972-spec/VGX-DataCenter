@@ -4,19 +4,36 @@ SQLAlchemy/UTCDateTime 负责存取和 UTC；错误沿用基础层四类，不�
 只提供追加与查询，以及设置保留期；没有改单条、删单条的函数。
 """
 
+from typing import cast
+
+from sqlalchemy import ColumnElement
 from sqlalchemy.orm import Session
 
+from rdp.audit import _query as queries
+from rdp.audit import _validation as validate
+from rdp.audit._context import validate_context
+from rdp.audit._storage import operation
+from rdp.audit.models import AuditSettingsRow, LoginLogRow, OperationLogRow
+from rdp.audit.policy import DEFAULT_RETENTION_DAYS, MAX_RETENTION_DAYS, MIN_RETENTION_DAYS
 from rdp.audit.types import (
+    AuditValues,
     ExistingAccounts,
     LoginEvent,
+    LoginKind,
     LoginQuery,
+    LoginResult,
     LoginView,
     LogPage,
+    ObjectRef,
+    OperationDetails,
     OperationEvent,
     OperationQuery,
+    OperationResult,
+    OperationType,
     OperationView,
     RetentionChange,
 )
+from rdp.infra.db.validation import invalid_field
 
 
 def append_operation(session: Session, event: OperationEvent) -> int:
@@ -46,7 +63,27 @@ def append_operation(session: Session, event: OperationEvent) -> int:
         只使用 event.occurred_at，aware 输入转换 UTC 并保留微秒，不取系统时钟。
         回拨不拒绝或修正事件时间；事务已获锁，本函数不额外等待锁或重试。
     """
-    raise NotImplementedError
+    event = validate.operation(event)
+    with operation(session, write=True):
+        row = OperationLogRow(
+            occurred_at=event.occurred_at,
+            actor_id=event.actor.account_id,
+            actor_name=event.actor.name,
+            operation=event.operation.value,
+            object_kind=event.target.kind,
+            object_id=event.target.object_id,
+            object_name=event.target.name,
+            result=event.result.value,
+            failure_category=None
+            if event.failure_category is None
+            else event.failure_category.value,
+            request_id=event.context.request_id,
+            source_ip=event.context.source_ip,
+            details=event.details.model_dump(mode="json", exclude_none=True),
+        )
+        session.add(row)
+        session.flush()
+        return row.log_id
 
 
 def append_login(session: Session, event: LoginEvent) -> int:
@@ -77,7 +114,24 @@ def append_login(session: Session, event: LoginEvent) -> int:
         使用注入事件时间转换 UTC，保留微秒；回拨不拒绝，不重写历史。
         调用者已持有写锁，无额外获锁或自动重试。
     """
-    raise NotImplementedError
+    event = validate.login(event)
+    with operation(session, write=True):
+        row = LoginLogRow(
+            occurred_at=event.occurred_at,
+            account_id=None if event.account is None else event.account.account_id,
+            account_name=None if event.account is None else event.account.name,
+            login_name=event.login_name,
+            kind=event.kind.value,
+            result=event.result.value,
+            source_ip=event.context.source_ip,
+            request_id=event.context.request_id,
+            failure_category=None
+            if event.failure_category is None
+            else event.failure_category.value,
+        )
+        session.add(row)
+        session.flush()
+        return row.log_id
 
 
 def query_operations(
@@ -117,7 +171,73 @@ def query_operations(
         因而回拨不漏查未来时间戳，也不把新追加的旧时间记录夹进已开始的翻页。
         同页身份存在性与日志使用同一读快照；普通 SQLite 单次锁等待最多 5000 毫秒，无重试。
     """
-    raise NotImplementedError
+    if not isinstance(cast(object, query), OperationQuery):
+        failure = validate.invalid("query")
+        raise failure
+    if query.operation is not None and not isinstance(cast(object, query.operation), OperationType):
+        failure = validate.invalid("operation")
+        raise failure
+    if query.result is not None and not isinstance(cast(object, query.result), OperationResult):
+        failure = validate.invalid("result")
+        raise failure
+    if query.target_account_id is not None:
+        validate.identifier(query.target_account_id)
+    plan = queries.prepare(
+        query.common,
+        {
+            "kind": "operations",
+            "operation": query.operation,
+            "result": query.result,
+            "target": query.target_account_id,
+        },
+    )
+    filters: list[ColumnElement[bool]] = []
+    if query.common.account_id is not None:
+        filters.append(OperationLogRow.actor_id == query.common.account_id)
+    if query.target_account_id is not None:
+        filters.extend(
+            (
+                OperationLogRow.object_kind == "account",
+                OperationLogRow.object_id == str(query.target_account_id),
+            )
+        )
+    if query.operation is not None:
+        filters.append(OperationLogRow.operation == query.operation.value)
+    if query.result is not None:
+        filters.append(OperationLogRow.result == query.result.value)
+    with operation(session):
+        found, maximum = queries.rows(session, OperationLogRow, plan, filters)
+        selected = found[: plan.common.limit]
+        events = tuple(queries.operation_event(row) for row in selected)
+        identifiers = frozenset(
+            key
+            for item in events
+            for key in (
+                item.actor.account_id,
+                int(item.target.object_id)
+                if item.target.kind == "account" and item.target.object_id is not None
+                else None,
+            )
+            if key is not None
+        )
+        present = queries.existing(session, identifiers, existing_accounts)
+        items = tuple(
+            OperationView(
+                row.log_id,
+                item,
+                item.actor.account_id is not None and item.actor.account_id not in present,
+                item.target.kind == "account"
+                and item.target.object_id is not None
+                and int(item.target.object_id) not in present,
+            )
+            for row, item in zip(selected, events, strict=True)
+        )
+        cursor = (
+            queries.encode(selected[-1], maximum, plan.fingerprint)
+            if len(found) > len(selected)
+            else None
+        )
+        return LogPage(items, cursor)
 
 
 def query_logins(
@@ -149,7 +269,49 @@ def query_logins(
         UTC 微秒区间，不读当前时钟；回拨不排除未来记录。按固定键排序，不以插入时长算顺序。
         每次查询一个只读快照，SQLite 单次锁等待最多 5000 毫秒，不重试、不轮询。
     """
-    raise NotImplementedError
+    if not isinstance(cast(object, query), LoginQuery):
+        failure = validate.invalid("query")
+        raise failure
+    if query.kind is not None and not isinstance(cast(object, query.kind), LoginKind):
+        failure = validate.invalid("kind")
+        raise failure
+    if query.result is not None and not isinstance(cast(object, query.result), LoginResult):
+        failure = validate.invalid("result")
+        raise failure
+    plan = queries.prepare(
+        query.common, {"kind": "logins", "event_kind": query.kind, "result": query.result}
+    )
+    filters: list[ColumnElement[bool]] = []
+    if query.common.account_id is not None:
+        filters.append(LoginLogRow.account_id == query.common.account_id)
+    if query.kind is not None:
+        filters.append(LoginLogRow.kind == query.kind.value)
+    if query.result is not None:
+        filters.append(LoginLogRow.result == query.result.value)
+    with operation(session):
+        found, maximum = queries.rows(session, LoginLogRow, plan, filters)
+        selected = found[: plan.common.limit]
+        events = tuple(queries.login_event(row) for row in selected)
+        identifiers = frozenset(
+            item.account.account_id
+            for item in events
+            if item.account is not None and item.account.account_id is not None
+        )
+        present = queries.existing(session, identifiers, existing_accounts)
+        items = tuple(
+            LoginView(
+                row.log_id,
+                item,
+                item.account is not None and item.account.account_id not in present,
+            )
+            for row, item in zip(selected, events, strict=True)
+        )
+        cursor = (
+            queries.encode(selected[-1], maximum, plan.fingerprint)
+            if len(found) > len(selected)
+            else None
+        )
+        return LogPage(items, cursor)
 
 
 def get_retention(session: Session) -> int:
@@ -174,7 +336,17 @@ def get_retention(session: Session) -> int:
         天定义为 UTC 24 小时，不按本机日历或 DST 换算；不读时钟。
         沿用工作单元单次 5000 毫秒锁上限，无重试。
     """
-    raise NotImplementedError
+    with operation(session):
+        row = session.get(AuditSettingsRow, 1)
+        if row is None:
+            return DEFAULT_RETENTION_DAYS
+        if (
+            type(row.retention_days) is not int
+            or not MIN_RETENTION_DAYS <= row.retention_days <= MAX_RETENTION_DAYS
+        ):
+            failure = invalid_field("retention_days", "数据库保留期为7至365的整数天数")
+            raise failure
+        return row.retention_days
 
 
 def change_retention(session: Session, change: RetentionChange) -> int:
@@ -204,4 +376,40 @@ def change_retention(session: Session, change: RetentionChange) -> int:
         事件时刻使用 change.occurred_at 的 UTC 微秒，回拨不拒绝变更。
         已持写锁，不另外获锁/重试；新设置仅影响下一次 purge_expired 的截止计算。
     """
-    raise NotImplementedError
+    if not isinstance(cast(object, change), RetentionChange):
+        failure = validate.invalid("retention")
+        raise failure
+    validate_context(change.context)
+    validate.actor(change.actor)
+    validate.identifier(change.actor.account_id)
+    occurred_at = validate.moment(change.occurred_at)
+    if type(change.days) is not int or not MIN_RETENTION_DAYS <= change.days <= MAX_RETENTION_DAYS:
+        failure = validate.invalid("days")
+        raise failure
+    with operation(session, write=True):
+        previous = get_retention(session)
+        if change.days == previous:
+            return previous
+        row = session.get(AuditSettingsRow, 1)
+        if row is None:
+            row = AuditSettingsRow(settings_id=1, retention_days=change.days)
+            session.add(row)
+        else:
+            row.retention_days = change.days
+        append_operation(
+            session,
+            OperationEvent(
+                occurred_at,
+                change.actor,
+                OperationType.SET_RETENTION,
+                ObjectRef("audit_settings", "retention", "日志保留期"),
+                OperationResult.SUCCESS,
+                None,
+                change.context,
+                OperationDetails(
+                    before=AuditValues(retention_days=previous),
+                    after=AuditValues(retention_days=change.days),
+                ),
+            ),
+        )
+        return change.days

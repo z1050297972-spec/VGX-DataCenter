@@ -1,4 +1,5 @@
 // 账号 HTTP 边界（06）：仅使用生成类型和统一 openapi-fetch；不把秘密放 URL、日志或持久缓存。
+import { boundedRequest } from "./_request";
 import type { FetchImplementation, HealthClient } from "./client";
 import { createHealthClient } from "./client";
 import type { components } from "./schema";
@@ -86,7 +87,7 @@ export function createAccountClient(options: AccountClientOptions): HealthClient
  * @timeSemantics 最多 ACCOUNT_TIMEOUT_MS 毫秒；失败不自动重试，取消不保证服务端撤销。
  */
 export function login(input: AccountCall<LoginInput>): Promise<Account> {
-  return bounded(input.signal, async (signal) => {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) => {
     const result = await input.client.POST("/api/auth/login", { body: input.payload, signal });
     return required(result.data);
   });
@@ -102,7 +103,7 @@ export function login(input: AccountCall<LoginInput>): Promise<Account> {
  * @timeSemantics 10 秒上限，无重试；等待期间的重复点击由页面禁用。
  */
 export function logout(input: AccountCall): Promise<void> {
-  return bounded(input.signal, async (signal) => {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) => {
     const result = await input.client.POST("/api/auth/logout", { signal });
     if (result.response.status !== 204) throw new Error("请求失败", { cause: toFailureView(null) });
   });
@@ -118,7 +119,7 @@ export function logout(input: AccountCall): Promise<void> {
  * @timeSemantics 10 秒上限；遵守传入的 AbortSignal，忽略取消后的迟到结果；路由等待与窗口聚焦重查由调用方负责。
  */
 export function fetchCurrentAccount(input: AccountCall): Promise<Account> {
-  return bounded(input.signal, async (signal) => {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) => {
     const result = await input.client.GET("/api/auth/me", { signal });
     return required(result.data);
   });
@@ -134,7 +135,7 @@ export function fetchCurrentAccount(input: AccountCall): Promise<Account> {
  * @timeSemantics 10 秒上限，写请求不自动重试。
  */
 export function changePassword(input: AccountCall<PasswordInput>): Promise<Account> {
-  return bounded(input.signal, async (signal) => {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) => {
     const result = await input.client.POST("/api/auth/password", { body: input.payload, signal });
     return required(result.data);
   });
@@ -150,7 +151,7 @@ export function changePassword(input: AccountCall<PasswordInput>): Promise<Accou
  * @timeSemantics 10 秒上限；遵守传入信号并忽略取消后结果；旧分页请求由账号管理页取消，无轮询。
  */
 export function listAccounts(input: ListAccountCall): Promise<AccountList> {
-  return bounded(input.signal, async (signal) => {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) => {
     const result = await input.client.GET("/api/accounts", {
       params: { query: { after_id: input.afterId } },
       signal,
@@ -169,7 +170,7 @@ export function listAccounts(input: ListAccountCall): Promise<AccountList> {
  * @timeSemantics 10 秒上限，无自动重试；账号管理页负责禁止重复提交。
  */
 export function createAccount(input: AccountCall<NewAccountInput>): Promise<Account> {
-  return bounded(input.signal, async (signal) => {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) => {
     const result = await input.client.POST("/api/accounts", { body: input.payload, signal });
     return required(result.data);
   });
@@ -185,7 +186,7 @@ export function createAccount(input: AccountCall<NewAccountInput>): Promise<Acco
  * @timeSemantics 10 秒上限，不乐观确认、不自动重试。
  */
 export function setAccountRole(input: TargetAccountCall<RoleInput>): Promise<Account> {
-  return bounded(input.signal, async (signal) => {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) => {
     const result = await input.client.PATCH("/api/accounts/{account_id}/role", {
       body: input.payload,
       params: { path: { account_id: input.accountId } },
@@ -205,7 +206,7 @@ export function setAccountRole(input: TargetAccountCall<RoleInput>): Promise<Acc
  * @timeSemantics 10 秒上限，不自动重试。
  */
 export function setAccountStatus(input: TargetAccountCall<StatusInput>): Promise<Account> {
-  return bounded(input.signal, async (signal) => {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) => {
     const result = await input.client.PATCH("/api/accounts/{account_id}/status", {
       body: input.payload,
       params: { path: { account_id: input.accountId } },
@@ -225,7 +226,7 @@ export function setAccountStatus(input: TargetAccountCall<StatusInput>): Promise
  * @timeSemantics 10 秒上限，不自动重试。
  */
 export function resetAccountPassword(input: TargetAccountCall<ResetInput>): Promise<Account> {
-  return bounded(input.signal, async (signal) => {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) => {
     const result = await input.client.POST("/api/accounts/{account_id}/password", {
       body: input.payload,
       params: { path: { account_id: input.accountId } },
@@ -245,34 +246,12 @@ export function resetAccountPassword(input: TargetAccountCall<ResetInput>): Prom
  * @timeSemantics 10 秒上限，不自动重试；超时后的状态确认由账号管理页重新查询。
  */
 export function deleteAccount(input: TargetAccountCall): Promise<void> {
-  return bounded(input.signal, async (signal) => {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) => {
     const result = await input.client.DELETE("/api/accounts/{account_id}", {
       params: { path: { account_id: input.accountId } },
       signal,
     });
     if (result.response.status !== 204) throw new Error("请求失败", { cause: toFailureView(null) });
-  });
-}
-
-// 传输可能忽略取消；竞争取消 Promise 后也不会把迟到结果交还页面。
-function bounded<T>(signal: AbortSignal, action: (signal: AbortSignal) => Promise<T>): Promise<T> {
-  if (signal.aborted) return Promise.reject(new Error("请求失败", { cause: toFailureView(null) }));
-  const controller = new AbortController();
-  const combined = AbortSignal.any([signal, controller.signal]);
-  const timer = setTimeout(() => {
-    controller.abort();
-  }, ACCOUNT_TIMEOUT_MS);
-  let aborted: () => void = () => undefined;
-  const pending = new Promise<T>((resolve, reject) => {
-    aborted = () => {
-      reject(new Error("请求失败", { cause: toFailureView(null) }));
-    };
-    combined.addEventListener("abort", aborted, { once: true });
-    void action(combined).then(resolve, reject);
-  });
-  return pending.finally(() => {
-    clearTimeout(timer);
-    combined.removeEventListener("abort", aborted);
   });
 }
 

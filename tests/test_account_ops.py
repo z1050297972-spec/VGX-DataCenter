@@ -10,6 +10,7 @@ from typing import cast
 
 import pytest
 from accounts_support import (
+    AUDIT_CONTEXT,
     EXAMPLE_SECRET,
     NOW,
     HeldHasher,
@@ -51,7 +52,10 @@ def test_create_first_admin_success(tmp_path: Path) -> None:
         assert account.created_at == NOW and account.role is Role.ADMINISTRATOR
         assert not account.must_change_password and account.created_by == ActorRef(None, "运维")
         assert (
-            service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW).identity.account == account
+            service.login(
+                Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+            ).identity.account
+            == account
         )
 
 
@@ -190,7 +194,10 @@ def test_create_first_admin_lifecycle(
 
         account = create_first_admin(service, "admin", "管理员", now=NOW, read_password=reader)
         assert (
-            service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW).identity.account == account
+            service.login(
+                Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+            ).identity.account
+            == account
         )
         assert not capsys.readouterr().out and EXAMPLE_SECRET.get_secret_value() not in caplog.text
 
@@ -209,8 +216,13 @@ def test_reset_account_password_success(tmp_path: Path) -> None:
         assert len(prompts) == 2 and account.must_change_password
         assert account.updated_at == NOW and account.updated_by == ActorRef(None, "运维")
         with pytest.raises(AuthenticationError):
-            service.authenticate(grant.token, now=NOW)
-        assert service.login(Credentials("admin", value), now=NOW).identity.account == account
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT)
+        assert (
+            service.login(
+                Credentials("admin", value), now=NOW, audit=AUDIT_CONTEXT
+            ).identity.account
+            == account
+        )
 
 
 def test_reset_account_password_mismatch(tmp_path: Path) -> None:
@@ -221,8 +233,11 @@ def test_reset_account_password_mismatch(tmp_path: Path) -> None:
             reset_account_password(
                 service, "admin", now=NOW, read_password=lambda prompt: next(values)
             )
-        assert service.authenticate(grant.token, now=NOW).account == grant.identity.account
-        assert service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account
+            == grant.identity.account
+        )
+        assert service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
 
 
 def test_reset_account_password_echo(tmp_path: Path) -> None:
@@ -235,7 +250,10 @@ def test_reset_account_password_echo(tmp_path: Path) -> None:
 
         with pytest.raises(ExternalError):
             reset_account_password(service, "admin", now=NOW, read_password=reader)
-        assert service.authenticate(grant.token, now=NOW).account == grant.identity.account
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account
+            == grant.identity.account
+        )
 
 
 def test_reset_account_password_abort(tmp_path: Path) -> None:
@@ -249,7 +267,10 @@ def test_reset_account_password_abort(tmp_path: Path) -> None:
             with pytest.raises(type(original)) as caught:
                 reset_account_password(service, "admin", now=NOW, read_password=reader)
             assert caught.value is original
-            assert service.authenticate(grant.token, now=NOW).account == grant.identity.account
+            assert (
+                service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account
+                == grant.identity.account
+            )
 
 
 def test_reset_account_password_input_error(tmp_path: Path) -> None:
@@ -266,7 +287,10 @@ def test_reset_account_password_input_error(tmp_path: Path) -> None:
             with pytest.raises(expected) as caught:
                 reset_account_password(service, "admin", now=NOW, read_password=reader)
             assert "private-read-value" not in format_exception_report(caught.value)
-            assert service.authenticate(grant.token, now=NOW).account == grant.identity.account
+            assert (
+                service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account
+                == grant.identity.account
+            )
 
 
 def test_reset_account_password_domain_errors(tmp_path: Path) -> None:
@@ -329,7 +353,9 @@ def test_reset_account_password_lifecycle(
 
         account = reset_account_password(service, "admin", now=NOW, read_password=reader)
         assert (
-            service.login(Credentials("admin", SecretStr(value)), now=NOW).identity.account
+            service.login(
+                Credentials("admin", SecretStr(value)), now=NOW, audit=AUDIT_CONTEXT
+            ).identity.account
             == account
         )
         output = capsys.readouterr()
@@ -373,7 +399,10 @@ def test_specific_reset_missing(tmp_path: Path) -> None:
                 now=NOW,
                 read_password=lambda prompt: EXAMPLE_SECRET.get_secret_value(),
             )
-        assert service.authenticate(grant.token, now=NOW).account == grant.identity.account
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account
+            == grant.identity.account
+        )
 
 
 def test_specific_reset_atomic(tmp_path: Path) -> None:
@@ -381,7 +410,9 @@ def test_specific_reset_atomic(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, grant):
         for _ in range(4):
             with pytest.raises(AuthenticationError):
-                service.login(Credentials("admin", SecretStr("incorrect-value")), now=NOW)
+                service.login(
+                    Credentials("admin", SecretStr("incorrect-value")), now=NOW, audit=AUDIT_CONTEXT
+                )
 
         def failing(connection: Connection) -> None:
             raise sqlite3.OperationalError("测试提交失败")
@@ -394,7 +425,10 @@ def test_specific_reset_atomic(tmp_path: Path) -> None:
                 )
         finally:
             event.remove(service.engine, "commit", failing)
-        assert service.authenticate(grant.token, now=NOW).account == grant.identity.account
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account
+            == grant.identity.account
+        )
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
             assert row is not None and row.failed_attempts == 4 and not row.must_change_password
@@ -407,7 +441,7 @@ def test_specific_reset_atomic(tmp_path: Path) -> None:
             and changed.status is AccountStatus.ENABLED
         )
         with pytest.raises(AuthenticationError):
-            service.authenticate(grant.token, now=NOW)
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT)
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
             assert row is not None and row.failed_attempts == 0 and row.blocked_until is None
@@ -445,7 +479,10 @@ def test_argon2_capacity_failure(tmp_path: Path) -> None:
             close_workers(pool, hasher)
         for worker in workers:
             assert worker.result(timeout=1)
-        assert service.authenticate(grant.token, now=NOW).account == grant.identity.account
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account
+            == grant.identity.account
+        )
 
 
 def test_invalid_now_is_defect(tmp_path: Path) -> None:
@@ -469,5 +506,8 @@ def test_invalid_now_is_defect(tmp_path: Path) -> None:
                     else:
                         reset_account_password(service, "admin", now=now, read_password=reader)
             with pytest.raises(AccountInputError):
-                service.login(Credentials("admin", EXAMPLE_SECRET), now=now)
-        assert service.authenticate(grant.token, now=NOW).account == grant.identity.account
+                service.login(Credentials("admin", EXAMPLE_SECRET), now=now, audit=AUDIT_CONTEXT)
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account
+            == grant.identity.account
+        )

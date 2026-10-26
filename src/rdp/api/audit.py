@@ -5,10 +5,13 @@
 路由声明提供 OpenAPI 和权限分类，不在导入时实例化领域模型或写数据库。
 """
 
+from ipaddress import ip_address
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
 
+from rdp.api import _audit_views as views
+from rdp.api._account_context import identity as _identity
 from rdp.api.account_auth import AccountRequestContext, get_admin_context
 from rdp.api.audit_schemas import (
     LoginFilters,
@@ -17,7 +20,11 @@ from rdp.api.audit_schemas import (
     OperationListResponse,
     RetentionPayload,
 )
-from rdp.audit.types import AuditContext
+from rdp.audit.reporting import report_audit_append_failure as report_audit_append_failure
+from rdp.audit.types import AuditContext, LoginQuery, OperationQuery
+from rdp.infra.diagnostics import DefectError
+from rdp.infra.ids import is_request_id
+from rdp.infra.logging import request_id_context
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 AdminContext = Annotated[AccountRequestContext, Depends(get_admin_context)]
@@ -43,7 +50,19 @@ def request_audit_context(request: Request) -> AuditContext:
     Time Semantics:
         同步纯提取，无网络、时钟或等待；代理信任留给 M5。
     """
-    raise NotImplementedError
+    identifier = request_id_context.get()
+    if not is_request_id(identifier):
+        raise DefectError()
+    source_ip = None
+    if request.client is not None:
+        address = request.client.host
+        try:
+            if "%" not in address:
+                source_ip = str(ip_address(address))
+        except (TypeError, ValueError):
+            # ASGI 的缺失或非 IP 地址只表示来源未知，不解析转发头或做 DNS 查询。
+            source_ip = None
+    return AuditContext(source_ip, identifier)
 
 
 @router.get("/operations", response_model=OperationListResponse, operation_id="list_operation_logs")
@@ -78,7 +97,16 @@ def list_operations(
         复用 context.now 仅核验身份，筛选转 UTC [含下界,不含上界)；页面自行转本地显示。
         单次只读锁等待最多 5000 毫秒，无轮询/重试；回拨不限制查询截止。
     """
-    raise NotImplementedError
+    query = OperationQuery(
+        views.common(filters),
+        filters.operation,
+        filters.result,
+        views.identifier(filters.target_account_id, "target_account_id"),
+    )
+    page = context.service.list_operations(_identity(context), query, now=context.now)
+    return OperationListResponse(
+        items=tuple(views.operation(item) for item in page.items), next_cursor=page.next_cursor
+    )
 
 
 @router.get("/logins", response_model=LoginListResponse, operation_id="list_login_logs")
@@ -111,7 +139,14 @@ def list_logins(
         查询保留 UTC 微秒；无界查询含未来记录，不依赖本机时区或当前墙钟。
         单次锁等待最多 5000 毫秒，无自动重试。
     """
-    raise NotImplementedError
+    page = context.service.list_logins(
+        _identity(context),
+        LoginQuery(views.common(filters), filters.kind, filters.result),
+        now=context.now,
+    )
+    return LoginListResponse(
+        items=tuple(views.login(item) for item in page.items), next_cursor=page.next_cursor
+    )
 
 
 @router.get("/retention", response_model=RetentionPayload, operation_id="get_audit_retention")
@@ -139,7 +174,9 @@ def get_retention(context: AdminContext) -> RetentionPayload:
     Time Semantics:
         每天固定 UTC 24 小时；请求时刻仅用于身份核验，单次读锁最多 5000 毫秒，无重试。
     """
-    raise NotImplementedError
+    return RetentionPayload(
+        days=context.service.get_log_retention(_identity(context), now=context.now)
+    )
 
 
 @router.put("/retention", response_model=RetentionPayload, operation_id="set_audit_retention")
@@ -175,27 +212,7 @@ def set_retention(
         同请求只取 context.now，UTC 微秒；回拨不拒绝。业务获锁最多 5000 毫秒，
         回滚后补记最多 100 毫秒，无自动重试；后续定时清除读取新设置。
     """
-    raise NotImplementedError
-
-
-def report_audit_append_failure(error: Exception) -> None:
-    """在 API 异常边界额外记录日志补记失败，保持原业务错误。
-
-    Args:
-        error: 原业务异常；只读取可信 AUDIT_APPEND_FAILED 标记，不格式化原始对象或任意 notes。
-
-    Returns:
-        无；无标记不记录，有标记仅记一次 ERROR，原响应状态、诊断和错误编号不变。
-
-    Raises:
-        无；报告失败不掩盖原业务异常。
-
-    Side Effects:
-        仅运行日志，不写日志表、不递归补记；调用方为统一 handle_error/ErrorBoundary。
-        使用模块 logger 和自动请求上下文，不记录口令、cookie、SQL 参数或第二异常链。
-        仅消耗原异常的固定补记标记以保证重复报告幂等，不改原异常类别、诊断或其他安全清理提示。
-
-    Time Semantics:
-        与原请求异常处理同一边界，直接同步记录，无新增数据库/网络等待或重试。
-    """
-    raise NotImplementedError
+    days = context.service.set_log_retention(
+        _identity(context), body.days, now=context.now, audit=context.audit
+    )
+    return RetentionPayload(days=days)

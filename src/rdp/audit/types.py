@@ -19,7 +19,7 @@ from rdp.audit.policy import (
     MAX_RETENTION_DAYS,
     MIN_RETENTION_DAYS,
 )
-from rdp.infra.actors import ActorRef
+from rdp.infra.actors import DISPLAY_NAME_MAX_CHARS, ActorRef
 from rdp.infra.diagnostics import DiagnosticCategory
 
 
@@ -79,7 +79,9 @@ class AuditValues(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
     login_name: str | None = Field(default=None, strict=True, min_length=3, max_length=32)
-    display_name: str | None = Field(default=None, strict=True, min_length=1, max_length=64)
+    display_name: str | None = Field(
+        default=None, strict=True, min_length=1, max_length=DISPLAY_NAME_MAX_CHARS
+    )
     role: Literal["administrator", "member"] | None = None
     status: Literal["enabled", "disabled"] | None = None
     must_change_password: bool | None = Field(default=None, strict=True)
