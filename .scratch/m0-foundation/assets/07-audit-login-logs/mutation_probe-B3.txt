@@ -13,3 +13,4 @@ order-asc CAUGHT
 time-start-exclusive CAUGHT
 time-end-inclusive CAUGHT
 fe-deleted-suffix CAUGHT
+--- r1-done 复核：missing-login-skip / purge-boundary / deleted-flag / success-log-skip 全部 CAUGHT
