@@ -163,6 +163,10 @@ function details(value: OperationLogPage["items"][number]["details"]): string {
     status: input.status,
     must_change_password: input.must_change_password,
     retention_days: input.retention_days,
+    job_id: input.job_id,
+    job_type: input.job_type,
+    job_state: input.job_state,
+    resubmitted_from: input.resubmitted_from,
   });
   return JSON.stringify({
     version: value.version,
@@ -173,7 +177,7 @@ function details(value: OperationLogPage["items"][number]["details"]): string {
 const operationColumns: TableColumnsType<OperationLogPage["items"][number]> = [
   { title: "时间", key: "time", render: (_, row) => localTime(row.occurred_at) },
   { title: "操作人", key: "actor", render: (_, row) => historical(row.actor) },
-  { title: "对象账号", key: "target", render: (_, row) => historical(row.target) },
+  { title: "对象", key: "target", render: (_, row) => historical(row.target) },
   { title: "操作类型", key: "operation", render: (_, row) => OPERATION_LABELS[row.operation] },
   { title: "结果", key: "result", render: (_, row) => OPERATION_RESULTS[row.result] },
   { title: "失败类别", dataIndex: "failure_category" },

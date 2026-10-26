@@ -499,6 +499,7 @@ export function AccountMenu(): ReactElement {
         角色：{identity.data.role === "administrator" ? "管理员" : "成员"}
       </Typography.Text>
       <Link to="/change-password">修改口令</Link>
+      <Link to="/jobs">作业</Link>
       {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
       {identity.data.role === "administrator" && (
         <>

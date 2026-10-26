@@ -36,6 +36,8 @@ class OperationType(StrEnum):
     CHANGE_PASSWORD = "change_password"  # noqa: S105  # 理由：稳定操作/结果码，不是口令。
     CREATE_FIRST_ADMIN = "create_first_admin"
     SET_RETENTION = "set_retention"
+    SUBMIT_JOB = "submit_job"
+    CANCEL_JOB = "cancel_job"
 
 
 class OperationResult(StrEnum):
@@ -75,6 +77,10 @@ class AuditValues(BaseModel):
         status: enabled/disabled；默认 None。
         must_change_password: 严格布尔；默认 None，仅表示强制改密标记。
         retention_days: 严格整数 7-365 天；默认 None。
+        job_id: 作业正编号的规范十进制文本，最大 2^63-1；默认 None。
+        job_type: 稳定英文类型键，1-64 字符；默认 None，不存显示名或参数。
+        job_state: jobs.JobState 的稳定英文码，before/after 分别存前后状态；默认 None。
+        resubmitted_from: 原作业正编号文本；仅重新提交的 after 提供，默认 None。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
@@ -88,6 +94,11 @@ class AuditValues(BaseModel):
     retention_days: int | None = Field(
         default=None, strict=True, ge=MIN_RETENTION_DAYS, le=MAX_RETENTION_DAYS
     )
+
+    job_id: str | None = Field(default=None, strict=True, pattern=r"^[1-9][0-9]{0,18}$")
+    job_type: str | None = Field(default=None, strict=True, min_length=1, max_length=64)
+    job_state: str | None = Field(default=None, strict=True, min_length=1, max_length=16)
+    resubmitted_from: str | None = Field(default=None, strict=True, pattern=r"^[1-9][0-9]{0,18}$")
 
 
 class OperationDetails(BaseModel):
@@ -121,6 +132,8 @@ OPERATION_DETAIL_FIELDS: dict[OperationType, frozenset[str]] = {
     OperationType.RESET_PASSWORD_FROM_OPS: frozenset({"must_change_password"}),
     OperationType.CHANGE_PASSWORD: frozenset({"must_change_password"}),
     OperationType.SET_RETENTION: frozenset({"retention_days"}),
+    OperationType.SUBMIT_JOB: frozenset({"job_id", "job_type", "job_state", "resubmitted_from"}),
+    OperationType.CANCEL_JOB: frozenset({"job_id", "job_type", "job_state"}),
 }
 
 
@@ -150,12 +163,12 @@ class ObjectRef:
     """操作对象的独立快照，不建立会随账号删除而消失的外键。
 
     Attributes:
-        kind: account 或 audit_settings；后续新增对象类型须扩展契约。
-        object_id: account 为 1 至 2^63-1 的十进制文本；失败新建尚未分配编号为 None；设置固定 retention。
-        name: 已确认的显示名或固定“日志保留期”，1-64 码点；失败新建固定“新账号”，不抄输入。
+        kind: account、audit_settings 或 job；旧值含义不变（08 批准扩展）。
+        object_id: account/job 为 1 至 2^63-1 的十进制文本；失败新建尚未分配编号为 None；设置固定 retention。
+        name: 已确认显示名或固定“日志保留期”，1-64 码点；job 为“显示名 #编号”，最多 61 码点；失败新建account固定“新账号”，job尚无编号固定“新作业”，不抄输入。
     """
 
-    kind: Literal["account", "audit_settings"]
+    kind: Literal["account", "audit_settings", "job"]
     object_id: str | None
     name: str
 
@@ -269,7 +282,7 @@ class OperationView:
         log_id: 自动分配的 1 至 2^63-1 编号，必填。
         event: 已保存的 OperationEvent，必填。
         actor_deleted: 操作人编号已不存在为 True；运维为 False，必填。
-        target_deleted: 账号对象的编号已不存在为 True；设置或未分配编号为 False，必填。
+        target_deleted: 账号对象的编号已不存在为 True；设置、作业或未分配编号为 False，必填。
     """
 
     log_id: int

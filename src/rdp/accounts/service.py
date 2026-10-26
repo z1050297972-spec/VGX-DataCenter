@@ -1241,3 +1241,33 @@ def existing_account_ids(session: Session, identifiers: frozenset[int]) -> froze
                 select(AccountRow.account_id).where(AccountRow.account_id.in_(identifiers))
             )
         )
+
+
+def authorize_job_actor(session: Session, identity: SessionIdentity, *, now: datetime) -> ActorRef:
+    """在作业业务事务内重验登录身份并返回当前操作者快照。
+
+    Args:
+        session: 已开启的受管只读或BEGIN IMMEDIATE写Session，不并发使用、不在本函数提交。
+        identity: 入口认证的SessionIdentity，仅作会话定位，不信任其中缓存的角色或账号状态。
+        now: 入口注入的aware时刻，统一UTC微秒；非法值归DefectError，不归用户输入错误。
+
+    Returns:
+        当前启用且完成强制改密的账号编号和显示名ActorRef；成员/管理员同等允许，不要求原作业提交人。
+
+    Raises:
+        AuthenticationError: 会话已撤销/过期或账号停用/删除，拒绝过时身份。
+        PasswordChangeRequiredError: 当前账号仍须改口令。
+        InputError: 账号/会话行或数据库损坏。
+        ConflictError: 查询遇数据库锁冲突。
+        ExternalError: 数据库读取I/O失败。
+        DefectError: 非受管Session、非法注入时钟或SQL/映射错误。
+
+    Side Effects:
+        只读调用者事务中的会话/账号；复用账号模块内部认证规则，不刷新活动、不删除过期会话、不记作业审计。
+        不返回ORM或秘密，不向jobs暴露下划线模块；写作业与审计由调用方继续同一事务。
+
+    Time Semantics:
+        使用调用者唯一请求时刻，空闲过期沿用第6张规则，回拨按经过零处理；
+        事务已取得锁，无额外申请、重试或口令计算。
+    """
+    raise NotImplementedError

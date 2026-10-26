@@ -31,11 +31,14 @@ from rdp.infra.state import StatePaths, initialize_state, state_paths
 
 
 def test_active_migration() -> None:
-    """验收1：0003已进入唯一迁移图，新模型注册共用MetaData且不保留pending目录。"""
+    """验收1：0003已进入唯一迁移图，新模型共用MetaData，0004隔离在活动图之外。"""
     config = migration_config()
     assert ScriptDirectory.from_config(config).get_current_head() == "0003_audit_login_logs"
     location = config.get_main_option("script_location")
-    assert location is not None and not (Path(location) / "pending").exists()
+    assert location is not None
+    assert "0004_jobs_worker" not in {
+        revision.revision for revision in ScriptDirectory.from_config(config).walk_revisions()
+    }
     for row in (OperationLogRow, LoginLogRow, AuditSettingsRow):
         assert "__abstract__" not in row.__dict__
         assert row.metadata is metadata
