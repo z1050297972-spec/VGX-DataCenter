@@ -1,6 +1,6 @@
 # 操作日志与登录日志
 
-Status: ready-for-agent
+Status: in-progress
 
 ## 依据
 
@@ -77,3 +77,24 @@ Status: ready-for-agent
   - **H2**：登录名不存在时只记"账号不存在"和来源 IP，不记输入的原文。
   - **H3**：操作日志记真正开始执行的写操作（含执行后失败的）；401、403、422 的请求不记。
   - Status 改成 `ready-for-agent`。等第 6 张合并以后再开票。
+- 2026-10-25，第 6 张合并后，负责人说"可以继续走了"。执行线开票：
+  - Status 改为 `in-progress`；工作目录 `~/桌面/robot-data-platform.wt/m0-07-audit-login-logs`，分支 `t/m0-07-audit-login-logs`（从 main `021ee59`）；基线 `make check` 全绿（pytest 880、Vitest 128）。
+  - 派工 A：新会话 `01a17616-542b-7b90-b0f5-a48173b19c88`，快照 `refs/rdp/m0-07/A`，提示 `assets/07-audit-login-logs/prompt-A.md`，`-o assets/…/out-A.md`，运行日志 `<执行线临时目录>/m0-07/ev-A.jsonl`。
+  - 提示里执行线定的设计，交骨架关卡：
+    - 业务成功的操作日志和业务改动同一事务。
+    - H3 要求的"执行后失败"在回滚后另开短事务追加，追加失败不掩盖原错误。
+    - 不存在的登录名单独短事务记登录日志。
+    - 会话过期日志和删除过期会话同一事务，拿不到短锁就都跳过。
+    - 来源 IP 只取 ASGI `client`，不信任 `X-Forwarded-For`。
+    - 第 6 张的服务签名为传 IP 和请求编号可以加参数。
+    - 筛选用 TanStack 类型化 search params。
+- 2026-10-25，派工 A 交回（out-A.md），骨架评审：
+  - 快照 `refs/rdp/m0-07/A-done`（1d7a52e）。`make check` 复跑全绿：pytest 880 passed / 251 skipped，Vitest 128 passed / 33 skipped。
+  - 文件归属干净；日志审计干净；违规试验 9 项通过（检查链改了 import-linter）。
+  - 审骨架原文在 `assets/…/skeleton-review-A-done.md`：阻塞 3 条，执行线采纳的修改 7 条，另有 1 条第 6 张行为变更待负责人确认。
+  - Status 改为 `in-review`，交骨架关卡。
+- 2026-10-25，骨架关卡，负责人选了：
+  - "改：按清单修一轮"。选项原文："3 条阻塞加 7 条采纳的修改一起修，计打回第 1 轮。修完执行线复核，没问题就做契约提交进入实现，不再找你。"
+  - "改成 401"：第 6 张的过期会话删除改成 100 毫秒短锁，拿不到锁就跳过删除，仍返回 401，下次访问再删再记日志；第 6 张对应的测试一起改。
+  - 执行线同意 Codex 提的三条：增加 `failure` 登录结果；没有变化的请求不记；失败的新建对象编号留空。
+  - Status 改回 `in-progress`，派修复轮 A-r1。
