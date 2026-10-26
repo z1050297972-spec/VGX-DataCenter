@@ -7,15 +7,40 @@
 import logging
 from dataclasses import dataclass
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import Engine
 
+from rdp.infra.db.connection import session_scope
+from rdp.infra.db.records import ErrorRecord, write_error
+from rdp.infra.diagnostics import (
+    ConflictError,
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    DiagnosticObject,
+    ExternalError,
+    InputError,
+)
+from rdp.infra.exception_report import format_exception_report
+from rdp.infra.logging import log_context
 from rdp.infra.state import StatePaths
-from rdp.jobs.logs import JobLog
-from rdp.jobs.processes import ToolCommand
+from rdp.jobs import _diagnostics, _storage
+from rdp.jobs.errors import JobCancelledError, WorkerStoppingError
+from rdp.jobs.logs import JobLog, JobLogMetadata, open_job_log
+from rdp.jobs.policy import OUTPUT_JOIN_TIMEOUT_S
+from rdp.jobs.processes import ToolCommand, run_external_process
 from rdp.jobs.progress import ExecutionSignals, ProgressReporter
+from rdp.jobs.records import StateChange, find_job, save_progress, transition_job
 from rdp.jobs.registry import JobRegistry
-from rdp.jobs.types import ExecutionMode, JobClock, JobProgress, JobRecord
+from rdp.jobs.types import (
+    ExecutionMode,
+    ExecutionSnapshot,
+    JobClock,
+    JobProgress,
+    JobRecord,
+    JobState,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +90,7 @@ class ExecutionContext:
         Time Semantics:
             执行有 command.timeout_s 上限，取消 TERM 宽限 10 秒后升级 KILL，随后有界回收。
         """
-        raise NotImplementedError
+        return run_external_process(command, self.reporter, self.log, self.clock)
 
 
 @dataclass(frozen=True)
@@ -146,7 +171,11 @@ def execute_job(
         执行器只执行有界收尾，不判断自己是否越过总预算；run_loop负责超时一次ERROR、失败返回及锁保留。
         被节流的最新进度即使不再report，也由wait/check_cancelled/外部进程轮询在补写截止处理。
     """
-    raise NotImplementedError
+    _storage.identifier(work.record.job_id, internal=True)
+    if work.record.state is not JobState.RUNNING:
+        raise DefectError()
+    with log_context(job_id=work.record.job_id):
+        return _ExecutionRun(work, dependencies, signals).run()
 
 
 def recover_job(job_id: int, dependencies: ExecutorDependencies) -> ExecutionWork | None:
@@ -185,4 +214,281 @@ def recover_job(job_id: int, dependencies: ExecutorDependencies) -> ExecutionWor
         持续锁忙没有有限延迟保证。资格提交并交execute_job实际执行后，其终态提交失败归整实例失败退出，
         不使用本函数的准备阶段隔离规则。恢复不把墙钟回拨当冲突，不将停机时间计入运行耗时。
     """
-    raise NotImplementedError
+    from rdp.jobs._recovery import prepare
+
+    _storage.identifier(job_id, internal=True)
+    _storage.moment(dependencies.clock.now())
+    if not dependencies.engine.get_execution_options().get("rdp_managed"):
+        raise DefectError()
+    try:
+        return prepare(job_id, dependencies)
+    except Exception as error:
+        _isolate_recovery(job_id, dependencies, error)
+        return None
+
+
+class _ExecutionRun:
+    """一个调用的文件/上报生命周期；终态失败必须离开本边界，不能吞成业务失败再继续领取。"""
+
+    def __init__(
+        self, work: ExecutionWork, dependencies: ExecutorDependencies, signals: ExecutionSignals
+    ) -> None:
+        """为单次调用保存执行输入和文件生命周期，不在构造时打开日志或执行类型函数。"""
+        self.work, self.dependencies, self.signals = work, dependencies, signals
+        self.log: JobLog | None = None
+        self.reporter: ProgressReporter | None = None
+        self.failures: tuple[Diagnostic, ...] = ()
+        self.aborted = False
+
+    def run(self) -> JobRecord | None:
+        """只收口执行阶段错误；最终事务与摘要分开，不回滚已完成记录来弥补文件失败。"""
+        try:
+            try:
+                self._invoke()
+            except WorkerStoppingError:
+                pass
+            except JobCancelledError:
+                pass
+            except Exception as error:
+                self.aborted = True
+                self._failure(error)
+            if self.signals.stopping.is_set() and not self.signals.cancelled.is_set():
+                self._save_stopping()
+                return None
+            try:
+                result = self._finish()
+            except Exception:
+                logger.error("作业终态持久化失败，worker将停止领取和心跳", exc_info=True)
+                raise
+            if self.log is not None and result.summary is not None:
+                try:
+                    self.log.write_summary(result.summary, now=self.dependencies.clock.now())
+                except Exception:
+                    logger.error("作业已提交终态，但日志结尾写入失败", exc_info=True)
+            return result
+        finally:
+            self._close()
+
+    def _invoke(self) -> None:
+        """领取已保存路径；先头后执行，类型/参数升级失败也在作业边界统一结束。"""
+        record, dependencies = self.work.record, self.dependencies
+        self.log, needs_header = open_job_log(dependencies.paths, record)
+        if needs_header:
+            self.log.write_header(record, JobLogMetadata(None, None, None))
+        self.reporter = ProgressReporter(
+            dependencies.engine, record, self.log, dependencies.clock, self.signals
+        )
+        monitor = self.signals.monitor
+        if not monitor.lock.acquire(timeout=OUTPUT_JOIN_TIMEOUT_S):
+            raise DefectError()
+        try:
+            monitor.reporter = self.reporter
+        finally:
+            monitor.lock.release()
+        definition = dependencies.registry.lookup(record.type_name)
+        if definition is None:
+            raise InputError((_execution_diagnostic(record, "当前登记表已无此作业类型"),))
+        try:
+            parameters = definition.parameters_model.model_validate(record.parameters)
+        except ValidationError:
+            raise InputError(
+                (_execution_diagnostic(record, "历史参数不满足当前类型模型"),)
+            ) from None
+        context = ExecutionContext(
+            record.job_id,
+            parameters,
+            self.work.mode,
+            self.work.previous_progress,
+            self.reporter,
+            self.log,
+            dependencies.clock,
+        )
+        self.reporter.check_cancelled()
+        definition.execute(context)
+
+    def _failure(self, error: Exception) -> None:
+        """统一诊断进入记录；日志失败时仍尝试落终态，不能在失败日志上递归报告。"""
+        self.failures = (
+            error.diagnostics
+            if isinstance(error, (InputError, ConflictError, ExternalError, DefectError))
+            else ()
+        )
+        if not self.failures:
+            self.failures = (
+                _execution_diagnostic(
+                    self.work.record,
+                    f"执行函数异常：{type(error).__name__}",
+                    DiagnosticCategory.DEFECT,
+                ),
+            )
+        self.failures = tuple(
+            _with_job_identity(self.work.record.job_id, item) for item in self.failures
+        )
+        report = format_exception_report(error)
+        logger.error("作业执行失败\n%s", report)
+        if not isinstance(error, (InputError, ConflictError, ExternalError)):
+            try:
+                with session_scope(self.dependencies.engine) as session:
+                    write_error(
+                        session,
+                        ErrorRecord(
+                            error_id=str(self.work.record.job_id),
+                            occurred_at=self.dependencies.clock.now(),
+                            category=DiagnosticCategory.DEFECT,
+                            summary="作业执行发生程序缺陷",
+                            report=report,
+                            source_kind="job",
+                        ),
+                    )
+            except Exception:
+                # 保留第一条原始失败；报告存储故障不能掩盖它，也不递归写报错表。
+                error.add_note("完整作业报错保存失败，请查看运行日志")
+        if self.reporter is not None:
+            for diagnostic in self.failures:
+                try:
+                    self.reporter.diagnostic(diagnostic)
+                except Exception:
+                    # 文件已不可写时保留原失败；最终快照仍会合并诊断。
+                    break
+
+    def _snapshot(self) -> ExecutionSnapshot:
+        """日志尚未打开的失败也保留历史快照，不抹去续跑的计数与耗时。"""
+        record = self.work.record
+        snapshot = (
+            self.reporter.snapshot()
+            if self.reporter is not None
+            else ExecutionSnapshot(
+                record.progress,
+                record.diagnostics,
+                record.artifacts,
+                record.tool_exit_code,
+                record.elapsed_s,
+            )
+        )
+        if self.failures and self.reporter is None:
+            groups = snapshot.diagnostics
+            for diagnostic in self.failures:
+                groups = _diagnostics.append(groups, diagnostic)
+            snapshot = ExecutionSnapshot(
+                snapshot.progress,
+                groups,
+                snapshot.artifacts,
+                snapshot.tool_exit_code,
+                snapshot.elapsed_s,
+            )
+        return snapshot
+
+    def _finish(self) -> JobRecord:
+        """最终普通事务重读取消态；快照和唯一状态转换同一提交，失败整个回滚。"""
+        snapshot = self._snapshot()
+        with session_scope(self.dependencies.engine) as session:
+            current = find_job(session, self.work.record.job_id)
+            save_progress(session, current.job_id, snapshot, now=self.dependencies.clock.now())
+            target = (
+                JobState.CANCELLED if current.state is JobState.CANCELLING else JobState.COMPLETED
+            )
+            result = transition_job(
+                session,
+                current.job_id,
+                StateChange(
+                    current.state,
+                    target,
+                    self.dependencies.clock.now(),
+                    aborted=self.aborted and target is JobState.COMPLETED,
+                ),
+            )
+        return result
+
+    def _save_stopping(self) -> None:
+        """停止只保存最后进度，不新增终态；失败上交主循环统一退出。"""
+        with session_scope(self.dependencies.engine) as session:
+            save_progress(
+                session,
+                self.work.record.job_id,
+                self._snapshot(),
+                now=self.dependencies.clock.now(),
+            )
+
+    def _close(self) -> None:
+        """只关闭无读线程使用的文件，活资源留在monitor交主循环保锁。"""
+        monitor = self.signals.monitor
+        if not monitor.lock.acquire(timeout=OUTPUT_JOIN_TIMEOUT_S):
+            raise DefectError()
+        try:
+            from threading import current_thread
+
+            alive = any(
+                thread.is_alive() and thread is not current_thread() for thread in monitor.threads
+            )
+        finally:
+            monitor.lock.release()
+        if self.log is not None and not alive:
+            try:
+                self.log.close()
+            except Exception:
+                logger.error("关闭作业日志失败，已保存的状态不回滚", exc_info=True)
+
+
+def _execution_diagnostic(
+    record: JobRecord, actual: str, category: DiagnosticCategory = DiagnosticCategory.INPUT
+) -> Diagnostic:
+    """类型兼容与未知执行异常的安全诊断，不复制整份参数或异常载荷。"""
+    return Diagnostic(
+        level=DiagnosticLevel.ERROR,
+        category=category,
+        stage="作业执行",
+        source="平台",
+        objects=(
+            DiagnosticObject(key="job_id", value=str(record.job_id)),
+            DiagnosticObject(key="type", value=record.type_name),
+        ),
+        rule="作业必须能由当前登记类型执行",
+        actual=actual,
+        expected="类型存在且参数兼容",
+        consequence="本次作业整体失败，其他排队作业不受影响",
+        next_step="检查当前类型和参数后重新提交",
+    )
+
+
+def _isolate_recovery(job_id: int, dependencies: ExecutorDependencies, error: Exception) -> None:
+    """至多一次安全终态尝试；解码仍失败就保留原行，扫描方继续下个编号。"""
+    try:
+        with session_scope(dependencies.engine) as session:
+            record = find_job(session, job_id)
+            if record.state not in {JobState.RUNNING, JobState.CANCELLING}:
+                return
+            diagnostic = _execution_diagnostic(
+                record,
+                f"恢复准备失败：{type(error).__name__}，中断段可能缺失",
+                DiagnosticCategory.EXTERNAL,
+            )
+            snapshot = ExecutionSnapshot(
+                record.progress,
+                _diagnostics.append(record.diagnostics, diagnostic),
+                record.artifacts,
+                record.tool_exit_code,
+                record.elapsed_s,
+            )
+            save_progress(session, job_id, snapshot, now=dependencies.clock.now())
+            target = (
+                JobState.CANCELLED if record.state is JobState.CANCELLING else JobState.INTERRUPTED
+            )
+            transition_job(
+                session, job_id, StateChange(record.state, target, dependencies.clock.now())
+            )
+    except Exception:
+        logger.error(
+            "作业 job_id=%s 恢复失败且不能安全写终态；跳过该条，中断段可能缺失",
+            job_id,
+            exc_info=True,
+        )
+    else:
+        logger.error("作业 job_id=%s 恢复失败，已隔离终态；中断段可能缺失", job_id, exc_info=error)
+
+
+def _with_job_identity(job_id: int, diagnostic: Diagnostic) -> Diagnostic:
+    """在掌握作业编号的执行边界补上下文，工具边界只掌握命令与退出状态。"""
+    if any(item.key == "job_id" for item in diagnostic.objects):
+        return diagnostic
+    objects = (DiagnosticObject(key="job_id", value=str(job_id)),) + diagnostic.objects
+    return Diagnostic.model_validate(diagnostic.model_dump() | {"objects": objects})

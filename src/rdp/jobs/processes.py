@@ -6,10 +6,35 @@ worker被SIGKILL时Python finally不会运行，生产依赖第11张systemd Kill
 TimeoutStopSec不得小于WORKER_STOP_TIMEOUT_S（30秒）；测试由夹具独立清理。
 """
 
+import math
+import os
+import signal
+import subprocess
+import time
+import unicodedata
+from contextvars import copy_context
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Thread
+from typing import BinaryIO, cast
 
+from rdp.infra.diagnostics import (
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    DiagnosticObject,
+    ExternalError,
+)
+from rdp.jobs._clock import ClockReader
+from rdp.jobs._process_io import OutputReader
 from rdp.jobs.logs import JobLog
+from rdp.jobs.policy import (
+    OUTPUT_JOIN_TIMEOUT_S,
+    PROCESS_POLL_INTERVAL_S,
+    PROCESS_REAP_TIMEOUT_S,
+    PROCESS_TERM_GRACE_S,
+)
 from rdp.jobs.progress import ProgressReporter
 from rdp.jobs.types import JobClock
 
@@ -75,4 +100,186 @@ def run_external_process(
         KILL 后 wait 最多 PROCESS_REAP_TIMEOUT_S、读线程回收最多 OUTPUT_JOIN_TIMEOUT_S。
         直接子进程退出但后代仍持管道时也终止组，不能无限等 EOF；所有期限用 monotonic。
     """
-    raise NotImplementedError
+    _validate_command(command)
+    reader = ClockReader(clock)
+    reader.read()
+    return _ProcessRun(command, reporter, log, reader).run()
+
+
+class _ProcessRun:
+    """一个直接进程及其两个读线程；独立进程组便于取消工具派生的后代。"""
+
+    def __init__(
+        self, command: ToolCommand, reporter: ProgressReporter, log: JobLog, clock: ClockReader
+    ) -> None:
+        """保存当前命令及上报依赖，进程和读线程由run显式启动。"""
+        self.command, self.reporter, self.log, self.clock = command, reporter, log, clock
+        self.process: subprocess.Popen[bytes] | None = None
+        self.readers: list[OutputReader] = []
+        self.threads: list[Thread] = []
+
+    def run(self) -> int:
+        """任何路径都进入有限清理；清理失败优先报告，不能伪称取消已完成。"""
+        try:
+            self._start()
+            reason = self._poll()
+        except BaseException:
+            self._cleanup(terminate=True)
+            raise
+        else:
+            self._cleanup(terminate=reason is not None)
+        if reason is not None:
+            failure = self._failure(reason)
+            raise failure
+        if not (self.process is not None):
+            raise DefectError()
+        returncode = self.process.returncode
+        if returncode != 0:
+            failure = self._failure("工具非零退出或被信号终止")
+            raise failure
+        self.reporter.check_cancelled()
+        return 0
+
+    def _start(self) -> None:
+        """绝对程序及无shell参数来自登记执行函数，锁fd不可继承。"""
+        try:
+            self.process = subprocess.Popen(  # noqa: S603  # 理由：已校验绝对程序路径，登记函数提供argv，禁止shell。
+                self.command.argv,
+                cwd=self.command.cwd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=True,
+                close_fds=True,
+            )
+        except OSError as error:
+            failure = self._failure("启动外部工具失败")
+            raise failure from error
+        for name, stream in (("stdout", self.process.stdout), ("stderr", self.process.stderr)):
+            if not (stream is not None):
+                raise DefectError()
+            reader = OutputReader(
+                cast(BinaryIO, stream),
+                f"{name} {self.command.tool_name}│",
+                self.log,
+                self.clock.clock,
+            )
+            context = copy_context()
+            thread = Thread(target=context.run, args=(reader.run,), daemon=True)
+            self.reporter.track_output_thread(thread)
+            self.readers.append(reader)
+            self.threads.append(thread)
+            thread.start()
+
+    def _poll(self) -> str | None:
+        """无输出也检查取消及补写截止，不能阻塞在readline里。"""
+        if not (self.process is not None):
+            raise DefectError()
+        deadline = self.clock.read() + self.command.timeout_s
+        while self.process.poll() is None:
+            self.reporter.check_cancelled()
+            if any(reader.error is not None for reader in self.readers):
+                return "输出读取或日志写入失败"
+            remaining = deadline - self.clock.read()
+            if remaining <= 0:
+                return "工具执行超过timeout_s"
+            self.reporter.wait(min(PROCESS_POLL_INTERVAL_S, remaining))
+        return None
+
+    def _cleanup(self, *, terminate: bool) -> None:
+        """TERM有宽限，KILL后仍有独立回收上限；存活daemon读线程交monitor保留。"""
+        process = self.process
+        if process is None:
+            return
+        if terminate or process.poll() is None:
+            self._signal(signal.SIGTERM)
+            deadline = self.clock.read() + PROCESS_TERM_GRACE_S
+            while process.poll() is None and self.clock.read() < deadline:
+                time.sleep(min(PROCESS_POLL_INTERVAL_S, max(0, deadline - self.clock.read())))
+            self._signal(signal.SIGKILL)
+        try:
+            process.wait(timeout=PROCESS_REAP_TIMEOUT_S)
+        except subprocess.TimeoutExpired as error:
+            failure = self._failure("SIGKILL后进程仍未回收")
+            raise failure from error
+        self.reporter.tool_exit(process.returncode)
+        # 父工具退出不代表后代关闭了管道；先结束剩余组再等EOF，不能无限读。
+        if any(thread.is_alive() for thread in self.threads):
+            self._signal(signal.SIGTERM)
+        deadline = self.clock.read() + OUTPUT_JOIN_TIMEOUT_S
+        for thread in self.threads:
+            thread.join(timeout=max(0, deadline - self.clock.read()))
+        if any(thread.is_alive() for thread in self.threads):
+            self._signal(signal.SIGKILL)
+            deadline = self.clock.read() + OUTPUT_JOIN_TIMEOUT_S
+            for thread in self.threads:
+                thread.join(timeout=max(0, deadline - self.clock.read()))
+        if any(thread.is_alive() for thread in self.threads) or any(
+            reader.error is not None for reader in self.readers
+        ):
+            failure = self._failure("输出线程或日志资源未完整回收")
+            raise failure
+
+    def _signal(self, number: signal.Signals) -> None:
+        """进程组可能恰好退出，ESRCH允许忽略，其他系统错误不能伪装成功。"""
+        if not (self.process is not None):
+            raise DefectError()
+        try:
+            os.killpg(self.process.pid, number)
+        except ProcessLookupError:
+            pass
+        except OSError as error:
+            failure = self._failure("终止工具进程组失败")
+            raise failure from error
+
+    def _failure(self, actual: str) -> ExternalError:
+        """诊断只保留有界stderr尾和当前进度，完整流留在文件。"""
+        code = None if self.process is None else self.process.returncode
+        tail = self.readers[-1].tail_text() if len(self.readers) == 2 else "（无stderr）"
+        progress = self.reporter.snapshot().progress
+        return ExternalError(
+            (
+                Diagnostic(
+                    level=DiagnosticLevel.ERROR,
+                    category=DiagnosticCategory.EXTERNAL,
+                    stage="外部工具",
+                    source=self.command.tool_name,
+                    objects=(
+                        DiagnosticObject(key="command", value=repr(self.command.argv)),
+                        DiagnosticObject(key="returncode", value=str(code)),
+                        DiagnosticObject(key="stderr_tail", value=tail),
+                        DiagnosticObject(
+                            key="progress",
+                            value="尚未上报" if progress is None else progress.model_dump_json(),
+                        ),
+                    ),
+                    rule="外部工具须在预算内正常退出并完整回收",
+                    actual=actual,
+                    expected="退出码0且输出完整",
+                    consequence="本次工具执行失败，作业可能整体失败或取消",
+                    next_step="检查工具命令、stderr尾部和完整作业日志",
+                ),
+            )
+        )
+
+
+def _validate_command(command: ToolCommand) -> None:
+    """校验不可变命令再启动；参数来自登记代码也不能隐式开启shell或无界等待。"""
+    if (
+        not command.tool_name
+        or len(command.tool_name) > 64
+        or any(unicodedata.category(char) == "Cc" for char in command.tool_name)
+    ):
+        raise DefectError()
+    if (
+        not command.argv
+        or not Path(command.argv[0]).is_absolute()
+        or any(not isinstance(cast(object, arg), str) or "\0" in arg for arg in command.argv)
+    ):
+        raise DefectError()
+    if (
+        not command.cwd.is_absolute()
+        or type(command.timeout_s) not in {int, float}
+        or not math.isfinite(command.timeout_s)
+        or command.timeout_s <= 0
+    ):
+        raise DefectError()

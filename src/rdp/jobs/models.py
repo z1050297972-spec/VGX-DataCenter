@@ -1,7 +1,6 @@
 """作业记录与单行心跳的 ORM 声明（08/0004）；领域层，不创建或迁移数据库。
 
-共享基础层 Base/UTCDateTime。抽象声明不进入当前 0003 的 metadata；0004 表定义
-包含相同列与 CHECK。JSON 存进度/摘要/诊断快照，计数另列便于最终值一致性校验。
+共享基础层Base/UTCDateTime，导入时注册共用metadata；0004表定义包含相同列与CHECK。JSON 存进度/摘要/诊断快照，计数另列便于最终值一致性校验。
 """
 
 from datetime import datetime
@@ -56,7 +55,6 @@ class JobRow(Base):
         tool_exit_code: 最后工具退出码，负数为信号，无工具 NULL。
     """
 
-    __abstract__ = True
     __tablename__ = "jobs"
     __table_args__ = (
         CheckConstraint("job_id > 0 AND submitter_id > 0", name="positive_ids"),
@@ -115,13 +113,14 @@ class JobRow(Base):
     failed_items: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     warning_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     aborted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    progress: Mapped[dict[str, object] | None] = mapped_column(JSON)
+    # 未上报/非终态必须是SQL NULL，不能写JSON文本null，否则终态CHECK会误判。
+    progress: Mapped[dict[str, object] | None] = mapped_column(JSON(none_as_null=True))
     progress_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     elapsed_s: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     artifacts: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     log_path: Mapped[str | None] = mapped_column(Text)
     diagnostics: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
-    summary: Mapped[dict[str, object] | None] = mapped_column(JSON)
+    summary: Mapped[dict[str, object] | None] = mapped_column(JSON(none_as_null=True))
     tool_exit_code: Mapped[int | None] = mapped_column(Integer)
 
 
@@ -136,7 +135,6 @@ class WorkerHeartbeatRow(Base):
         last_seen_at: 最近心跳的UTC微秒时刻，允许墙钟回拨。
     """
 
-    __abstract__ = True
     __tablename__ = "worker_heartbeat"
     __table_args__ = (
         CheckConstraint("singleton_id = 1", name="singleton"),

@@ -75,7 +75,15 @@ class JobProgress(BaseModel):
     @model_validator(mode="after")
     def _validate_relations(self) -> Self:
         """校验阶段序号、done/total 和失败/总条目关系，拒绝纯空白名称或单位。"""
-        raise NotImplementedError
+        if self.stage_index > self.stage_count:
+            raise ValueError("阶段序号不能超过阶段总数")
+        if self.total is not None and self.done > self.total:
+            raise ValueError("已完成数不能超过已知总数")
+        if self.failed_items > self.total_items:
+            raise ValueError("失败条目数不能超过总条目数")
+        if not self.stage_name.strip() or not self.unit.strip():
+            raise ValueError("阶段名称和单位不能只有空白")
+        return self
 
 
 @dataclass(frozen=True)

@@ -1,5 +1,28 @@
 // 作业 Query 契约（08）；缓存按身份清理，所有请求由 useAccountClient 的统一传输发出。
-import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useQuery,
+  type UseMutationResult,
+  type UseQueryResult,
+} from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { toFailureView } from "../api/problems";
+import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
+import {
+  submitCountJob,
+  cancelJob,
+  resubmitJob,
+  getJob,
+  getJobLog,
+  getWorkerStatus,
+  listJobs,
+  JOB_POLL_INTERVAL_MS,
+  JOB_STALE_TIME_MS,
+  JOB_GC_TIME_MS,
+} from "../api/jobs";
+import { isJobTerminal } from "./progress";
 import type { CountInput, Job, JobList, JobLog, JobSearch, WorkerStatus } from "../api/jobs";
 
 /**
@@ -10,9 +33,16 @@ import type { CountInput, Job, JobList, JobLog, JobSearch, WorkerStatus } from "
  * @sideEffects 通过 listJobs 查询，不全量翻页；401 统一取消并清理当前账号缓存。
  * @timeSemantics 每 JOB_POLL_INTERVAL_MS 轮询，staleTime/gcTime=0、retry=false，离页取消。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function useJobs(_search: JobSearch): UseQueryResult<JobList> {
-  throw new Error("未实现");
+  const client = useAccountClient();
+  return useQuery({
+    queryKey: ["jobs", "list", _search],
+    queryFn: ({ signal }) => listJobs({ client, payload: _search, signal }),
+    refetchInterval: JOB_POLL_INTERVAL_MS,
+    staleTime: JOB_STALE_TIME_MS,
+    gcTime: JOB_GC_TIME_MS,
+    retry: false,
+  });
 }
 
 /**
@@ -23,9 +53,18 @@ export function useJobs(_search: JobSearch): UseQueryResult<JobList> {
  * @sideEffects getJob 请求；页面另用 useJobTiming 维护有界十秒样本，不在Query结果中隐藏另一份采样状态。
  * @timeSemantics 每秒一次，终态 refetchInterval=false，聚焦只在进行中刷新，无自动重试。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function useJob(_jobId: string): UseQueryResult<Job> {
-  throw new Error("未实现");
+  const client = useAccountClient();
+  return useQuery({
+    queryKey: ["jobs", "detail", _jobId],
+    queryFn: ({ signal }) => getJob({ client, jobId: _jobId, payload: undefined, signal }),
+    retry: false,
+    staleTime: JOB_STALE_TIME_MS,
+    gcTime: JOB_GC_TIME_MS,
+    refetchInterval: (query) =>
+      query.state.data && isJobTerminal(query.state.data) ? false : JOB_POLL_INTERVAL_MS,
+    refetchOnWindowFocus: (query) => !query.state.data || !isJobTerminal(query.state.data),
+  });
 }
 
 /**
@@ -36,9 +75,18 @@ export function useJob(_jobId: string): UseQueryResult<Job> {
  * @sideEffects 调 getJobLog，进入终态再读一次最终尾部后停止，卸载取消并忽略迟到响应。
  * @timeSemantics 进行中每秒，终态最后请求完成后停止；单次 10 秒上限，不重试。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function useJobLog(_job: Job): UseQueryResult<JobLog> {
-  throw new Error("未实现");
+  const client = useAccountClient();
+  const terminal = isJobTerminal(_job);
+  return useQuery({
+    queryKey: ["jobs", "log", _job.job_id, terminal ? _job.state : "active"],
+    queryFn: ({ signal }) => getJobLog({ client, jobId: _job.job_id, payload: undefined, signal }),
+    refetchInterval: terminal ? false : JOB_POLL_INTERVAL_MS,
+    refetchOnWindowFocus: !terminal,
+    retry: false,
+    staleTime: JOB_STALE_TIME_MS,
+    gcTime: JOB_GC_TIME_MS,
+  });
 }
 
 /**
@@ -49,7 +97,17 @@ export function useJobLog(_job: Job): UseQueryResult<JobLog> {
  * @timeSemantics 每秒轮询、无重试，身份切换/卸载清缓存和取消；作业终态不停止此查询。
  */
 export function useWorkerStatus(): UseQueryResult<WorkerStatus> {
-  throw new Error("未实现");
+  const client = useAccountClient();
+  const account = useCurrentAccount();
+  return useQuery({
+    queryKey: ["worker", "status"],
+    queryFn: ({ signal }) => getWorkerStatus({ client, payload: undefined, signal }),
+    enabled: !!account.data && !account.data.must_change_password,
+    refetchInterval: JOB_POLL_INTERVAL_MS,
+    retry: false,
+    staleTime: JOB_STALE_TIME_MS,
+    gcTime: JOB_GC_TIME_MS,
+  });
 }
 
 /**
@@ -60,7 +118,11 @@ export function useWorkerStatus(): UseQueryResult<WorkerStatus> {
  * @timeSemantics 单次 10 秒，无重试；卸载取消，不声称取消请求使数据库回滚。
  */
 export function useSubmitCountJob(): UseMutationResult<Job, Error, CountInput> {
-  throw new Error("未实现");
+  const client = useAccountClient();
+  return useJobAction<CountInput>(
+    (payload, signal) => submitCountJob({ client, payload, signal }),
+    true,
+  );
 }
 
 /**
@@ -71,9 +133,12 @@ export function useSubmitCountJob(): UseMutationResult<Job, Error, CountInput> {
  * @sideEffects 调 cancelJob；成功刷新列表/详情，不乐观设置终态，不自动重复取消。
  * @timeSemantics 10 秒上限；cancelling 继续每秒查询，卸载取消传输。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function useCancelJob(_jobId: string): UseMutationResult<Job, Error, void> {
-  throw new Error("未实现");
+  const client = useAccountClient();
+  return useJobAction(
+    (_payload, signal) => cancelJob({ client, jobId: _jobId, payload: undefined, signal }),
+    false,
+  );
 }
 
 /**
@@ -84,7 +149,63 @@ export function useCancelJob(_jobId: string): UseMutationResult<Job, Error, void
  * @sideEffects 调 resubmitJob，成功刷新列表并导航新详情；失败不修改原记录。
  * @timeSemantics 10 秒上限、无重试，离页终止传输并忽略迟到导航。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function useResubmitJob(_jobId: string): UseMutationResult<Job, Error, void> {
-  throw new Error("未实现");
+  const client = useAccountClient();
+  return useJobAction(
+    (_payload, signal) => resubmitJob({ client, jobId: _jobId, payload: undefined, signal }),
+    true,
+  );
+}
+
+// 写操作统一管理本次挂载的请求归属；迟到成功不能在离页或换号后导航。
+function useJobAction<T>(
+  send: (payload: T, signal: AbortSignal) => Promise<Job>,
+  redirect: boolean,
+): UseMutationResult<Job, Error, T> {
+  const cache = useQueryClient();
+  const navigate = useNavigate();
+  const owner = useRef<{ mounted: boolean; active: AbortController | null }>({
+    mounted: false,
+    active: null,
+  });
+  useEffect(() => {
+    const state = owner.current;
+    state.mounted = true;
+    return () => {
+      state.mounted = false;
+      state.active?.abort();
+    };
+  }, []);
+  return useMutation({
+    mutationFn: async (payload: T) => {
+      if (owner.current.active) throw new Error("请求处理中");
+      const controller = new AbortController();
+      owner.current.active = controller;
+      try {
+        const record = await send(payload, controller.signal);
+        if (!owner.current.mounted || controller.signal.aborted) throw new Error("请求已取消");
+        return record;
+      } finally {
+        if (owner.current.active === controller) owner.current.active = null;
+      }
+    },
+    onSuccess: async (record) => {
+      if (!isMounted(owner.current)) return;
+      await cache.invalidateQueries({ queryKey: ["jobs"] });
+      if (redirect && isMounted(owner.current))
+        await navigate({ to: "/jobs/$jobId", params: { jobId: record.job_id } });
+    },
+    onError: async (error) => {
+      const failure = toFailureView(error);
+      if (owner.current.mounted && failure.kind === "problem" && failure.problem.status === 409)
+        await cache.invalidateQueries({ queryKey: ["jobs"] });
+    },
+    retry: false,
+    gcTime: JOB_GC_TIME_MS,
+  });
+}
+
+// await期间组件可能卸载，成功回调再次读取当前归属。
+function isMounted(state: { mounted: boolean }): boolean {
+  return state.mounted;
 }

@@ -54,3 +54,6 @@ JOB_RECOVERY_LIMIT = 3
 CANCEL_STALL_WARNING_S = 60.0
 # 框架同时最多一个执行线程和两个输出线程；全部daemon，保留活线程才能决定是否释放实例锁。
 WORKER_OWNED_THREAD_LIMIT = 3
+
+# 跨来源/规则的溢出样例必须保留原身份，只有该保留键允许样例的分组键不同（规范6.6）。
+JOB_DIAGNOSTIC_OVERFLOW_KEY = ("平台", "诊断规则种类超过上限")

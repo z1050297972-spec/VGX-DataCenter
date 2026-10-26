@@ -1,7 +1,9 @@
 """0003迁移及表约束验证（07）；所有迁移样例仅在tmp_path，不触碰真实平台数据库。"""
 
 import re
+import shutil
 import sqlite3
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -13,7 +15,7 @@ from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from audit_support import operation_event
-from sqlalchemy import Engine, event, inspect, text
+from sqlalchemy import CheckConstraint, Engine, event, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from rdp.accounts.models import AccountRow
@@ -30,8 +32,42 @@ from rdp.infra.diagnostics import ConflictError, DefectError, InputError
 from rdp.infra.state import StatePaths, initialize_state, state_paths
 
 
+@pytest.fixture(autouse=True)
+def historical_audit_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """固定验证历史0003包及其表视图，完整0004由test_jobs_migration独立验证，退出恢复共享元数据。"""
+    location = migration_config().get_main_option("script_location")
+    assert location is not None
+    source = Path(location)
+    directory = tmp_path / "historical-package" / "migrations"
+    (directory / "versions").mkdir(parents=True)
+    shutil.copyfile(source / "env.py", directory / "env.py")
+    for filename in (
+        "v0001_error_reports.py",
+        "v0002_accounts_sessions.py",
+        "v0003_audit_login_logs.py",
+    ):
+        shutil.copyfile(source / "versions" / filename, directory / "versions" / filename)
+    monkeypatch.setattr("rdp.infra.db.migration.__file__", str(directory.parent / "migration.py"))
+    tables = {
+        name: table
+        for name, table in metadata.tables.items()
+        if name not in {"jobs", "worker_heartbeat"}
+    }
+    monkeypatch.setattr(metadata, "tables", tables)
+    # 唯一新增的历史CHECK值由0004负责；旧票仍核对0003的完整SQL，不改成最新版再冒充历史覆盖。
+    for constraint in metadata.tables["operation_logs"].constraints:
+        if (
+            isinstance(constraint, CheckConstraint)
+            and constraint.name == "ck_operation_logs_object_kind"
+        ):
+            monkeypatch.setattr(
+                constraint, "sqltext", text("object_kind IN ('account','audit_settings')")
+            )
+    yield
+
+
 def test_active_migration() -> None:
-    """验收1：0003已进入唯一迁移图，新模型共用MetaData，0004隔离在活动图之外。"""
+    """历史验收1：0003包的唯一head及共享MetaData正确，历史包不包含0004。"""
     config = migration_config()
     assert ScriptDirectory.from_config(config).get_current_head() == "0003_audit_login_logs"
     location = config.get_main_option("script_location")

@@ -4,11 +4,15 @@
 应用工厂只登记路由；第 11 张 Web 入口显式构造 registry/StatePaths 并调用 configure_jobs。
 """
 
-from dataclasses import dataclass
-from typing import Annotated
+import re
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
+from sqlalchemy import Engine
 
+from rdp.api._account_context import identity
 from rdp.api.account_auth import AccountRequestContext, get_authenticated_context
 from rdp.api.job_schemas import (
     JobFilters,
@@ -18,10 +22,23 @@ from rdp.api.job_schemas import (
     SubmitJobPayload,
     WorkerStatusResponse,
 )
+from rdp.infra.db.validation import invalid_field
+from rdp.infra.diagnostics import (
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    ExternalError,
+)
+from rdp.infra.ids import MAX_SQLITE_INTEGER
 from rdp.infra.state import StatePaths
+from rdp.jobs.errors import JobInputError
 from rdp.jobs.example import CountParameters
+from rdp.jobs.logs import read_log_tail
 from rdp.jobs.registry import JobRegistry
-from rdp.jobs.service import JobService
+from rdp.jobs.service import JobRequest, JobService
+from rdp.jobs.types import JobQuery, JobRecord
+from rdp.jobs.worker import heartbeat_online
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 worker_router = APIRouter(prefix="/api/worker", tags=["worker"])
@@ -64,7 +81,24 @@ def configure_jobs(app: FastAPI, paths: StatePaths, registry: JobRegistry) -> No
     Time Semantics:
         启动接收请求前调用一次，不读墙钟，无等待。
     """
-    raise NotImplementedError
+    engine = getattr(app.state, "database_engine", None)
+    if engine is None:
+        failure = _unavailable()
+        raise failure
+    if (
+        not isinstance(engine, Engine)
+        or not isinstance(cast(object, paths), StatePaths)
+        or not isinstance(cast(object, registry), JobRegistry)
+    ):
+        raise DefectError()
+    if (
+        app.middleware_stack is not None
+        or getattr(app.state, "job_service", None) is not None
+        or Path(engine.url.database or "") != paths.database
+    ):
+        raise DefectError()
+    app.state.job_service = JobService(engine, registry)
+    app.state.job_paths = paths
 
 
 def get_job_context(request: Request, account: AuthenticatedContext) -> JobApiContext:
@@ -90,7 +124,16 @@ def get_job_context(request: Request, account: AuthenticatedContext) -> JobApiCo
     Time Semantics:
         每请求复用一个 UTC 时刻；不因轮询重置作业计时。
     """
-    raise NotImplementedError
+    service, paths = (
+        getattr(request.app.state, "job_service", None),
+        getattr(request.app.state, "job_paths", None),
+    )
+    if service is None or paths is None:
+        failure = _unavailable()
+        raise failure
+    if not isinstance(service, JobService) or not isinstance(paths, StatePaths):
+        raise DefectError()
+    return JobApiContext(account, service, paths)
 
 
 JobContext = Annotated[JobApiContext, Depends(get_job_context)]
@@ -122,7 +165,12 @@ def list_jobs(context: JobContext, filters: Annotated[JobFilters, Query()]) -> J
     Time Semantics:
         单次读锁最多 BUSY_TIMEOUT_MS；轮询由前端每秒发起，接口无等待循环。
     """
-    raise NotImplementedError
+    page = context.service.list(
+        _request(context), JobQuery(filters.state, filters.cursor, filters.limit)
+    )
+    return JobListResponse(
+        items=tuple(_response(record) for record in page.items), next_cursor=page.next_cursor
+    )
 
 
 @router.post("", response_model=JobResponse, status_code=201, operation_id="submit_job")
@@ -151,7 +199,9 @@ def submit_job(context: JobContext, body: SubmitJobPayload) -> JobResponse:
     Time Semantics:
         一次请求唯一 UTC 时刻；普通写锁预算 5 秒、失败补记 100 毫秒，不重试 POST。
     """
-    raise NotImplementedError
+    return _response(
+        context.service.submit(_request(context), body.type_name, dict(body.parameters))
+    )
 
 
 @router.post(
@@ -182,7 +232,10 @@ def submit_count_job(context: JobContext, body: CountParameters) -> JobResponse:
     Time Semantics:
         body.interval_ms 只影响后台执行，不在 HTTP 里 sleep；锁和补记预算与提交一致。
     """
-    raise NotImplementedError
+    record = context.service.submit(
+        _request(context), "example_count", body.model_dump(mode="json")
+    )
+    return _response(record)
 
 
 @router.get("/{job_id}", response_model=JobResponse, operation_id="get_job")
@@ -212,7 +265,7 @@ def get_job(context: JobContext, job_id: str) -> JobResponse:
     Time Semantics:
         UTC 微秒输出，浏览器转本地；单次普通读锁预算，无重试。
     """
-    raise NotImplementedError
+    return _response(context.service.get(_request(context), _identifier(job_id)))
 
 
 @router.post("/{job_id}/cancel", response_model=JobResponse, operation_id="cancel_job")
@@ -242,7 +295,7 @@ def cancel_job(context: JobContext, job_id: str) -> JobResponse:
     Time Semantics:
         最多普通 5 秒锁等待，补记最多 100 毫秒；worker 下次轮询才传播运行中取消。
     """
-    raise NotImplementedError
+    return _response(context.service.cancel(_request(context), _identifier(job_id)))
 
 
 @router.post(
@@ -274,7 +327,7 @@ def resubmit_job(context: JobContext, job_id: str) -> JobResponse:
     Time Semantics:
         新提交采用请求 UTC 时刻，不继承旧起止时间；不等待 worker 运行，无自动重试。
     """
-    raise NotImplementedError
+    return _response(context.service.resubmit(_request(context), _identifier(job_id)))
 
 
 @router.get("/{job_id}/log", response_model=JobLogResponse, operation_id="get_job_log")
@@ -304,7 +357,8 @@ def get_job_log(context: JobContext, job_id: str) -> JobLogResponse:
     Time Semantics:
         返回当次末尾完整行，终态后页面停止轮询；不等待新输出或锁住 worker。
     """
-    raise NotImplementedError
+    record = context.service.get(_request(context), _identifier(job_id))
+    return JobLogResponse(tail=read_log_tail(context.paths, record.log_path))
 
 
 @worker_router.get("/status", response_model=WorkerStatusResponse, operation_id="get_worker_status")
@@ -331,4 +385,62 @@ def get_worker_status(context: JobContext) -> WorkerStatusResponse:
     Time Semantics:
         UTC 跨进程比较，响应含 checked_at；每秒轮询由全局登录布局发起。
     """
-    raise NotImplementedError
+    heartbeat = context.service.heartbeat(_request(context))
+    return WorkerStatusResponse(
+        online=heartbeat_online(heartbeat, now=context.account.now),
+        instance_id=None if heartbeat is None else heartbeat.instance_id,
+        pid=None if heartbeat is None else heartbeat.pid,
+        started_at=None if heartbeat is None else heartbeat.started_at,
+        last_seen_at=None if heartbeat is None else heartbeat.last_seen_at,
+        checked_at=context.account.now,
+    )
+
+
+def _request(context: JobApiContext) -> JobRequest:
+    """复用已认证身份、请求唯一时刻与服务器审计来源，不另读cookie或时钟。"""
+    account = context.account
+    return JobRequest(identity(account), account.now, account.audit)
+
+
+def _response(record: JobRecord) -> JobResponse:
+    """在HTTP边界将64位编号转换文本，领域保持整数，不另造结果或摘要。"""
+    data = asdict(record)
+    data["job_id"] = str(record.job_id)
+    data["resubmitted_from"] = (
+        None if record.resubmitted_from is None else str(record.resubmitted_from)
+    )
+    data["submitted_by"] = {
+        "account_id": str(record.submitted_by.account_id),
+        "name": record.submitted_by.name,
+        "deleted": record.submitter_deleted,
+    }
+    for field in ("submitter_deleted", "artifacts", "tool_exit_code"):
+        data.pop(field)
+    return JobResponse.model_validate(data)
+
+
+def _identifier(value: str) -> int:
+    """先匹配规范文本再转整数，不接受前导零或浏览器已损失精度的浮点数。"""
+    if re.fullmatch(r"[1-9][0-9]{0,18}", value) is None or int(value) > MAX_SQLITE_INTEGER:
+        raise JobInputError(invalid_field("job_id", "1至2^63-1的规范十进制文本").diagnostics)
+    return int(value)
+
+
+def _unavailable() -> ExternalError:
+    """未装配数据库/状态布局是依赖不可用，不伪装成空队列或worker离线。"""
+    return ExternalError(
+        (
+            Diagnostic(
+                level=DiagnosticLevel.ERROR,
+                category=DiagnosticCategory.EXTERNAL,
+                stage="作业接口",
+                source="平台",
+                objects=(),
+                rule="作业服务必须完成入口装配",
+                actual="作业服务尚未配置",
+                expected="配置数据库、状态路径与类型登记",
+                consequence="本次作业请求不能执行",
+                next_step="检查Web入口的作业服务配置",
+            ),
+        )
+    )

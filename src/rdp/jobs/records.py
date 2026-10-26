@@ -5,15 +5,28 @@ SQLAlchemy 负责有条件 UPDATE 和事务；不复制队列库，ADR 0005 已�
 数据库错误经现有 translate_database_error 分类；本层补对象上下文，不记录运行日志。
 """
 
-from dataclasses import dataclass
+import json
+from copy import deepcopy
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from pathlib import Path, PurePosixPath
+from typing import Any, cast
 
+from sqlalchemy import CursorResult, select, text, update
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from rdp.infra.actors import ActorRef
+from rdp.infra.actors import ActorRef, is_display_name
+from rdp.infra.diagnostics import ConflictError, DefectError, DiagnosticCategory
+from rdp.infra.ids import MAX_SQLITE_INTEGER
 from rdp.infra.state import StatePaths
-from rdp.jobs.registry import JobDefinition
-from rdp.jobs.types import ExecutionSnapshot, JobRecord, JobState, WorkerHeartbeat
+from rdp.jobs import _storage, _views
+from rdp.jobs.errors import JobNotFoundError
+from rdp.jobs.models import JobRow, WorkerHeartbeatRow
+from rdp.jobs.outcome import calculate_outcome
+from rdp.jobs.policy import JOB_DISPLAY_NAME_MAX_CHARS, JOB_PARAMETERS_MAX_BYTES
+from rdp.jobs.registry import JobDefinition, JobRegistry
+from rdp.jobs.types import ExecutionSnapshot, JobRecord, JobState, JobSummary, WorkerHeartbeat
 
 
 @dataclass(frozen=True)
@@ -77,7 +90,37 @@ def insert_job(session: Session, command: NewJob) -> JobRecord:
     Time Semantics:
         使用 command.now，不另读时钟；写锁已经取得，不增加等待或重试。
     """
-    raise NotImplementedError
+    _validate_new_job(command)
+    with _storage.operation(session, write=True):
+        # 写事务已经持有排他写锁；先区分序列耗尽与真正的磁盘满，不能将所有SQLITE_FULL改为冲突。
+        sequence = session.scalar(text("SELECT seq FROM sqlite_sequence WHERE name='jobs'"))
+        if sequence is not None and sequence >= MAX_SQLITE_INTEGER:
+            raise ConflictError(
+                (
+                    _storage.diagnostic(
+                        MAX_SQLITE_INTEGER,
+                        "作业编号已耗尽，历史编号不能复用",
+                        DiagnosticCategory.CONFLICT,
+                    ),
+                )
+            )
+        row = JobRow(
+            type_name=command.definition.type_name,
+            display_name=command.definition.display_name,
+            parameters=deepcopy(command.parameters),
+            submitter_id=command.actor.account_id,
+            submitter_name=command.actor.name,
+            submitted_at=_storage.moment(command.now),
+            resubmitted_from=command.resubmitted_from,
+            state=JobState.QUEUED.value,
+            recovery_mode=command.definition.recovery_mode.value,
+            recovery_count=0,
+            artifacts=[],
+            diagnostics=[],
+        )
+        session.add(row)
+        session.flush()
+        return _views.record(row)
 
 
 def transition_job(session: Session, job_id: int, change: StateChange) -> JobRecord:
@@ -112,7 +155,32 @@ def transition_job(session: Session, job_id: int, change: StateChange) -> JobRec
         UTC 墙钟允许回拨，不修改首次开始时间；耗时取已经保存的 monotonic 片段。
         由外层普通 session_scope 提供 BUSY_TIMEOUT_MS 预算，不自动重试或重新读取后换边。
     """
-    raise NotImplementedError
+    job_id = _storage.identifier(job_id, internal=True)
+    _validate_change(change)
+    now = _storage.moment(change.now)
+    with _storage.operation(session, write=True):
+        row = session.get(JobRow, job_id)
+        if row is None:
+            raise JobNotFoundError(
+                (_storage.diagnostic(job_id, "作业记录不存在", DiagnosticCategory.INPUT),)
+            )
+        _views.record(row)
+        if row.state != change.expected.value:
+            failure = _state_conflict(job_id)
+            raise failure
+        values = _transition_values(row, change, now)
+        changed = session.execute(
+            update(JobRow)
+            .where(JobRow.job_id == job_id, JobRow.state == change.expected.value)
+            .values(**values)
+            .execution_options(synchronize_session=False)
+        )
+        if cast(CursorResult[Any], changed).rowcount != 1:
+            failure = _state_conflict(job_id)
+            raise failure
+        session.flush()
+        session.expire(row)
+        return _views.record(row)
 
 
 def find_job(session: Session, job_id: int) -> JobRecord:
@@ -139,7 +207,14 @@ def find_job(session: Session, job_id: int) -> JobRecord:
     Time Semantics:
         只返回事务快照中的 UTC 时刻，不查当前时钟或等待未来作业。
     """
-    raise NotImplementedError
+    job_id = _storage.identifier(job_id)
+    with _storage.operation(session):
+        row = session.get(JobRow, job_id)
+        if row is None:
+            raise JobNotFoundError(
+                (_storage.diagnostic(job_id, "作业记录不存在", DiagnosticCategory.INPUT),)
+            )
+        return _views.record(row)
 
 
 def next_queued_job(session: Session) -> JobRecord | None:
@@ -164,7 +239,16 @@ def next_queued_job(session: Session) -> JobRecord | None:
     Time Semantics:
         恢复队列处理完才调用；快照只反映选择瞬间，随后可能被Web取消，claim_job必须比较更新。
     """
-    raise NotImplementedError
+    with _storage.operation(session):
+        if session.info["rdp_read_only"] is not True:
+            raise DefectError()
+        row = session.scalars(
+            select(JobRow)
+            .where(JobRow.state == JobState.QUEUED.value)
+            .order_by(JobRow.job_id)
+            .limit(1)
+        ).first()
+        return None if row is None else _views.record(row)
 
 
 def claim_job(session: Session, job_id: int, *, now: datetime, paths: StatePaths) -> JobRecord:
@@ -196,7 +280,17 @@ def claim_job(session: Session, job_id: int, *, now: datetime, paths: StatePaths
     Time Semantics:
         同一轮至多领取WORKER_CONCURRENCY个；竞争失败等下一轮，不在事务里休眠或自动重试。
     """
-    raise NotImplementedError
+    job_id = _storage.identifier(job_id, internal=True)
+    now = _storage.moment(now)
+    with _storage.operation(session, write=True):
+        current = find_job(session, job_id)
+        if current.state is not JobState.QUEUED:
+            failure = _state_conflict(job_id)
+            raise failure
+        relative = _claim_log_path(session, current, paths, now)
+        return transition_job(
+            session, job_id, StateChange(JobState.QUEUED, JobState.RUNNING, now, log_path=relative)
+        )
 
 
 def save_progress(
@@ -230,7 +324,38 @@ def save_progress(
         节流由ProgressReporter以monotonic完成；作业结束时允许一次不受节流限制的最终写入，
         与transition_job共用普通事务；崩溃后只累加已保存耗时片段，不计算停机等待时长。
     """
-    raise NotImplementedError
+    job_id = _storage.identifier(job_id, internal=True)
+    now = _storage.moment(now)
+    checked, values = _views.snapshot_data(snapshot)
+    with _storage.operation(session, write=True):
+        current = find_job(session, job_id)
+        if current.state not in {JobState.RUNNING, JobState.CANCELLING}:
+            failure = _state_conflict(job_id)
+            raise failure
+        if checked.progress is None and current.progress is not None:
+            raise DefectError()
+        progress = checked.progress
+        updates = values | {
+            "total_items": 0 if progress is None else progress.total_items,
+            "failed_items": 0 if progress is None else progress.failed_items,
+            "warning_count": 0 if progress is None else progress.warning_count,
+        }
+        if progress is not None:
+            updates["progress_at"] = now
+        result = session.execute(
+            update(JobRow)
+            .where(
+                JobRow.job_id == job_id,
+                JobRow.state.in_((JobState.RUNNING.value, JobState.CANCELLING.value)),
+            )
+            .values(**updates)
+            .execution_options(synchronize_session=False)
+        )
+        if cast(CursorResult[Any], result).rowcount != 1:
+            failure = _state_conflict(job_id)
+            raise failure
+        session.flush()
+        session.expire_all()
 
 
 def save_heartbeat(session: Session, heartbeat: WorkerHeartbeat) -> None:
@@ -255,4 +380,188 @@ def save_heartbeat(session: Session, heartbeat: WorkerHeartbeat) -> None:
     Time Semantics:
         now/started_at 均为 UTC 墙钟；写入节奏由 worker 的 monotonic 每 5 秒驱动。
     """
-    raise NotImplementedError
+    checked = _storage.heartbeat(heartbeat)
+    values = asdict(checked)
+    with _storage.operation(session, write=True):
+        statement = sqlite_insert(WorkerHeartbeatRow).values(singleton_id=1, **values)
+        session.execute(
+            statement.on_conflict_do_update(
+                index_elements=[WorkerHeartbeatRow.singleton_id], set_=values
+            )
+        )
+        session.flush()
+        session.expire_all()
+
+
+# 工单08仅允许六条边；其他入口不得自行赋state，恢复续跑/重跑也不新增自转换。
+_ALLOWED_TRANSITIONS = frozenset(
+    {
+        (JobState.QUEUED, JobState.RUNNING),
+        (JobState.QUEUED, JobState.CANCELLED),
+        (JobState.RUNNING, JobState.COMPLETED),
+        (JobState.RUNNING, JobState.CANCELLING),
+        (JobState.CANCELLING, JobState.CANCELLED),
+        (JobState.RUNNING, JobState.INTERRUPTED),
+    }
+)
+_TERMINAL_STATES = frozenset({JobState.COMPLETED, JobState.CANCELLED, JobState.INTERRUPTED})
+
+
+def _validate_change(change: StateChange) -> None:
+    """先验证调用意图再读库，非法边和伪造路径不能退化为数据库约束冲突。"""
+    if not isinstance(cast(object, change), StateChange):
+        raise DefectError()
+    if not isinstance(cast(object, change.expected), JobState) or not isinstance(
+        cast(object, change.target), JobState
+    ):
+        raise DefectError()
+    if (change.expected, change.target) not in _ALLOWED_TRANSITIONS:
+        raise DefectError()
+    if type(change.aborted) is not bool or (
+        change.aborted and change.target is not JobState.COMPLETED
+    ):
+        raise DefectError()
+    if change.target is JobState.RUNNING:
+        _validate_relative_log(change.log_path)
+    elif change.log_path is not None:
+        raise DefectError()
+
+
+def _validate_relative_log(value: object) -> None:
+    """领取只能预留logs下一个类型目录的文件，不能由状态更新带入绝对/越界路径。"""
+    if not isinstance(value, str) or "\x00" in value or "\\" in value:
+        raise DefectError()
+    path = PurePosixPath(value)
+    if (
+        str(path) != value
+        or path.is_absolute()
+        or len(path.parts) != 3
+        or path.parts[0] != "logs"
+        or ".." in path.parts
+        or path.suffix != ".log"
+    ):
+        raise DefectError()
+
+
+def _state_conflict(job_id: int) -> ConflictError:
+    """竞争只说明已确认编号的状态变化，不泄漏参数或操作者的秘密字段。"""
+    return ConflictError(
+        (_storage.diagnostic(job_id, "作业状态已变化", DiagnosticCategory.CONFLICT),)
+    )
+
+
+def _transition_values(row: JobRow, change: StateChange, now: datetime) -> dict[str, object]:
+    """为唯一状态写入函数算更新值；此函数不执行SQL或改变ORM状态。"""
+    values: dict[str, object] = {"state": change.target.value}
+    if change.target is JobState.RUNNING:
+        values.update(started_at=now, log_path=change.log_path)
+    elif change.target in _TERMINAL_STATES:
+        current = _views.record(row)
+        outcome = None
+        if change.target is JobState.COMPLETED:
+            try:
+                outcome = calculate_outcome(
+                    total_items=row.total_items,
+                    failed_items=row.failed_items,
+                    warning_count=row.warning_count,
+                    aborted=change.aborted,
+                )
+            except ValueError:
+                raise DefectError() from None
+        summary = JobSummary(
+            state=change.target,
+            outcome=outcome,
+            progress=current.progress,
+            total_items=row.total_items,
+            failed_items=row.failed_items,
+            warning_count=row.warning_count,
+            aborted=change.aborted,
+            elapsed_s=row.elapsed_s,
+            artifacts=current.artifacts,
+            tool_exit_code=row.tool_exit_code,
+        )
+        values.update(
+            ended_at=now,
+            outcome=outcome,
+            aborted=change.aborted,
+            summary=_views.summary_data(summary),
+        )
+    return values
+
+
+def _claim_log_path(session: Session, record: JobRecord, paths: StatePaths, now: datetime) -> str:
+    """在领取写锁中避让已登记及既有文件；只读路径，绝不在事务内创建或覆盖日志。"""
+    if (
+        not isinstance(cast(object, paths), StatePaths)
+        or not paths.root.is_absolute()
+        or paths.logs != paths.root / "logs"
+    ):
+        raise DefectError()
+    if (
+        Path(session.get_bind().engine.url.database or "") != paths.database
+        or paths.logs.is_symlink()
+    ):
+        raise DefectError()
+    name = record.display_name
+    if (
+        not is_display_name(name)
+        or len(name) > JOB_DISPLAY_NAME_MAX_CHARS
+        or "/" in name
+        or "\\" in name
+        or name in {".", ".."}
+    ):
+        raise DefectError()
+    directory = paths.logs / name
+    if directory.is_symlink():
+        raise DefectError()
+    # isoformat补齐小年份，毫秒向下截断；now已规范化UTC，去掉固定+00:00后缀。
+    timestamp = (
+        now.isoformat(timespec="milliseconds")[:-6]
+        .replace("T", "_")
+        .replace(":", "")
+        .replace(".", "_")
+    )
+    base = f"logs/{name}/{timestamp}"
+    for candidate in (base + ".log", base + f"_{record.job_id}.log"):
+        reserved = session.scalar(
+            select(JobRow.job_id).where(JobRow.log_path == candidate).limit(1)
+        )
+        if reserved is None and not _path_exists(paths.root / candidate):
+            return candidate
+    raise DefectError()
+
+
+def _path_exists(path: Path) -> bool:
+    """lstat把悬空软链接也算占用，避免exists把它误当可用路径；其他I/O故障交外层分类。"""
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        return False
+    return True
+
+
+def _validate_new_job(command: NewJob) -> None:
+    """写入前防止内部命令绕过模型或携带秘密字段；只验证有界参数，不执行作业或补写默认值。"""
+    if not isinstance(cast(object, command), NewJob) or not isinstance(
+        cast(object, command.actor), ActorRef
+    ):
+        raise DefectError()
+    _storage.identifier(command.actor.account_id, internal=True)
+    if not is_display_name(command.actor.name):
+        raise DefectError()
+    if command.resubmitted_from is not None:
+        _storage.identifier(command.resubmitted_from, internal=True)
+    registry = JobRegistry()
+    registry.register(command.definition)
+    try:
+        if not isinstance(cast(object, command.parameters), dict):
+            raise DefectError()
+        if (
+            len(json.dumps(command.parameters, ensure_ascii=False, allow_nan=False).encode())
+            > JOB_PARAMETERS_MAX_BYTES
+        ):
+            raise DefectError()
+        # 只检查兼容性；重新提交必须保留原JSON，不能把新模型默认值偷偷写入旧参数副本。
+        command.definition.parameters_model.model_validate(command.parameters)
+    except Exception:
+        raise DefectError() from None

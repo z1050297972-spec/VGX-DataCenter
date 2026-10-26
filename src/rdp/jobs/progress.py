@@ -6,15 +6,41 @@
 
 from __future__ import annotations
 
+import math
 from _thread import LockType
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
-from threading import Event, Thread
+from threading import Event, Lock, Thread
+from typing import cast
 
+from pydantic import ValidationError
 from sqlalchemy import Engine
 
-from rdp.infra.diagnostics import Diagnostic
+from rdp.infra.db.connection import session_scope_with_lock_timeout
+from rdp.infra.diagnostics import (
+    ConflictError,
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    ExternalError,
+    InputError,
+)
+from rdp.jobs import _diagnostics, _storage, _views
+from rdp.jobs.errors import JobCancelledError, WorkerStoppingError
 from rdp.jobs.logs import JobLog
-from rdp.jobs.types import ExecutionSnapshot, JobClock, JobProgress, JobRecord
+from rdp.jobs.policy import (
+    COUNT_MAX_INTERVAL_MS,
+    JOB_ARTIFACT_LIMIT,
+    JOB_ARTIFACT_MAX_CHARS,
+    OUTPUT_JOIN_TIMEOUT_S,
+    PROCESS_POLL_INTERVAL_S,
+    PROGRESS_INTERVAL_S,
+    PROGRESS_LOCK_TIMEOUT_MS,
+    WORKER_OWNED_THREAD_LIMIT,
+)
+from rdp.jobs.records import save_progress
+from rdp.jobs.types import ExecutionSnapshot, JobClock, JobProgress, JobRecord, JobState
 
 
 @dataclass
@@ -82,7 +108,24 @@ class ProgressReporter:
         Time Semantics:
             从构造时 monotonic 开始本片段计时；不把 started_at 与单调时钟相减。
         """
-        raise NotImplementedError
+        if record.state is not JobState.RUNNING or not engine.get_execution_options().get(
+            "rdp_managed"
+        ):
+            raise DefectError()
+        self._engine, self._record, self._log = engine, record, log
+        self._clock, self._signals = clock, signals
+        self._lock = Lock()
+        self._last_read: float | None = None
+        self._started = self._monotonic()
+        _storage.moment(clock.now())
+        self._last_attempt: float | None = None
+        self._revision = 0
+        self._saved_revision = 0
+        self._progress = record.progress
+        self._diagnostics = {(group.source, group.rule): group for group in record.diagnostics}
+        self._artifacts = list(record.artifacts)
+        self._tool_exit_code = record.tool_exit_code
+        _views.snapshot_data(self.snapshot())
 
     def report(self, progress: JobProgress) -> None:
         """保留最新完整进度，并按一秒预算尝试短事务写入。
@@ -113,7 +156,24 @@ class ProgressReporter:
             连续跳过n次短锁则另加n*PROGRESS_INTERVAL_S，持续锁忙没有有限持久化延迟保证。
             最终写入由执行器正常锁事务独立保证。
         """
-        raise NotImplementedError
+        try:
+            checked = JobProgress.model_validate(progress.model_dump())
+        except (AttributeError, ValidationError):
+            raise DefectError() from None
+        with self._guard():
+            previous = self._progress
+            _validate_advance(previous, checked)
+            self._progress = checked
+            self._revision += 1
+        if previous is None or (previous.stage_index, previous.stage_name) != (
+            checked.stage_index,
+            checked.stage_name,
+        ):
+            self._log.write_line(
+                f"阶段 {checked.stage_index}/{checked.stage_count} · {checked.stage_name}",
+                now=self._clock.now(),
+            )
+        self.flush_due()
 
     def diagnostic(self, diagnostic: Diagnostic) -> None:
         """记录诊断原文并保留有界样例和完整总数。
@@ -135,7 +195,17 @@ class ProgressReporter:
         Time Semantics:
             样例按到达顺序，不按回拨墙钟重新排序；日志锁有 OUTPUT_JOIN_TIMEOUT_S 预算。
         """
-        raise NotImplementedError
+        try:
+            checked = Diagnostic.model_validate(diagnostic.model_dump())
+        except (AttributeError, ValidationError):
+            raise DefectError() from None
+        if any(
+            item.key == "job_id" and item.value != str(self._record.job_id)
+            for item in checked.objects
+        ):
+            raise DefectError()
+        self._retain_diagnostic(checked)
+        self._log.write_diagnostic(checked, now=self._clock.now())
 
     def next_flush_deadline(self) -> float | None:
         """取得待保存进度的下次单调补写截止。
@@ -157,7 +227,11 @@ class ProgressReporter:
             wait和外部进程等待取此截止与信号检查截止的较早者；长计算执行函数同样须在此截止前
             到达检查点，不能仅依赖两次调用间隔不超过一秒而跨过已知补写截止。
         """
-        raise NotImplementedError
+        with self._guard():
+            now = self._monotonic()
+            if self._revision == self._saved_revision:
+                return None
+            return now if self._last_attempt is None else self._last_attempt + PROGRESS_INTERVAL_S
 
     def flush_due(self) -> None:
         """把到期的脏快照补写一次，供报告、检查点和等待轮询共用。
@@ -182,7 +256,31 @@ class ProgressReporter:
             只用monotonic节流，每次尝试起点间至少PROGRESS_INTERVAL_S；无后续report也会在
             检查点、wait或外部进程轮询到截止时补写。延迟为1秒目标加获锁/I/O/调度，以及连续跳过次数乘1秒。
         """
-        raise NotImplementedError
+        with self._guard():
+            now = self._monotonic()
+            if self._revision == self._saved_revision or (
+                self._last_attempt is not None and now < self._last_attempt + PROGRESS_INTERVAL_S
+            ):
+                return
+            self._last_attempt = now
+            revision = self._revision
+            snapshot = self._snapshot(now)
+        entered = False
+        try:
+            with session_scope_with_lock_timeout(
+                self._engine, busy_timeout_ms=PROGRESS_LOCK_TIMEOUT_MS
+            ) as session:
+                entered = True
+                save_progress(
+                    session, self._record.job_id, snapshot, now=_storage.moment(self._clock.now())
+                )
+        except ConflictError as error:
+            if not entered and _storage.entry_busy(error):
+                return
+            raise
+        with self._guard():
+            # 保存期间其他线程新增的诊断/产物仍是脏值，不能清掉最新版本。
+            self._saved_revision = revision
 
     def check_cancelled(self) -> None:
         """补写到期进度并检查取消或停止，阻止继续处理新条目。
@@ -209,7 +307,36 @@ class ProgressReporter:
             阶段前后、每步完成后调用；脏值存在时必须在next_flush_deadline前进入检查点，
             其他计算段检查间隔至多JOB_CHECKPOINT_MAX_S。一次短锁可另占100毫秒，不无限等待补写成功。
         """
-        raise NotImplementedError
+        cancelled, stopping = self._signals.cancelled.is_set(), self._signals.stopping.is_set()
+        try:
+            self.flush_due()
+        except (InputError, ConflictError, ExternalError, DefectError) as error:
+            if not (
+                cancelled
+                or stopping
+                or self._signals.cancelled.is_set()
+                or self._signals.stopping.is_set()
+            ):
+                raise
+            # 不把停止控制信号换成存储故障；诊断留在快照供最终收尾保存。
+            for diagnostic in error.diagnostics:
+                self._retain_diagnostic(diagnostic)
+        if cancelled or self._signals.cancelled.is_set():
+            raise JobCancelledError(
+                (
+                    _storage.diagnostic(
+                        self._record.job_id, "作业收到取消请求", DiagnosticCategory.CONFLICT
+                    ),
+                )
+            )
+        if stopping or self._signals.stopping.is_set():
+            raise WorkerStoppingError(
+                (
+                    _storage.diagnostic(
+                        self._record.job_id, "worker正在停止", DiagnosticCategory.CONFLICT
+                    ),
+                )
+            )
 
     def wait(self, interval_s: float) -> None:
         """等待可由取消打断、并持续补写脏进度的单调时长。
@@ -237,7 +364,25 @@ class ProgressReporter:
             无锁竞争约1秒内补写，另计至多100毫秒获锁及I/O/调度；每次连续短锁跳过另加1秒。
             信号响应至多PROCESS_POLL_INTERVAL_S加已在途的短锁预算，墙钟回拨不影响截止。
         """
-        raise NotImplementedError
+        if (
+            type(interval_s) not in {int, float}
+            or not math.isfinite(interval_s)
+            or not 0 <= interval_s <= COUNT_MAX_INTERVAL_MS / 1000
+        ):
+            raise DefectError()
+        with self._guard():
+            deadline = self._monotonic() + interval_s
+        while True:
+            self.check_cancelled()
+            with self._guard():
+                now = self._monotonic()
+            if now >= deadline:
+                return
+            flush = self.next_flush_deadline()
+            wake = min(
+                deadline, now + PROCESS_POLL_INTERVAL_S, flush if flush is not None else deadline
+            )
+            self._signals.cancelled.wait(max(0, wake - now))
 
     def track_output_thread(self, thread: Thread) -> None:
         """在启动前登记一个daemon输出线程，供停止边界核验存活资源。
@@ -257,7 +402,31 @@ class ProgressReporter:
         Time Semantics:
             必须先登记再start；监视锁最多OUTPUT_JOIN_TIMEOUT_S，禁止持锁join，失败不启动输入线程。
         """
-        raise NotImplementedError
+        monitor = self._signals.monitor
+        if not thread.daemon or thread.ident is not None:
+            raise DefectError()
+        if not monitor.lock.acquire(timeout=OUTPUT_JOIN_TIMEOUT_S):
+            raise DefectError()
+        try:
+            if thread in monitor.threads:
+                raise DefectError()
+            finished = [
+                item for item in monitor.threads if item.ident is not None and not item.is_alive()
+            ]
+        finally:
+            monitor.lock.release()
+        # join只能在锁外；已结束线程用零等待确认回收，避免主循环等待同一锁。
+        for item in finished:
+            item.join(timeout=0)
+        if not monitor.lock.acquire(timeout=OUTPUT_JOIN_TIMEOUT_S):
+            raise DefectError()
+        try:
+            monitor.threads[:] = [item for item in monitor.threads if item not in finished]
+            if thread in monitor.threads or len(monitor.threads) >= WORKER_OWNED_THREAD_LIMIT:
+                raise DefectError()
+            monitor.threads.append(thread)
+        finally:
+            monitor.lock.release()
 
     def artifact(self, location: str) -> None:
         """保留一个产物位置供最后摘要使用，不检查或修改产物。
@@ -277,7 +446,19 @@ class ProgressReporter:
         Time Semantics:
             同步有界插入，无时钟和等待。
         """
-        raise NotImplementedError
+        if (
+            not isinstance(cast(object, location), str)
+            or not location.strip()
+            or len(location) > JOB_ARTIFACT_MAX_CHARS
+        ):
+            raise DefectError()
+        with self._guard():
+            if location in self._artifacts:
+                return
+            if len(self._artifacts) >= JOB_ARTIFACT_LIMIT:
+                raise DefectError()
+            self._artifacts.append(location)
+            self._revision += 1
 
     def tool_exit(self, returncode: int) -> None:
         """保存最近一次外部进程的真实退出码。
@@ -297,7 +478,11 @@ class ProgressReporter:
         Time Semantics:
             进程 wait/reap 完成后调用，不读取墙钟。
         """
-        raise NotImplementedError
+        if type(returncode) is not int:
+            raise DefectError()
+        with self._guard():
+            self._tool_exit_code = returncode
+            self._revision += 1
 
     def snapshot(self) -> ExecutionSnapshot:
         """冻结最新值供最终普通事务及中断诊断使用。
@@ -317,4 +502,65 @@ class ProgressReporter:
         Time Semantics:
             本次 elapsed_s 用 monotonic 计算；内存锁预算 OUTPUT_JOIN_TIMEOUT_S，超时归 DefectError。
         """
-        raise NotImplementedError
+        with self._guard():
+            return self._snapshot(self._monotonic())
+
+    @contextmanager
+    def _guard(self) -> Generator[None]:
+        """所有内存字段共享有限写锁，不在锁内做数据库或文件I/O。"""
+        if not self._lock.acquire(timeout=OUTPUT_JOIN_TIMEOUT_S):
+            raise DefectError()
+        try:
+            yield
+        finally:
+            self._lock.release()
+
+    def _monotonic(self) -> float:
+        """验证注入时钟有限且不回退；调用者持内存锁，构造阶段没有并发。"""
+        value = self._clock.monotonic()
+        if (
+            type(value) not in {int, float}
+            or not math.isfinite(value)
+            or (self._last_read is not None and value < self._last_read)
+        ):
+            raise DefectError()
+        self._last_read = value
+        return value
+
+    def _snapshot(self, now: float) -> ExecutionSnapshot:
+        """一次锁内冻结全部最新字段；保存过的片段只加一次，不把离线时间计入。"""
+        snapshot = ExecutionSnapshot(
+            self._progress,
+            tuple(self._diagnostics.values()),
+            tuple(self._artifacts),
+            self._tool_exit_code,
+            self._record.elapsed_s + now - self._started,
+        )
+        checked, _ = _views.snapshot_data(snapshot)
+        return checked
+
+    def _retain_diagnostic(self, diagnostic: Diagnostic) -> None:
+        """只聚合有界样例，原始来源/规则不为溢出分组而改写。"""
+        with self._guard():
+            groups = _diagnostics.append(tuple(self._diagnostics.values()), diagnostic)
+            self._diagnostics = {(group.source, group.rule): group for group in groups}
+            self._revision += 1
+
+
+def _validate_advance(previous: JobProgress | None, current: JobProgress) -> None:
+    """续跑基线和普通上报共用累计校验；只有阶段向前时done可以从零开始。"""
+    if previous is None:
+        return
+    if current.stage_index < previous.stage_index:
+        raise DefectError()
+    if current.stage_index == previous.stage_index and current.done < previous.done:
+        raise DefectError()
+    if any(
+        new < old
+        for new, old in (
+            (current.total_items, previous.total_items),
+            (current.failed_items, previous.failed_items),
+            (current.warning_count, previous.warning_count),
+        )
+    ):
+        raise DefectError()

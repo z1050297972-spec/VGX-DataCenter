@@ -3,6 +3,7 @@
 import type { ReactElement } from "react";
 import { Card, Button, Collapse } from "antd";
 import { useState, useEffect } from "react";
+import type { components } from "./api/schema";
 import type { ProblemResponse, RequestFailureView } from "./api/problems";
 
 // 类别中文名与后端 DiagnosticCategory 的显示约定一致，统一用于诊断标题。
@@ -70,41 +71,7 @@ export function DiagnosticCard(props: DiagnosticCardProps): ReactElement {
   return (
     <div role="alert">
       <div>错误编号：{problem.error_id}</div>
-      {problem.diagnostics.map((d, index) => (
-        <Card key={index}>
-          <div>
-            {d.level === "error" ? "错误" : "警告"} · {CATEGORY_LABELS[d.category]} · {d.stage} ·
-            来源：{d.source}
-          </div>
-          <div>
-            对象：{d.objects.map((item) => item.key + "=" + item.value).join(" ") || "全局"}
-          </div>
-          <div>规则：{d.rule}</div>
-          <div>
-            实际：{d.actual}
-            {d.expected != null ? "；期望：" + d.expected : ""}
-          </div>
-          <div>后果：{d.consequence}</div>
-          <div>检查：{d.next_step}</div>
-          {!!d.error_chain.length && (
-            <Collapse
-              items={[
-                {
-                  key: "chain",
-                  label: `错误链（${String(d.error_chain.length)} 层）`,
-                  children: (
-                    <ol>
-                      {d.error_chain.map((layer, i) => (
-                        <li key={i}>{layer}</li>
-                      ))}
-                    </ol>
-                  ),
-                },
-              ]}
-            />
-          )}
-        </Card>
-      ))}
+      <DiagnosticEntries diagnostics={problem.diagnostics} />
     </div>
   );
 }
@@ -167,5 +134,94 @@ function DefectCard({
       </Button>
       {open && <pre>{loadDetails ? details : "请按错误编号在运行日志中查询完整报错。"}</pre>}
     </Card>
+  );
+}
+
+interface DiagnosticEntriesProps {
+  /** 已校验的统一诊断样例，全部字段沿用生成类型；原始总数由外层单独显示。 */
+  diagnostics: ProblemResponse["diagnostics"];
+}
+/**
+ * 共用请求与作业的五段诊断展示，不为作业伪造HTTP错误编号。
+ * @param props - 生成类型的诊断样例；调用方对程序缺陷只展示安全摘要。
+ * @returns 每条诊断的级别、来源、对象、规则、实际、后果、下一步及可折叠错误链。
+ * @throws 无。
+ * @sideEffects 只渲染React文本和折叠项，不发请求、不改诊断对象。
+ * @timeSemantics 同步渲染，无等待或计时。
+ */
+export function DiagnosticEntries(props: DiagnosticEntriesProps): ReactElement {
+  return (
+    <>
+      {props.diagnostics.map((d, index) => (
+        <Card key={index}>
+          <div>
+            {d.level === "error" ? "错误" : "警告"} · {CATEGORY_LABELS[d.category]} · {d.stage} ·
+            来源：{d.source}
+          </div>
+          <div>
+            对象：{d.objects.map((item) => item.key + "=" + item.value).join(" ") || "全局"}
+          </div>
+          <div>规则：{d.rule}</div>
+          <div>
+            实际：{d.actual}
+            {d.expected != null ? "；期望：" + d.expected : ""}
+          </div>
+          <div>后果：{d.consequence}</div>
+          <div>检查：{d.next_step}</div>
+          {!!d.error_chain.length && (
+            <Collapse
+              items={[
+                {
+                  key: "chain",
+                  label: `错误链（${String(d.error_chain.length)} 层）`,
+                  children: (
+                    <ol>
+                      {d.error_chain.map((layer, i) => (
+                        <li key={i}>{layer}</li>
+                      ))}
+                    </ol>
+                  ),
+                },
+              ]}
+            />
+          )}
+        </Card>
+      ))}
+    </>
+  );
+}
+
+interface JobDiagnosticCardProps {
+  /** 永久作业编号及诊断聚合，沿用生成的作业响应类型；不要求HTTP错误编号。 */
+  job: Pick<components["schemas"]["JobResponse"], "job_id" | "diagnostics">;
+}
+/**
+ * 展示作业聚合诊断，共用请求诊断的五段渲染并隔离程序缺陷细节。
+ * @param props - 作业身份、完整总数和有界样例；全部来自生成类型。
+ * @returns 各组总数、样例卡片；程序缺陷显示固定说明和作业编号，不暴露内部诊断。
+ * @throws 无。
+ * @sideEffects 只渲染文本，不生成HTTP问题响应，不伪造请求错误编号。
+ * @timeSemantics 同步展示，无请求、等待或轮询。
+ */
+export function JobDiagnosticCard(props: JobDiagnosticCardProps): ReactElement {
+  return (
+    <>
+      {props.job.diagnostics.map((group) => (
+        <section key={JSON.stringify([group.source, group.rule])}>
+          <div>
+            {group.rule} · 共 {group.total} 条（展示 {group.samples.length} 条）
+          </div>
+          {group.samples.some((item) => item.category === "defect") && (
+            <Card role="alert">
+              <div>作业发生程序缺陷，请按作业编号查看日志。</div>
+              <div>作业编号：{props.job.job_id}</div>
+            </Card>
+          )}
+          <DiagnosticEntries
+            diagnostics={group.samples.filter((item) => item.category !== "defect")}
+          />
+        </section>
+      ))}
+    </>
   );
 }

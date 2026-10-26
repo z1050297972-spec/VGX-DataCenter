@@ -72,6 +72,7 @@ from rdp.audit.types import (
 from rdp.infra.actors import OPS_ACTOR
 from rdp.infra.db.connection import session_scope, session_scope_with_lock_timeout
 from rdp.infra.diagnostics import ConflictError, DefectError, InputError
+from rdp.infra.timeutil import ensure_utc
 
 
 class AccountService:
@@ -1243,6 +1244,7 @@ def existing_account_ids(session: Session, identifiers: frozenset[int]) -> froze
         )
 
 
+@protect
 def authorize_job_actor(session: Session, identity: SessionIdentity, *, now: datetime) -> ActorRef:
     """在作业业务事务内重验登录身份并返回当前操作者快照。
 
@@ -1270,4 +1272,10 @@ def authorize_job_actor(session: Session, identity: SessionIdentity, *, now: dat
         使用调用者唯一请求时刻，空闲过期沿用第6张规则，回拨按经过零处理；
         事务已取得锁，无额外申请、重试或口令计算。
     """
-    raise NotImplementedError
+    try:
+        moment = ensure_utc(now)
+    except (AttributeError, TypeError, ValueError, OverflowError):
+        raise DefectError() from None
+    with audit_storage(session):
+        account = sessions.authorize(session, identity, moment)
+        return ActorRef(account.account_id, account.display_name)

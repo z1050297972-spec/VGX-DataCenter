@@ -1,5 +1,7 @@
 // 作业 HTTP 契约（08）：沿用账号感知客户端和 defaultFetch，不保存浏览器原生函数为对象方法。
 // 全部接口类型从 OpenAPI 生成；所有写请求由浏览器带同源 Origin，失败交统一诊断。
+import { boundedRequest } from "./_request";
+import { toFailureView } from "./problems";
 import type { AccountCall } from "./accounts";
 import type { components, operations } from "./schema";
 
@@ -42,9 +44,14 @@ export const JOB_CURSOR_MAX_CHARS = 512;
  * @sideEffects 一次同源 GET，经 openapi-fetch 和 boundedRequest；不读 cookie、不存储原生 fetch 的 this。
  * @timeSemantics 最多 JOB_REQUEST_TIMEOUT_MS，无自动重试，取消后丢弃迟到结果。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function listJobs(_input: AccountCall<JobSearch>): Promise<JobList> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.GET("/api/jobs", {
+      params: { query: _input.payload },
+      signal,
+    });
+    return required(response.data);
+  });
 }
 
 /**
@@ -55,9 +62,14 @@ export function listJobs(_input: AccountCall<JobSearch>): Promise<JobList> {
  * @sideEffects 一次只读请求；字段只使用生成类型，不在客户端计算作业结果。
  * @timeSemantics 上限 10 秒，遵守 AbortSignal，无内部轮询。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function getJob(_input: JobCall): Promise<Job> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.GET("/api/jobs/{job_id}", {
+      params: { path: { job_id: _input.jobId } },
+      signal,
+    });
+    return required(response.data);
+  });
 }
 
 /**
@@ -68,9 +80,14 @@ export function getJob(_input: JobCall): Promise<Job> {
  * @sideEffects 同源写请求带 Origin；成功由调用方刷新列表并导航详情，不重发不确定提交。
  * @timeSemantics 请求最多 10 秒，不等待 worker 上线或作业结束，取消请求不保证服务器回滚。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function submitCountJob(_input: AccountCall<CountInput>): Promise<Job> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.POST("/api/jobs/example", {
+      body: _input.payload,
+      signal,
+    });
+    return required(response.data);
+  });
 }
 
 /**
@@ -81,9 +98,14 @@ export function submitCountJob(_input: AccountCall<CountInput>): Promise<Job> {
  * @sideEffects 一次同源 POST，服务端记录当前取消账号；不在客户端乐观伪造已取消。
  * @timeSemantics 最多 10 秒，无自动重试；cancelling 继续轮询直至终态。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function cancelJob(_input: JobCall): Promise<Job> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.POST("/api/jobs/{job_id}/cancel", {
+      params: { path: { job_id: _input.jobId } },
+      signal,
+    });
+    return required(response.data);
+  });
 }
 
 /**
@@ -94,9 +116,14 @@ export function cancelJob(_input: JobCall): Promise<Job> {
  * @sideEffects 一次同源 POST；成功导航到新编号，旧页面记录不改写，不复制旧提交人。
  * @timeSemantics 请求 10 秒上限；不重试，卸载取消并忽略迟到结果。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function resubmitJob(_input: JobCall): Promise<Job> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.POST("/api/jobs/{job_id}/resubmit", {
+      params: { path: { job_id: _input.jobId } },
+      signal,
+    });
+    return required(response.data);
+  });
 }
 
 /**
@@ -107,9 +134,14 @@ export function resubmitJob(_input: JobCall): Promise<Job> {
  * @sideEffects 一次只读请求，不下载整份文件；React 文本渲染输出，不执行工具输出 HTML。
  * @timeSemantics 10 秒上限，无请求内等待；终态详情收到最后一次日志结果后停止轮询。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function getJobLog(_input: JobCall): Promise<JobLog> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.GET("/api/jobs/{job_id}/log", {
+      params: { path: { job_id: _input.jobId } },
+      signal,
+    });
+    return required(response.data);
+  });
 }
 
 /**
@@ -120,7 +152,16 @@ export function getJobLog(_input: JobCall): Promise<JobLog> {
  * @sideEffects 一次 GET，不探测进程号、不使用浏览器墙钟重新判定在线。
  * @timeSemantics 请求最多 10 秒；布局约每秒轮询，阈值 15 秒由服务端计算。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 export function getWorkerStatus(_input: AccountCall): Promise<WorkerStatus> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.GET("/api/worker/status", { signal });
+    return required(response.data);
+  });
+}
+
+// 账号感知传输已经统一失败响应；成功却没有正文不能被页面当成空队列。
+function required<T>(data: T | undefined): T {
+  if (data === undefined || data === null)
+    throw new Error("请求失败", { cause: toFailureView(null) });
+  return data;
 }

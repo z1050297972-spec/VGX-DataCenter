@@ -1,10 +1,11 @@
-"""08验收2/3/4真实进程场景；跳过夹具阻止未实现契约运行，进程结构不以mock替代。"""
+"""08验收2/3/4真实进程场景；隔离进程组，finally清理工具后代并恢复subreaper状态。"""
 
 import os
 import signal
 import subprocess
 import sys
 import time
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ from job_process_support import (
     PROCESS_STOP_TIMEOUT_S,
     prepare_process_case,
 )
+from jobs_process_resources import adopt_orphans
 
 from rdp.jobs.policy import WORKER_EXIT_ALREADY_RUNNING, WORKER_EXIT_FAILURE, WORKER_EXIT_OK
 from rdp.jobs.processes import ToolCommand
@@ -23,9 +25,10 @@ from rdp.jobs.types import JobState
 
 
 @pytest.fixture(autouse=True)
-def _contract_unavailable() -> None:
-    """契约实现前逐例skip，保留真实Popen、SIGKILL/SIGTERM和finally回收路径。"""
-    pytest.skip("M0/08 真实进程契约行为尚不可用")
+def _own_tool_orphans() -> Generator[None]:
+    """测试接管被SIGKILL的worker留下的工具，交既有cleanup_orphans逐PID回收。"""
+    with adopt_orphans():
+        yield
 
 
 @pytest.mark.parametrize("mode", ["resume", "restart", "interrupt"])

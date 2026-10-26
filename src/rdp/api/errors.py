@@ -1,7 +1,7 @@
 """入口层的 problem+json 与唯一错误报告边界（M0 工单 04，E2/E3）。
 
 使用 FastAPI/Pydantic 的响应、模型和校验异常，以及标准库 traceback 的栈提取能力；
-D2 直接沿用标准库异常消息和源码行，不打印局部变量；参数校验不回显原值，
+直接沿用标准库异常消息和源码行，不打印局部变量；参数校验不回显原值，
 自己的 Pydantic 模型均 hide_input_in_errors=True，不新增依赖或自行解析栈。
 状态码简表以主仓库 docs/standards/CODING_STANDARDS.md 6.2 为准；新增状态码先更新规范。
 | 状态码 | 类别 | 用途 | 响应 |
@@ -30,7 +30,6 @@ create_app 通过 install_error_handlers 安装统一处理，OpenAPI 在请求�
 
 import asyncio
 import logging
-import sys
 import traceback
 from datetime import UTC, datetime
 from http import HTTPStatus
@@ -51,7 +50,6 @@ from rdp.api._asgi import ASGIApp, ASGIMessage, Receive, Send
 from rdp.api.account_auth import clear_session_cookie
 from rdp.api.audit import report_audit_append_failure
 from rdp.infra.db.connection import BUSY_TIMEOUT_MS, session_scope
-from rdp.infra.db.models import MAX_EXCEPTION_REPORT_CHARS, REPORT_TRUNCATION_MARKER
 from rdp.infra.db.records import ErrorRecord, write_error
 from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import (
@@ -67,6 +65,9 @@ from rdp.infra.diagnostics import (
     InputError,
     render_diagnostic,
 )
+
+# 兼容既有导入名；契约以 rdp.infra.exception_report.format_exception_report 为准。
+from rdp.infra.exception_report import format_exception_report as format_exception_report
 from rdp.infra.ids import REQUEST_ID_PATTERN, is_request_id
 from rdp.infra.logging import request_id_context
 from rdp.infra.timeutil import ensure_utc
@@ -217,52 +218,6 @@ def build_problem(request: Request, error: Exception) -> ProblemResponse:
         diagnostics=diagnostics,
         error_id=request_id,
     )
-
-
-def format_exception_report(error: BaseException) -> str:
-    """生成保留异常消息和源码行、不打印局部变量的有界异常报告。
-
-    Args:
-        error: 当前异常及 cause/context 链，也支持 BaseExceptionGroup；不接受 None。
-
-    Returns:
-        按标准库 traceback 的格式保留每层异常的类型和消息、栈帧文件/函数/行号及源码行，
-        __notes__ 沿用标准库行为，不打印局部变量。遵循显式 cause 和 suppress_context，
-        在字符上限内保留所选链的根因；异常组不截断宽度或深度，循环引用标明已出现。
-        无 traceback 时仍输出异常类型和消息；D2 不再替换异常消息或隐藏源码行。
-        B2：增量收集标准库 format(chain=True)
-        的前缀，最多 models.MAX_EXCEPTION_REPORT_CHARS 个 Unicode 字符；超过时预留
-        REPORT_TRUNCATION_MARKER 的长度，尾部加该标记，总长度仍不超过上限。
-        未超限逐字保留；显式标记有损，不另拼诊断或请求数据。日志与数据库共用同一个结果。
-
-    Raises:
-        无。
-
-    Side Effects:
-        无（只读栈帧对应源文件以取得源码行）；不改变异常、traceback 或 logging 状态，不写日志。
-
-    Time Semantics:
-        同步转换，不读取时钟，不请求数据库或外部系统。
-    """
-    report = traceback.TracebackException.from_exception(
-        error, capture_locals=False, max_group_width=sys.maxsize, max_group_depth=sys.maxsize
-    )
-    suffix = (
-        ("循环引用：已出现的异常不重复展开。\n",)
-        if _has_exception_cycle(error, frozenset())
-        else ()
-    )
-    pieces: list[str] = []
-    remaining = MAX_EXCEPTION_REPORT_CHARS
-    for piece in chain(report.format(chain=True), suffix):
-        pieces.append(piece[:remaining])
-        if len(piece) > remaining:
-            return (
-                "".join(pieces)[: MAX_EXCEPTION_REPORT_CHARS - len(REPORT_TRUNCATION_MARKER)]
-                + REPORT_TRUNCATION_MARKER
-            )
-        remaining -= len(piece)
-    return "".join(pieces)
 
 
 async def handle_error(request: Request, error: Exception) -> JSONResponse:
@@ -462,22 +417,6 @@ def install_error_handlers(app: FastAPI) -> None:
         app.openapi = openapi
         app.state.rdp_errors_installed = True
     app.openapi_schema = None
-
-
-def _has_exception_cycle(error: BaseException, ancestors: frozenset[int]) -> bool:
-    """标准库避免无限展开；补一个明确标记，不自行重建 traceback 文本。"""
-    if id(error) in ancestors:
-        return True
-    path = ancestors | {id(error)}
-    cause = error.__cause__ or (None if error.__suppress_context__ else error.__context__)
-    children = (
-        cast(BaseExceptionGroup[BaseException], error).exceptions
-        if isinstance(error, BaseExceptionGroup)
-        else ()
-    )
-    return (cause is not None and _has_exception_cycle(cause, path)) or any(
-        _has_exception_cycle(child, path) for child in children
-    )
 
 
 # 工单 05：SQLite 锁等待 BUSY_TIMEOUT_MS（5000 毫秒）之外留 1 秒调度余量，单位秒；不无限等线程池。

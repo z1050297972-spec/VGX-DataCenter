@@ -25,6 +25,7 @@ import { DiagnosticCard } from "./DiagnosticCard";
 import { HealthPage } from "./HealthPage";
 import { JobsPage, JobDetailPage, SubmitCountJobPage } from "./jobs/Pages";
 import type { JobSearch } from "./api/jobs";
+import { validateJobSearch } from "./jobs/search";
 
 /** 路由装配输入；测试使用内存 history 与注入传输，不启动服务器。 */
 interface AppRouterOptions {
@@ -141,9 +142,12 @@ export function createAppRouter(options: AppRouterOptions) {
 }
 
 // 作业 URL 错误保留页面表单；具体字段校验集中在 validateJobSearch。
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 规则4要求函数体仅抛未实现异常，完整输入签名必须保留。
 function jobSearch(_search: Record<string, unknown>): JobSearch & { invalidJobSearch?: true } {
-  throw new Error("未实现");
+  try {
+    return validateJobSearch(_search);
+  } catch {
+    return { invalidJobSearch: true };
+  }
 }
 
 // 校验错误属于可修正的筛选输入，不触发根路由失败；不保留或回显原始坏参数。

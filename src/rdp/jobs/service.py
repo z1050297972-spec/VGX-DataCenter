@@ -5,15 +5,27 @@
 回滚再按第 7 张短事务补记，补记失败附固定标记交 API 边界报告，不在本层打日志。
 """
 
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, replace
 from datetime import datetime
+from typing import cast
 
-from sqlalchemy import Engine
+from pydantic import ValidationError
+from sqlalchemy import Engine, select
 
+from rdp.accounts.service import authorize_job_actor, existing_account_ids
 from rdp.accounts.types import SessionIdentity
-from rdp.audit.types import AuditContext
-from rdp.jobs.registry import JobRegistry
-from rdp.jobs.types import JobPage, JobQuery, JobRecord, WorkerHeartbeat
+from rdp.audit.types import AuditContext, OperationEvent, OperationType
+from rdp.infra.db.connection import session_scope
+from rdp.infra.db.validation import invalid_field
+from rdp.infra.diagnostics import ConflictError, DefectError, DiagnosticCategory
+from rdp.jobs import _audit, _pagination, _storage, _views
+from rdp.jobs.errors import JobInputError
+from rdp.jobs.models import JobRow, WorkerHeartbeatRow
+from rdp.jobs.policy import JOB_PARAMETERS_MAX_BYTES
+from rdp.jobs.records import NewJob, StateChange, find_job, insert_job, transition_job
+from rdp.jobs.registry import JobDefinition, JobRegistry
+from rdp.jobs.types import JobPage, JobQuery, JobRecord, JobState, WorkerHeartbeat
 
 
 @dataclass(frozen=True)
@@ -53,7 +65,13 @@ class JobService:
         Time Semantics:
             构造无等待；调用方法各开自己的短事务，不跨请求共享会话。
         """
-        raise NotImplementedError
+        if (
+            not isinstance(cast(object, engine), Engine)
+            or not engine.get_execution_options().get("rdp_managed")
+            or not isinstance(cast(object, registry), JobRegistry)
+        ):
+            raise DefectError()
+        self.engine, self.registry = engine, registry
 
     def submit(
         self, request: JobRequest, type_name: str, parameters: dict[str, object]
@@ -87,7 +105,19 @@ class JobService:
             request.now 用于作业及审计，UTC 微秒；BUSY_TIMEOUT_MS 普通锁预算，补记最多
             AUDIT_SHORT_LOCK_TIMEOUT_MS，无重试，外部计算不放在写事务。
         """
-        raise NotImplementedError
+        _audit.validate_request(request)
+        definition, checked = _parameters(self.registry, type_name, parameters)
+        attempted: OperationEvent | None = None
+        try:
+            with session_scope(self.engine) as session:
+                actor = authorize_job_actor(session, request.identity, now=request.now)
+                attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
+                record = insert_job(session, NewJob(definition, checked, actor, request.now, None))
+                _audit.finish(session, attempted, record)
+            return record
+        except Exception as error:
+            _audit.failed(self.engine, attempted, error)
+            raise
 
     def cancel(self, request: JobRequest, job_id: int) -> JobRecord:
         """请求取消任意账号提交的作业，取消身份记为当前账号。
@@ -121,7 +151,33 @@ class JobService:
             用请求 UTC 时刻；排队取消当次完成，运行中由主循环最多约一秒发现并在阶段边界停止。
             普通事务锁预算 BUSY_TIMEOUT_MS；补记 AUDIT_SHORT_LOCK_TIMEOUT_MS，无自动重试。
         """
-        raise NotImplementedError
+        _audit.validate_request(request)
+        _storage.identifier(job_id)
+        attempted: OperationEvent | None = None
+        try:
+            with session_scope(self.engine) as session:
+                actor = authorize_job_actor(session, request.identity, now=request.now)
+                current = find_job(session, job_id)
+                if current.state not in {JobState.QUEUED, JobState.RUNNING}:
+                    raise ConflictError(
+                        (
+                            _storage.diagnostic(
+                                job_id, "当前状态不允许取消", DiagnosticCategory.CONFLICT
+                            ),
+                        )
+                    )
+                attempted = _audit.event(request, actor, OperationType.CANCEL_JOB, current)
+                target = (
+                    JobState.CANCELLED if current.state is JobState.QUEUED else JobState.CANCELLING
+                )
+                record = transition_job(
+                    session, job_id, StateChange(current.state, target, request.now)
+                )
+                _audit.finish(session, attempted, record)
+            return record
+        except Exception as error:
+            _audit.failed(self.engine, attempted, error)
+            raise
 
     def resubmit(self, request: JobRequest, job_id: int) -> JobRecord:
         """从终态作业复制参数，作为当前账号的新提交。
@@ -152,7 +208,35 @@ class JobService:
             request.now 为新提交时间，旧开始/结束时间不复制；写锁最多 BUSY_TIMEOUT_MS，
             补记短锁，不调用 worker 或等待原作业。
         """
-        raise NotImplementedError
+        _audit.validate_request(request)
+        _storage.identifier(job_id)
+        attempted: OperationEvent | None = None
+        try:
+            with session_scope(self.engine) as session:
+                actor = authorize_job_actor(session, request.identity, now=request.now)
+                original = find_job(session, job_id)
+                if original.state not in {
+                    JobState.COMPLETED,
+                    JobState.CANCELLED,
+                    JobState.INTERRUPTED,
+                }:
+                    raise ConflictError(
+                        (
+                            _storage.diagnostic(
+                                job_id, "只有终态作业可以重新提交", DiagnosticCategory.CONFLICT
+                            ),
+                        )
+                    )
+                definition, _ = _parameters(self.registry, original.type_name, original.parameters)
+                attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
+                record = insert_job(
+                    session, NewJob(definition, original.parameters, actor, request.now, job_id)
+                )
+                _audit.finish(session, attempted, record)
+            return record
+        except Exception as error:
+            _audit.failed(self.engine, attempted, error)
+            raise
 
     def get(self, request: JobRequest, job_id: int) -> JobRecord:
         """向任意登录账号返回作业详情及提交人当前删除标记。
@@ -180,7 +264,16 @@ class JobService:
         Time Semantics:
             请求时刻只用于身份核验，数据库时刻保留 UTC 微秒；读锁沿用 BUSY_TIMEOUT_MS，无轮询。
         """
-        raise NotImplementedError
+        _audit.validate_request(request)
+        _storage.identifier(job_id)
+        with session_scope(self.engine, read_only=True) as session:
+            authorize_job_actor(session, request.identity, now=request.now)
+            record = find_job(session, job_id)
+            identifier = record.submitted_by.account_id
+            present = existing_account_ids(
+                session, frozenset(() if identifier is None else (identifier,))
+            )
+            return replace(record, submitter_deleted=identifier not in present)
 
     def list(self, request: JobRequest, query: JobQuery) -> JobPage:
         """按状态和稳定游标查询所有提交人的作业。
@@ -208,7 +301,44 @@ class JobService:
         Time Semantics:
             墙钟回拨不禁止查询未来提交记录；只读锁最多 BUSY_TIMEOUT_MS，无自动重试。
         """
-        raise NotImplementedError
+        _audit.validate_request(request)
+        cursor = _pagination.decode(query)
+        with session_scope(self.engine, read_only=True) as session, _storage.operation(session):
+            authorize_job_actor(session, request.identity, now=request.now)
+            head = (
+                session.scalar(select(JobRow.job_id).order_by(JobRow.job_id.desc()).limit(1))
+                if cursor is None
+                else cursor[0]
+            )
+            if head is None:
+                return JobPage((), None)
+            statement = select(JobRow).where(JobRow.job_id <= head)
+            if query.state is not None:
+                statement = statement.where(JobRow.state == query.state.value)
+            if cursor is not None:
+                statement = statement.where(JobRow.job_id < cursor[1])
+            rows = session.scalars(
+                statement.order_by(JobRow.job_id.desc()).limit(query.limit + 1)
+            ).all()
+            records = tuple(_views.record(row) for row in rows[: query.limit])
+            present = existing_account_ids(
+                session,
+                frozenset(
+                    record.submitted_by.account_id
+                    for record in records
+                    if record.submitted_by.account_id is not None
+                ),
+            )
+            records = tuple(
+                replace(record, submitter_deleted=record.submitted_by.account_id not in present)
+                for record in records
+            )
+            next_cursor = (
+                _pagination.encode(query, head, records[-1].job_id)
+                if len(rows) > query.limit
+                else None
+            )
+            return JobPage(records, next_cursor)
 
     def heartbeat(self, request: JobRequest) -> WorkerHeartbeat | None:
         """读取最近 worker 心跳，供入口计算在线状态。
@@ -233,4 +363,44 @@ class JobService:
         Time Semantics:
             heartbeat_online 使用 request.now 与存储的 UTC 时刻比较；不跨进程比较 monotonic。
         """
-        raise NotImplementedError
+        _audit.validate_request(request)
+        with session_scope(self.engine, read_only=True) as session, _storage.operation(session):
+            authorize_job_actor(session, request.identity, now=request.now)
+            row = session.get(WorkerHeartbeatRow, 1)
+            return (
+                None
+                if row is None
+                else _storage.heartbeat(
+                    WorkerHeartbeat(row.instance_id, row.pid, row.started_at, row.last_seen_at)
+                )
+            )
+
+
+def _parameters(
+    registry: JobRegistry, type_name: str, parameters: dict[str, object]
+) -> tuple[JobDefinition, dict[str, object]]:
+    """参数校验在写事务外；只把固定字段诊断暴露给调用者，不回显拒绝的载荷。"""
+    try:
+        definition = registry.lookup(type_name)
+    except DefectError:
+        definition = None
+    if definition is None:
+        raise JobInputError(invalid_field("type_name", "已登记的作业类型").diagnostics)
+    try:
+        if (
+            not isinstance(cast(object, parameters), dict)
+            or len(json.dumps(parameters, ensure_ascii=False, allow_nan=False).encode())
+            > JOB_PARAMETERS_MAX_BYTES
+        ):
+            raise ValueError("参数不是有界JSON对象")
+        checked = definition.parameters_model.model_validate(parameters).model_dump(mode="json")
+        if (
+            len(json.dumps(checked, ensure_ascii=False, allow_nan=False).encode())
+            > JOB_PARAMETERS_MAX_BYTES
+        ):
+            raise ValueError("完整参数超过容量")
+    except (ValidationError, TypeError, ValueError, UnicodeError):
+        raise JobInputError(
+            invalid_field("parameters", "当前作业类型的合法有界参数").diagnostics
+        ) from None
+    return definition, checked

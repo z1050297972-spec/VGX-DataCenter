@@ -1,11 +1,19 @@
 """worker 运维入口（08，第 11 张接命令）；仅装配依赖与最外层启动错误，不实现领域调度。"""
 
 import logging
+import os
 from dataclasses import dataclass
 from threading import Event
+from uuid import uuid4
 
-from rdp.infra.logging import LoggingSettings
+from rdp.infra.db.migration import check_database_version
+from rdp.infra.diagnostics import ConflictError, DefectError
+from rdp.infra.logging import LoggingSettings, configure_logging
+from rdp.jobs._clock import ClockReader
 from rdp.jobs.execution import ExecutorDependencies
+from rdp.jobs.policy import WORKER_EXIT_ALREADY_RUNNING, WORKER_EXIT_FAILURE, WORKER_EXIT_OK
+from rdp.jobs.types import WorkerHeartbeat
+from rdp.jobs.worker import run_loop, worker_lock
 
 logger = logging.getLogger(__name__)
 
@@ -59,4 +67,31 @@ def run_worker(
         第11张systemd服务须KillMode=control-group、TimeoutStopSec>=WORKER_STOP_TIMEOUT_S（30秒），
         以结束worker被SIGKILL后继续运行的孤儿工具；测试由临时夹具清理，不靠worker持锁描述符杀子进程。
     """
-    raise NotImplementedError
+    if (
+        logging_settings.process != "worker"
+        or logging_settings.log_dir != dependencies.paths.logs
+        or not dependencies.engine.get_execution_options().get("rdp_managed")
+    ):
+        raise DefectError()
+    ClockReader(dependencies.clock).read()
+    try:
+        configure_logging(logging_settings)
+        check_database_version(dependencies.paths.database)
+    except Exception:
+        logger.error("worker启动检查失败", exc_info=True)
+        return WorkerExit(WORKER_EXIT_FAILURE, "worker启动检查失败", False)
+    try:
+        lock = worker_lock(dependencies.paths)
+    except ConflictError:
+        message = f"另一个 worker 正在运行，锁文件：{dependencies.paths.worker_lock}"
+        logger.warning(message)
+        return WorkerExit(WORKER_EXIT_ALREADY_RUNNING, message, False)
+    except Exception:
+        logger.error("worker实例锁无法取得", exc_info=True)
+        return WorkerExit(WORKER_EXIT_FAILURE, "worker实例锁无法取得", False)
+    now = dependencies.clock.now()
+    heartbeat = WorkerHeartbeat(uuid4().hex, os.getpid(), now, now)
+    result = run_loop(dependencies, stop, heartbeat)
+    retained = lock.finish(result.unreaped_threads)
+    message = "worker已停止" if result.code == WORKER_EXIT_OK else "worker失败退出，需要重启"
+    return WorkerExit(result.code, message, retained)

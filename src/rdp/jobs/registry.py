@@ -7,12 +7,16 @@ Pydantic 负责参数校验；登记表只补稳定键、目录名和执行方�
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast, get_args
 
-from pydantic import BaseModel
+from pydantic import AliasChoices, AliasPath, BaseModel, SecretBytes, SecretStr
 
+from rdp.infra.actors import is_display_name
+from rdp.infra.diagnostics import DefectError
+from rdp.jobs.policy import JOB_DISPLAY_NAME_MAX_CHARS
 from rdp.jobs.types import RecoveryMode
 
 if TYPE_CHECKING:
@@ -60,7 +64,7 @@ class JobRegistry:
         Time Semantics:
             同步构造，无时钟和等待；在线程启动前调用。
         """
-        raise NotImplementedError
+        self._definitions: dict[str, JobDefinition] = {}
 
     def register(self, definition: JobDefinition) -> None:
         """登记类型并校验其身份和日志目录约束。
@@ -81,7 +85,28 @@ class JobRegistry:
         Time Semantics:
             启动期同步操作，不接受与 lookup 并发注册；无锁等待。
         """
-        raise NotImplementedError
+        if not isinstance(cast(object, definition), JobDefinition) or not _valid_key(
+            definition.type_name
+        ):
+            raise DefectError()
+        if definition.type_name in self._definitions:
+            raise DefectError()
+        if not isinstance(cast(object, definition.recovery_mode), RecoveryMode) or not callable(
+            definition.execute
+        ):
+            raise DefectError()
+        _check_model(definition.parameters_model, set())
+        name = definition.display_name
+        if (
+            not is_display_name(name)
+            or len(name) > JOB_DISPLAY_NAME_MAX_CHARS
+            or name in {".", ".."}
+            or "/" in name
+            or "\\" in name
+            or any(item.display_name == name for item in self._definitions.values())
+        ):
+            raise DefectError()
+        self._definitions[definition.type_name] = definition
 
     def lookup(self, type_name: str) -> JobDefinition | None:
         """查找当前安装的类型，允许历史类型已经被移除。
@@ -101,7 +126,9 @@ class JobRegistry:
         Time Semantics:
             常数时间字典查询，无时钟或 I/O。
         """
-        raise NotImplementedError
+        if not _valid_key(type_name):
+            raise DefectError()
+        return self._definitions.get(type_name)
 
     def definitions(self) -> tuple[JobDefinition, ...]:
         """枚举可提交类型，供入口构造日志路径与页面选项。
@@ -121,7 +148,7 @@ class JobRegistry:
         Time Semantics:
             同步快照，不读取时间，不等待类型出现。
         """
-        raise NotImplementedError
+        return tuple(self._definitions[key] for key in sorted(self._definitions))
 
 
 def production_registry() -> JobRegistry:
@@ -142,4 +169,80 @@ def production_registry() -> JobRegistry:
     Time Semantics:
         Web 和 worker 启动时各调用一次并注入；无时钟、等待和自动发现。
     """
-    raise NotImplementedError
+    # 延迟导入避免登记定义和执行上下文的模块环；每次构造都返回独立对象。
+    from rdp.jobs.example import CountParameters, execute_count
+
+    registry = JobRegistry()
+    registry.register(
+        JobDefinition(
+            "example_count", "示例：数数", CountParameters, RecoveryMode.INTERRUPT, execute_count
+        )
+    )
+    return registry
+
+
+def _valid_key(value: object) -> bool:
+    """按登记契约全匹配英文稳定键，不能接受末尾换行或隐式强制转换。"""
+    return isinstance(value, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", value) is not None
+
+
+# 显式秘密字段不能进入作业记录或日志；只识别字段/别名，不猜测任意业务文本是否含秘密。
+_SECRET_PARAMETER_NAMES = frozenset(
+    {
+        "password",
+        "passwd",
+        "secret",
+        "token",
+        "access_token",
+        "refresh_token",
+        "api_key",
+        "cookie",
+        "private_key",
+        "ssh_private_key",
+        "口令",
+        "密码",
+        "令牌",
+        "私钥",
+    }
+)
+
+
+def _check_model(value: object, seen: set[type[BaseModel]]) -> None:
+    """遍历模型定义而不执行校验器；递归类型只访问一次，别名同样属于可被提交的字段。"""
+    if not isinstance(value, type) or not issubclass(value, BaseModel):
+        raise DefectError()
+    if value in seen:
+        return
+    if (
+        value.model_config.get("extra") != "forbid"
+        or value.model_config.get("hide_input_in_errors") is not True
+    ):
+        raise DefectError()
+    seen.add(value)
+    for name, field in value.model_fields.items():
+        names = [name, field.alias, field.serialization_alias, field.validation_alias]
+        if any(_secret_alias(alias) for alias in names):
+            raise DefectError()
+        _check_annotation(field.annotation, seen)
+
+
+def _secret_alias(value: object) -> bool:
+    """字段的输入/输出别名也不能把秘密藏在一个看似安全的Python标识符后。"""
+    if isinstance(value, str):
+        return value.casefold() in _SECRET_PARAMETER_NAMES
+    if isinstance(value, AliasChoices):
+        return any(_secret_alias(choice) for choice in value.choices)
+    if isinstance(value, AliasPath):
+        return any(_secret_alias(part) for part in value.path)
+    return False
+
+
+def _check_annotation(value: object, seen: set[type[BaseModel]]) -> None:
+    """容器、联合及嵌套模型中的秘密类型仍会落日志，不能仅检查顶层注解。"""
+    if isinstance(value, type):
+        if issubclass(value, (SecretStr, SecretBytes)):
+            raise DefectError()
+        if issubclass(value, BaseModel):
+            _check_model(value, seen)
+    for argument in get_args(value):
+        _check_annotation(argument, seen)

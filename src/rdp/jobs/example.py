@@ -7,6 +7,14 @@ from typing import Annotated, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from rdp.infra.diagnostics import (
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    DiagnosticObject,
+    InputError,
+)
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.policy import (
     COUNT_MAX_INTERVAL_MS,
@@ -14,6 +22,7 @@ from rdp.jobs.policy import (
     COUNT_MIN_INTERVAL_MS,
     COUNT_MIN_STEPS,
 )
+from rdp.jobs.types import ExecutionMode, JobProgress
 
 # 逐项严格整数约束必须在Pydantic强制转换前生效，否则bool会先变成1。
 CountStep = Annotated[int, Field(strict=True, ge=COUNT_MIN_STEPS, le=COUNT_MAX_STEPS)]
@@ -43,7 +52,12 @@ class CountParameters(BaseModel):
     @model_validator(mode="after")
     def _validate_steps(self) -> Self:
         """拒绝超出 steps 的序号、重复项、bool/非整数及越界整体中止步，不回显原值。"""
-        raise NotImplementedError
+        for selected in (self.failed_steps, self.warning_steps):
+            if len(selected) != len(set(selected)) or any(step > self.steps for step in selected):
+                raise ValueError("步序号不得重复且不能超过总步数")
+        if self.abort_at_step is not None and self.abort_at_step > self.steps:
+            raise ValueError("整体中止步不能超过总步数")
+        return self
 
 
 def execute_count(context: ExecutionContext) -> None:
@@ -72,4 +86,57 @@ def execute_count(context: ExecutionContext) -> None:
         序号从 1 起，整体中止发生在指定步处理前，保留此前完整计数；
         每步间隔使用可取消的单调等待，零间隔仍检查信号，最终进度由执行器强制保存。
     """
-    raise NotImplementedError
+    parameters = context.parameters
+    if not isinstance(parameters, CountParameters) or context.mode is not ExecutionMode.FRESH:
+        raise DefectError()
+    failed = warnings = 0
+    for step in range(1, parameters.steps + 1):
+        context.reporter.check_cancelled()
+        if step == parameters.abort_at_step:
+            raise InputError(
+                (_count_diagnostic(context.job_id, step, "整体中止", DiagnosticLevel.ERROR),)
+            )
+        if step in parameters.failed_steps:
+            failed += 1
+            context.reporter.diagnostic(
+                _count_diagnostic(context.job_id, step, "条目失败", DiagnosticLevel.ERROR)
+            )
+        if step in parameters.warning_steps:
+            warnings += 1
+            context.reporter.diagnostic(
+                _count_diagnostic(context.job_id, step, "条目警告", DiagnosticLevel.WARNING)
+            )
+        context.reporter.report(
+            JobProgress(
+                stage_index=1,
+                stage_count=1,
+                stage_name="数数",
+                done=step,
+                total=parameters.steps,
+                unit="步",
+                total_items=step,
+                failed_items=failed,
+                warning_count=warnings,
+            )
+        )
+        context.reporter.check_cancelled()
+        context.reporter.wait(parameters.interval_ms / 1000)
+
+
+def _count_diagnostic(job_id: int, step: int, rule: str, level: DiagnosticLevel) -> Diagnostic:
+    """示例的预设事件用独立条目/警告口径，不让规则键随步数变化。"""
+    return Diagnostic(
+        level=level,
+        category=DiagnosticCategory.INPUT,
+        stage="数数",
+        source="平台",
+        objects=(
+            DiagnosticObject(key="job_id", value=str(job_id)),
+            DiagnosticObject(key="step", value=str(step)),
+        ),
+        rule=rule,
+        actual=f"在第{step}步触发{rule}",
+        expected="该步正常完成",
+        consequence="作业整体结束" if rule == "整体中止" else "记录本次事件并继续其他步骤",
+        next_step="检查示例参数后重新提交作业",
+    )
