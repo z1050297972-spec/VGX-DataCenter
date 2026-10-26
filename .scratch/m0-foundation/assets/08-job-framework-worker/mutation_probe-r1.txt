@@ -1,0 +1,2 @@
+M4 重跑不清进度: KILLED rc=1 ['FAILED tests/test_jobs_processes.py::test_sigkill_recovery[restart] - Asserti...', '1 failed, 1170 passed, 1 warning in 77.95s (0:01:17)']
+M8 取消中恢复不写中断段: KILLED rc=1 ['FAILED tests/test_jobs_logs.py::test_recovery_cancel_committed_before_resume', '1 failed, 1148 passed, 1 warning in 74.26s (0:01:14)']
