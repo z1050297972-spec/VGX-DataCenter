@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from accounts_support import EXAMPLE_SECRET, NOW
+from accounts_support import AUDIT_CONTEXT, EXAMPLE_SECRET, NOW
 from argon2 import PasswordHasher
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
@@ -19,9 +19,11 @@ from rdp.accounts.security import PasswordCodec
 from rdp.accounts.service import AccountService
 from rdp.accounts.types import Credentials, NewAccount, Role
 from rdp.api import create_app
+from rdp.audit.types import OPS_AUDIT_CONTEXT
 from rdp.infra.config import PlatformConfig
 from rdp.infra.db.connection import create_database_engine
 from rdp.infra.db.migration import migrate
+from rdp.infra.logging import log_context
 from rdp.infra.state import initialize_state, state_paths
 
 ORIGIN = "http://testserver"
@@ -69,15 +71,21 @@ def api_case(root: Path, *, origin: bool = True) -> Generator[ApiCase]:
             engine, PasswordCodec(PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1))
         )
         service.create_first_admin(
-            NewAccount(Credentials("admin", EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR), now=NOW
+            NewAccount(Credentials("admin", EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR),
+            now=NOW,
+            audit=OPS_AUDIT_CONTEXT,
         )
         clock = Clock()
         app = create_app(None, database=engine, clock=clock)
         # 测试只替换公开的应用服务依赖，仍使用真实领域实现和临时数据库。
         app.state.account_service = service
-        with TestClient(
-            app, raise_server_exceptions=False, headers={"Origin": ORIGIN} if origin else {}
-        ) as client:
+        # 直接调用入口函数的测试也提供服务器编号；contextmanager退出时必恢复。
+        with (
+            TestClient(
+                app, raise_server_exceptions=False, headers={"Origin": ORIGIN} if origin else {}
+            ) as client,
+            log_context(request_id="123e4567e89b42d3a456426614174000"),
+        ):
             yield ApiCase(app, service, engine, clock, cast(Client, client))
     finally:
         engine.dispose()
@@ -124,18 +132,24 @@ def add_actor(case: ApiCase, *, name: str = "member", role: Role = Role.MEMBER, 
     """通过真实领域服务建立第二身份，HTTP 测试只替换外部传输层。"""
     from rdp.accounts.types import PasswordChange
 
-    admin = case.service.login(Credentials("admin", EXAMPLE_SECRET), now=case.clock.value)
+    admin = case.service.login(
+        Credentials("admin", EXAMPLE_SECRET), now=case.clock.value, audit=AUDIT_CONTEXT
+    )
     case.service.create_account(
         admin.identity,
         NewAccount(Credentials(name, EXAMPLE_SECRET), "成员", role),
         now=case.clock.value,
+        audit=AUDIT_CONTEXT,
     )
-    grant = case.service.login(Credentials(name, EXAMPLE_SECRET), now=case.clock.value)
+    grant = case.service.login(
+        Credentials(name, EXAMPLE_SECRET), now=case.clock.value, audit=AUDIT_CONTEXT
+    )
     if ready:
         grant = case.service.change_password(
             grant.identity,
             PasswordChange(EXAMPLE_SECRET, SecretStr("member-updated-value")),
             now=case.clock.value,
+            audit=AUDIT_CONTEXT,
         )
     return grant
 

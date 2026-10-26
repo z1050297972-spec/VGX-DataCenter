@@ -1,7 +1,6 @@
 """账号领域的输入规则和 ORM 快照适配；只操作显式会话，不拥有事务或日志。"""
 
 import re
-import unicodedata
 from datetime import datetime
 from typing import cast
 
@@ -11,8 +10,9 @@ from sqlalchemy.orm import Session
 from rdp.accounts._issues import problem
 from rdp.accounts.errors import AccountInputError, AccountNotFoundError
 from rdp.accounts.models import AccountRow
-from rdp.accounts.policy import DISPLAY_NAME_MAX_CHARS, LOGIN_NAME_PATTERN, LOGIN_WAIT
+from rdp.accounts.policy import LOGIN_NAME_PATTERN, LOGIN_WAIT
 from rdp.accounts.types import AccountStatus, AccountView, ActorRef, Credentials, NewAccount, Role
+from rdp.infra.actors import is_display_name
 from rdp.infra.diagnostics import ConflictError, InputError
 from rdp.infra.ids import MAX_SQLITE_INTEGER
 from rdp.infra.timeutil import ensure_utc
@@ -40,12 +40,7 @@ def login_name(value: object) -> str:
 
 def display_name(value: object) -> str:
     """只接受可显示的短名字，拒绝首尾空白及控制字符。"""
-    if (
-        not isinstance(value, str)
-        or not 1 <= len(value) <= DISPLAY_NAME_MAX_CHARS
-        or value.strip() != value
-        or any(unicodedata.category(c) in {"Cc", "Cf", "Cs"} for c in value)
-    ):
+    if not is_display_name(value):
         raise problem(
             AccountInputError,
             "显示名须为无首尾空白或控制字符的 1 至 64 个码点",

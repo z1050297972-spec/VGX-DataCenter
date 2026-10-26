@@ -1,7 +1,9 @@
 """工单06前向迁移测试；只用 tmp_path/临时数据库和固定 aware 时钟。"""
 
 import re
+import shutil
 import sqlite3
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -21,6 +23,28 @@ from rdp.infra.db.migrations.versions import v0002_accounts_sessions
 from rdp.infra.db.models import metadata
 from rdp.infra.diagnostics import DefectError, InputError
 from rdp.infra.state import StatePaths, initialize_state, state_paths
+
+
+@pytest.fixture(autouse=True)
+def historical_accounts_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """第6张固定验证历史0002包和表；保留所有原断言，0003另由本票完整迁移测试覆盖。"""
+    location = migration_config().get_main_option("script_location")
+    assert location is not None
+    source = Path(location)
+    directory = tmp_path / "historical-package" / "migrations"
+    (directory / "versions").mkdir(parents=True)
+    shutil.copyfile(source / "env.py", directory / "env.py")
+    for filename in ("v0001_error_reports.py", "v0002_accounts_sessions.py"):
+        shutil.copyfile(source / "versions" / filename, directory / "versions" / filename)
+    monkeypatch.setattr("rdp.infra.db.migration.__file__", str(directory.parent / "migration.py"))
+    # 只缩小本历史版本的建表/对比视图，不重建Table；fixture结束精确恢复共享登记。
+    tables = {
+        name: table
+        for name, table in metadata.tables.items()
+        if name in {"error_reports", "accounts", "account_sessions"}
+    }
+    monkeypatch.setattr(metadata, "tables", tables)
+    yield
 
 
 def test_upgrade_new(tmp_path: Path) -> None:

@@ -6,6 +6,13 @@ import type { HealthClient } from "../api/client";
 import type { Account } from "../api/accounts";
 import type { QueryClient } from "@tanstack/react-query";
 
+/** 管理员页面的唯一清单（06/07），导航守卫与聚焦后的布局复核共用，避免权限入口漂移。 */
+export const ADMINISTRATOR_PAGE_PATHS: ReadonlySet<string> = new Set([
+  "/accounts",
+  "/audit/operations",
+  "/audit/logins",
+]);
+
 /** 路由守卫的可注入输入，真实导航由 TanStack Router 完成，测试用内存 history。 */
 export interface AccountGuardInput {
   /** 类型化客户端，必填、无默认。 */
@@ -63,7 +70,7 @@ export function safeReturnTo(value: unknown): string {
  * @param input - 路由守卫输入，字段见 AccountGuardInput。
  * @returns 已登录且满足页面权限的 Account；每次导航查 /api/auth/me，不把 502 当作未登录。
  * @throws TanStack Router redirect：401 去 /login?returnTo=安全目标；必须改密去 /change-password，
- * 保留安全回跳；成员访问 /accounts 去 / 并显示权限提示。其他 Error 交统一诊断视图。
+ * 保留安全回跳；成员访问管理员页面去 / 并显示权限提示。其他 Error 交统一诊断视图。
  * @sideEffects 本次路由守卫最多一次身份 GET，不加载受保护页内容直到身份确定；进入页面后由布局的 refetchOnWindowFocus: true 身份 Query 负责切回窗口重查。路由取消则取消请求并忽略迟到结果。
  * @timeSemantics 使用 ACCOUNT_TIMEOUT_MS，不轮询、不重试；身份 staleTime 为 0。
  */

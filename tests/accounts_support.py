@@ -26,6 +26,7 @@ from rdp.accounts.types import (
     Role,
     SessionGrant,
 )
+from rdp.audit.types import OPS_AUDIT_CONTEXT, AuditContext
 from rdp.infra.db.connection import create_database_engine, session_scope
 from rdp.infra.db.models import metadata
 
@@ -80,6 +81,8 @@ def close_workers(pool: ThreadPoolExecutor, hasher: HeldHasher) -> None:
 # 业务时刻固定为 UTC，测试不依赖机器本地时区。
 
 
+# 固定的 HTTP 领域调用来源；实际 HTTP 测试由请求编号中间件覆盖。
+AUDIT_CONTEXT = AuditContext("127.0.0.1", "123e4567e89b42d3a456426614174000")
 NOW = datetime(2026, 10, 25, 12, 30, 10, 123456, tzinfo=UTC)
 EXAMPLE_SECRET = SecretStr("test-example-credential")
 
@@ -138,9 +141,14 @@ def scenario(root: Path) -> Generator[tuple[AccountService, SessionGrant]]:
             engine, PasswordCodec(PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1))
         )
         service.create_first_admin(
-            NewAccount(Credentials("admin", EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR), now=NOW
+            NewAccount(Credentials("admin", EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR),
+            now=NOW,
+            audit=OPS_AUDIT_CONTEXT,
         )
-        yield service, service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        yield (
+            service,
+            service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT),
+        )
 
 
 def member_grant(
@@ -154,11 +162,17 @@ def member_grant(
     from rdp.accounts.types import PasswordChange
 
     service.create_account(
-        administrator.identity, NewAccount(Credentials(name, EXAMPLE_SECRET), "成员", role), now=NOW
+        administrator.identity,
+        NewAccount(Credentials(name, EXAMPLE_SECRET), "成员", role),
+        now=NOW,
+        audit=AUDIT_CONTEXT,
     )
-    initial = service.login(Credentials(name, EXAMPLE_SECRET), now=NOW)
+    initial = service.login(Credentials(name, EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
     return service.change_password(
-        initial.identity, PasswordChange(EXAMPLE_SECRET, SecretStr("member-updated-value")), now=NOW
+        initial.identity,
+        PasswordChange(EXAMPLE_SECRET, SecretStr("member-updated-value")),
+        now=NOW,
+        audit=AUDIT_CONTEXT,
     )
 
 
@@ -232,27 +246,34 @@ def account_operation(
         )
         command = NewAccount(Credentials("admin", EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR)
         if operation == "create_first_admin":
-            yield service, lambda: service.create_first_admin(command, now=NOW)
+            yield (
+                service,
+                lambda: service.create_first_admin(command, now=NOW, audit=OPS_AUDIT_CONTEXT),
+            )
             return
-        service.create_first_admin(command, now=NOW)
-        grant = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        service.create_first_admin(command, now=NOW, audit=OPS_AUDIT_CONTEXT)
+        grant = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         operations: dict[str, Callable[[], object]] = {
-            "login": lambda: service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW),
+            "login": lambda: service.login(
+                Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+            ),
             "change_password": lambda: service.change_password(
                 grant.identity,
                 PasswordChange(EXAMPLE_SECRET, SecretStr("replacement-value")),
                 now=NOW,
+                audit=AUDIT_CONTEXT,
             ),
             "create_account": lambda: service.create_account(
                 grant.identity,
                 NewAccount(Credentials("member", EXAMPLE_SECRET), "成员", Role.MEMBER),
                 now=NOW,
+                audit=AUDIT_CONTEXT,
             ),
             "reset_password": lambda: service.reset_password(
-                grant.identity, 1, SecretStr("replacement-value"), now=NOW
+                grant.identity, 1, SecretStr("replacement-value"), now=NOW, audit=AUDIT_CONTEXT
             ),
             "reset_password_from_ops": lambda: service.reset_password_from_ops(
-                "admin", SecretStr("replacement-value"), now=NOW
+                "admin", SecretStr("replacement-value"), now=NOW, audit=OPS_AUDIT_CONTEXT
             ),
         }
         yield service, operations[operation]

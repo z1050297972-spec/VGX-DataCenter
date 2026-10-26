@@ -10,7 +10,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import cast
 
-from accounts_support import EXAMPLE_SECRET, NOW, model_database
+from accounts_support import AUDIT_CONTEXT, EXAMPLE_SECRET, NOW, model_database
 from argon2 import PasswordHasher
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -19,6 +19,7 @@ from httpx import Client
 from rdp.accounts.security import PasswordCodec
 from rdp.accounts.service import AccountService
 from rdp.accounts.types import Credentials, NewAccount, Role
+from rdp.audit.types import OPS_AUDIT_CONTEXT
 
 
 @contextmanager
@@ -36,8 +37,11 @@ def authenticated_context(app: FastAPI, root: Path) -> Generator[dict[str, str]]
         service.create_first_admin(
             NewAccount(Credentials("test_admin", EXAMPLE_SECRET), "测试管理员", Role.ADMINISTRATOR),
             now=NOW,
+            audit=OPS_AUDIT_CONTEXT,
         )
-        grant = service.login(Credentials("test_admin", EXAMPLE_SECRET), now=NOW)
+        grant = service.login(
+            Credentials("test_admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+        )
         app.state.account_service = service
         app.state.accounts_clock = lambda: NOW
         try:

@@ -14,6 +14,7 @@ from typing import Annotated, Any, cast
 import pytest
 from account_api_support import ORIGIN, add_actor, api_case, boundary_response, request_for
 from accounts_support import (
+    AUDIT_CONTEXT,
     EXAMPLE_SECRET,
     NOW,
     CallbackHasher,
@@ -66,6 +67,7 @@ from rdp.api.errors import (
     sanitize_account_error,
 )
 from rdp.api.openapi_export import export_openapi
+from rdp.audit.types import OPS_AUDIT_CONTEXT
 from rdp.infra.config import PlatformConfig
 from rdp.infra.db.connection import create_database_engine, session_scope
 from rdp.infra.db.migration import migrate
@@ -114,7 +116,9 @@ def test_context_login(tmp_path: Path) -> None:
 def test_context_authenticated(tmp_path: Path) -> None:
     """验证契约：get_authenticated_context声明SessionCookie并复用全局结果，无重复刷新/时钟读取。"""
     with api_case(tmp_path) as case:
-        grant = case.service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        grant = case.service.login(
+            Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+        )
         request = request_for(
             case.app,
             headers=[(b"cookie", ("rdp_session=" + grant.token.get_secret_value()).encode())],
@@ -298,7 +302,7 @@ def test_access_revocation(tmp_path: Path) -> None:
 
 
 def test_access_database_errors(tmp_path: Path) -> None:
-    """验证契约：认证中的损坏库400、初始读锁/过期删除锁409、I/O502、装配500带安全诊断；刷新获锁忙不返回409。"""
+    """验证契约：认证中的损坏库400、初始读锁409、I/O502、装配500带安全诊断；刷新获锁忙不返回409。"""
     with api_case(tmp_path) as case:
         assert case.login().status_code == 200
         for code, expected in [
@@ -532,14 +536,19 @@ def test_cookie_secret(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None
 def test_cookie_failures(tmp_path: Path) -> None:
     """验证契约：非法grant或非法响应对象给安全DefectError，不能回显令牌；发送失败不回滚已提交会话。"""
     with api_case(tmp_path) as case:
-        grant = case.service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        grant = case.service.login(
+            Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+        )
         response = Response()
         invalid_token = SecretStr("invalid-private-token")
         with pytest.raises(DefectError) as caught:
             set_session_cookie(response, replace(grant, token=invalid_token))
         assert "set-cookie" not in response.headers
         assert "invalid-private-token" not in format_exception_report(caught.value)
-        assert case.service.authenticate(grant.token, now=NOW).account.account_id == 1
+        assert (
+            case.service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account.account_id
+            == 1
+        )
         with pytest.raises(DefectError):
             clear_session_cookie(cast(Response, object()))
 
@@ -945,7 +954,9 @@ def test_login_success(tmp_path: Path) -> None:
             engine, PasswordCodec(PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1))
         )
         service.create_first_admin(
-            NewAccount(Credentials("admin", EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR), now=NOW
+            NewAccount(Credentials("admin", EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR),
+            now=NOW,
+            audit=OPS_AUDIT_CONTEXT,
         )
         app = create_app(None, database=engine, clock=lambda: NOW)
         app.state.account_service = service
@@ -1418,7 +1429,9 @@ def test_authentication_phase_marker(tmp_path: Path) -> None:
         with pytest.raises(AuthenticationError):
             enforce_api_access(request)
         assert request.state.account_auth_phase is True
-        grant = case.service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        grant = case.service.login(
+            Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+        )
         request = request_for(
             case.app,
             path="/api/unknown",
@@ -1524,7 +1537,7 @@ def test_cookie_no_touch_no_renewal(tmp_path: Path) -> None:
                 assert response.status_code == 200 and "set-cookie" not in response.headers
             finally:
                 blocker.rollback()
-        other = case.service.authenticate(SecretStr(raw), now=case.clock.value)
+        other = case.service.authenticate(SecretStr(raw), now=case.clock.value, audit=AUDIT_CONTEXT)
         assert other.activity_refreshed
         assert "set-cookie" not in case.client.get("/api/auth/me").headers
 
@@ -1663,7 +1676,9 @@ def test_access_order_all_stages(tmp_path: Path) -> None:
 def test_admin_context_cached(tmp_path: Path) -> None:
     """验证契约：get_admin_context复用同请求已验证身份和时刻，不重复触摸；角色检查后领域写事务仍重新核验权限。"""
     with api_case(tmp_path) as case:
-        grant = case.service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        grant = case.service.login(
+            Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+        )
         request = request_for(
             case.app,
             path="/api/accounts",

@@ -13,6 +13,7 @@ from typing import Any, cast
 
 import pytest
 from accounts_support import (
+    AUDIT_CONTEXT,
     EXAMPLE_SECRET,
     NOW,
     HeldHasher,
@@ -57,6 +58,7 @@ from rdp.accounts.types import (
     SessionIdentity,
 )
 from rdp.api.errors import format_exception_report
+from rdp.audit.types import OPS_AUDIT_CONTEXT
 from rdp.infra.db.connection import (
     create_database_engine,
     session_scope,
@@ -510,9 +512,11 @@ def test_login_success(tmp_path: Path) -> None:
         codec = PasswordCodec(PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1))
         service = AccountService(engine, codec)
         created = service.create_first_admin(
-            NewAccount(Credentials("admin", EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR), now=NOW
+            NewAccount(Credentials("admin", EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR),
+            now=NOW,
+            audit=OPS_AUDIT_CONTEXT,
         )
-        grant = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        grant = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         assert grant.identity.account.account_id == created.account_id
         assert not grant.identity.activity_refreshed
         with session_scope(engine, read_only=True) as session:
@@ -529,8 +533,9 @@ def test_login_forced(tmp_path: Path) -> None:
             admin.identity,
             NewAccount(Credentials("member", EXAMPLE_SECRET), "成员", Role.MEMBER),
             now=NOW,
+            audit=AUDIT_CONTEXT,
         )
-        grant = service.login(Credentials("member", EXAMPLE_SECRET), now=NOW)
+        grant = service.login(Credentials("member", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         assert grant.identity.account.must_change_password
         with pytest.raises(PasswordChangeRequiredError):
             service.list_accounts(grant.identity, now=NOW)
@@ -539,12 +544,14 @@ def test_login_forced(tmp_path: Path) -> None:
 def test_login_fixed_session(tmp_path: Path) -> None:
     """验证契约：每次登录创建新随机令牌，不接受或复用旧 cookie，阻止会话固定。"""
     with scenario(tmp_path) as (service, first):
-        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         assert (
             second.token != first.token
             and second.identity.token_digest != first.identity.token_digest
         )
-        assert service.authenticate(first.token, now=NOW).account.account_id == 1
+        assert (
+            service.authenticate(first.token, now=NOW, audit=AUDIT_CONTEXT).account.account_id == 1
+        )
 
 
 def test_login_failures(tmp_path: Path) -> None:
@@ -552,7 +559,11 @@ def test_login_failures(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, admin):
         member = member_grant(service, admin)
         service.set_status(
-            admin.identity, member.identity.account.account_id, AccountStatus.DISABLED, now=NOW
+            admin.identity,
+            member.identity.account.account_id,
+            AccountStatus.DISABLED,
+            now=NOW,
+            audit=AUDIT_CONTEXT,
         )
         failures: list[tuple[Diagnostic, ...]] = []
         for credentials in (
@@ -561,7 +572,7 @@ def test_login_failures(tmp_path: Path) -> None:
             Credentials("admin", SecretStr("incorrect-credential")),
         ):
             with pytest.raises(AuthenticationError) as caught:
-                service.login(credentials, now=NOW)
+                service.login(credentials, now=NOW, audit=AUDIT_CONTEXT)
             failures.append(caught.value.diagnostics)
         assert failures[0] == failures[1] == failures[2]
         with session_scope(service.engine, read_only=True) as session:
@@ -576,9 +587,15 @@ def test_login_fifth(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, _):
         for _ in range(4):
             with pytest.raises(AuthenticationError):
-                service.login(Credentials("admin", SecretStr("wrong-example-value")), now=NOW)
+                service.login(
+                    Credentials("admin", SecretStr("wrong-example-value")),
+                    now=NOW,
+                    audit=AUDIT_CONTEXT,
+                )
         with pytest.raises(LoginWaitError) as caught:
-            service.login(Credentials("admin", SecretStr("wrong-example-value")), now=NOW)
+            service.login(
+                Credentials("admin", SecretStr("wrong-example-value")), now=NOW, audit=AUDIT_CONTEXT
+            )
         assert caught.value.retry_after_s == 60
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
@@ -604,7 +621,9 @@ def test_login_waiting(tmp_path: Path) -> None:
             patch.setattr(PasswordHasher, "verify", forbidden)
             with pytest.raises(LoginWaitError) as caught:
                 service.login(
-                    Credentials("admin", EXAMPLE_SECRET), now=NOW + timedelta(microseconds=1)
+                    Credentials("admin", EXAMPLE_SECRET),
+                    now=NOW + timedelta(microseconds=1),
+                    audit=AUDIT_CONTEXT,
                 )
         assert caught.value.retry_after_s == 60
 
@@ -616,7 +635,11 @@ def test_login_deadline(tmp_path: Path) -> None:
             row = session.get(AccountRow, 1)
             assert row is not None
             row.failed_attempts, row.blocked_until = 5, NOW + timedelta(seconds=60)
-        grant = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW + timedelta(seconds=60))
+        grant = service.login(
+            Credentials("admin", EXAMPLE_SECRET),
+            now=NOW + timedelta(seconds=60),
+            audit=AUDIT_CONTEXT,
+        )
         assert grant.identity.account.account_id == 1
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
@@ -630,7 +653,7 @@ def test_login_expired_wait_restarts_failure_count(tmp_path: Path) -> None:
         for now in (NOW, NOW + timedelta(seconds=61)):
             for expected_status in (401, 401, 401, 401, 429):
                 with pytest.raises(InputError) as caught:
-                    service.login(credentials, now=now)
+                    service.login(credentials, now=now, audit=AUDIT_CONTEXT)
                 assert caught.value.http_status == expected_status
 
 
@@ -645,11 +668,11 @@ def test_login_rehash_commit(tmp_path: Path) -> None:
             assert row is not None
             row.password_hash = old
         with fail_write_commit(service.engine), pytest.raises(ExternalError):
-            service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+            service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
             assert row is not None and row.password_hash == old
-        assert service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        assert service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
             assert row is not None and row.password_hash != old
@@ -665,12 +688,16 @@ def test_login_session_cap(tmp_path: Path) -> None:
         latest = first
         for i in range(32):
             latest = service.login(
-                Credentials("admin", EXAMPLE_SECRET), now=NOW + timedelta(seconds=i + 1)
+                Credentials("admin", EXAMPLE_SECRET),
+                now=NOW + timedelta(seconds=i + 1),
+                audit=AUDIT_CONTEXT,
             )
         with pytest.raises(AuthenticationError):
-            service.authenticate(first.token, now=NOW + timedelta(seconds=40))
+            service.authenticate(first.token, now=NOW + timedelta(seconds=40), audit=AUDIT_CONTEXT)
         assert (
-            service.authenticate(latest.token, now=NOW + timedelta(seconds=40)).account.account_id
+            service.authenticate(
+                latest.token, now=NOW + timedelta(seconds=40), audit=AUDIT_CONTEXT
+            ).account.account_id
             == 1
         )
         with session_scope(service.engine, read_only=True) as session:
@@ -682,11 +709,15 @@ def test_login_invalid(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, _):
         for name in ("UPPER", "ab", "a" * 33, " admin", "admin ", "a/../b"):
             with pytest.raises(AccountInputError):
-                service.login(Credentials(name, EXAMPLE_SECRET), now=NOW)
+                service.login(Credentials(name, EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AccountInputError):
-            service.login(Credentials("admin", SecretStr("short")), now=NOW)
+            service.login(Credentials("admin", SecretStr("short")), now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AccountInputError):
-            service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW.replace(tzinfo=None))
+            service.login(
+                Credentials("admin", EXAMPLE_SECRET),
+                now=NOW.replace(tzinfo=None),
+                audit=AUDIT_CONTEXT,
+            )
 
 
 def test_login_rollback(tmp_path: Path) -> None:
@@ -694,31 +725,35 @@ def test_login_rollback(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, admin):
         for value in (EXAMPLE_SECRET, SecretStr("incorrect-value")):
             with fail_write_commit(service.engine), pytest.raises(ExternalError):
-                service.login(Credentials("admin", value), now=NOW)
+                service.login(Credentials("admin", value), now=NOW, audit=AUDIT_CONTEXT)
             with session_scope(service.engine, read_only=True) as session:
                 row = session.get(AccountRow, 1)
                 assert row is not None and row.failed_attempts == 0 and row.blocked_until is None
                 assert session.scalar(select(func.count()).select_from(SessionRow)) == 1
-            assert service.authenticate(admin.token, now=NOW)
+            assert service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT)
 
 
 def test_login_clock(tmp_path: Path) -> None:
     """验证契约：固定UTC及偏移now结果一致；naive/溢出拒绝；回拨按负经过时长0，不报409、不改等待截止。"""
     with scenario(tmp_path) as (service, _):
         earlier = service.login(
-            Credentials("admin", EXAMPLE_SECRET), now=NOW - timedelta(seconds=10)
+            Credentials("admin", EXAMPLE_SECRET),
+            now=NOW - timedelta(seconds=10),
+            audit=AUDIT_CONTEXT,
         )
         assert earlier.identity.last_seen_at == NOW - timedelta(seconds=10)
         with pytest.raises(AccountInputError):
             service.login(
-                Credentials("admin", EXAMPLE_SECRET), now=datetime.max.replace(tzinfo=UTC)
+                Credentials("admin", EXAMPLE_SECRET),
+                now=datetime.max.replace(tzinfo=UTC),
+                audit=AUDIT_CONTEXT,
             )
 
 
 def test_authenticate_current(tmp_path: Path) -> None:
     """验证契约：有效令牌返回当前角色及强制改密标记，每次重读，不缓存权限。"""
     with scenario(tmp_path) as (service, grant):
-        identity = service.authenticate(grant.token, now=NOW)
+        identity = service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT)
         assert identity.account.role is Role.ADMINISTRATOR
         assert identity.token_digest == session_digest(grant.token)
         assert identity.last_seen_at == NOW and not identity.activity_refreshed
@@ -727,7 +762,7 @@ def test_authenticate_current(tmp_path: Path) -> None:
             assert row is not None
             row.role = "member"
             row.must_change_password = True
-        current = service.authenticate(grant.token, now=NOW)
+        current = service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT)
         assert current.account.role is Role.MEMBER and current.account.must_change_password
 
 
@@ -736,20 +771,24 @@ def test_authenticate_invalid(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, _):
         for value in (None, SecretStr("short"), SecretStr("A" * 43), cast(SecretStr, "A" * 43)):
             with pytest.raises(AuthenticationError):
-                service.authenticate(value, now=NOW)
+                service.authenticate(value, now=NOW, audit=AUDIT_CONTEXT)
 
 
 def test_authenticate_expiry(tmp_path: Path) -> None:
     """验证契约：last_seen+7天 前一微秒有效，恰等于及之后过期；独立事务删除后再抛401，G1。"""
     with scenario(tmp_path) as (service, grant):
         before = service.authenticate(
-            grant.token, now=NOW + timedelta(days=7) - timedelta(microseconds=1)
+            grant.token,
+            now=NOW + timedelta(days=7) - timedelta(microseconds=1),
+            audit=AUDIT_CONTEXT,
         )
         assert before.account.account_id == 1
         # 另一个会话从未触摸，恰好到期时应删除后返回401。
-        untouched = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        untouched = service.login(
+            Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+        )
         with pytest.raises(AuthenticationError):
-            service.authenticate(untouched.token, now=NOW + timedelta(days=7))
+            service.authenticate(untouched.token, now=NOW + timedelta(days=7), audit=AUDIT_CONTEXT)
         with session_scope(service.engine, read_only=True) as session:
             assert session.get(SessionRow, session_digest(untouched.token)) is None
 
@@ -757,24 +796,34 @@ def test_authenticate_expiry(tmp_path: Path) -> None:
 def test_authenticate_touch(tmp_path: Path) -> None:
     """验证契约：不足60秒只读且activity_refreshed=False；恰等于/超过60秒实际提交触摸才True；正常刷新下持续活动超过7天仍有效。"""
     with scenario(tmp_path) as (service, grant):
-        before = service.authenticate(grant.token, now=NOW + timedelta(seconds=59))
+        before = service.authenticate(
+            grant.token, now=NOW + timedelta(seconds=59), audit=AUDIT_CONTEXT
+        )
         assert not before.activity_refreshed and before.last_seen_at == NOW
-        boundary = service.authenticate(grant.token, now=NOW + timedelta(seconds=60))
+        boundary = service.authenticate(
+            grant.token, now=NOW + timedelta(seconds=60), audit=AUDIT_CONTEXT
+        )
         assert boundary.activity_refreshed and boundary.last_seen_at == NOW + timedelta(seconds=60)
-        again = service.authenticate(grant.token, now=NOW + timedelta(seconds=60))
+        again = service.authenticate(
+            grant.token, now=NOW + timedelta(seconds=60), audit=AUDIT_CONTEXT
+        )
         assert not again.activity_refreshed
         for day in range(1, 10):
-            alive = service.authenticate(grant.token, now=NOW + timedelta(days=day))
+            alive = service.authenticate(
+                grant.token, now=NOW + timedelta(days=day), audit=AUDIT_CONTEXT
+            )
             assert alive.account.account_id == 1
 
 
 def test_authenticate_precision(tmp_path: Path) -> None:
     """验证契约：刷新未受锁忙阻碍时，未持久化活动使过期最多提前不足60秒；到期基准不因回拨改写。"""
     with scenario(tmp_path) as (service, grant):
-        early = service.authenticate(grant.token, now=NOW + timedelta(seconds=59))
+        early = service.authenticate(
+            grant.token, now=NOW + timedelta(seconds=59), audit=AUDIT_CONTEXT
+        )
         assert early.last_seen_at == NOW
         with pytest.raises(AuthenticationError):
-            service.authenticate(grant.token, now=NOW + timedelta(days=7))
+            service.authenticate(grant.token, now=NOW + timedelta(days=7), audit=AUDIT_CONTEXT)
 
 
 def test_authenticate_revoked(tmp_path: Path) -> None:
@@ -786,13 +835,21 @@ def test_authenticate_revoked(tmp_path: Path) -> None:
             member = member_grant(service, admin)
             key = member.identity.account.account_id
             if operation == "disable":
-                service.set_status(admin.identity, key, AccountStatus.DISABLED, now=NOW)
+                service.set_status(
+                    admin.identity, key, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT
+                )
             elif operation == "delete":
-                service.delete_account(admin.identity, key, now=NOW)
+                service.delete_account(admin.identity, key, now=NOW, audit=AUDIT_CONTEXT)
             else:
-                service.reset_password(admin.identity, key, SecretStr("replacement-value"), now=NOW)
+                service.reset_password(
+                    admin.identity,
+                    key,
+                    SecretStr("replacement-value"),
+                    now=NOW,
+                    audit=AUDIT_CONTEXT,
+                )
             with pytest.raises(AuthenticationError):
-                service.authenticate(member.token, now=NOW)
+                service.authenticate(member.token, now=NOW, audit=AUDIT_CONTEXT)
 
 
 def test_authenticate_read_session(tmp_path: Path) -> None:
@@ -801,21 +858,23 @@ def test_authenticate_read_session(tmp_path: Path) -> None:
         with session_scope(service.engine, read_only=True) as reader:
             old = reader.get(SessionRow, admin.identity.token_digest)
             assert old is not None and old.last_seen_at == NOW
-            updated = service.authenticate(admin.token, now=NOW + timedelta(seconds=60))
+            updated = service.authenticate(
+                admin.token, now=NOW + timedelta(seconds=60), audit=AUDIT_CONTEXT
+            )
             assert updated.activity_refreshed
             assert reader.connection().exec_driver_sql("PRAGMA query_only").scalar_one() == 1
             reader.expire(old)
             assert old.last_seen_at == NOW
         assert service.authenticate(
-            admin.token, now=NOW + timedelta(seconds=60)
+            admin.token, now=NOW + timedelta(seconds=60), audit=AUDIT_CONTEXT
         ).last_seen_at == NOW + timedelta(seconds=60)
 
 
 def test_authenticate_failure(tmp_path: Path) -> None:
-    """验证契约：非法时刻、损坏库、初始读锁/过期删除锁、I/O和映射错误分别归声明异常；仅有效会话刷新获锁忙可继续。"""
+    """验证契约：非法时刻、损坏库、初始读锁、I/O和映射错误分别归声明异常；过期删除的短锁超时由专用测试核验。"""
     with scenario(tmp_path) as (service, admin):
         with pytest.raises(AccountInputError):
-            service.authenticate(admin.token, now=NOW.replace(tzinfo=None))
+            service.authenticate(admin.token, now=NOW.replace(tzinfo=None), audit=AUDIT_CONTEXT)
         for code, expected in (
             (sqlite3.SQLITE_CORRUPT, InputError),
             (sqlite3.SQLITE_BUSY, ConflictError),
@@ -838,56 +897,69 @@ def test_authenticate_failure(tmp_path: Path) -> None:
             event.listen(service.engine, "before_cursor_execute", broken)
             try:
                 with pytest.raises(expected):
-                    service.authenticate(admin.token, now=NOW)
+                    service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT)
             finally:
                 event.remove(service.engine, "before_cursor_execute", broken)
-        assert service.authenticate(admin.token, now=NOW).account == admin.identity.account
+        assert (
+            service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT).account
+            == admin.identity.account
+        )
 
 
 def test_logout_success(tmp_path: Path) -> None:
     """验证契约：只撤销当前会话，其他会话仍可用；之后相同 cookie 返回401，验收2。"""
     with scenario(tmp_path) as (service, first):
-        other = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
-        service.logout(first.identity, now=NOW)
+        other = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
+        service.logout(first.identity, now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AuthenticationError):
-            service.authenticate(first.token, now=NOW)
-        assert service.authenticate(other.token, now=NOW).account.account_id == 1
+            service.authenticate(first.token, now=NOW, audit=AUDIT_CONTEXT)
+        assert (
+            service.authenticate(other.token, now=NOW, audit=AUDIT_CONTEXT).account.account_id == 1
+        )
 
 
 def test_logout_missing(tmp_path: Path) -> None:
     """验证契约：同一已鉴权身份重复领域 logout 对不存在行成功，不伪造 HTTP 匿名成功。"""
     with scenario(tmp_path) as (service, grant):
-        assert service.logout(grant.identity, now=NOW) is None
-        assert service.logout(grant.identity, now=NOW) is None
+        assert service.logout(grant.identity, now=NOW, audit=AUDIT_CONTEXT) is None
+        assert service.logout(grant.identity, now=NOW, audit=AUDIT_CONTEXT) is None
         with pytest.raises(AuthenticationError):
-            service.authenticate(grant.token, now=NOW)
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT)
 
 
 def test_logout_failure(tmp_path: Path) -> None:
     """验证契约：无效 now 和数据库四类错误按契约传播，失败不部分删除或声称登出。"""
     with scenario(tmp_path) as (service, admin):
         with fail_write_commit(service.engine), pytest.raises(ExternalError):
-            service.logout(admin.identity, now=NOW)
-        assert service.authenticate(admin.token, now=NOW).account == admin.identity.account
+            service.logout(admin.identity, now=NOW, audit=AUDIT_CONTEXT)
+        assert (
+            service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT).account
+            == admin.identity.account
+        )
 
 
 def test_change_password_success(tmp_path: Path) -> None:
     """验证契约：校验旧口令后换哈希、清强制标记/G2、存本人快照、删全部旧会话并创建新会话，原子提交。"""
     with scenario(tmp_path) as (service, old):
-        another = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        another = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         result = service.change_password(
             old.identity,
             PasswordChange(EXAMPLE_SECRET, SecretStr("new-current-credential")),
             now=NOW + timedelta(seconds=1),
+            audit=AUDIT_CONTEXT,
         )
         assert not result.identity.account.must_change_password
         assert result.token != old.token
         assert result.identity.account.updated_by == ActorRef(1, "管理员")
         for expired in (old, another):
             with pytest.raises(AuthenticationError):
-                service.authenticate(expired.token, now=NOW + timedelta(seconds=1))
+                service.authenticate(
+                    expired.token, now=NOW + timedelta(seconds=1), audit=AUDIT_CONTEXT
+                )
         assert (
-            service.authenticate(result.token, now=NOW + timedelta(seconds=1)).account.account_id
+            service.authenticate(
+                result.token, now=NOW + timedelta(seconds=1), audit=AUDIT_CONTEXT
+            ).account.account_id
             == 1
         )
 
@@ -897,7 +969,10 @@ def test_change_password_forced(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, admin):
         member = member_grant(service, admin)
         assert not member.identity.account.must_change_password
-        assert service.authenticate(member.token, now=NOW).account.role is Role.MEMBER
+        assert (
+            service.authenticate(member.token, now=NOW, audit=AUDIT_CONTEXT).account.role
+            is Role.MEMBER
+        )
 
 
 def test_change_password_mismatch(tmp_path: Path) -> None:
@@ -906,11 +981,14 @@ def test_change_password_mismatch(tmp_path: Path) -> None:
         change = PasswordChange(SecretStr("wrong-example-value"), SecretStr("different-new-value"))
         for _ in range(4):
             with pytest.raises(CurrentPasswordError) as caught:
-                service.change_password(grant.identity, change, now=NOW)
+                service.change_password(grant.identity, change, now=NOW, audit=AUDIT_CONTEXT)
             assert caught.value.http_status == 400
-            assert service.authenticate(grant.token, now=NOW).account.account_id == 1
+            assert (
+                service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account.account_id
+                == 1
+            )
         with pytest.raises(LoginWaitError):
-            service.change_password(grant.identity, change, now=NOW)
+            service.change_password(grant.identity, change, now=NOW, audit=AUDIT_CONTEXT)
 
 
 def test_change_password_same(tmp_path: Path) -> None:
@@ -921,37 +999,46 @@ def test_change_password_same(tmp_path: Path) -> None:
             PasswordChange(EXAMPLE_SECRET, SecretStr("short")),
         ):
             with pytest.raises(AccountInputError):
-                service.change_password(grant.identity, change, now=NOW)
-        assert service.authenticate(grant.token, now=NOW).account.account_id == 1
+                service.change_password(grant.identity, change, now=NOW, audit=AUDIT_CONTEXT)
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account.account_id == 1
+        )
 
 
 def test_change_password_revoked(tmp_path: Path) -> None:
     """验证契约：事务内发现会话过期/撤销或账号停用为 AuthenticationError，不能用旧身份改密。"""
     with scenario(tmp_path) as (service, grant):
-        service.logout(grant.identity, now=NOW)
+        service.logout(grant.identity, now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AuthenticationError):
             service.change_password(
                 grant.identity,
                 PasswordChange(EXAMPLE_SECRET, SecretStr("new-secret-example")),
                 now=NOW,
+                audit=AUDIT_CONTEXT,
             )
 
 
 def test_change_password_rollback(tmp_path: Path) -> None:
     """验证契约：换哈希/删会话/新建会话任一步故障全回滚，不部分改变密码或会话。"""
     with scenario(tmp_path) as (service, first):
-        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         with fail_write_commit(service.engine), pytest.raises(ExternalError):
             service.change_password(
                 first.identity,
                 PasswordChange(EXAMPLE_SECRET, SecretStr("replacement-value")),
                 now=NOW + timedelta(seconds=10),
+                audit=AUDIT_CONTEXT,
             )
         for grant in (first, second):
-            assert service.authenticate(grant.token, now=NOW).account == first.identity.account
-        assert service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+            assert (
+                service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account
+                == first.identity.account
+            )
+        assert service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AuthenticationError):
-            service.login(Credentials("admin", SecretStr("replacement-value")), now=NOW)
+            service.login(
+                Credentials("admin", SecretStr("replacement-value")), now=NOW, audit=AUDIT_CONTEXT
+            )
 
 
 def test_list_accounts_pages(tmp_path: Path) -> None:
@@ -998,7 +1085,7 @@ def test_business_authorization_idle_expiry(tmp_path: Path, elapsed: timedelta) 
         before = persisted_account_state(service.engine)
         command = NewAccount(Credentials("new_member", EXAMPLE_SECRET), "新成员", Role.MEMBER)
         with pytest.raises(AuthenticationError) as caught:
-            service.create_account(admin.identity, command, now=NOW + elapsed)
+            service.create_account(admin.identity, command, now=NOW + elapsed, audit=AUDIT_CONTEXT)
         assert caught.value.http_status == 401
         assert persisted_account_state(service.engine) == before
 
@@ -1035,6 +1122,7 @@ def test_create_account_success(tmp_path: Path) -> None:
             admin.identity,
             NewAccount(Credentials("member", EXAMPLE_SECRET), "成员姓名", Role.MEMBER),
             now=NOW,
+            audit=AUDIT_CONTEXT,
         )
         assert created.account_id == 2 and created.login_name == "member"
         assert created.status is AccountStatus.ENABLED and created.must_change_password
@@ -1064,6 +1152,7 @@ def test_create_account_validation(tmp_path: Path) -> None:
                     grant.identity,
                     NewAccount(Credentials(name, EXAMPLE_SECRET), display, Role.MEMBER),
                     now=NOW,
+                    audit=AUDIT_CONTEXT,
                 )
         assert len(service.list_accounts(grant.identity, now=NOW).items) == 1
 
@@ -1076,6 +1165,7 @@ def test_create_account_duplicate(tmp_path: Path) -> None:
                 grant.identity,
                 NewAccount(Credentials("admin", EXAMPLE_SECRET), "同名", Role.MEMBER),
                 now=NOW,
+                audit=AUDIT_CONTEXT,
             )
         assert len(service.list_accounts(grant.identity, now=NOW).items) == 1
 
@@ -1089,6 +1179,7 @@ def test_create_account_permissions(tmp_path: Path) -> None:
                 member.identity,
                 NewAccount(Credentials("other", EXAMPLE_SECRET), "其他", Role.MEMBER),
                 now=NOW,
+                audit=AUDIT_CONTEXT,
             )
         assert len(service.list_accounts(grant.identity, now=NOW).items) == 2
 
@@ -1100,33 +1191,48 @@ def test_set_role_success(tmp_path: Path) -> None:
             admin.identity,
             NewAccount(Credentials("member", EXAMPLE_SECRET), "成员", Role.MEMBER),
             now=NOW,
+            audit=AUDIT_CONTEXT,
         )
-        old = service.login(Credentials("member", EXAMPLE_SECRET), now=NOW)
+        old = service.login(Credentials("member", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         changed = service.set_role(
-            admin.identity, member.account_id, Role.ADMINISTRATOR, now=NOW + timedelta(seconds=1)
+            admin.identity,
+            member.account_id,
+            Role.ADMINISTRATOR,
+            now=NOW + timedelta(seconds=1),
+            audit=AUDIT_CONTEXT,
         )
         assert changed.role is Role.ADMINISTRATOR and changed.updated_by == ActorRef(1, "管理员")
         assert changed.updated_at == NOW + timedelta(seconds=1)
         with pytest.raises(AuthenticationError):
-            service.authenticate(old.token, now=NOW + timedelta(seconds=1))
+            service.authenticate(old.token, now=NOW + timedelta(seconds=1), audit=AUDIT_CONTEXT)
 
 
 def test_set_role_noop(tmp_path: Path) -> None:
     """验证契约：相同角色返回原快照，不改时间或会话。"""
     with scenario(tmp_path) as (service, grant):
         same = service.set_role(
-            grant.identity, 1, Role.ADMINISTRATOR, now=NOW + timedelta(seconds=1)
+            grant.identity,
+            1,
+            Role.ADMINISTRATOR,
+            now=NOW + timedelta(seconds=1),
+            audit=AUDIT_CONTEXT,
         )
         assert same.updated_at == NOW
-        assert service.authenticate(grant.token, now=NOW).account.role is Role.ADMINISTRATOR
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account.role
+            is Role.ADMINISTRATOR
+        )
 
 
 def test_set_role_last_admin(tmp_path: Path) -> None:
     """验证契约：降级最后启用管理员409，管理员和会话全部保留，验收4。"""
     with scenario(tmp_path) as (service, grant):
         with pytest.raises(ConflictError):
-            service.set_role(grant.identity, 1, Role.MEMBER, now=NOW)
-        assert service.authenticate(grant.token, now=NOW).account.role is Role.ADMINISTRATOR
+            service.set_role(grant.identity, 1, Role.MEMBER, now=NOW, audit=AUDIT_CONTEXT)
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account.role
+            is Role.ADMINISTRATOR
+        )
 
 
 def test_set_role_concurrent(tmp_path: Path) -> None:
@@ -1140,7 +1246,11 @@ def test_set_role_concurrent(tmp_path: Path) -> None:
             barrier.wait(timeout=2)
             try:
                 service.set_role(
-                    grant.identity, grant.identity.account.account_id, Role.MEMBER, now=NOW
+                    grant.identity,
+                    grant.identity.account.account_id,
+                    Role.MEMBER,
+                    now=NOW,
+                    audit=AUDIT_CONTEXT,
                 )
             except ConflictError:
                 return "conflict"
@@ -1172,24 +1282,27 @@ def test_set_role_errors(tmp_path: Path) -> None:
             admin.identity,
             NewAccount(Credentials("forced", EXAMPLE_SECRET), "未改密", Role.MEMBER),
             now=NOW,
+            audit=AUDIT_CONTEXT,
         )
-        forced = service.login(Credentials("forced", EXAMPLE_SECRET), now=NOW)
+        forced = service.login(Credentials("forced", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         before = service.list_accounts(admin.identity, after_id=0, now=NOW)
         for invalid in (0, True, -1, 9223372036854775808):
             with pytest.raises(AccountInputError):
-                service.set_role(admin.identity, invalid, Role.ADMINISTRATOR, now=NOW)
+                service.set_role(
+                    admin.identity, invalid, Role.ADMINISTRATOR, now=NOW, audit=AUDIT_CONTEXT
+                )
         with pytest.raises(AccountInputError):
-            service.set_role(admin.identity, key, cast(Role, "owner"), now=NOW)
+            service.set_role(admin.identity, key, cast(Role, "owner"), now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AccountNotFoundError):
-            service.set_role(admin.identity, 999, Role.ADMINISTRATOR, now=NOW)
+            service.set_role(admin.identity, 999, Role.ADMINISTRATOR, now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AuthorizationError):
-            service.set_role(member.identity, key, Role.ADMINISTRATOR, now=NOW)
+            service.set_role(member.identity, key, Role.ADMINISTRATOR, now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(PasswordChangeRequiredError):
-            service.set_role(forced.identity, key, Role.ADMINISTRATOR, now=NOW)
+            service.set_role(forced.identity, key, Role.ADMINISTRATOR, now=NOW, audit=AUDIT_CONTEXT)
         assert service.list_accounts(admin.identity, after_id=0, now=NOW) == before
-        service.logout(admin.identity, now=NOW)
+        service.logout(admin.identity, now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AuthenticationError):
-            service.set_role(admin.identity, key, Role.ADMINISTRATOR, now=NOW)
+            service.set_role(admin.identity, key, Role.ADMINISTRATOR, now=NOW, audit=AUDIT_CONTEXT)
 
 
 def test_set_status_disable(tmp_path: Path) -> None:
@@ -1199,14 +1312,15 @@ def test_set_status_disable(tmp_path: Path) -> None:
             admin.identity,
             NewAccount(Credentials("member", EXAMPLE_SECRET), "成员", Role.MEMBER),
             now=NOW,
+            audit=AUDIT_CONTEXT,
         )
-        old = service.login(Credentials("member", EXAMPLE_SECRET), now=NOW)
+        old = service.login(Credentials("member", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         changed = service.set_status(
-            admin.identity, member.account_id, AccountStatus.DISABLED, now=NOW
+            admin.identity, member.account_id, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT
         )
         assert changed.status is AccountStatus.DISABLED
         with pytest.raises(AuthenticationError):
-            service.authenticate(old.token, now=NOW)
+            service.authenticate(old.token, now=NOW, audit=AUDIT_CONTEXT)
 
 
 def test_set_status_enable(tmp_path: Path) -> None:
@@ -1214,22 +1328,31 @@ def test_set_status_enable(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, grant):
         member = member_grant(service, grant)
         key = member.identity.account.account_id
-        service.set_status(grant.identity, key, AccountStatus.DISABLED, now=NOW)
-        restored = service.set_status(grant.identity, key, AccountStatus.ENABLED, now=NOW)
+        service.set_status(
+            grant.identity, key, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT
+        )
+        restored = service.set_status(
+            grant.identity, key, AccountStatus.ENABLED, now=NOW, audit=AUDIT_CONTEXT
+        )
         assert restored.status is AccountStatus.ENABLED
         with pytest.raises(AuthenticationError):
-            service.authenticate(member.token, now=NOW)
+            service.authenticate(member.token, now=NOW, audit=AUDIT_CONTEXT)
 
 
 def test_set_status_noop(tmp_path: Path) -> None:
     """验证契约：相同状态不改审计时刻或会话。"""
     with scenario(tmp_path) as (service, grant):
         same = service.set_status(
-            grant.identity, 1, AccountStatus.ENABLED, now=NOW + timedelta(seconds=1)
+            grant.identity,
+            1,
+            AccountStatus.ENABLED,
+            now=NOW + timedelta(seconds=1),
+            audit=AUDIT_CONTEXT,
         )
         assert (
             same.updated_at == NOW
-            and service.authenticate(grant.token, now=NOW).account.account_id == 1
+            and service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account.account_id
+            == 1
         )
 
 
@@ -1237,8 +1360,13 @@ def test_set_status_last_admin(tmp_path: Path) -> None:
     """验证契约：停用最后启用管理员409，无部分变更。"""
     with scenario(tmp_path) as (service, grant):
         with pytest.raises(ConflictError):
-            service.set_status(grant.identity, 1, AccountStatus.DISABLED, now=NOW)
-        assert service.authenticate(grant.token, now=NOW).account.status is AccountStatus.ENABLED
+            service.set_status(
+                grant.identity, 1, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT
+            )
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account.status
+            is AccountStatus.ENABLED
+        )
 
 
 def test_set_status_concurrent(tmp_path: Path) -> None:
@@ -1256,6 +1384,7 @@ def test_set_status_concurrent(tmp_path: Path) -> None:
                     grant.identity.account.account_id,
                     AccountStatus.DISABLED,
                     now=NOW,
+                    audit=AUDIT_CONTEXT,
                 )
             except ConflictError:
                 return "conflict"
@@ -1287,24 +1416,37 @@ def test_set_status_errors(tmp_path: Path) -> None:
             admin.identity,
             NewAccount(Credentials("forced", EXAMPLE_SECRET), "未改密", Role.MEMBER),
             now=NOW,
+            audit=AUDIT_CONTEXT,
         )
-        forced = service.login(Credentials("forced", EXAMPLE_SECRET), now=NOW)
+        forced = service.login(Credentials("forced", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         before = service.list_accounts(admin.identity, after_id=0, now=NOW)
         for invalid in (0, True, -1, 9223372036854775808):
             with pytest.raises(AccountInputError):
-                service.set_status(admin.identity, invalid, AccountStatus.DISABLED, now=NOW)
+                service.set_status(
+                    admin.identity, invalid, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT
+                )
         with pytest.raises(AccountInputError):
-            service.set_status(admin.identity, key, cast(AccountStatus, "other"), now=NOW)
+            service.set_status(
+                admin.identity, key, cast(AccountStatus, "other"), now=NOW, audit=AUDIT_CONTEXT
+            )
         with pytest.raises(AccountNotFoundError):
-            service.set_status(admin.identity, 999, AccountStatus.DISABLED, now=NOW)
+            service.set_status(
+                admin.identity, 999, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT
+            )
         with pytest.raises(AuthorizationError):
-            service.set_status(member.identity, key, AccountStatus.DISABLED, now=NOW)
+            service.set_status(
+                member.identity, key, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT
+            )
         with pytest.raises(PasswordChangeRequiredError):
-            service.set_status(forced.identity, key, AccountStatus.DISABLED, now=NOW)
+            service.set_status(
+                forced.identity, key, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT
+            )
         assert service.list_accounts(admin.identity, after_id=0, now=NOW) == before
-        service.logout(admin.identity, now=NOW)
+        service.logout(admin.identity, now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AuthenticationError):
-            service.set_status(admin.identity, key, AccountStatus.DISABLED, now=NOW)
+            service.set_status(
+                admin.identity, key, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT
+            )
 
 
 def test_reset_password_success(tmp_path: Path) -> None:
@@ -1314,17 +1456,24 @@ def test_reset_password_success(tmp_path: Path) -> None:
             admin.identity,
             NewAccount(Credentials("member", EXAMPLE_SECRET), "成员", Role.MEMBER),
             now=NOW,
+            audit=AUDIT_CONTEXT,
         )
-        old = service.login(Credentials("member", EXAMPLE_SECRET), now=NOW)
+        old = service.login(Credentials("member", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         result = service.reset_password(
-            admin.identity, member.account_id, SecretStr("replacement-credential"), now=NOW
+            admin.identity,
+            member.account_id,
+            SecretStr("replacement-credential"),
+            now=NOW,
+            audit=AUDIT_CONTEXT,
         )
         assert result.must_change_password and result.updated_by == ActorRef(1, "管理员")
         with pytest.raises(AuthenticationError):
-            service.authenticate(old.token, now=NOW)
+            service.authenticate(old.token, now=NOW, audit=AUDIT_CONTEXT)
         assert (
             service.login(
-                Credentials("member", SecretStr("replacement-credential")), now=NOW
+                Credentials("member", SecretStr("replacement-credential")),
+                now=NOW,
+                audit=AUDIT_CONTEXT,
             ).identity.account.account_id
             == member.account_id
         )
@@ -1339,24 +1488,37 @@ def test_reset_password_errors(tmp_path: Path) -> None:
             admin.identity,
             NewAccount(Credentials("forced", EXAMPLE_SECRET), "未改密", Role.MEMBER),
             now=NOW,
+            audit=AUDIT_CONTEXT,
         )
-        forced = service.login(Credentials("forced", EXAMPLE_SECRET), now=NOW)
+        forced = service.login(Credentials("forced", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         before = service.list_accounts(admin.identity, after_id=0, now=NOW)
         for invalid in (0, True, -1, 9223372036854775808):
             with pytest.raises(AccountInputError):
-                service.reset_password(admin.identity, invalid, EXAMPLE_SECRET, now=NOW)
+                service.reset_password(
+                    admin.identity, invalid, EXAMPLE_SECRET, now=NOW, audit=AUDIT_CONTEXT
+                )
         with pytest.raises(AccountInputError):
-            service.reset_password(admin.identity, key, SecretStr("short"), now=NOW)
+            service.reset_password(
+                admin.identity, key, SecretStr("short"), now=NOW, audit=AUDIT_CONTEXT
+            )
         with pytest.raises(AccountNotFoundError):
-            service.reset_password(admin.identity, 999, EXAMPLE_SECRET, now=NOW)
+            service.reset_password(
+                admin.identity, 999, EXAMPLE_SECRET, now=NOW, audit=AUDIT_CONTEXT
+            )
         with pytest.raises(AuthorizationError):
-            service.reset_password(member.identity, key, EXAMPLE_SECRET, now=NOW)
+            service.reset_password(
+                member.identity, key, EXAMPLE_SECRET, now=NOW, audit=AUDIT_CONTEXT
+            )
         with pytest.raises(PasswordChangeRequiredError):
-            service.reset_password(forced.identity, key, EXAMPLE_SECRET, now=NOW)
+            service.reset_password(
+                forced.identity, key, EXAMPLE_SECRET, now=NOW, audit=AUDIT_CONTEXT
+            )
         assert service.list_accounts(admin.identity, after_id=0, now=NOW) == before
-        service.logout(admin.identity, now=NOW)
+        service.logout(admin.identity, now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AuthenticationError):
-            service.reset_password(admin.identity, key, EXAMPLE_SECRET, now=NOW)
+            service.reset_password(
+                admin.identity, key, EXAMPLE_SECRET, now=NOW, audit=AUDIT_CONTEXT
+            )
 
 
 def test_reset_password_rollback(tmp_path: Path) -> None:
@@ -1366,12 +1528,23 @@ def test_reset_password_rollback(tmp_path: Path) -> None:
         key = member.identity.account.account_id
         with fail_write_commit(service.engine), pytest.raises(ExternalError):
             service.reset_password(
-                admin.identity, key, SecretStr("replacement-value"), now=NOW + timedelta(seconds=10)
+                admin.identity,
+                key,
+                SecretStr("replacement-value"),
+                now=NOW + timedelta(seconds=10),
+                audit=AUDIT_CONTEXT,
             )
-        assert service.authenticate(member.token, now=NOW).account == member.identity.account
-        assert service.login(Credentials("member", SecretStr("member-updated-value")), now=NOW)
+        assert (
+            service.authenticate(member.token, now=NOW, audit=AUDIT_CONTEXT).account
+            == member.identity.account
+        )
+        assert service.login(
+            Credentials("member", SecretStr("member-updated-value")), now=NOW, audit=AUDIT_CONTEXT
+        )
         with pytest.raises(AuthenticationError):
-            service.login(Credentials("member", SecretStr("replacement-value")), now=NOW)
+            service.login(
+                Credentials("member", SecretStr("replacement-value")), now=NOW, audit=AUDIT_CONTEXT
+            )
 
 
 def test_delete_account_success(tmp_path: Path) -> None:
@@ -1381,16 +1554,18 @@ def test_delete_account_success(tmp_path: Path) -> None:
             admin.identity,
             NewAccount(Credentials("member", EXAMPLE_SECRET), "成员", Role.MEMBER),
             now=NOW,
+            audit=AUDIT_CONTEXT,
         )
-        old = service.login(Credentials("member", EXAMPLE_SECRET), now=NOW)
-        service.delete_account(admin.identity, member.account_id, now=NOW)
+        old = service.login(Credentials("member", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
+        service.delete_account(admin.identity, member.account_id, now=NOW, audit=AUDIT_CONTEXT)
         assert [x.account_id for x in service.list_accounts(admin.identity, now=NOW).items] == [1]
         with pytest.raises(AuthenticationError):
-            service.authenticate(old.token, now=NOW)
+            service.authenticate(old.token, now=NOW, audit=AUDIT_CONTEXT)
         fresh = service.create_account(
             admin.identity,
             NewAccount(Credentials("member", EXAMPLE_SECRET), "重建", Role.MEMBER),
             now=NOW,
+            audit=AUDIT_CONTEXT,
         )
         assert fresh.account_id > member.account_id
 
@@ -1399,8 +1574,10 @@ def test_delete_account_last_admin(tmp_path: Path) -> None:
     """验证契约：删除最后启用管理员409，原账号/会话保留。"""
     with scenario(tmp_path) as (service, grant):
         with pytest.raises(ConflictError):
-            service.delete_account(grant.identity, 1, now=NOW)
-        assert service.authenticate(grant.token, now=NOW).account.account_id == 1
+            service.delete_account(grant.identity, 1, now=NOW, audit=AUDIT_CONTEXT)
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account.account_id == 1
+        )
 
 
 def test_delete_account_concurrent(tmp_path: Path) -> None:
@@ -1413,7 +1590,9 @@ def test_delete_account_concurrent(tmp_path: Path) -> None:
         def attempt(grant: SessionGrant) -> str:
             barrier.wait(timeout=2)
             try:
-                service.delete_account(grant.identity, grant.identity.account.account_id, now=NOW)
+                service.delete_account(
+                    grant.identity, grant.identity.account.account_id, now=NOW, audit=AUDIT_CONTEXT
+                )
             except ConflictError:
                 return "conflict"
             return "success"
@@ -1444,24 +1623,27 @@ def test_delete_account_errors(tmp_path: Path) -> None:
             admin.identity,
             NewAccount(Credentials("forced", EXAMPLE_SECRET), "未改密", Role.MEMBER),
             now=NOW,
+            audit=AUDIT_CONTEXT,
         )
-        forced = service.login(Credentials("forced", EXAMPLE_SECRET), now=NOW)
+        forced = service.login(Credentials("forced", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         before = service.list_accounts(admin.identity, after_id=0, now=NOW)
         for invalid in (0, True, -1, 9223372036854775808):
             with pytest.raises(AccountInputError):
-                service.delete_account(admin.identity, invalid, now=NOW)
+                service.delete_account(admin.identity, invalid, now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AccountInputError):
-            service.delete_account(admin.identity, key, now=NOW.replace(tzinfo=None))
+            service.delete_account(
+                admin.identity, key, now=NOW.replace(tzinfo=None), audit=AUDIT_CONTEXT
+            )
         with pytest.raises(AccountNotFoundError):
-            service.delete_account(admin.identity, 999, now=NOW)
+            service.delete_account(admin.identity, 999, now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AuthorizationError):
-            service.delete_account(member.identity, key, now=NOW)
+            service.delete_account(member.identity, key, now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(PasswordChangeRequiredError):
-            service.delete_account(forced.identity, key, now=NOW)
+            service.delete_account(forced.identity, key, now=NOW, audit=AUDIT_CONTEXT)
         assert service.list_accounts(admin.identity, after_id=0, now=NOW) == before
-        service.logout(admin.identity, now=NOW)
+        service.logout(admin.identity, now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AuthenticationError):
-            service.delete_account(admin.identity, key, now=NOW)
+            service.delete_account(admin.identity, key, now=NOW, audit=AUDIT_CONTEXT)
 
 
 def test_delete_account_rollback(tmp_path: Path) -> None:
@@ -1470,9 +1652,14 @@ def test_delete_account_rollback(tmp_path: Path) -> None:
         member = member_grant(service, admin)
         before = service.list_accounts(admin.identity, after_id=0, now=NOW)
         with fail_write_commit(service.engine), pytest.raises(ExternalError):
-            service.delete_account(admin.identity, member.identity.account.account_id, now=NOW)
+            service.delete_account(
+                admin.identity, member.identity.account.account_id, now=NOW, audit=AUDIT_CONTEXT
+            )
         assert service.list_accounts(admin.identity, after_id=0, now=NOW) == before
-        assert service.authenticate(member.token, now=NOW).account == member.identity.account
+        assert (
+            service.authenticate(member.token, now=NOW, audit=AUDIT_CONTEXT).account
+            == member.identity.account
+        )
 
 
 def test_first_admin_success(tmp_path: Path) -> None:
@@ -1483,6 +1670,7 @@ def test_first_admin_success(tmp_path: Path) -> None:
         created = service.create_first_admin(
             NewAccount(Credentials("admin", EXAMPLE_SECRET), "首位管理员", Role.ADMINISTRATOR),
             now=NOW,
+            audit=OPS_AUDIT_CONTEXT,
         )
         assert created.account_id == 1
         assert created.role is Role.ADMINISTRATOR and created.status is AccountStatus.ENABLED
@@ -1505,13 +1693,13 @@ def test_first_admin_exists(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, _grant):
         command = NewAccount(Credentials("other", EXAMPLE_SECRET), "另一管理员", Role.ADMINISTRATOR)
         with pytest.raises(ConflictError):
-            service.create_first_admin(command, now=NOW)
+            service.create_first_admin(command, now=NOW, audit=OPS_AUDIT_CONTEXT)
         with session_scope(service.engine) as session:
             row = session.get(AccountRow, 1)
             assert row is not None
             row.status = "disabled"
         with pytest.raises(ConflictError):
-            service.create_first_admin(command, now=NOW)
+            service.create_first_admin(command, now=NOW, audit=OPS_AUDIT_CONTEXT)
 
 
 def test_first_admin_concurrent(tmp_path: Path) -> None:
@@ -1528,6 +1716,7 @@ def test_first_admin_concurrent(tmp_path: Path) -> None:
                 service.create_first_admin(
                     NewAccount(Credentials(name, EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR),
                     now=NOW,
+                    audit=OPS_AUDIT_CONTEXT,
                 )
             except ConflictError:
                 return "conflict"
@@ -1554,21 +1743,21 @@ def test_first_admin_invalid(tmp_path: Path) -> None:
             NewAccount(Credentials("UPPER", EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR),
         ):
             with pytest.raises(AccountInputError):
-                service.create_first_admin(command, now=NOW)
+                service.create_first_admin(command, now=NOW, audit=OPS_AUDIT_CONTEXT)
 
 
 def test_ops_reset_service_success(tmp_path: Path) -> None:
     """验证契约：按登录名本地重置、清G2、强制改密、删会话，修改人运维，不改变启停/角色。"""
     with scenario(tmp_path) as (service, old):
         result = service.reset_password_from_ops(
-            "admin", SecretStr("replacement-credential"), now=NOW
+            "admin", SecretStr("replacement-credential"), now=NOW, audit=OPS_AUDIT_CONTEXT
         )
         assert result.must_change_password and result.updated_by == ActorRef(None, "运维")
         assert result.role is Role.ADMINISTRATOR and result.status is AccountStatus.ENABLED
         with pytest.raises(AuthenticationError):
-            service.authenticate(old.token, now=NOW)
+            service.authenticate(old.token, now=NOW, audit=AUDIT_CONTEXT)
         assert service.login(
-            Credentials("admin", SecretStr("replacement-credential")), now=NOW
+            Credentials("admin", SecretStr("replacement-credential")), now=NOW, audit=AUDIT_CONTEXT
         ).identity.account.must_change_password
 
 
@@ -1576,10 +1765,16 @@ def test_ops_reset_service_errors(tmp_path: Path) -> None:
     """验证契约：无效字段/now422，目标不存在404，数据库/哈希失败全回滚。"""
     with scenario(tmp_path) as (service, grant):
         with pytest.raises(AccountNotFoundError):
-            service.reset_password_from_ops("missing", EXAMPLE_SECRET, now=NOW)
+            service.reset_password_from_ops(
+                "missing", EXAMPLE_SECRET, now=NOW, audit=OPS_AUDIT_CONTEXT
+            )
         with pytest.raises(AccountInputError):
-            service.reset_password_from_ops("admin", SecretStr("short"), now=NOW)
-        assert service.authenticate(grant.token, now=NOW).account.account_id == 1
+            service.reset_password_from_ops(
+                "admin", SecretStr("short"), now=NOW, audit=OPS_AUDIT_CONTEXT
+            )
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account.account_id == 1
+        )
 
 
 @pytest.mark.parametrize(
@@ -1618,30 +1813,43 @@ def test_service_failure_database_categories(operation: str, fault: str, tmp_pat
 
         identity = grant.identity
         commands = {
-            "login": lambda: service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW),
-            "authenticate": lambda: service.authenticate(grant.token, now=NOW),
-            "logout": lambda: service.logout(identity, now=NOW),
+            "login": lambda: service.login(
+                Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+            ),
+            "authenticate": lambda: service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT),
+            "logout": lambda: service.logout(identity, now=NOW, audit=AUDIT_CONTEXT),
             "change_password": lambda: service.change_password(
-                identity, PasswordChange(EXAMPLE_SECRET, SecretStr("replacement-value")), now=NOW
+                identity,
+                PasswordChange(EXAMPLE_SECRET, SecretStr("replacement-value")),
+                now=NOW,
+                audit=AUDIT_CONTEXT,
             ),
             "list_accounts": lambda: service.list_accounts(identity, after_id=0, now=NOW),
             "create_account": lambda: service.create_account(
                 identity,
                 NewAccount(Credentials("member", EXAMPLE_SECRET), "成员", Role.MEMBER),
                 now=NOW,
+                audit=AUDIT_CONTEXT,
             ),
-            "set_role": lambda: service.set_role(identity, 1, Role.MEMBER, now=NOW),
-            "set_status": lambda: service.set_status(identity, 1, AccountStatus.DISABLED, now=NOW),
+            "set_role": lambda: service.set_role(
+                identity, 1, Role.MEMBER, now=NOW, audit=AUDIT_CONTEXT
+            ),
+            "set_status": lambda: service.set_status(
+                identity, 1, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT
+            ),
             "reset_password": lambda: service.reset_password(
-                identity, 1, SecretStr("replacement-value"), now=NOW
+                identity, 1, SecretStr("replacement-value"), now=NOW, audit=AUDIT_CONTEXT
             ),
-            "delete_account": lambda: service.delete_account(identity, 1, now=NOW),
+            "delete_account": lambda: service.delete_account(
+                identity, 1, now=NOW, audit=AUDIT_CONTEXT
+            ),
             "create_first_admin": lambda: service.create_first_admin(
                 NewAccount(Credentials("other", EXAMPLE_SECRET), "另一个", Role.ADMINISTRATOR),
                 now=NOW,
+                audit=OPS_AUDIT_CONTEXT,
             ),
             "reset_password_from_ops": lambda: service.reset_password_from_ops(
-                "admin", SecretStr("replacement-value"), now=NOW
+                "admin", SecretStr("replacement-value"), now=NOW, audit=OPS_AUDIT_CONTEXT
             ),
         }
         event.listen(service.engine, "before_cursor_execute", failing)
@@ -1652,7 +1860,10 @@ def test_service_failure_database_categories(operation: str, fault: str, tmp_pat
             assert str(code) in caught.value.diagnostics[0].actual
         finally:
             event.remove(service.engine, "before_cursor_execute", failing)
-        assert service.authenticate(grant.token, now=NOW).account == identity.account
+        assert (
+            service.authenticate(grant.token, now=NOW, audit=AUDIT_CONTEXT).account
+            == identity.account
+        )
 
 
 def test_service_failure_cleanup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1665,21 +1876,26 @@ def test_service_failure_cleanup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 
         def fail_close(session: Session) -> None:
             close(session)
-            raise OSError("private-cleanup-value")
+            # 故障针对业务冲突后的写事务关闭，不拦新增的只读授权预检。
+            if not session.info.get("rdp_read_only"):
+                raise OSError("private-cleanup-value")
 
         for method, callback in (("rollback", fail_rollback), ("close", fail_close)):
             with monkeypatch.context() as patch:
                 patch.setattr(Session, method, callback)
                 with pytest.raises(ConflictError) as caught:
-                    service.set_role(admin.identity, 1, Role.MEMBER, now=NOW)
+                    service.set_role(admin.identity, 1, Role.MEMBER, now=NOW, audit=AUDIT_CONTEXT)
             rendered = format_exception_report(caught.value)
             assert "结果未知" in rendered and "private-cleanup-value" not in rendered
             assert any("结果未知" in note for note in caught.value.__notes__)
-            assert service.authenticate(admin.token, now=NOW).account == admin.identity.account
+            assert (
+                service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT).account
+                == admin.identity.account
+            )
 
 
 def test_service_failure_secrets(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """验证契约：所有账号操作的失败异常、repr、诊断、运行日志和报错表都不含原文/哈希/令牌/cookie；不写登录或操作日志。"""
+    """验证契约：所有账号操作的失败异常、repr、诊断、运行日志和报错表都不含原文/哈希/令牌/cookie。"""
     with scenario(tmp_path) as (service, admin):
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
@@ -1700,27 +1916,40 @@ def test_service_failure_secrets(tmp_path: Path, caplog: pytest.LogCaptureFixtur
 
         identity = admin.identity
         operations: list[Callable[[], object]] = [
-            lambda: service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW),
-            lambda: service.authenticate(admin.token, now=NOW),
-            lambda: service.logout(identity, now=NOW),
+            lambda: service.login(
+                Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+            ),
+            lambda: service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT),
+            lambda: service.logout(identity, now=NOW, audit=AUDIT_CONTEXT),
             lambda: service.change_password(
-                identity, PasswordChange(EXAMPLE_SECRET, SecretStr("replacement-value")), now=NOW
+                identity,
+                PasswordChange(EXAMPLE_SECRET, SecretStr("replacement-value")),
+                now=NOW,
+                audit=AUDIT_CONTEXT,
             ),
             lambda: service.list_accounts(identity, after_id=0, now=NOW),
             lambda: service.create_account(
                 identity,
                 NewAccount(Credentials("member", EXAMPLE_SECRET), "成员", Role.MEMBER),
                 now=NOW,
+                audit=AUDIT_CONTEXT,
             ),
-            lambda: service.set_role(identity, 1, Role.MEMBER, now=NOW),
-            lambda: service.set_status(identity, 1, AccountStatus.DISABLED, now=NOW),
-            lambda: service.reset_password(identity, 1, EXAMPLE_SECRET, now=NOW),
-            lambda: service.delete_account(identity, 1, now=NOW),
+            lambda: service.set_role(identity, 1, Role.MEMBER, now=NOW, audit=AUDIT_CONTEXT),
+            lambda: service.set_status(
+                identity, 1, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT
+            ),
+            lambda: service.reset_password(
+                identity, 1, EXAMPLE_SECRET, now=NOW, audit=AUDIT_CONTEXT
+            ),
+            lambda: service.delete_account(identity, 1, now=NOW, audit=AUDIT_CONTEXT),
             lambda: service.create_first_admin(
                 NewAccount(Credentials("other", EXAMPLE_SECRET), "新管理员", Role.ADMINISTRATOR),
                 now=NOW,
+                audit=OPS_AUDIT_CONTEXT,
             ),
-            lambda: service.reset_password_from_ops("admin", EXAMPLE_SECRET, now=NOW),
+            lambda: service.reset_password_from_ops(
+                "admin", EXAMPLE_SECRET, now=NOW, audit=OPS_AUDIT_CONTEXT
+            ),
         ]
         event.listen(service.engine, "before_cursor_execute", fault)
         try:
@@ -1742,16 +1971,26 @@ def test_concurrent_request_time_order(tmp_path: Path) -> None:
     """验证契约：now早于已存创建/活动/修改时刻时不报错；负经过时长按0，保存时间用max，不改等待截止或提前过期。"""
     with scenario(tmp_path) as (service, admin):
         late = NOW + timedelta(minutes=10)
-        current = service.authenticate(admin.token, now=late)
+        current = service.authenticate(admin.token, now=late, audit=AUDIT_CONTEXT)
         assert current.last_seen_at == late
-        older = service.authenticate(admin.token, now=NOW + timedelta(minutes=5))
+        older = service.authenticate(
+            admin.token, now=NOW + timedelta(minutes=5), audit=AUDIT_CONTEXT
+        )
         assert older.last_seen_at == late and not older.activity_refreshed
         member = member_grant(service, admin)
         changed = service.set_status(
-            admin.identity, member.identity.account.account_id, AccountStatus.DISABLED, now=late
+            admin.identity,
+            member.identity.account.account_id,
+            AccountStatus.DISABLED,
+            now=late,
+            audit=AUDIT_CONTEXT,
         )
         restored = service.set_status(
-            admin.identity, member.identity.account.account_id, AccountStatus.ENABLED, now=NOW
+            admin.identity,
+            member.identity.account.account_id,
+            AccountStatus.ENABLED,
+            now=NOW,
+            audit=AUDIT_CONTEXT,
         )
         assert changed.updated_at == restored.updated_at == late
 
@@ -1865,11 +2104,15 @@ def test_argon2_running_cancellation() -> None:
 
 
 def test_login_unknown_no_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证契约：反复用不同未知名字或停用账号登录只读库并各做一次假验证，正常返回统一401，不建行、不改G2或会话。"""
+    """验证契约：未知名字或停用账号登录对业务状态只读并各做一次假验证，正常返回统一401，不建行、不改G2或会话。"""
     with scenario(tmp_path) as (service, admin):
         member = member_grant(service, admin)
         service.set_status(
-            admin.identity, member.identity.account.account_id, AccountStatus.DISABLED, now=NOW
+            admin.identity,
+            member.identity.account.account_id,
+            AccountStatus.DISABLED,
+            now=NOW,
+            audit=AUDIT_CONTEXT,
         )
         checked: list[str | bytes] = []
         statements: list[str] = []
@@ -1880,7 +2123,9 @@ def test_login_unknown_no_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
             return original(self, encoded, password)
 
         def sql(connection: Connection, cursor: object, statement: str, *args: object) -> None:
-            statements.append(statement)
+            # H2的独立短事务只写登录日志；此回归仍观察账号/G2/会话业务事务。
+            if not connection.get_execution_options().get("rdp_lock_timeout_ms"):
+                statements.append(statement)
 
         event.listen(service.engine, "before_cursor_execute", sql)
         try:
@@ -1888,7 +2133,9 @@ def test_login_unknown_no_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
                 patch.setattr(PasswordHasher, "verify", observe)
                 for name in ("unknown1", "unknown2", "unknown3", "member"):
                     with pytest.raises(AuthenticationError):
-                        service.login(Credentials(name, EXAMPLE_SECRET), now=NOW)
+                        service.login(
+                            Credentials(name, EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT
+                        )
         finally:
             event.remove(service.engine, "before_cursor_execute", sql)
         assert checked == [service.passwords.dummy_hash] * 4
@@ -1917,7 +2164,7 @@ def test_login_wait_skips_capacity(tmp_path: Path) -> None:
             workers = [pool.submit(codec.hash, EXAMPLE_SECRET) for _ in range(2)]
             assert held.wait_entered(2)
             with pytest.raises(LoginWaitError) as caught:
-                service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+                service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
             assert caught.value.retry_after_s == 60
         finally:
             close_workers(pool, held)
@@ -1940,12 +2187,14 @@ def test_login_capacity_no_counter(tmp_path: Path) -> None:
             workers = [pool.submit(codec.hash, EXAMPLE_SECRET) for _ in range(2)]
             assert held.wait_entered(2)
             with pytest.raises(ExternalError):
-                service.login(Credentials("admin", SecretStr("incorrect-value")), now=NOW)
+                service.login(
+                    Credentials("admin", SecretStr("incorrect-value")), now=NOW, audit=AUDIT_CONTEXT
+                )
         finally:
             close_workers(pool, held)
         for worker in workers:
             assert worker.result(timeout=1)
-        assert service.authenticate(admin.token, now=NOW)
+        assert service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT)
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
             assert row is not None
@@ -1958,28 +2207,42 @@ def test_clock_wait_rollback(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, _admin):
         for number in range(5):
             with pytest.raises(LoginWaitError if number == 4 else AuthenticationError):
-                service.login(Credentials("admin", SecretStr("incorrect-value")), now=NOW)
+                service.login(
+                    Credentials("admin", SecretStr("incorrect-value")), now=NOW, audit=AUDIT_CONTEXT
+                )
         with pytest.raises(LoginWaitError) as caught:
-            service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW - timedelta(hours=1))
+            service.login(
+                Credentials("admin", EXAMPLE_SECRET),
+                now=NOW - timedelta(hours=1),
+                audit=AUDIT_CONTEXT,
+            )
         assert caught.value.retry_after_s == 60
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
             assert row is not None and row.blocked_until == NOW + timedelta(seconds=60)
-        assert service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW + timedelta(seconds=60))
+        assert service.login(
+            Credentials("admin", EXAMPLE_SECRET),
+            now=NOW + timedelta(seconds=60),
+            audit=AUDIT_CONTEXT,
+        )
 
 
 def test_clock_session_rollback(tmp_path: Path) -> None:
     """验证契约：now早于会话创建/活动时刻不报409，不刷新、不续cookie，不提前过期；达到原7天边界才过期。"""
     with scenario(tmp_path) as (service, admin):
-        identity = service.authenticate(admin.token, now=NOW - timedelta(days=1))
+        identity = service.authenticate(
+            admin.token, now=NOW - timedelta(days=1), audit=AUDIT_CONTEXT
+        )
         assert identity.last_seen_at == NOW and not identity.activity_refreshed
         assert service.authenticate(
-            admin.token, now=NOW + timedelta(days=7) - timedelta(microseconds=1)
+            admin.token,
+            now=NOW + timedelta(days=7) - timedelta(microseconds=1),
+            audit=AUDIT_CONTEXT,
         )
         # 上一请求会刷新，因此用另一会话单独验证原7天的精确到期边界。
-        fresh = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        fresh = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         with pytest.raises(AuthenticationError):
-            service.authenticate(fresh.token, now=NOW + timedelta(days=7))
+            service.authenticate(fresh.token, now=NOW + timedelta(days=7), audit=AUDIT_CONTEXT)
 
 
 def test_clock_mutation_rollback(tmp_path: Path) -> None:
@@ -1988,20 +2251,27 @@ def test_clock_mutation_rollback(tmp_path: Path) -> None:
         member = member_grant(service, admin)
         key = member.identity.account.account_id
         earlier = NOW - timedelta(days=1)
-        changed = service.set_role(admin.identity, key, Role.ADMINISTRATOR, now=earlier)
+        changed = service.set_role(
+            admin.identity, key, Role.ADMINISTRATOR, now=earlier, audit=AUDIT_CONTEXT
+        )
         assert changed.updated_at == NOW
-        disabled = service.set_status(admin.identity, key, AccountStatus.DISABLED, now=earlier)
+        disabled = service.set_status(
+            admin.identity, key, AccountStatus.DISABLED, now=earlier, audit=AUDIT_CONTEXT
+        )
         assert disabled.updated_at == NOW
-        enabled = service.set_status(admin.identity, key, AccountStatus.ENABLED, now=earlier)
+        enabled = service.set_status(
+            admin.identity, key, AccountStatus.ENABLED, now=earlier, audit=AUDIT_CONTEXT
+        )
         assert enabled.updated_at == NOW
         reset = service.reset_password(
-            admin.identity, key, SecretStr("replacement-value"), now=earlier
+            admin.identity, key, SecretStr("replacement-value"), now=earlier, audit=AUDIT_CONTEXT
         )
         assert reset.updated_at == NOW
         own = service.change_password(
             admin.identity,
             PasswordChange(EXAMPLE_SECRET, SecretStr("another-credential")),
             now=earlier,
+            audit=AUDIT_CONTEXT,
         )
         assert own.identity.account.updated_at == NOW
 
@@ -2011,10 +2281,12 @@ def test_authenticate_touch_busy(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, admin):
         with session_scope(service.engine):
             start = time.monotonic()
-            identity = service.authenticate(admin.token, now=NOW + timedelta(seconds=60))
+            identity = service.authenticate(
+                admin.token, now=NOW + timedelta(seconds=60), audit=AUDIT_CONTEXT
+            )
             assert time.monotonic() - start < 1.5
             assert not identity.activity_refreshed and identity.last_seen_at == NOW
-        assert service.authenticate(admin.token, now=NOW).last_seen_at == NOW
+        assert service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT).last_seen_at == NOW
 
 
 def test_authenticate_touch_other_failure(tmp_path: Path) -> None:
@@ -2042,24 +2314,28 @@ def test_authenticate_touch_other_failure(tmp_path: Path) -> None:
             event.listen(service.engine, "before_cursor_execute", fail)
             try:
                 with pytest.raises(expected):
-                    service.authenticate(admin.token, now=NOW + timedelta(seconds=60))
+                    service.authenticate(
+                        admin.token, now=NOW + timedelta(seconds=60), audit=AUDIT_CONTEXT
+                    )
             finally:
                 event.remove(service.engine, "before_cursor_execute", fail)
-            assert service.authenticate(admin.token, now=NOW).last_seen_at == NOW
+            assert (
+                service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT).last_seen_at == NOW
+            )
         with fail_write_commit(service.engine), pytest.raises(ExternalError):
-            service.authenticate(admin.token, now=NOW + timedelta(seconds=60))
-        assert service.authenticate(admin.token, now=NOW).last_seen_at == NOW
+            service.authenticate(admin.token, now=NOW + timedelta(seconds=60), audit=AUDIT_CONTEXT)
+        assert service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT).last_seen_at == NOW
 
 
 def test_authenticate_expired_delete_busy(tmp_path: Path) -> None:
-    """验证契约：已过期会话删除拿不到写锁仍拒绝，不返回身份、不续cookie，不把过期删除当可跳过刷新。"""
+    """验证契约：已过期会话删除拿不到写锁仍拒绝，不返回身份、不续cookie，100毫秒短锁超时仍抛AuthenticationError，删除和日志留给下次访问。"""
     with scenario(tmp_path) as (service, admin):
-        with session_scope(service.engine), pytest.raises(ConflictError):
-            service.authenticate(admin.token, now=NOW + timedelta(days=7))
+        with session_scope(service.engine), pytest.raises(AuthenticationError):
+            service.authenticate(admin.token, now=NOW + timedelta(days=7), audit=AUDIT_CONTEXT)
         with session_scope(service.engine, read_only=True) as session:
             assert session.get(SessionRow, admin.identity.token_digest) is not None
         with pytest.raises(AuthenticationError):
-            service.authenticate(admin.token, now=NOW + timedelta(days=7))
+            service.authenticate(admin.token, now=NOW + timedelta(days=7), audit=AUDIT_CONTEXT)
         with session_scope(service.engine, read_only=True) as session:
             assert session.get(SessionRow, admin.identity.token_digest) is None
 
@@ -2087,14 +2363,18 @@ def test_authenticate_concurrent_touch(tmp_path: Path) -> None:
                 if statement == "BEGIN IMMEDIATE" and not triggered:
                     triggered = True
                     if change == "touch":
-                        service.authenticate(admin.token, now=NOW + timedelta(seconds=60))
+                        service.authenticate(
+                            admin.token, now=NOW + timedelta(seconds=60), audit=AUDIT_CONTEXT
+                        )
                     else:
-                        service.logout(admin.identity, now=NOW)
+                        service.logout(admin.identity, now=NOW, audit=AUDIT_CONTEXT)
 
             event.listen(service.engine, "before_cursor_execute", concurrent)
             try:
                 if change == "touch":
-                    result = service.authenticate(admin.token, now=NOW + timedelta(seconds=60))
+                    result = service.authenticate(
+                        admin.token, now=NOW + timedelta(seconds=60), audit=AUDIT_CONTEXT
+                    )
                     assert (
                         result.last_seen_at == NOW + timedelta(seconds=60)
                         and not result.activity_refreshed
@@ -2102,7 +2382,9 @@ def test_authenticate_concurrent_touch(tmp_path: Path) -> None:
                     assert len(updates) == 1
                 else:
                     with pytest.raises(AuthenticationError):
-                        service.authenticate(admin.token, now=NOW + timedelta(seconds=60))
+                        service.authenticate(
+                            admin.token, now=NOW + timedelta(seconds=60), audit=AUDIT_CONTEXT
+                        )
             finally:
                 event.remove(service.engine, "before_cursor_execute", concurrent)
             assert triggered
@@ -2113,21 +2395,21 @@ def test_authenticate_repeated_busy_expiry(tmp_path: Path) -> None:
     with scenario(tmp_path) as (service, admin):
         with session_scope(service.engine):
             for delta in (timedelta(seconds=60), timedelta(days=1), timedelta(days=6, hours=23)):
-                identity = service.authenticate(admin.token, now=NOW + delta)
+                identity = service.authenticate(admin.token, now=NOW + delta, audit=AUDIT_CONTEXT)
                 assert identity.last_seen_at == NOW and not identity.activity_refreshed
         with pytest.raises(AuthenticationError):
-            service.authenticate(admin.token, now=NOW + timedelta(days=7))
+            service.authenticate(admin.token, now=NOW + timedelta(days=7), audit=AUDIT_CONTEXT)
 
 
 def test_admin_disable_self(tmp_path: Path) -> None:
     """验证契约：存在另一启用管理员时可停用自己，同事务撤销当前全部会话，下一请求401。"""
     with scenario(tmp_path) as (service, admin):
         other = member_grant(service, admin, role=Role.ADMINISTRATOR)
-        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
-        service.set_status(admin.identity, 1, AccountStatus.DISABLED, now=NOW)
+        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
+        service.set_status(admin.identity, 1, AccountStatus.DISABLED, now=NOW, audit=AUDIT_CONTEXT)
         for token in (admin.token, second.token):
             with pytest.raises(AuthenticationError):
-                service.authenticate(token, now=NOW)
+                service.authenticate(token, now=NOW, audit=AUDIT_CONTEXT)
         assert service.list_accounts(other.identity, after_id=0, now=NOW)
 
 
@@ -2135,11 +2417,11 @@ def test_admin_delete_self(tmp_path: Path) -> None:
     """验证契约：存在另一启用管理员时可删除自己，同事务撤销当前全部会话，下一请求401。"""
     with scenario(tmp_path) as (service, admin):
         other = member_grant(service, admin, role=Role.ADMINISTRATOR)
-        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
-        service.delete_account(admin.identity, 1, now=NOW)
+        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
+        service.delete_account(admin.identity, 1, now=NOW, audit=AUDIT_CONTEXT)
         for token in (admin.token, second.token):
             with pytest.raises(AuthenticationError):
-                service.authenticate(token, now=NOW)
+                service.authenticate(token, now=NOW, audit=AUDIT_CONTEXT)
         assert service.list_accounts(other.identity, after_id=0, now=NOW)
 
 
@@ -2147,11 +2429,11 @@ def test_admin_demote_self(tmp_path: Path) -> None:
     """验证契约：存在另一启用管理员时可降级自己，按既定角色变更契约撤销全部会话，下一请求401。"""
     with scenario(tmp_path) as (service, admin):
         other = member_grant(service, admin, role=Role.ADMINISTRATOR)
-        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
-        service.set_role(admin.identity, 1, Role.MEMBER, now=NOW)
+        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
+        service.set_role(admin.identity, 1, Role.MEMBER, now=NOW, audit=AUDIT_CONTEXT)
         for token in (admin.token, second.token):
             with pytest.raises(AuthenticationError):
-                service.authenticate(token, now=NOW)
+                service.authenticate(token, now=NOW, audit=AUDIT_CONTEXT)
         assert service.list_accounts(other.identity, after_id=0, now=NOW)
 
 
@@ -2194,12 +2476,16 @@ def test_current_password_error_type(tmp_path: Path) -> None:
                 admin.identity,
                 PasswordChange(SecretStr("incorrect-value"), SecretStr("replacement-value")),
                 now=NOW,
+                audit=AUDIT_CONTEXT,
             )
         assert isinstance(caught.value, AccountInputError) and caught.value.http_status == 400
         assert caught.value.diagnostics[0].actual == "当前口令不正确"
         with pytest.raises(AccountInputError) as invalid:
             service.change_password(
-                admin.identity, PasswordChange(EXAMPLE_SECRET, SecretStr("short")), now=NOW
+                admin.identity,
+                PasswordChange(EXAMPLE_SECRET, SecretStr("short")),
+                now=NOW,
+                audit=AUDIT_CONTEXT,
             )
         assert invalid.value.http_status == 422
 
@@ -2226,7 +2512,7 @@ def test_login_hash_changed_after_verify(tmp_path: Path) -> None:
 
         hasher.on_verify = change
         with pytest.raises(ConflictError):
-            service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+            service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
             assert row is not None and row.password_hash == replacement and row.failed_attempts == 0
@@ -2251,8 +2537,8 @@ def test_login_g2_changed_after_verify(tmp_path: Path) -> None:
 
             hasher.on_verify = change
             with pytest.raises(LoginWaitError if count == 5 else ConflictError):
-                service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
-            assert service.authenticate(admin.token, now=NOW)
+                service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
+            assert service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT)
             with session_scope(service.engine, read_only=True) as session:
                 row = session.get(AccountRow, 1)
                 assert row is not None and row.failed_attempts == count
@@ -2279,9 +2565,9 @@ def test_login_disabled_after_verify(tmp_path: Path) -> None:
 
             hasher.on_verify = change
             with pytest.raises(AuthenticationError):
-                service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+                service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
             with pytest.raises(AuthenticationError):
-                service.authenticate(admin.token, now=NOW)
+                service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT)
             with session_scope(service.engine, read_only=True) as session:
                 assert session.scalar(select(func.count()).select_from(SessionRow)) == (
                     1 if operation == "disable" else 0
@@ -2306,10 +2592,12 @@ def test_login_expired_g2_snapshot(tmp_path: Path) -> None:
 
         hasher.on_verify = change
         with pytest.raises(ConflictError):
-            service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+            service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         hasher.on_verify = None
         with pytest.raises(AuthenticationError):
-            service.login(Credentials("admin", SecretStr("incorrect-value")), now=NOW)
+            service.login(
+                Credentials("admin", SecretStr("incorrect-value")), now=NOW, audit=AUDIT_CONTEXT
+            )
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
             assert row is not None and row.failed_attempts == 2 and row.blocked_until is None
@@ -2334,8 +2622,9 @@ def test_password_change_hash_changed(tmp_path: Path) -> None:
                 admin.identity,
                 PasswordChange(EXAMPLE_SECRET, SecretStr("replacement-value")),
                 now=NOW,
+                audit=AUDIT_CONTEXT,
             )
-        assert service.authenticate(admin.token, now=NOW)
+        assert service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT)
         with session_scope(service.engine, read_only=True) as session:
             row = session.get(AccountRow, 1)
             assert row is not None and row.password_hash == replacement and row.failed_attempts == 0
@@ -2349,18 +2638,19 @@ def test_password_change_session_revoked(tmp_path: Path) -> None:
         hasher = HookHasher()
         service.passwords = PasswordCodec(hasher)
         hasher.on_verify = lambda: other.reset_password_from_ops(
-            "admin", SecretStr("concurrent-credential"), now=NOW
+            "admin", SecretStr("concurrent-credential"), now=NOW, audit=OPS_AUDIT_CONTEXT
         )
         with pytest.raises(AuthenticationError):
             service.change_password(
                 admin.identity,
                 PasswordChange(EXAMPLE_SECRET, SecretStr("replacement-value")),
                 now=NOW,
+                audit=AUDIT_CONTEXT,
             )
         with pytest.raises(AuthenticationError):
-            service.authenticate(admin.token, now=NOW)
+            service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT)
         assert other.login(
-            Credentials("admin", SecretStr("concurrent-credential")), now=NOW
+            Credentials("admin", SecretStr("concurrent-credential")), now=NOW, audit=AUDIT_CONTEXT
         ).identity.account.must_change_password
 
 
@@ -2386,8 +2676,9 @@ def test_password_change_g2_changed(tmp_path: Path) -> None:
                     admin.identity,
                     PasswordChange(EXAMPLE_SECRET, SecretStr("replacement-value")),
                     now=NOW,
+                    audit=AUDIT_CONTEXT,
                 )
-            assert service.authenticate(admin.token, now=NOW)
+            assert service.authenticate(admin.token, now=NOW, audit=AUDIT_CONTEXT)
             with session_scope(service.engine, read_only=True) as session:
                 row = session.get(AccountRow, 1)
                 assert row is not None and row.failed_attempts == count
@@ -2397,17 +2688,23 @@ def test_password_change_g2_changed(tmp_path: Path) -> None:
 def test_password_change_mismatch_keeps_session(tmp_path: Path) -> None:
     """验证契约：前四次错误当前口令仅提交G2计数并返回400，当前和其他会话保留，提示当前口令不正确。"""
     with scenario(tmp_path) as (service, first):
-        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+        second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         for count in range(1, 5):
             with pytest.raises(CurrentPasswordError) as caught:
                 service.change_password(
                     first.identity,
                     PasswordChange(SecretStr("incorrect-value"), SecretStr("replacement-value")),
                     now=NOW,
+                    audit=AUDIT_CONTEXT,
                 )
             assert caught.value.http_status == 400
             for grant in (first, second):
-                assert service.authenticate(grant.token, now=NOW).account.account_id == 1
+                assert (
+                    service.authenticate(
+                        grant.token, now=NOW, audit=AUDIT_CONTEXT
+                    ).account.account_id
+                    == 1
+                )
             with session_scope(service.engine, read_only=True) as session:
                 row = session.get(AccountRow, 1)
                 assert row is not None and row.failed_attempts == count
@@ -2445,6 +2742,7 @@ def test_creation_rechecks_authority(tmp_path: Path) -> None:
                     admin.identity,
                     NewAccount(Credentials("newuser", EXAMPLE_SECRET), "新账号", Role.MEMBER),
                     now=NOW,
+                    audit=AUDIT_CONTEXT,
                 )
             assert all(
                 row.login_name != "newuser"
@@ -2463,6 +2761,7 @@ def test_first_admin_rechecks_after_hash(tmp_path: Path) -> None:
         hasher.on_hash = lambda: other.create_first_admin(
             NewAccount(Credentials("winner", EXAMPLE_SECRET), "已提交管理员", Role.ADMINISTRATOR),
             now=NOW,
+            audit=OPS_AUDIT_CONTEXT,
         )
         with pytest.raises(ConflictError):
             service.create_first_admin(
@@ -2470,8 +2769,9 @@ def test_first_admin_rechecks_after_hash(tmp_path: Path) -> None:
                     Credentials("loser", EXAMPLE_SECRET), "未提交管理员", Role.ADMINISTRATOR
                 ),
                 now=NOW,
+                audit=OPS_AUDIT_CONTEXT,
             )
-        grant = other.login(Credentials("winner", EXAMPLE_SECRET), now=NOW)
+        grant = other.login(Credentials("winner", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         assert [
             row.login_name for row in other.list_accounts(grant.identity, after_id=0, now=NOW).items
         ] == ["winner"]
@@ -2486,7 +2786,9 @@ def test_ops_reset_recreated_name(tmp_path: Path) -> None:
         service.passwords = PasswordCodec(hasher)
 
         def recreate() -> None:
-            other.delete_account(admin.identity, member.identity.account.account_id, now=NOW)
+            other.delete_account(
+                admin.identity, member.identity.account.account_id, now=NOW, audit=AUDIT_CONTEXT
+            )
             other.create_account(
                 admin.identity,
                 NewAccount(
@@ -2495,15 +2797,20 @@ def test_ops_reset_recreated_name(tmp_path: Path) -> None:
                     Role.MEMBER,
                 ),
                 now=NOW,
+                audit=AUDIT_CONTEXT,
             )
 
         hasher.on_hash = recreate
         with pytest.raises(AccountNotFoundError):
-            service.reset_password_from_ops("member", SecretStr("reset-credential"), now=NOW)
-        recreated = other.login(Credentials("member", SecretStr("recreated-credential")), now=NOW)
+            service.reset_password_from_ops(
+                "member", SecretStr("reset-credential"), now=NOW, audit=OPS_AUDIT_CONTEXT
+            )
+        recreated = other.login(
+            Credentials("member", SecretStr("recreated-credential")), now=NOW, audit=AUDIT_CONTEXT
+        )
         assert recreated.identity.account.account_id > member.identity.account.account_id
         with pytest.raises(AuthenticationError):
-            other.authenticate(member.token, now=NOW)
+            other.authenticate(member.token, now=NOW, audit=AUDIT_CONTEXT)
 
 
 @pytest.mark.parametrize(
@@ -2598,12 +2905,13 @@ def test_rehash_calculated_before_write(operation: str, tmp_path: Path) -> None:
         event.listen(service.engine, "before_cursor_execute", begin)
         try:
             if operation == "login":
-                service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW)
+                service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
             else:
                 service.change_password(
                     admin.identity,
                     PasswordChange(EXAMPLE_SECRET, SecretStr("replacement-value")),
                     now=NOW,
+                    audit=AUDIT_CONTEXT,
                 )
         finally:
             event.remove(service.engine, "before_cursor_execute", begin)

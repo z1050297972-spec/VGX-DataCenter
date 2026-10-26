@@ -2,12 +2,12 @@
 
 from datetime import timedelta
 
+from rdp.infra.actors import DISPLAY_NAME_MAX_CHARS as DISPLAY_NAME_MAX_CHARS
+
 # 登录名是稳定的机器标识；不折叠大小写、不修剪空白，避免两个输入暗中指向同一账号。
 LOGIN_NAME_PATTERN = r"^[a-z][a-z0-9_.-]{2,31}$"
 LOGIN_NAME_MIN_CHARS = 3
 LOGIN_NAME_MAX_CHARS = 32
-# 显示名按 Unicode 码点计数；拒绝首尾空白、控制字符，保留人类可读的历史快照。
-DISPLAY_NAME_MAX_CHARS = 64
 # G3 最少 10 个 Unicode 码点；128 上限限制哈希输入，不做组合要求或 Unicode 归一化。
 PASSWORD_MIN_CHARS = 10
 PASSWORD_MAX_CHARS = 128

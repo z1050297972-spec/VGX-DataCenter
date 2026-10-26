@@ -139,6 +139,94 @@
         "title": "ActorResponse",
         "type": "object"
       },
+      "AuditValues": {
+        "additionalProperties": false,
+        "description": "v1 的平面白名单，秘密无字段可容纳；None 表示未提供，序列化时排除。\n\nAttributes:\n    model_config: frozen/extra=forbid/hide_input_in_errors；未知字段拒绝且不回显值。\n    login_name: 已确认账号的登录名，3-32 字符；默认 None，不接受未知输入原文。\n    display_name: 已确认账号的显示名，1-64 码点；默认 None。\n    role: administrator/member；默认 None，不含权限令牌。\n    status: enabled/disabled；默认 None。\n    must_change_password: 严格布尔；默认 None，仅表示强制改密标记。\n    retention_days: 严格整数 7-365 天；默认 None。",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "login_name": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 3,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Login Name"
+          },
+          "must_change_password": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Must Change Password"
+          },
+          "retention_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 7.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retention Days"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "administrator",
+                  "member"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "enabled",
+                  "disabled"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "AuditValues",
+        "type": "object"
+      },
       "ChangePasswordRequest": {
         "additionalProperties": false,
         "description": "本人改口令请求，无目标账号字段。\n\nAttributes:\n    current_password: 当前 SecretStr，10-128 个码点，不可空、无默认、无单位。\n    new_password: 新 SecretStr，10-128 个码点，不可空、无默认、不得等于当前口令。",
@@ -395,6 +483,85 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "HistoricalActorResponse": {
+        "additionalProperties": false,
+        "description": "不可变历史身份和本次查询所得的删除标记。\n\nAttributes:\n    account_id: 正整数十进制文本；运维 None，未知登录账号不构造本对象。\n    name: 当时显示名，1-64 码点，运维固定“运维”。\n    deleted: 当前快照编号不存在为 True；运维 False，必填。",
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "maxLength": 19,
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "name",
+          "deleted"
+        ],
+        "title": "HistoricalActorResponse",
+        "type": "object"
+      },
+      "LoginKind": {
+        "description": "只记录登录、显式登出及访问触发的过期删除，不将管理撤销冒充登出。",
+        "enum": [
+          "login",
+          "logout",
+          "session_expired"
+        ],
+        "title": "LoginKind",
+        "type": "string"
+      },
+      "LoginListResponse": {
+        "additionalProperties": false,
+        "description": "登录日志的倒序游标页。\n\nAttributes:\n    items: 0 至 AUDIT_PAGE_LIMIT 个登录日志，时间/编号倒序。\n    next_cursor: 下一页 opaque 游标；末页 None。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LoginResponse"
+            },
+            "maxItems": 100,
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "LoginListResponse",
+        "type": "object"
+      },
       "LoginRequest": {
         "additionalProperties": false,
         "description": "登录请求，只能通过 POST body 传递。\n\nAttributes:\n    login_name: 3-32 位严格小写 ASCII 名称，无单位、不可空、无默认。\n    password: 10-128 个 Unicode 码点的 SecretStr，不归一化、不可空、无默认、无单位；不入日志。",
@@ -421,6 +588,323 @@
         ],
         "title": "LoginRequest",
         "type": "object"
+      },
+      "LoginResponse": {
+        "additionalProperties": false,
+        "description": "一条登录日志；未知账号不输出输入的登录名。\n\nAttributes:\n    log_id: 正整数十进制编号，必填。\n    occurred_at: aware UTC ISO 8601，微秒，必填。\n    account: 已确认历史身份；未知账号 None。\n    login_name: 已存账号登录名；未知账号 None。\n    kind: 登录、登出或过期删除类型，必填。\n    result: LoginResult，必填。\n    source_ip: ASGI client 的 IP；缺失 None。\n    request_id: 请求编号；未知账号 None。\n    failure_category: 执行故障的四类类别；其他结果 None，不带内部异常文本。",
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HistoricalActorResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failure_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiagnosticCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LoginKind"
+          },
+          "log_id": {
+            "maxLength": 19,
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "title": "Log Id",
+            "type": "string"
+          },
+          "login_name": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 3,
+                "pattern": "^[a-z][a-z0-9_.-]{2,31}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Login Name"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "result": {
+            "$ref": "#/components/schemas/LoginResult"
+          },
+          "source_ip": {
+            "anyOf": [
+              {
+                "maxLength": 45,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ip"
+          }
+        },
+        "required": [
+          "log_id",
+          "occurred_at",
+          "account",
+          "login_name",
+          "kind",
+          "result",
+          "source_ip",
+          "request_id",
+          "failure_category"
+        ],
+        "title": "LoginResponse",
+        "type": "object"
+      },
+      "LoginResult": {
+        "description": "登录验证结果；第五次错口令仍是 wrong_password，执行故障单列 failure，不伪造凭据结论。",
+        "enum": [
+          "success",
+          "wrong_password",
+          "disabled",
+          "waiting",
+          "account_missing",
+          "failure"
+        ],
+        "title": "LoginResult",
+        "type": "string"
+      },
+      "ObjectResponse": {
+        "additionalProperties": false,
+        "description": "对象的历史名字，保留给未来撤回功能定位。\n\nAttributes:\n    kind: account/audit_settings，必填。\n    object_id: 账号编号十进制文本或设置键 retention；失败新建尚无编号时 None。\n    name: 当时显示名或固定设置名，1-64 码点，必填。\n    deleted: 账号编号已不存在为 True；设置或未分配编号为 False。",
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "account",
+              "audit_settings"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "object_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Id"
+          }
+        },
+        "required": [
+          "kind",
+          "object_id",
+          "name",
+          "deleted"
+        ],
+        "title": "ObjectResponse",
+        "type": "object"
+      },
+      "OperationDetails": {
+        "additionalProperties": false,
+        "description": "v1 JSON 格式为 {version: 1, before: {...}, after: {...}}，不存执行命令。\n\nAttributes:\n    model_config: frozen/extra=forbid/hide_input_in_errors，固定配置。\n    version: 当前仅接受整数 1，无单位，默认 DETAILS_VERSION；bool 非法。\n    before: 改动前已确认的白名单值，必填；新建为空对象。\n    after: 成功提交的白名单值，必填；删除或失败为空对象，不能暗示失败改动已生效。",
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/AuditValues"
+          },
+          "before": {
+            "$ref": "#/components/schemas/AuditValues"
+          },
+          "version": {
+            "default": 1,
+            "maximum": 1.0,
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "before",
+          "after"
+        ],
+        "title": "OperationDetails",
+        "type": "object"
+      },
+      "OperationListResponse": {
+        "additionalProperties": false,
+        "description": "操作日志的倒序游标页。\n\nAttributes:\n    items: 0 至 AUDIT_PAGE_LIMIT 个操作日志，时间/编号倒序。\n    next_cursor: 下一页 opaque 游标；末页 None。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OperationResponse"
+            },
+            "maxItems": 100,
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "OperationListResponse",
+        "type": "object"
+      },
+      "OperationResponse": {
+        "additionalProperties": false,
+        "description": "一条安全的操作日志，不返回异常文本或当前名字代替快照。\n\nAttributes:\n    log_id: 正整数十进制文本，1 至 2^63-1，必填。\n    occurred_at: aware UTC ISO 8601，微秒，必填。\n    actor: 历史 ActorRef 和删除标记，必填。\n    operation: 稳定具名操作类型，必填。\n    target: 对象快照，必填。\n    result: success/failure，必填。\n    failure_category: 失败四类之一；成功 None。\n    request_id: 当前请求 uuid4 hex；运维 None。\n    source_ip: 规范 IPv4/IPv6；不可获得或运维 None。\n    details: 版本 1 的 before/after 白名单 JSON，必填。",
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/HistoricalActorResponse"
+          },
+          "details": {
+            "$ref": "#/components/schemas/OperationDetails"
+          },
+          "failure_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiagnosticCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "log_id": {
+            "maxLength": 19,
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "title": "Log Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/OperationType"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "result": {
+            "$ref": "#/components/schemas/OperationResult"
+          },
+          "source_ip": {
+            "anyOf": [
+              {
+                "maxLength": 45,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ip"
+          },
+          "target": {
+            "$ref": "#/components/schemas/ObjectResponse"
+          }
+        },
+        "required": [
+          "log_id",
+          "occurred_at",
+          "actor",
+          "operation",
+          "target",
+          "result",
+          "failure_category",
+          "request_id",
+          "source_ip",
+          "details"
+        ],
+        "title": "OperationResponse",
+        "type": "object"
+      },
+      "OperationResult": {
+        "description": "操作是否提交；失败类别另存 DiagnosticCategory，不拼接异常文本。",
+        "enum": [
+          "success",
+          "failure"
+        ],
+        "title": "OperationResult",
+        "type": "string"
+      },
+      "OperationType": {
+        "description": "稳定的操作码；新增操作用新增枚举值，不改历史值（第 8 张可增加作业操作）。",
+        "enum": [
+          "create_account",
+          "set_role",
+          "disable_account",
+          "enable_account",
+          "reset_password",
+          "reset_password_from_ops",
+          "delete_account",
+          "change_password",
+          "create_first_admin",
+          "set_retention"
+        ],
+        "title": "OperationType",
+        "type": "string"
       },
       "ProblemResponse": {
         "additionalProperties": false,
@@ -488,6 +972,23 @@
           "password"
         ],
         "title": "ResetPasswordRequest",
+        "type": "object"
+      },
+      "RetentionPayload": {
+        "additionalProperties": false,
+        "description": "保留期请求及响应的相同字段，不开放其他设置。\n\nAttributes:\n    days: 严格非 bool 整数，MIN_RETENTION_DAYS 至 MAX_RETENTION_DAYS，单位天，必填。",
+        "properties": {
+          "days": {
+            "maximum": 365.0,
+            "minimum": 7.0,
+            "title": "Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "title": "RetentionPayload",
         "type": "object"
       },
       "Role": {
@@ -584,7 +1085,7 @@
   "paths": {
     "/api/accounts": {
       "get": {
-        "description": "为管理员按内部编号游标分页列出账号。\n\nArgs:\n    context: 已完成改密的管理员身份，领域在事务内再次核验角色。\n    after_id: 规范十进制文本 0 至 2^63-1，默认 0；转换前校验上限，不接受前导零。\n\nReturns:\n    HTTP 200 AccountListResponse，每页最多 100 项、编号升序；空页合法，末页 next_after_id=null。\n\nRaises:\n    AccountInputError: after_id 不是规范十进制游标、超出 0 至 2^63-1，422。\n    AuthenticationError: 当前会话缺失/失效或账号不可用，401。\n    PasswordChangeRequiredError: 当前账号必须先改口令，403。\n    AuthorizationError: 当前角色不是管理员，403；GET 不检查 Origin。\n    InputError: 数据库或 UTC 列损坏，400。\n    ConflictError: 认证/列表只读查询或必要的过期删除 SQLite 锁冲突，409；刷新获锁失败不抛 409。\n    ExternalError: 数据库未启用、查询或结束读事务时 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或列表 SQL、映射或安全响应转换错误，500。\n\nSide Effects:\n    查询是独立只读工作单元，认证刷新另用短事务；不泄漏口令或令牌。\n\nTime Semantics:\n    使用 context.now 核验身份，业务列表在单独 BEGIN/query_only 快照内完成，结束读事务后发送响应。\n    没有列表写入、Argon2 或 G2 判定；负会话经过时长按 0，不因回拨报错。\n    SQLite 单次读取锁等待约 5 秒，无轮询或重试；认证活动更新独立于本查询。",
+        "description": "为管理员按内部编号游标分页列出账号。\n\nArgs:\n    context: 已完成改密的管理员身份，领域在事务内再次核验角色。\n    after_id: 规范十进制文本 0 至 2^63-1，默认 0；转换前校验上限，不接受前导零。\n\nReturns:\n    HTTP 200 AccountListResponse，每页最多 100 项、编号升序；空页合法，末页 next_after_id=null。\n\nRaises:\n    AccountInputError: after_id 不是规范十进制游标、超出 0 至 2^63-1，422。\n    AuthenticationError: 当前会话缺失/失效或账号不可用，401。\n    PasswordChangeRequiredError: 当前账号必须先改口令，403。\n    AuthorizationError: 当前角色不是管理员，403；GET 不检查 Origin。\n    InputError: 数据库或 UTC 列损坏，400。\n    ConflictError: 认证/列表只读查询或已获锁后的过期删除 SQLite 冲突，409；刷新获锁失败不抛 409。\n    ExternalError: 数据库未启用、查询或结束读事务时 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或列表 SQL、映射或安全响应转换错误，500。\n\nSide Effects:\n    查询是独立只读工作单元，认证刷新另用短事务；不泄漏口令或令牌。\n\nTime Semantics:\n    使用 context.now 核验身份，业务列表在单独 BEGIN/query_only 快照内完成，结束读事务后发送响应。\n    没有列表写入、Argon2 或 G2 判定；负会话经过时长按 0，不因回拨报错。\n    SQLite 单次读取锁等待约 5 秒，无轮询或重试；认证活动更新独立于本查询。",
         "operationId": "list_accounts",
         "parameters": [
           {
@@ -1441,6 +1942,732 @@
         ]
       }
     },
+    "/api/audit/logins": {
+      "get": {
+        "description": "向管理员提供登录、登出及过期记录的游标页。\n\nArgs:\n    context: 全局认证的管理员上下文；领域只读事务内再次核验权限。\n    filters: 时间 [start,end)、账号编号、登录类型/结果和游标；每页上限 AUDIT_PAGE_LIMIT。\n\nReturns:\n    HTTP 200 登录日志页；未知账号 account/login_name/request_id 均 null，已删身份带删除标记。\n\nRaises:\n    AuthenticationError: 无有效身份，401 并清 cookie。\n    PasswordChangeRequiredError: 必须改口令，403。\n    AuthorizationError: 成员访问，403，优先于方法和参数错误。\n    AuditInputError: 筛选、时间偏移、游标种类/筛选绑定或编号/limit 非法，422。\n    InputError: 数据库或存量登录快照损坏，400。\n    ConflictError: 查询锁冲突，409。\n    ExternalError: 数据库未配置、读取/关闭 I/O 故障，502。\n    DefectError: 时钟或响应映射错误，500，不显示秘密。\n\nSide Effects:\n    只读登录日志及账号存在性；不会对显示过的登录失败再次增加 G2。\n\nTime Semantics:\n    查询保留 UTC 微秒；无界查询含未来记录，不依赖本机时区或当前墙钟。\n    单次锁等待最多 5000 毫秒，无自动重试。",
+        "operationId": "list_login_logs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 19,
+                  "pattern": "^[1-9][0-9]{0,18}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LoginKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "result",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LoginResult"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Result"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "List Logins",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/audit/operations": {
+      "get": {
+        "description": "向管理员提供操作日志的筛选和游标页。\n\nArgs:\n    context: 全局鉴权后的管理员身份、服务及唯一请求时刻；查询内仍重验。\n    filters: aware 时间范围 [start,end)、操作人 account_id、对象账号 target_account_id、类型/结果及游标；\n        两个编号独立可选，同时提供取交集，均按历史内部编号查询；每页 1-100 项。\n\nReturns:\n    HTTP 200，UTC 微秒、时间/编号倒序的一页，编号为十进制文本，末页 next_cursor=null。\n\nRaises:\n    AuthenticationError: 未登录或会话无效，401 并清 cookie。\n    PasswordChangeRequiredError: 必须改口令，403。\n    AuthorizationError: 成员访问管理员模板（包括错方法、坏参数），403，先于 405/422。\n    AuditInputError: 筛选范围、时区、任一账号编号上限、游标绑定或分页非法，422，不回显输入。\n    InputError: 数据库/历史明细损坏，400。\n    ConflictError: 只读锁冲突，409。\n    ExternalError: 数据库未配置、读取或清理失败，502。\n    DefectError: 时钟/服务/SQL 或安全响应转换错误，500。\n\nSide Effects:\n    只读业务日志；认证可能独立刷新会话，列表不写日志、创建设置或读取请求体。\n    成员不能通过附加恶意 query 把权限拒绝变成参数错误。\n\nTime Semantics:\n    复用 context.now 仅核验身份，筛选转 UTC [含下界,不含上界)；页面自行转本地显示。\n    单次只读锁等待最多 5000 毫秒，无轮询/重试；回拨不限制查询截止。",
+        "operationId": "list_operation_logs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 19,
+                  "pattern": "^[1-9][0-9]{0,18}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operation",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OperationType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operation"
+            }
+          },
+          {
+            "in": "query",
+            "name": "result",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OperationResult"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 19,
+                  "pattern": "^[1-9][0-9]{0,18}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "List Operations",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/audit/retention": {
+      "get": {
+        "description": "读取操作日志页面上的共同保留期设置。\n\nArgs:\n    context: 已完成强制改密的管理员上下文。\n\nReturns:\n    HTTP 200，days 为 7-365 整数；未设置过返回 30。\n\nRaises:\n    AuthenticationError: 无有效身份，401。\n    PasswordChangeRequiredError: 必须改口令，403。\n    AuthorizationError: 成员，403；GET 不要求 Origin。\n    InputError: 设置或数据库损坏，400，不能伪装默认值。\n    ConflictError: 读取锁冲突，409。\n    ExternalError: 数据库未配置或读取/清理 I/O 故障，502。\n    DefectError: 时钟或设置响应构造错误，500。\n\nSide Effects:\n    只读设置；无行时不建行、不触发清除、不记查询操作日志。\n\nTime Semantics:\n    每天固定 UTC 24 小时；请求时刻仅用于身份核验，单次读锁最多 5000 毫秒，无重试。",
+        "operationId": "get_audit_retention",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetentionPayload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Retention",
+        "tags": [
+          "audit"
+        ]
+      },
+      "put": {
+        "description": "管理员保存共同保留期，和该变更的操作日志原子提交。\n\nArgs:\n    request: 当前 PUT 请求，入口取来源 IP 和服务器请求编号；必须带同源 Origin。\n    context: 已认证且已改密的管理员，在领域写锁内再次检查。\n    body: 唯一 days 字段，非 bool 整数 7-365；多余字段拒绝。\n\nReturns:\n    HTTP 200 生效天数；相同值幂等，不新增操作日志；超时不能推断服务端已回滚。\n\nRaises:\n    AuthorizationError: Origin 缺失/非法/不同源或成员，403，优先于 body 校验。\n    AuthenticationError: 非公开接口无有效会话，401 并清 cookie。\n    PasswordChangeRequiredError: 必须改口令，403。\n    AuditInputError: days 类型或范围不合法，422，不记操作日志。\n    InputError: 既有设置或数据库损坏，400。\n    ConflictError: 业务写锁或约束冲突，409。\n    ExternalError: 设置/日志写入、提交或清理失败，502。\n    DefectError: 时钟、AuditContext 类型/来源/请求编号、SQL 或响应错误，500；不把平台上下文缺陷映射成 422。\n\nSide Effects:\n    set_log_retention 在管理员预检通过并进入写事务后开始执行，设置和成功日志同事务。\n    执行后失败回滚，再短事务补记；补记失败由统一边界 ERROR，原错误保持原状态和诊断。\n    不立即清除，不公开 purge 的 HTTP 入口。\n\nTime Semantics:\n    同请求只取 context.now，UTC 微秒；回拨不拒绝。业务获锁最多 5000 毫秒，\n    回滚后补记最多 100 毫秒，无自动重试；后续定时清除读取新设置。",
+        "operationId": "set_audit_retention",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetentionPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetentionPayload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Set Retention",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
     "/api/auth/login": {
       "post": {
         "description": "验证登录并设置新会话 cookie。\n\nArgs:\n    body: 登录名和 SecretStr 口令，无默认、不在 query 或日志中传递。\n    response: 未发送的响应，供设置 cookie。\n    context: 已验证 Origin 的免登录上下文，identity=None。\n\nReturns:\n    HTTP 200 AccountResponse，必须改口令标记原样返回；原文仅进入 HttpOnly cookie，不进入 JSON。\n\nRaises:\n    AccountInputError: 登录名/口令字段不合法，422；框架校验不回显 body。\n    AuthenticationError: 未知、停用或错口令，统一“账号或口令错误”的 401。\n    AuthorizationError: POST 登录缺失/null/非法或不同源 Origin，403。\n    LoginWaitError: 启用账号仍在 G2 等待或连续第五次错误，429 带 Retry-After，等待期间不哈希。\n    InputError: 数据库、UTC 列或已存口令编码损坏，400。\n    ConflictError: 重读哈希/G2 状态已变化需重试，或SQLite 写锁/约束冲突，409；不计失败、不签发会话。\n    ExternalError: 数据库不可用/I/O 失败或 Argon2 名额排队超过 1 秒，502，不计错口令。\n    DefectError: 注入时钟非法/回调失败，或登录装配、哈希、熵源或响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    调用 service.login；只有事务提交后才设置新 cookie，登录成功不复用传入的旧令牌。\n    本次增加的失败计数由领域提交后才响应；429 输出 Retry-After，失败不设置新 cookie、无登录日志。\n\nTime Semantics:\n    POST 先检查 Origin，领域事务完成后才发新 cookie；本次增加的失败计数必须提交后才发送对应 401/429，已有等待的 429 不新增写入。\n    只用 context.now；先结束只读快照，在事务外核验/按需重哈希，释放 Argon2 名额后再重读写入。\n    Argon2 排队最多 1 秒，短写事务获锁最多约 5 秒，二者不重叠。\n    回拨不报 409、不改已有等待截止；请求取消不保证已经开始的提交被取消。",
@@ -1575,7 +2802,7 @@
     },
     "/api/auth/logout": {
       "post": {
-        "description": "撤销当前登录并删除 cookie。\n\nArgs:\n    response: 未发送的响应，供清除 cookie。\n    context: 有效当前身份，强制改密账号也可使用。\n\nReturns:\n    HTTP 204，无响应体；服务端撤销提交后清 cookie。\n\nRaises:\n    AuthenticationError: cookie 缺失/过期/撤销或账号不可用，401 并清 cookie。\n    AuthorizationError: POST 的 Origin 缺失/null/不合法或不同源，403。\n    InputError: 认证或撤销会话时数据库损坏，400。\n    ConflictError: 初始认证查询、过期删除或当前会话撤销的 SQLite 锁冲突，409；活动刷新获锁失败不在此列。\n    ExternalError: 数据库未启用、读取、撤销、提交或清理 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或认证装配、撤销 SQL 或 cookie 响应状态错误，500；报告前脱敏。\n\nSide Effects:\n    只撤销当前会话，不撤销其他会话；失败不返回伪成功。重复 HTTP 请求因已无身份返回 401 并清 cookie。\n\nTime Semantics:\n    使用 context.now，不根据时间延长当前会话；允许强制改密账号登出，不运行 Argon2。\n    同步撤销事务提交后才返回 204 并清 cookie，SQLite 单次锁等待约 5 秒，无自动重试。",
+        "description": "撤销当前登录并删除 cookie。\n\nArgs:\n    response: 未发送的响应，供清除 cookie。\n    context: 有效当前身份，强制改密账号也可使用。\n\nReturns:\n    HTTP 204，无响应体；服务端撤销提交后清 cookie。\n\nRaises:\n    AuthenticationError: cookie 缺失/过期/撤销或账号不可用，401 并清 cookie。\n    AuthorizationError: POST 的 Origin 缺失/null/不合法或不同源，403。\n    InputError: 认证或撤销会话时数据库损坏，400。\n    ConflictError: 初始认证查询、已获锁后的过期删除或当前会话撤销的 SQLite 锁冲突，409；活动刷新获锁失败不在此列。\n    ExternalError: 数据库未启用、读取、撤销、提交或清理 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或认证装配、撤销 SQL 或 cookie 响应状态错误，500；报告前脱敏。\n\nSide Effects:\n    只撤销当前会话，不撤销其他会话；失败不返回伪成功。重复 HTTP 请求因已无身份返回 401 并清 cookie。\n\nTime Semantics:\n    使用 context.now，不根据时间延长当前会话；允许强制改密账号登出，不运行 Argon2。\n    同步撤销事务提交后才返回 204 并清 cookie，SQLite 单次锁等待约 5 秒，无自动重试。",
         "operationId": "logout",
         "responses": {
           "204": {
@@ -1695,7 +2922,7 @@
     },
     "/api/auth/me": {
       "get": {
-        "description": "返回当前账号身份以驱动页面权限和强制改密。\n\nArgs:\n    context: 有效当前身份，允许 must_change_password=True，不接受指定目标账号。\n\nReturns:\n    HTTP 200 AccountResponse，不返回任何哈希、cookie 或失败计数。\n\nRaises:\n    AuthenticationError: 无有效会话、过期、撤销或账号不可用，401 并清 cookie。\n    InputError: 认证读取的数据库或 UTC 列损坏，400。\n    ConflictError: 初始认证只读查询或必要的过期删除锁冲突，409；活动刷新获锁失败不抛 409。\n    ExternalError: 认证数据库未启用或 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或请求上下文装配、认证 SQL 或快照响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    仅把认证得到的快照转换为安全响应；认证活动刷新独立提交，不另开业务写会话。\n\nTime Semantics:\n    GET 不检查 Origin；身份阶段使用同请求 context.now，允许强制改密账号访问，不运行 Argon2。\n    返回前结束认证查询，若发生必要的活动刷新则按认证契约处理；本路由没有额外业务写事务。\n    仅活动更新实际提交时可续 cookie；初始查询/过期删除沿用普通锁预算，活动刷新 BEGIN 最多等 100 毫秒。",
+        "description": "返回当前账号身份以驱动页面权限和强制改密。\n\nArgs:\n    context: 有效当前身份，允许 must_change_password=True，不接受指定目标账号。\n\nReturns:\n    HTTP 200 AccountResponse，不返回任何哈希、cookie 或失败计数。\n\nRaises:\n    AuthenticationError: 无有效会话、过期、撤销或账号不可用，401 并清 cookie。\n    InputError: 认证读取的数据库或 UTC 列损坏，400。\n    ConflictError: 初始认证只读查询或已获锁后的过期删除冲突，409；活动刷新获锁失败不抛 409。\n    ExternalError: 认证数据库未启用或 I/O 失败，502。\n    DefectError: 注入时钟非法/回调失败，或请求上下文装配、认证 SQL 或快照响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    仅把认证得到的快照转换为安全响应；认证活动刷新独立提交，不另开业务写会话。\n\nTime Semantics:\n    GET 不检查 Origin；身份阶段使用同请求 context.now，允许强制改密账号访问，不运行 Argon2。\n    返回前结束认证查询，若发生必要的活动刷新则按认证契约处理；本路由没有额外业务写事务。\n    仅活动更新实际提交时可续 cookie；初始查询沿用普通锁预算，过期删除和活动刷新 BEGIN 都最多等 100 毫秒。",
         "operationId": "who_am_i",
         "responses": {
           "200": {

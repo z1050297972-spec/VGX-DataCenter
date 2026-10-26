@@ -10,7 +10,14 @@ import {
 } from "@tanstack/react-router";
 import { AccountLayout, AccountsPage, LoginPage, PasswordPage } from "./accounts/Pages";
 import { AccountClientProvider } from "./accounts/runtime";
-import { guardAccountRoute, handleUnauthorized } from "./accounts/navigation";
+import {
+  ADMINISTRATOR_PAGE_PATHS,
+  guardAccountRoute,
+  handleUnauthorized,
+} from "./accounts/navigation";
+import { LoginLogsPage, OperationLogsPage } from "./audit/Pages";
+import { validateLoginSearch, validateOperationSearch } from "./audit/search";
+import type { LoginSearch, OperationSearch } from "./api/audit";
 import { createAccountClient } from "./api/accounts";
 import { defaultFetch, type FetchImplementation } from "./api/client";
 import { toFailureView } from "./api/problems";
@@ -61,7 +68,7 @@ export function createAppRouter(options: AppRouterOptions) {
         await guardAccountRoute({
           client,
           destination: location.href,
-          administratorOnly: location.pathname === "/accounts",
+          administratorOnly: ADMINISTRATOR_PAGE_PATHS.has(location.pathname),
           signal: abortController.signal,
         });
     },
@@ -83,12 +90,35 @@ export function createAppRouter(options: AppRouterOptions) {
     path: "/accounts",
     component: AccountsPage,
   });
+  const operationLogs = createRoute({
+    getParentRoute: () => root,
+    path: "/audit/operations",
+    validateSearch: (search): OperationSearch & { invalidAuditSearch?: true } =>
+      auditSearch(() => validateOperationSearch(search)),
+    component: OperationLogsPage,
+  });
+  const loginLogs = createRoute({
+    getParentRoute: () => root,
+    path: "/audit/logins",
+    validateSearch: (search): LoginSearch & { invalidAuditSearch?: true } =>
+      auditSearch(() => validateLoginSearch(search)),
+    component: LoginLogsPage,
+  });
   const instance = createRouter({
-    routeTree: root.addChildren([index, login, password, accounts]),
+    routeTree: root.addChildren([index, login, password, accounts, operationLogs, loginLogs]),
     history: options.history,
     defaultPreload: false,
   });
   return instance;
+}
+
+// 校验错误属于可修正的筛选输入，不触发根路由失败；不保留或回显原始坏参数。
+function auditSearch<T>(validate: () => T): T | { invalidAuditSearch: true } {
+  try {
+    return validate();
+  } catch {
+    return { invalidAuditSearch: true };
+  }
 }
 
 /** 页面应用的唯一内存缓存，不持久化任何查询或 mutation。 */
