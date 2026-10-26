@@ -98,3 +98,45 @@ Status: in-progress
   - "改成 401"：第 6 张的过期会话删除改成 100 毫秒短锁，拿不到锁就跳过删除，仍返回 401，下次访问再删再记日志；第 6 张对应的测试一起改。
   - 执行线同意 Codex 提的三条：增加 `failure` 登录结果；没有变化的请求不记；失败的新建对象编号留空。
   - Status 改回 `in-progress`，派修复轮 A-r1。
+- 2026-10-25，骨架修复轮 A-r1 交回（out-A-r1.md），执行线复核：
+  - 快照 `refs/rdp/m0-07/A-r1-done`（fe6f0d9）。`make check` 全绿：pytest 880 passed / 362 skipped，Vitest 128 passed / 39 skipped。
+  - 日志审计干净。
+  - 10 条都已落实：
+    - `audit` 必填；运维传 `OPS_AUDIT_CONTEXT`。
+    - 改口令输错旧口令时，失败日志和 G2 同一事务。
+    - 套模板的段落已逐方法重写。剩下的相同行只是 `Raises:` 里同一异常、同一条件的单行，可以接受。
+    - import-linter 改为分层。违规试验在分层上重做 9 项，全部符合预期（追加在 `violation_probe-A-done.txt`）。
+    - 新增 `target_account_id` 筛选。
+  - 按负责人"修完执行线复核，没问题就做契约提交进入实现"：契约提交 `68fd146 契约：操作日志与登录日志`。
+  - 派工 B：续接会话 `01a17616-…`，快照 `refs/rdp/m0-07/B`，提示 `assets/…/prompt-B.md`（要求先读 7.1、先写测试再写实现、第一步并掉过渡模块、第 6 张测试改动逐条列出），`-o assets/…/out-B.md`，运行日志 `<执行线临时目录>/m0-07/ev-B.jsonl`。
+- 2026-10-25，派工 B 按 80 分钟检查点交回（out-B.md）：
+  - 已完成：日志领域核心、迁移 0003、`audit` 上下文传递、过期会话短锁。过渡模块已并入 `service.py` 并删除。
+  - pytest 1138 passed / 118 skipped；Vitest 128 passed / 39 skipped。
+  - 第 6 张的测试只有 `test_authenticate_expired_delete_busy` 一条按负责人决定由 `ConflictError` 改为 `AuthenticationError`；其余断言只补了 `audit` 参数，执行线核过 diff。
+  - 先红后绿 48 条全是 R（先失败），没有 P。日志审计干净。
+  - 待评审：迁移测试用临时历史 0002 包保留第 6 张原断言的隔离方式。
+  - 快照 `refs/rdp/m0-07/B-ckpt`（0429170）。续派 B2（prompt-B2.md），还剩账号接入 92、接口 26、前端 39 个用例。
+- 2026-10-26，派工 B2 交第二个检查点（out-B2.md）：
+  - 后端和前端客户端完成。pytest 1261 passed、0 skipped；Vitest 141 passed / 26 skipped，剩下的全在页面。
+  - 先红后绿：19 条一开始就通过，原因是共用机制（回滚、全局鉴权、schema 校验）在前面的测试里已经实现，评审用变异抽查确认。
+  - 第 6 张两个测试只调整观察范围，断言未改：`test_service_failure_cleanup`、`test_login_unknown_no_state`。
+  - Codex 自己指出日志和账号的名字校验规则不一致（`isprintable()` 与 Unicode 类别）。
+  - 快照 `refs/rdp/m0-07/B2-ckpt`。续派 B3（prompt-B3.md）：页面 26 个用例、统一名字校验并补回归测试、收尾。
+- 2026-10-26，B3 交回，整票实现完成（out-B3.md）。执行线评审（快照 `refs/rdp/m0-07/B3-done`，7659582）：
+  1. `make check` 复跑全绿：pytest 1262、Vitest 172，0 skipped。
+  2. 文件归属干净，`pyproject.toml` 相对契约没动。
+  3. 对比契约：Protocol 并入 `service.py`；新增 `is_display_name`、前端常量，都在已批准范围。
+  4. 先红后绿：B 全 R；B2、B3 的 P 有合理解释（共用机制在前面已实现），用变异抽查确认。
+  5. 日志审计（B–B3）干净。
+  6. 两轴评审和安全评审：没有代码缺陷。标准评审的阻塞是两处字面量（7.1）；安全评审有一条 MEDIUM（见下）。
+  7. 违规试验：检查链相对契约没变，不重做。
+  8. 变异 15 个，抓住 14 个（`mutation_probe-B3.txt`）。存活的 `missing-login-skip`：不存在的登录名在假哈希阶段出错时补记"账号不存在"的路径，没有测试。
+  9. 演示（真实浏览器，`demo-m0-07` 探针目录）：
+     - 已验证：管理员建号；成员输错一次口令；成员首次登录改口令；成员打开日志页被拦到 `/?permission=denied`，两个日志接口 403；未知登录名登录一次；登录日志页正常；用筛选表单按对象账号筛出两条记录。
+     - **发现阻塞缺陷**：直接打开 `?target_account_id=2` 或 `?account_id=abc`，整页"请求失败"，没有显示契约里的"日志筛选参数不合法"。TanStack 把不带引号的数字解析成 number，`validateSearch` 抛错，路由崩溃。
+  - 打回第 1 轮（prompt-B-r1.md）：筛选参数（接受安全整数、不合法时显示提示不崩，用真实 router 测）；补测试缺口；两处具名常量；补记失败文案和重复函数；函数内 import 注释。
+  - 不阻塞，进 followups：
+    - 安全 MEDIUM：等待中的登录尝试每次都写一条登录日志，可以被刷。工单要求记每次尝试，改成去重要负责人定。
+    - 账号筛选要手输内部编号，表格也不显示编号，易用性差。
+    - 明细列直接显示原始 JSON，含 null 字段。
+    - 若干重复代码和命名问题。

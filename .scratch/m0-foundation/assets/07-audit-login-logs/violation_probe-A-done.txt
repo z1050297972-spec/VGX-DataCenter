@@ -9,3 +9,15 @@ accounts-imports-jobs OK(exit 1)
 accounts-imports-audit OK(exit 0)
 print-hook OK
 0
+--- A-r1-done（分层）
+baseline OK
+audit-imports-accounts OK(exit 1)
+audit-imports-jobs OK(exit 1)
+audit-imports-fastapi OK(exit 1)
+audit-imports-api OK(exit 1)
+infra-imports-audit OK(exit 1)
+accounts-imports-jobs OK(exit 1)
+jobs-imports-accounts OK(exit 1)
+accounts-imports-audit OK(exit 0)
+jobs-imports-audit OK(exit 0)
+0
