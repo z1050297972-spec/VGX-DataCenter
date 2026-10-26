@@ -1,6 +1,6 @@
 # 作业框架与 worker
 
-Status: ready-for-agent
+Status: in-progress
 
 ## 依据
 
@@ -91,3 +91,6 @@ Web 提交一个作业，worker 接走、执行、写进度和日志，结束后
   - **J2**：作业在 worker 进程的线程里执行；平台内部的作业在阶段之间检查取消标志，外部工具是子进程，能强制结束。
   - **J3**：worker 每秒查一次排队中的作业，不另做通知机制。
   - Status 改成 `ready-for-agent`。等第 7 张合并以后再开票。
+- 2026-10-26，开票（执行线）。第 7 张已合并（`461fe1b`），没有别的实现票在进行。工作目录 `~/桌面/robot-data-platform.wt/m0-08-job-framework-worker`，分支 `t/m0-08-job-framework-worker`，基线 `make check` 全绿（pytest 1265、Vitest 179）。Status 改为 `in-progress`。
+  - 派工 A：新会话 `01a177a4-de12-7ee1-a688-2f7b1044c81f`，快照 `refs/rdp/m0-08/A`，提示 `assets/08-job-framework-worker/prompt-A.md`，`-o assets/…/out-A.md`，运行日志 `<执行线临时目录>/m0-08/ev-A.jsonl`。
+  - 提示里执行线定的设计（骨架关卡时给负责人看）：续跑、重跑不新增状态边（保持运行中、在新实例里重新执行）；正在取消的作业最终一律已取消；未登记类型或参数失效的排队作业以已完成、失败结束；本票 worker 同时只跑一个作业（第 9 张改为每类上限）；取消已在取消中或已终态的作业返回 409、不记日志；重新提交只允许终态作业；外部进程按进程组发 SIGTERM、10 秒后 SIGKILL；工具的 JSON 上报通道留到 M4。
