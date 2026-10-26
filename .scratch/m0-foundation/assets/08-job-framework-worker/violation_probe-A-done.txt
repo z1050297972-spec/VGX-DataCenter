@@ -1,0 +1,15 @@
+--- A-done（d97ad3d），探针目录 PYTHONPATH=<探针>/src，lint-imports --no-cache
+baseline OK
+jobs-imports-api OK(exit 1)
+jobs-imports-ops OK(exit 1)
+jobs-imports-fastapi OK(exit 1)
+jobs-imports-sqlalchemy-ok OK(exit 0)
+accounts-imports-jobs OK(exit 1)
+audit-imports-jobs OK(exit 1)
+infra-imports-jobs OK(exit 1)
+jobs-imports-accounts OK(exit 0)
+jobs-imports-audit OK(exit 0)
+api-imports-ops OK(exit 1)
+ops-imports-api OK(exit 1)
+api-imports-jobs-ok OK(exit 0)
+注：第一次在探针里软链工作目录的 .venv 直接跑，rdp 走的是工作目录的可编辑安装，结果全错；第二次加了 PYTHONPATH 仍用缓存，同样错。两者都作废。
