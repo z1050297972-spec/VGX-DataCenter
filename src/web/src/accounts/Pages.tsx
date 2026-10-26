@@ -19,7 +19,7 @@ import {
 import type { Account, LoginInput, PasswordInput, NewAccountInput } from "../api/accounts";
 import { toFailureView, type RequestFailureView } from "../api/problems";
 import { DiagnosticCard } from "../DiagnosticCard";
-import { safeReturnTo } from "./navigation";
+import { ADMINISTRATOR_PAGE_PATHS, safeReturnTo } from "./navigation";
 import { useAccountClient, useCurrentAccount, ACCOUNT_QUERY_KEY } from "./runtime";
 
 /**
@@ -470,7 +470,7 @@ export function AccountsPage(): ReactElement {
 }
 
 /**
- * 在右上角显示当前显示名、角色、改口令入口和登出；管理员额外显示账号管理入口，成员不显示。
+ * 在右上角显示当前显示名、角色、改口令入口和登出；管理员额外显示账号管理、操作日志和登录日志入口，成员不显示。
  *
  * @returns 使用 antd 的表单、状态或诊断视图；仅身份明确且权限满足时显示受保护内容。
  * @throws 无。请求错误经 toFailureView/DiagnosticCard 呈现，不展示原始异常或执行服务端 HTML。
@@ -500,6 +500,12 @@ export function AccountMenu(): ReactElement {
       </Typography.Text>
       <Link to="/change-password">修改口令</Link>
       {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
+      {identity.data.role === "administrator" && (
+        <>
+          <Link to="/audit/operations">操作日志</Link>
+          <Link to="/audit/logins">登录日志</Link>
+        </>
+      )}
       <Button
         aria-label="登出"
         loading={action.busy}
@@ -535,7 +541,8 @@ export function AccountLayout(): ReactElement {
   const navigate = useNavigate();
   const location = useLocation();
   const force = identity.data?.must_change_password && location.pathname !== "/change-password";
-  const denied = identity.data?.role === "member" && location.pathname === "/accounts";
+  const denied =
+    identity.data?.role === "member" && ADMINISTRATOR_PAGE_PATHS.has(location.pathname);
   useEffect(() => {
     if (force)
       void navigate({

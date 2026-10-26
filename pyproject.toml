@@ -110,8 +110,9 @@ type = "layers"
 layers = [
     # 两个入口互不依赖，避免 Web 入口与运维入口之间耦合。
     "rdp.api | rdp.ops",
-    # M0 工单 04/06：jobs 与 accounts 同属领域层且互不依赖，infra 不得反向依赖它们。
+    # M0 第 7 张：各业务领域都可以写日志；日志领域不得反向依赖 jobs 或 accounts。
     "rdp.jobs | rdp.accounts",
+    "rdp.audit",
     "rdp.infra",
 ]
 
@@ -124,6 +125,8 @@ source_modules = [
     "rdp.jobs",
     # M0 工单 06：账号领域不依赖 Web 框架，与 jobs 同层且互不依赖。
     "rdp.accounts",
+    # M0 第 7 张：日志可由运维和未来 worker 调用，不依赖 Web 框架。
+    "rdp.audit",
 ]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 

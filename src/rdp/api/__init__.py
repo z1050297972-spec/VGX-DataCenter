@@ -23,6 +23,7 @@ from rdp.api._asgi import Receive as _Receive
 from rdp.api._asgi import Send as _Send
 from rdp.api.account_auth import install_account_security
 from rdp.api.accounts import router as accounts_router
+from rdp.api.audit import router as audit_router
 from rdp.api.database import configure_database
 from rdp.api.error_details import get_error_details
 from rdp.api.errors import ErrorBoundary, install_error_handlers
@@ -158,6 +159,8 @@ def create_app(
         仅 GET 健康和 POST 登录免身份检查；详情接口所有已登录且已完成改密的账号可看。
         请求判定按 Origin→公开操作→认证→强制改密→角色→路由匹配→参数校验；S1 兜底最后区分 404/405。
         健康/登录公开路径的错误方法不要求身份，但非安全方法必须先有正确 Origin 才返回 405/Allow。
+        第 7 张另登记 /api/audit/operations、/logins 和 /retention 的管理员路由；
+        应用工厂只登记日志 schema 和权限分类，不负责激活 0003 或日志模型。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -202,6 +205,8 @@ def create_app(
     )
     # 账号路由与既有 API 共用鉴权、时钟和 S1 兜底。
     app.include_router(accounts_router)
+    # 07 日志接口登记管理员路径和 OpenAPI；全局边界在参数校验前识别 get_admin_context。
+    app.include_router(audit_router)
     # 已知接口优先；兜底必须在静态挂载之前，不能让构建目录里的 api/ 文件遮蔽接口。
     for path in ("/api", "/api/{unknown:path}"):
         app.add_api_route(

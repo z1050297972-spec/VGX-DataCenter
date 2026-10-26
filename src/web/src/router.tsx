@@ -10,7 +10,13 @@ import {
 } from "@tanstack/react-router";
 import { AccountLayout, AccountsPage, LoginPage, PasswordPage } from "./accounts/Pages";
 import { AccountClientProvider } from "./accounts/runtime";
-import { guardAccountRoute, handleUnauthorized } from "./accounts/navigation";
+import {
+  ADMINISTRATOR_PAGE_PATHS,
+  guardAccountRoute,
+  handleUnauthorized,
+} from "./accounts/navigation";
+import { LoginLogsPage, OperationLogsPage } from "./audit/Pages";
+import { validateLoginSearch, validateOperationSearch } from "./audit/search";
 import { createAccountClient } from "./api/accounts";
 import { defaultFetch, type FetchImplementation } from "./api/client";
 import { toFailureView } from "./api/problems";
@@ -61,7 +67,7 @@ export function createAppRouter(options: AppRouterOptions) {
         await guardAccountRoute({
           client,
           destination: location.href,
-          administratorOnly: location.pathname === "/accounts",
+          administratorOnly: ADMINISTRATOR_PAGE_PATHS.has(location.pathname),
           signal: abortController.signal,
         });
     },
@@ -83,8 +89,20 @@ export function createAppRouter(options: AppRouterOptions) {
     path: "/accounts",
     component: AccountsPage,
   });
+  const operationLogs = createRoute({
+    getParentRoute: () => root,
+    path: "/audit/operations",
+    validateSearch: validateOperationSearch,
+    component: OperationLogsPage,
+  });
+  const loginLogs = createRoute({
+    getParentRoute: () => root,
+    path: "/audit/logins",
+    validateSearch: validateLoginSearch,
+    component: LoginLogsPage,
+  });
   const instance = createRouter({
-    routeTree: root.addChildren([index, login, password, accounts]),
+    routeTree: root.addChildren([index, login, password, accounts, operationLogs, loginLogs]),
     history: options.history,
     defaultPreload: false,
   });

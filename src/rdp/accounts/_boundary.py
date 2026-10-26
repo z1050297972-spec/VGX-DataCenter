@@ -8,14 +8,17 @@ import traceback
 from collections.abc import Callable
 from functools import wraps
 
+from rdp.audit.policy import AUDIT_APPEND_FAILED
 from rdp.infra.diagnostics import ConflictError, DefectError, ExternalError, InputError
 
-# 仅保留数据库工作单元自己生成的固定清理提示，不能复制驱动附带的任意 notes。
+# 只保留数据库固定清理提示和审计补记的固定标记，不能复制驱动附带的任意 notes。
 _CLEANUP_NOTES = frozenset(
     {
         "数据库回滚失败，结果未知；请检查数据库与备份。",
         "数据库关闭失败，结果未知；请检查数据库与备份。",
         "数据库连接失效处理也失败，结果未知；请检查数据库与备份。",
+        # 07 的失败补记不掩盖原异常；只保留固定标记供 API/ops 边界额外记 ERROR。
+        AUDIT_APPEND_FAILED,
     }
 )
 

@@ -10,6 +10,9 @@ from enum import StrEnum
 
 from pydantic import SecretStr
 
+# 07 的日志领域复用既有值对象；保留原导入路径，避免 accounts 与 audit 成环。
+from rdp.infra.actors import ActorRef as ActorRef
+
 
 class Role(StrEnum):
     """仅有管理员和成员两种角色。
@@ -33,20 +36,6 @@ class AccountStatus(StrEnum):
 
     ENABLED = "enabled"
     DISABLED = "disabled"
-
-
-@dataclass(frozen=True)
-class ActorRef:
-    """可在账号删除后继续显示的操作者身份快照。
-
-    Attributes:
-        account_id: 内部编号，1 至 2^63-1，无单位、无默认；仅运维操作为 None，不建外键。
-        name: 当时的显示名，1-64 个 Unicode 码点、无首尾空白或控制字符、不可空、无默认；
-            account_id 为 None 时固定为“运维”，用于首个管理员及运维重置。
-    """
-
-    account_id: int | None
-    name: str
 
 
 @dataclass(frozen=True)

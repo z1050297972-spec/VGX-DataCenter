@@ -264,6 +264,168 @@ export interface paths {
         patch: operations["set_account_status"];
         trace?: never;
     };
+    "/api/audit/logins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Logins
+         * @description 向管理员提供登录、登出及过期记录的游标页。
+         *
+         *     Args:
+         *         context: 全局认证的管理员上下文；领域只读事务内再次核验权限。
+         *         filters: 时间 [start,end)、账号编号、登录类型/结果和游标；每页上限 AUDIT_PAGE_LIMIT。
+         *
+         *     Returns:
+         *         HTTP 200 登录日志页；未知账号 account/login_name/request_id 均 null，已删身份带删除标记。
+         *
+         *     Raises:
+         *         AuthenticationError: 无有效身份，401 并清 cookie。
+         *         PasswordChangeRequiredError: 必须改口令，403。
+         *         AuthorizationError: 成员访问，403，优先于方法和参数错误。
+         *         AuditInputError: 筛选、时间偏移、游标种类/筛选绑定或编号/limit 非法，422。
+         *         InputError: 数据库或存量登录快照损坏，400。
+         *         ConflictError: 查询锁冲突，409。
+         *         ExternalError: 数据库未配置、读取/关闭 I/O 故障，502。
+         *         DefectError: 时钟或响应映射错误，500，不显示秘密。
+         *
+         *     Side Effects:
+         *         只读登录日志及账号存在性；不会对显示过的登录失败再次增加 G2。
+         *
+         *     Time Semantics:
+         *         查询保留 UTC 微秒；无界查询含未来记录，不依赖本机时区或当前墙钟。
+         *         单次锁等待最多 5000 毫秒，无自动重试。
+         */
+        get: operations["list_login_logs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/audit/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Operations
+         * @description 向管理员提供操作日志的筛选和游标页。
+         *
+         *     Args:
+         *         context: 全局鉴权后的管理员身份、服务及唯一请求时刻；查询内仍重验。
+         *         filters: aware 时间范围 [start,end)、操作人 account_id、对象账号 target_account_id、类型/结果及游标；
+         *             两个编号独立可选，同时提供取交集，均按历史内部编号查询；每页 1-100 项。
+         *
+         *     Returns:
+         *         HTTP 200，UTC 微秒、时间/编号倒序的一页，编号为十进制文本，末页 next_cursor=null。
+         *
+         *     Raises:
+         *         AuthenticationError: 未登录或会话无效，401 并清 cookie。
+         *         PasswordChangeRequiredError: 必须改口令，403。
+         *         AuthorizationError: 成员访问管理员模板（包括错方法、坏参数），403，先于 405/422。
+         *         AuditInputError: 筛选范围、时区、任一账号编号上限、游标绑定或分页非法，422，不回显输入。
+         *         InputError: 数据库/历史明细损坏，400。
+         *         ConflictError: 只读锁冲突，409。
+         *         ExternalError: 数据库未配置、读取或清理失败，502。
+         *         DefectError: 时钟/服务/SQL 或安全响应转换错误，500。
+         *
+         *     Side Effects:
+         *         只读业务日志；认证可能独立刷新会话，列表不写日志、创建设置或读取请求体。
+         *         成员不能通过附加恶意 query 把权限拒绝变成参数错误。
+         *
+         *     Time Semantics:
+         *         复用 context.now 仅核验身份，筛选转 UTC [含下界,不含上界)；页面自行转本地显示。
+         *         单次只读锁等待最多 5000 毫秒，无轮询/重试；回拨不限制查询截止。
+         */
+        get: operations["list_operation_logs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/audit/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Retention
+         * @description 读取操作日志页面上的共同保留期设置。
+         *
+         *     Args:
+         *         context: 已完成强制改密的管理员上下文。
+         *
+         *     Returns:
+         *         HTTP 200，days 为 7-365 整数；未设置过返回 30。
+         *
+         *     Raises:
+         *         AuthenticationError: 无有效身份，401。
+         *         PasswordChangeRequiredError: 必须改口令，403。
+         *         AuthorizationError: 成员，403；GET 不要求 Origin。
+         *         InputError: 设置或数据库损坏，400，不能伪装默认值。
+         *         ConflictError: 读取锁冲突，409。
+         *         ExternalError: 数据库未配置或读取/清理 I/O 故障，502。
+         *         DefectError: 时钟或设置响应构造错误，500。
+         *
+         *     Side Effects:
+         *         只读设置；无行时不建行、不触发清除、不记查询操作日志。
+         *
+         *     Time Semantics:
+         *         每天固定 UTC 24 小时；请求时刻仅用于身份核验，单次读锁最多 5000 毫秒，无重试。
+         */
+        get: operations["get_audit_retention"];
+        /**
+         * Set Retention
+         * @description 管理员保存共同保留期，和该变更的操作日志原子提交。
+         *
+         *     Args:
+         *         request: 当前 PUT 请求，入口取来源 IP 和服务器请求编号；必须带同源 Origin。
+         *         context: 已认证且已改密的管理员，在领域写锁内再次检查。
+         *         body: 唯一 days 字段，非 bool 整数 7-365；多余字段拒绝。
+         *
+         *     Returns:
+         *         HTTP 200 生效天数；相同值幂等，不新增操作日志；超时不能推断服务端已回滚。
+         *
+         *     Raises:
+         *         AuthorizationError: Origin 缺失/非法/不同源或成员，403，优先于 body 校验。
+         *         AuthenticationError: 非公开接口无有效会话，401 并清 cookie。
+         *         PasswordChangeRequiredError: 必须改口令，403。
+         *         AuditInputError: days 类型或范围不合法，422，不记操作日志。
+         *         InputError: 既有设置或数据库损坏，400。
+         *         ConflictError: 业务写锁或约束冲突，409。
+         *         ExternalError: 设置/日志写入、提交或清理失败，502。
+         *         DefectError: 时钟、AuditContext 类型/来源/请求编号、SQL 或响应错误，500；不把平台上下文缺陷映射成 422。
+         *
+         *     Side Effects:
+         *         set_log_retention 在管理员预检通过并进入写事务后开始执行，设置和成功日志同事务。
+         *         执行后失败回滚，再短事务补记；补记失败由统一边界 ERROR，原错误保持原状态和诊断。
+         *         不立即清除，不公开 purge 的 HTTP 入口。
+         *
+         *     Time Semantics:
+         *         同请求只取 context.now，UTC 微秒；回拨不拒绝。业务获锁最多 5000 毫秒，
+         *         回滚后补记最多 100 毫秒，无自动重试；后续定时清除读取新设置。
+         */
+        put: operations["set_audit_retention"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -609,6 +771,33 @@ export interface components {
             name: string;
         };
         /**
+         * AuditValues
+         * @description v1 的平面白名单，秘密无字段可容纳；None 表示未提供，序列化时排除。
+         *
+         *     Attributes:
+         *         model_config: frozen/extra=forbid/hide_input_in_errors；未知字段拒绝且不回显值。
+         *         login_name: 已确认账号的登录名，3-32 字符；默认 None，不接受未知输入原文。
+         *         display_name: 已确认账号的显示名，1-64 码点；默认 None。
+         *         role: administrator/member；默认 None，不含权限令牌。
+         *         status: enabled/disabled；默认 None。
+         *         must_change_password: 严格布尔；默认 None，仅表示强制改密标记。
+         *         retention_days: 严格整数 7-365 天；默认 None。
+         */
+        AuditValues: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Login Name */
+            login_name?: string | null;
+            /** Must Change Password */
+            must_change_password?: boolean | null;
+            /** Retention Days */
+            retention_days?: number | null;
+            /** Role */
+            role?: ("administrator" | "member") | null;
+            /** Status */
+            status?: ("enabled" | "disabled") | null;
+        };
+        /**
          * ChangePasswordRequest
          * @description 本人改口令请求，无目标账号字段。
          *
@@ -786,6 +975,43 @@ export interface components {
             status: "ok";
         };
         /**
+         * HistoricalActorResponse
+         * @description 不可变历史身份和本次查询所得的删除标记。
+         *
+         *     Attributes:
+         *         account_id: 正整数十进制文本；运维 None，未知登录账号不构造本对象。
+         *         name: 当时显示名，1-64 码点，运维固定“运维”。
+         *         deleted: 当前快照编号不存在为 True；运维 False，必填。
+         */
+        HistoricalActorResponse: {
+            /** Account Id */
+            account_id: string | null;
+            /** Deleted */
+            deleted: boolean;
+            /** Name */
+            name: string;
+        };
+        /**
+         * LoginKind
+         * @description 只记录登录、显式登出及访问触发的过期删除，不将管理撤销冒充登出。
+         * @enum {string}
+         */
+        LoginKind: "login" | "logout" | "session_expired";
+        /**
+         * LoginListResponse
+         * @description 登录日志的倒序游标页。
+         *
+         *     Attributes:
+         *         items: 0 至 AUDIT_PAGE_LIMIT 个登录日志，时间/编号倒序。
+         *         next_cursor: 下一页 opaque 游标；末页 None。
+         */
+        LoginListResponse: {
+            /** Items */
+            items: components["schemas"]["LoginResponse"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /**
          * LoginRequest
          * @description 登录请求，只能通过 POST body 传递。
          *
@@ -802,6 +1028,149 @@ export interface components {
              */
             password: string;
         };
+        /**
+         * LoginResponse
+         * @description 一条登录日志；未知账号不输出输入的登录名。
+         *
+         *     Attributes:
+         *         log_id: 正整数十进制编号，必填。
+         *         occurred_at: aware UTC ISO 8601，微秒，必填。
+         *         account: 已确认历史身份；未知账号 None。
+         *         login_name: 已存账号登录名；未知账号 None。
+         *         kind: 登录、登出或过期删除类型，必填。
+         *         result: LoginResult，必填。
+         *         source_ip: ASGI client 的 IP；缺失 None。
+         *         request_id: 请求编号；未知账号 None。
+         *         failure_category: 执行故障的四类类别；其他结果 None，不带内部异常文本。
+         */
+        LoginResponse: {
+            account: components["schemas"]["HistoricalActorResponse"] | null;
+            failure_category: components["schemas"]["DiagnosticCategory"] | null;
+            kind: components["schemas"]["LoginKind"];
+            /** Log Id */
+            log_id: string;
+            /** Login Name */
+            login_name: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Request Id */
+            request_id: string | null;
+            result: components["schemas"]["LoginResult"];
+            /** Source Ip */
+            source_ip: string | null;
+        };
+        /**
+         * LoginResult
+         * @description 登录验证结果；第五次错口令仍是 wrong_password，执行故障单列 failure，不伪造凭据结论。
+         * @enum {string}
+         */
+        LoginResult: "success" | "wrong_password" | "disabled" | "waiting" | "account_missing" | "failure";
+        /**
+         * ObjectResponse
+         * @description 对象的历史名字，保留给未来撤回功能定位。
+         *
+         *     Attributes:
+         *         kind: account/audit_settings，必填。
+         *         object_id: 账号编号十进制文本或设置键 retention；失败新建尚无编号时 None。
+         *         name: 当时显示名或固定设置名，1-64 码点，必填。
+         *         deleted: 账号编号已不存在为 True；设置或未分配编号为 False。
+         */
+        ObjectResponse: {
+            /** Deleted */
+            deleted: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "account" | "audit_settings";
+            /** Name */
+            name: string;
+            /** Object Id */
+            object_id: string | null;
+        };
+        /**
+         * OperationDetails
+         * @description v1 JSON 格式为 {version: 1, before: {...}, after: {...}}，不存执行命令。
+         *
+         *     Attributes:
+         *         model_config: frozen/extra=forbid/hide_input_in_errors，固定配置。
+         *         version: 当前仅接受整数 1，无单位，默认 DETAILS_VERSION；bool 非法。
+         *         before: 改动前已确认的白名单值，必填；新建为空对象。
+         *         after: 成功提交的白名单值，必填；删除或失败为空对象，不能暗示失败改动已生效。
+         */
+        OperationDetails: {
+            after: components["schemas"]["AuditValues"];
+            before: components["schemas"]["AuditValues"];
+            /**
+             * Version
+             * @default 1
+             */
+            version: number;
+        };
+        /**
+         * OperationListResponse
+         * @description 操作日志的倒序游标页。
+         *
+         *     Attributes:
+         *         items: 0 至 AUDIT_PAGE_LIMIT 个操作日志，时间/编号倒序。
+         *         next_cursor: 下一页 opaque 游标；末页 None。
+         */
+        OperationListResponse: {
+            /** Items */
+            items: components["schemas"]["OperationResponse"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /**
+         * OperationResponse
+         * @description 一条安全的操作日志，不返回异常文本或当前名字代替快照。
+         *
+         *     Attributes:
+         *         log_id: 正整数十进制文本，1 至 2^63-1，必填。
+         *         occurred_at: aware UTC ISO 8601，微秒，必填。
+         *         actor: 历史 ActorRef 和删除标记，必填。
+         *         operation: 稳定具名操作类型，必填。
+         *         target: 对象快照，必填。
+         *         result: success/failure，必填。
+         *         failure_category: 失败四类之一；成功 None。
+         *         request_id: 当前请求 uuid4 hex；运维 None。
+         *         source_ip: 规范 IPv4/IPv6；不可获得或运维 None。
+         *         details: 版本 1 的 before/after 白名单 JSON，必填。
+         */
+        OperationResponse: {
+            actor: components["schemas"]["HistoricalActorResponse"];
+            details: components["schemas"]["OperationDetails"];
+            failure_category: components["schemas"]["DiagnosticCategory"] | null;
+            /** Log Id */
+            log_id: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            operation: components["schemas"]["OperationType"];
+            /** Request Id */
+            request_id: string | null;
+            result: components["schemas"]["OperationResult"];
+            /** Source Ip */
+            source_ip: string | null;
+            target: components["schemas"]["ObjectResponse"];
+        };
+        /**
+         * OperationResult
+         * @description 操作是否提交；失败类别另存 DiagnosticCategory，不拼接异常文本。
+         * @enum {string}
+         */
+        OperationResult: "success" | "failure";
+        /**
+         * OperationType
+         * @description 稳定的操作码；新增操作用新增枚举值，不改历史值（第 8 张可增加作业操作）。
+         * @enum {string}
+         */
+        OperationType: "create_account" | "set_role" | "disable_account" | "enable_account" | "reset_password" | "reset_password_from_ops" | "delete_account" | "change_password" | "create_first_admin" | "set_retention";
         /**
          * ProblemResponse
          * @description RFC 9457 的不可变错误载荷；字段固定，不包含 traceback、错误链或请求内容。
@@ -853,6 +1222,17 @@ export interface components {
              * Format: password
              */
             password: string;
+        };
+        /**
+         * RetentionPayload
+         * @description 保留期请求及响应的相同字段，不开放其他设置。
+         *
+         *     Attributes:
+         *         days: 严格非 bool 整数，MIN_RETENTION_DAYS 至 MAX_RETENTION_DAYS，单位天，必填。
+         */
+        RetentionPayload: {
+            /** Days */
+            days: number;
         };
         /**
          * Role
@@ -1522,6 +1902,431 @@ export interface operations {
                 headers: {
                     /** @description 向上取整的剩余秒数，1-60 */
                     "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    list_login_logs: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                account_id?: string | null;
+                cursor?: string | null;
+                limit?: number;
+                kind?: components["schemas"]["LoginKind"] | null;
+                result?: components["schemas"]["LoginResult"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    list_operation_logs: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                account_id?: string | null;
+                cursor?: string | null;
+                limit?: number;
+                operation?: components["schemas"]["OperationType"] | null;
+                result?: components["schemas"]["OperationResult"] | null;
+                target_account_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_audit_retention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    set_audit_retention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetentionPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {
