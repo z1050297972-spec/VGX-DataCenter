@@ -5,26 +5,32 @@
 回滚再按第 7 张短事务补记，补记失败附固定标记交 API 边界报告，不在本层打日志。
 """
 
-import json
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import cast
 
-from pydantic import ValidationError
 from sqlalchemy import Engine, select
 
 from rdp.accounts.service import authorize_job_actor, existing_account_ids
 from rdp.accounts.types import SessionIdentity
-from rdp.audit.types import AuditContext, OperationEvent, OperationType
-from rdp.infra.db.connection import session_scope
-from rdp.infra.db.validation import invalid_field
+from rdp.audit.types import (
+    AuditContext,
+    AuditValues,
+    OperationDetails,
+    OperationEvent,
+    OperationResult,
+    OperationType,
+)
+from rdp.infra.actors import SYSTEM_ACTOR, is_display_name
+from rdp.infra.db.connection import session_scope, session_scope_with_lock_timeout
 from rdp.infra.diagnostics import ConflictError, DefectError, DiagnosticCategory
-from rdp.jobs import _audit, _pagination, _storage, _views
-from rdp.jobs.errors import JobInputError
+from rdp.jobs import _audit, _pagination, _storage, _views, policy
+from rdp.jobs._parameters import validate as validate_parameters
 from rdp.jobs.models import JobRow, WorkerHeartbeatRow
-from rdp.jobs.policy import JOB_PARAMETERS_MAX_BYTES
 from rdp.jobs.records import NewJob, StateChange, find_job, insert_job, transition_job
 from rdp.jobs.registry import JobDefinition, JobRegistry
+from rdp.jobs.schedule_records import insert_submission
+from rdp.jobs.scheduling_models import ScheduleSubmissionRow
 from rdp.jobs.scheduling_types import ScheduledJob, ScheduleSubmission
 from rdp.jobs.types import JobPage, JobQuery, JobRecord, JobState, WorkerHeartbeat
 
@@ -152,7 +158,39 @@ class JobService:
             BEGIN 最多 PROGRESS_LOCK_TIMEOUT_MS，忙由调度器下一轮重试；不在本函数内部睡眠。
             日期去重覆盖 worker 重启和墙钟回拨，不按执行完成时刻计算 24 小时补跑。
         """
-        raise NotImplementedError
+        if (
+            not isinstance(cast(object, definition), ScheduledJob)
+            or not is_display_name(definition.name)
+            or type(local_date) is not date
+        ):
+            raise DefectError()
+        now = _storage.moment(now)
+        job, parameters = _parameters(self.registry, definition.type_name, definition.parameters)
+        attempted: OperationEvent | None = None
+        try:
+            with session_scope_with_lock_timeout(
+                self.engine, busy_timeout_ms=policy.PROGRESS_LOCK_TIMEOUT_MS
+            ) as session:
+                if session.get(ScheduleSubmissionRow, (definition.name, local_date)) is not None:
+                    return None
+                attempted = OperationEvent(
+                    now,
+                    SYSTEM_ACTOR,
+                    OperationType.SUBMIT_JOB,
+                    _audit.target(None),
+                    OperationResult.SUCCESS,
+                    None,
+                    AuditContext(None, None),
+                    OperationDetails(before=AuditValues(), after=AuditValues()),
+                )
+                record = insert_job(session, NewJob(job, parameters, SYSTEM_ACTOR, now, None))
+                _audit.finish(session, attempted, record)
+                submission = ScheduleSubmission(definition.name, local_date, record.job_id, now)
+                insert_submission(session, submission)
+            return submission
+        except Exception as error:
+            _audit.failed(self.engine, attempted, error)
+            raise
 
     def cancel(self, request: JobRequest, job_id: int) -> JobRecord:
         """请求取消任意账号提交的作业，取消身份记为当前账号。
@@ -300,7 +338,6 @@ class JobService:
         Time Semantics:
             请求时刻只用于身份核验，数据库时刻保留 UTC 微秒；读锁沿用 BUSY_TIMEOUT_MS，无轮询。
         """
-        # 待实现：系统提交人不标记为已删除，账号仍按编号判断。
         _audit.validate_request(request)
         _storage.identifier(job_id)
         with session_scope(self.engine, read_only=True) as session:
@@ -310,7 +347,9 @@ class JobService:
             present = existing_account_ids(
                 session, frozenset(() if identifier is None else (identifier,))
             )
-            return replace(record, submitter_deleted=identifier not in present)
+            return replace(
+                record, submitter_deleted=identifier is not None and identifier not in present
+            )
 
     def list(self, request: JobRequest, query: JobQuery) -> JobPage:
         """按状态和稳定游标查询所有提交人的作业。
@@ -339,7 +378,6 @@ class JobService:
         Time Semantics:
             墙钟回拨不禁止查询未来提交记录；只读锁最多 BUSY_TIMEOUT_MS，无自动重试。
         """
-        # 待实现：页内系统身份无需账号存在性查询，删除标记固定 False。
         _audit.validate_request(request)
         cursor = _pagination.decode(query)
         with session_scope(self.engine, read_only=True) as session, _storage.operation(session):
@@ -369,7 +407,11 @@ class JobService:
                 ),
             )
             records = tuple(
-                replace(record, submitter_deleted=record.submitted_by.account_id not in present)
+                replace(
+                    record,
+                    submitter_deleted=record.submitted_by.account_id is not None
+                    and record.submitted_by.account_id not in present,
+                )
                 for record in records
             )
             next_cursor = (
@@ -419,27 +461,4 @@ def _parameters(
     registry: JobRegistry, type_name: str, parameters: dict[str, object]
 ) -> tuple[JobDefinition, dict[str, object]]:
     """参数校验在写事务外；只把固定字段诊断暴露给调用者，不回显拒绝的载荷。"""
-    try:
-        definition = registry.lookup(type_name)
-    except DefectError:
-        definition = None
-    if definition is None:
-        raise JobInputError(invalid_field("type_name", "已登记的作业类型").diagnostics)
-    try:
-        if (
-            not isinstance(cast(object, parameters), dict)
-            or len(json.dumps(parameters, ensure_ascii=False, allow_nan=False).encode())
-            > JOB_PARAMETERS_MAX_BYTES
-        ):
-            raise ValueError("参数不是有界JSON对象")
-        checked = definition.parameters_model.model_validate(parameters).model_dump(mode="json")
-        if (
-            len(json.dumps(checked, ensure_ascii=False, allow_nan=False).encode())
-            > JOB_PARAMETERS_MAX_BYTES
-        ):
-            raise ValueError("完整参数超过容量")
-    except (ValidationError, TypeError, ValueError, UnicodeError):
-        raise JobInputError(
-            invalid_field("parameters", "当前作业类型的合法有界参数").diagnostics
-        ) from None
-    return definition, checked
+    return validate_parameters(registry, type_name, parameters)

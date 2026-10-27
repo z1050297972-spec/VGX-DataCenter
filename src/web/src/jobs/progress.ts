@@ -92,20 +92,9 @@ export function jobStatusLabel(_job: Job): string {
   if (_job.state === "completed") {
     const outcome = _job.summary?.outcome;
     if (!outcome) throw new Error("已完成作业缺少结果");
-    return {
-      succeeded: "成功",
-      succeeded_with_warnings: "带警告成功",
-      partially_succeeded: "部分成功",
-      failed: "失败",
-    }[outcome];
+    return JOB_OUTCOME_LABELS[outcome];
   }
-  return {
-    queued: "排队中",
-    running: "运行中",
-    cancelling: "正在取消",
-    cancelled: "已取消",
-    interrupted: "已中断",
-  }[_job.state];
+  return JOB_STATE_LABELS[_job.state];
 }
 
 /** 详情可显示的时间量，空详情或尚无计时样本时不伪造数值。 */
@@ -249,3 +238,19 @@ class TimingStore {
 function activeJob(job: Job | undefined): boolean {
   return !!job && job.state !== "queued" && !isJobTerminal(job);
 }
+
+/** 后端作业结果的统一中文名称，列表、详情和定时计划共用。 */
+export const JOB_OUTCOME_LABELS = {
+  succeeded: "成功",
+  succeeded_with_warnings: "带警告成功",
+  partially_succeeded: "部分成功",
+  failed: "失败",
+} as const;
+/** 尚未完成或取消/中断的状态名称，不把等待原因当成状态。 */
+export const JOB_STATE_LABELS = {
+  queued: "排队中",
+  running: "运行中",
+  cancelling: "正在取消",
+  cancelled: "已取消",
+  interrupted: "已中断",
+} as const;

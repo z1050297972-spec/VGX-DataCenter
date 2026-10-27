@@ -110,21 +110,33 @@ def run_external_process(
         KILL 后 wait 最多 PROCESS_REAP_TIMEOUT_S、读线程回收最多 OUTPUT_JOIN_TIMEOUT_S。
         直接子进程退出但后代仍持管道时也终止组，不能无限等 EOF；所有期限用 monotonic。
     """
-    # 待实现：校验 gpu_index 并只在本次子进程环境中设置 CUDA 两项。
     _validate_command(command)
+    environment = None
+    if gpu_index is not None:
+        if type(gpu_index) is not int or gpu_index < 0:
+            raise DefectError()
+        environment = dict(os.environ)
+        environment["CUDA_VISIBLE_DEVICES"] = str(gpu_index)
+        environment["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     reader = ClockReader(clock)
     reader.read()
-    return _ProcessRun(command, reporter, log, reader).run()
+    return _ProcessRun(command, reporter, log, reader, environment).run()
 
 
 class _ProcessRun:
     """一个直接进程及其两个读线程；独立进程组便于取消工具派生的后代。"""
 
     def __init__(
-        self, command: ToolCommand, reporter: ProgressReporter, log: JobLog, clock: ClockReader
+        self,
+        command: ToolCommand,
+        reporter: ProgressReporter,
+        log: JobLog,
+        clock: ClockReader,
+        environment: dict[str, str] | None,
     ) -> None:
         """保存当前命令及上报依赖，进程和读线程由run显式启动。"""
         self.command, self.reporter, self.log, self.clock = command, reporter, log, clock
+        self.environment = environment
         self.process: subprocess.Popen[bytes] | None = None
         self.readers: list[OutputReader] = []
         self.threads: list[Thread] = []
@@ -153,10 +165,19 @@ class _ProcessRun:
 
     def _start(self) -> None:
         """绝对程序及无shell参数来自登记执行函数，锁fd不可继承。"""
+        if self.environment is not None:
+            self.log.write_line(
+                "CUDA_VISIBLE_DEVICES="
+                + self.environment["CUDA_VISIBLE_DEVICES"]
+                + " CUDA_DEVICE_ORDER="
+                + self.environment["CUDA_DEVICE_ORDER"],
+                now=self.clock.clock.now(),
+            )
         try:
             self.process = subprocess.Popen(  # noqa: S603  # 理由：已校验绝对程序路径，登记函数提供argv，禁止shell。
                 self.command.argv,
                 cwd=self.command.cwd,
+                env=self.environment,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 start_new_session=True,

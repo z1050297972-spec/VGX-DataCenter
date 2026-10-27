@@ -23,7 +23,7 @@ from rdp.audit.types import (
     OperationResult,
     OperationType,
 )
-from rdp.infra.actors import OPS_ACTOR, ActorRef, is_display_name
+from rdp.infra.actors import OPS_ACTOR, SYSTEM_ACTOR, ActorRef, is_display_name
 from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import DefectError, DiagnosticCategory
 from rdp.infra.ids import MAX_SQLITE_INTEGER
@@ -59,12 +59,11 @@ def name(value: object) -> str:
 
 def actor(value: object) -> None:
     """账号身份保持原编号；空编号只允许 OPS_ACTOR 或 SYSTEM_ACTOR 两个固定身份。"""
-    # 待实现：与 0005 空编号固定身份 CHECK 同步放开系统身份。
     if not isinstance(value, ActorRef):
         raise invalid("actor")
     name(value.name)
     if value.account_id is None:
-        if value.name != OPS_ACTOR.name:
+        if value.name not in {OPS_ACTOR.name, SYSTEM_ACTOR.name}:
             raise invalid("actor")
     else:
         identifier(value.account_id)

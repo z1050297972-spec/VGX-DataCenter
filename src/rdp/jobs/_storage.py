@@ -25,6 +25,7 @@ from rdp.infra.diagnostics import (
 from rdp.infra.ids import MAX_SQLITE_INTEGER, is_request_id
 from rdp.infra.timeutil import ensure_utc
 from rdp.jobs.errors import JobInputError
+from rdp.jobs.policy import WORKER_OFFLINE_AFTER_S
 from rdp.jobs.types import WorkerHeartbeat
 
 
@@ -105,14 +106,28 @@ def heartbeat(value: WorkerHeartbeat) -> WorkerHeartbeat:
 
 
 def entry_busy(error: BaseException) -> bool:
-    """只认可异常链中的SQLite BUSY/LOCKED，不把其他入场冲突静默跳过。"""
+    """只认可BEGIN语句的SQLite BUSY/LOCKED，事务内和提交阶段的竞争不能静默跳过。"""
     current: BaseException | None = error
     for _ in range(8):
         if current is None:
             break
         source = current.orig if isinstance(current, StatementError) else current
         code = getattr(source, "sqlite_errorcode", None)
-        if type(code) is int and code & 0xFF in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}:
+        if (
+            isinstance(current, StatementError)
+            and current.statement in {"BEGIN", "BEGIN IMMEDIATE"}
+            and type(code) is int
+            and code & 0xFF in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
+        ):
             return True
         current = current.__cause__
     return False
+
+
+def heartbeat_is_online(value: WorkerHeartbeat | None, now: datetime) -> bool:
+    """跨进程UTC心跳年龄不超过15秒为在线；回拨按零秒，不接触worker内存。"""
+    checked_now = moment(now)
+    if value is None:
+        return False
+    checked = heartbeat(value)
+    return max(0.0, (checked_now - checked.last_seen_at).total_seconds()) <= WORKER_OFFLINE_AFTER_S

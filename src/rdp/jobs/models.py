@@ -1,6 +1,6 @@
-"""作业记录与单行心跳的 ORM 声明（08/0004）；领域层，不创建或迁移数据库。
+"""作业记录与单行心跳的 ORM 声明（08/09、0005）；领域层，不创建或迁移数据库。
 
-共享基础层Base/UTCDateTime，导入时注册共用metadata；0004表定义包含相同列与CHECK。JSON 存进度/摘要/诊断快照，计数另列便于最终值一致性校验。
+共享基础层Base/UTCDateTime，导入时注册共用metadata；0005 迁移维护相同列与 CHECK。JSON 存进度/摘要/诊断快照，计数另列便于最终值一致性校验。
 """
 
 from datetime import datetime
@@ -21,9 +21,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from rdp.infra.db.models import Base
 from rdp.infra.db.utc import UTCDateTime
 from rdp.jobs.policy import JOB_RECOVERY_LIMIT
+from rdp.jobs.scheduling_models import JobSchedulingColumns
 
 
-class JobRow(Base):
+class JobRow(JobSchedulingColumns):
     """永久作业记录，无账号外键；编号只由 SQLite AUTOINCREMENT 生成。
 
     Attributes:
@@ -31,14 +32,14 @@ class JobRow(Base):
         type_name: 稳定英文类型，1-64 字符。
         display_name: 提交时显示名，1-40 码点，恢复使用同一路径。
         parameters: 无秘密 JSON 对象，最多 16 KiB。
-        submitter_id: 正账号编号或系统的 None，不设外键；0005 可空声明隔离在 JobSchedulingColumns。
+        submitter_id: 正账号编号或系统的 None，不设外键；0005 可空声明由 JobSchedulingColumns 共用。
         submitter_name: 提交人名字快照，1-64 码点。
         submitted_at: UTC 微秒提交时刻。
         resubmitted_from: 原作业编号，普通提交 NULL；永久记录不级联删除。
-        state: 六态英文码，初始化 queued，改变只经 transition_job。
+        state: 六态英文码，初始化 queued；常规改变经 transition_job，未启动领取由 return_unstarted_job 受限退回。
         recovery_mode: 提交时方式快照，仅作记录及interrupt保守保护；续跑/重跑选择以当前登记为准。
         recovery_count: 已提交的自动恢复资格次数，0至JOB_RECOVERY_LIMIT=3，初始0；重跑不归零。
-        started_at: 首次开始 UTC 时刻，未开始 NULL；恢复不变。
+        started_at: 首次领取的 UTC 时刻，未领取 NULL；已启动后的恢复不变，未启动领取退回时清空。
         ended_at: 结束 UTC 时刻，进行中 NULL。
         outcome: 仅 completed 有四种结果之一，其余 NULL。
         total_items: 已处理条目数，非负。
@@ -57,6 +58,7 @@ class JobRow(Base):
 
     __tablename__ = "jobs"
     __table_args__ = (
+        *JobSchedulingColumns.__table_args__,
         CheckConstraint("job_id > 0 AND submitter_id > 0", name="positive_ids"),
         CheckConstraint("length(type_name) BETWEEN 1 AND 64", name="type_length"),
         CheckConstraint("length(display_name) BETWEEN 1 AND 40", name="display_length"),
@@ -97,8 +99,7 @@ class JobRow(Base):
     type_name: Mapped[str] = mapped_column(String(64), nullable=False)
     display_name: Mapped[str] = mapped_column(String(40), nullable=False)
     parameters: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
-    # 0004 共用 MetaData 维持 NOT NULL；0005 的可空列和空编号身份约束单独声明，避免查询提前改表。
-    submitter_id: Mapped[int | None] = mapped_column(Integer, nullable=False)
+    submitter_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     submitter_name: Mapped[str] = mapped_column(String(64), nullable=False)
     submitted_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     resubmitted_from: Mapped[int | None] = mapped_column(Integer)

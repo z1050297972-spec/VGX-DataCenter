@@ -30,14 +30,21 @@ from rdp.infra.diagnostics import (
 from rdp.infra.exception_report import format_exception_report
 from rdp.infra.logging import log_context
 from rdp.infra.state import StatePaths
-from rdp.jobs import _diagnostics, _storage
+from rdp.jobs import _diagnostics, _storage, policy
 from rdp.jobs.errors import JobCancelledError, WorkerStoppingError
+from rdp.jobs.gpu import verify_gpu
 from rdp.jobs.logs import JobLog, JobLogMetadata, open_job_log
 from rdp.jobs.policy import OUTPUT_JOIN_TIMEOUT_S
 from rdp.jobs.processes import ToolCommand, run_external_process
 from rdp.jobs.progress import ExecutionSignals, ProgressReporter
 from rdp.jobs.records import StateChange, find_job, save_progress, transition_job
-from rdp.jobs.registry import JobRegistry
+from rdp.jobs.registry import (
+    EXAMPLE_GPU_TYPE,
+    EXAMPLE_NAVIGATION_TYPE,
+    MAINTENANCE_JOB_TYPES,
+    JobRegistry,
+)
+from rdp.jobs.resources import save_resource_display
 from rdp.jobs.types import (
     ExecutionMode,
     ExecutionSnapshot,
@@ -117,7 +124,9 @@ class ExecutionContext:
         Time Semantics:
             分段等待 50 毫秒，总等待最多 300 秒；写锁内取消/停止不抛，释放后下一检查点响应。
         """
-        raise NotImplementedError
+        if self._navigation is None:
+            raise DefectError()
+        return self._navigation.run(self.reporter, verify, write)
 
     def run_process(self, command: ToolCommand) -> int:
         """以本作业的取消、日志和时钟执行一个外部命令。
@@ -142,8 +151,9 @@ class ExecutionContext:
         Time Semantics:
             执行有 command.timeout_s 上限，取消 TERM 宽限 10 秒后升级 KILL，随后有界回收。
         """
-        # 待实现：把当前 gpu_index 传给外部进程入口，不改变现有无卡执行路径。
-        return run_external_process(command, self.reporter, self.log, self.clock)
+        return run_external_process(
+            command, self.reporter, self.log, self.clock, gpu_index=self.gpu_index
+        )
 
 
 @dataclass(frozen=True)
@@ -233,7 +243,6 @@ def execute_job(
         执行器只执行有界收尾，不判断自己是否越过总预算；run_loop负责超时一次ERROR、失败返回及锁保留。
         被节流的最新进度即使不再report，也由wait/check_cancelled/外部进程轮询在补写截止处理。
     """
-    # 待实现：执行前核卡、注入资源/维护能力、终态清展示及 finally 归还凭据。
     _storage.identifier(work.record.job_id, internal=True)
     if work.record.state is not JobState.RUNNING:
         raise DefectError()
@@ -281,7 +290,6 @@ def recover_job(job_id: int, dependencies: ExecutorDependencies) -> ExecutionWor
         持续锁忙没有有限延迟保证。资格提交并交execute_job实际执行后，其终态提交失败归整实例失败退出，
         不使用本函数的准备阶段隔离规则。恢复不把墙钟回拨当冲突，不将停机时间计入运行耗时。
     """
-    # 待实现：统一清空由启动入口先完成，本函数只返回无资源凭据的恢复候选。
     from rdp.jobs._recovery import prepare
 
     _storage.identifier(job_id, internal=True)
@@ -362,6 +370,32 @@ class _ExecutionRun:
             raise InputError(
                 (_execution_diagnostic(record, "历史参数不满足当前类型模型"),)
             ) from None
+        gpu_example_command = None
+        if definition.requires_gpu:
+            if record.gpu_index is None:
+                raise ExternalError(
+                    (
+                        _execution_diagnostic(
+                            record,
+                            "平台没有可用的卡：GPU配置为空或配置卡在启动核对时全部被移出",
+                            DiagnosticCategory.EXTERNAL,
+                        ),
+                    )
+                )
+            if dependencies.resources is None:
+                raise DefectError()
+            command = dependencies.resources.configuration.nvidia_smi
+            if command is None:
+                raise DefectError()
+            self.log.write_line(f"领到GPU卡号：{record.gpu_index}", now=dependencies.clock.now())
+            verify_gpu(record.gpu_index, command, log=self.log)
+            if record.type_name == EXAMPLE_GPU_TYPE:
+                gpu_example_command = ToolCommand(
+                    "nvidia-smi",
+                    (str(command), "-i", str(record.gpu_index)),
+                    dependencies.paths.root,
+                    policy.GPU_PROBE_TIMEOUT_S,
+                )
         context = ExecutionContext(
             record.job_id,
             parameters,
@@ -374,12 +408,27 @@ class _ExecutionRun:
             if dependencies.resources is None
             else dependencies.resources.navigation,
             gpu_index=record.gpu_index,
-            maintenance=None,
-            gpu_example_command=None,
-            navigation_example_path=None,
+            maintenance=self._maintenance_actions(),
+            gpu_example_command=gpu_example_command,
+            navigation_example_path=dependencies.paths.navigation_example
+            if record.type_name == EXAMPLE_NAVIGATION_TYPE
+            else None,
         )
         self.reporter.check_cancelled()
         definition.execute(context)
+
+    def _maintenance_actions(self) -> MaintenanceActions | None:
+        """只给两个清除类型注入已绑定的最小服务，不把引擎或配置放进上下文。"""
+        if self.work.record.type_name not in MAINTENANCE_JOB_TYPES:
+            return None
+        from rdp.jobs.maintenance import MaintenanceActions, MaintenanceService
+
+        if self.dependencies.resources is None:
+            raise DefectError()
+        service = MaintenanceService(
+            self.dependencies.engine, self.dependencies.resources.configuration.error_retention_days
+        )
+        return MaintenanceActions(service.purge_errors, service.purge_logs)
 
     def _failure(self, error: Exception) -> None:
         """统一诊断进入记录；日志失败时仍尝试落终态，不能在失败日志上递归报告。"""
@@ -484,6 +533,11 @@ class _ExecutionRun:
                 now=self.dependencies.clock.now(),
             )
 
+            # 执行函数已经退出保护段，最终进度事务同时清掉可能尚未补写的资源副本。
+            from rdp.jobs.scheduling_types import ResourceDisplay
+
+            save_resource_display(session, self.work.record.job_id, ResourceDisplay(None, False))
+
     def _close(self) -> None:
         """只关闭无读线程使用的文件，活资源留在monitor交主循环保锁。"""
         monitor = self.signals.monitor
@@ -502,6 +556,8 @@ class _ExecutionRun:
                 self.log.close()
             except Exception:
                 logger.error("关闭作业日志失败，已保存的状态不回滚", exc_info=True)
+        if not alive and self.work.claim is not None and self.dependencies.resources is not None:
+            self.dependencies.resources.pool.release(self.work.claim)
 
 
 def _execution_diagnostic(

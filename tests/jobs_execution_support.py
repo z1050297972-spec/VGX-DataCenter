@@ -40,14 +40,22 @@ def execution_case(
         with session_scope(engine) as session:
             record = claim_job(session, 71, now=NOW, paths=paths, gpu_index=None)
         signals = ExecutionSignals(Event(), Event(), ExecutionMonitor([], None, Lock()))
-        yield (
-            ExecutionWork(record, ExecutionMode.FRESH, None, claim=claim_fixture(record)),
-            ExecutorDependencies(
-                engine,
-                registry,
-                paths,
-                JobClock(lambda: NOW, time.monotonic),
-                resources=resources_fixture(registry),
-            ),
-            signals,
+        dependencies = ExecutorDependencies(
+            engine,
+            registry,
+            paths,
+            JobClock(lambda: NOW, time.monotonic),
+            resources=resources_fixture(registry),
         )
+        try:
+            yield (
+                ExecutionWork(
+                    record, ExecutionMode.FRESH, None, claim=claim_fixture(record, dependencies)
+                ),
+                dependencies,
+                signals,
+            )
+        finally:
+            if dependencies.resources is not None:
+                for claim in dependencies.resources.pool.claims():
+                    dependencies.resources.pool.release(claim)

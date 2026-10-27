@@ -32,6 +32,7 @@ from rdp.jobs.types import (
     JobState,
     JobSummary,
     RecoveryMode,
+    WaitReason,
 )
 
 # TypeAdapter只缓存类型编译结果，不持有作业/账号数据，复用统一值对象而不重复手写JSON结构。
@@ -45,6 +46,7 @@ def record(row: JobRow) -> JobRecord:
     _validate_parameters(row)
     try:
         state, mode = JobState(row.state), RecoveryMode(row.recovery_mode)
+        waiting = None if row.wait_reason is None else WaitReason(row.wait_reason)
     except (ValueError, TypeError):
         raise DefectError() from None
     result = JobRecord(
@@ -69,6 +71,9 @@ def record(row: JobRow) -> JobRecord:
         diagnostics=_decode(_GROUPS, row.diagnostics),
         recovery_mode=mode,
         recovery_count=row.recovery_count,
+        gpu_index=row.gpu_index,
+        wait_reason=waiting,
+        holds_navigation_lock=row.holds_navigation_lock,
     )
 
     _validate_record(row, result)

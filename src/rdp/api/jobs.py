@@ -23,7 +23,12 @@ from rdp.api.job_schemas import (
     SubmitJobPayload,
     WorkerStatusResponse,
 )
-from rdp.api.scheduling_schemas import SchedulingResponse
+from rdp.api.scheduling_schemas import (
+    GpuUsageResponse,
+    ScheduleResponse,
+    SchedulingResponse,
+    TypeUsageResponse,
+)
 from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import (
     DefectError,
@@ -37,7 +42,7 @@ from rdp.infra.state import StatePaths
 from rdp.jobs.errors import JobInputError
 from rdp.jobs.example import CountParameters
 from rdp.jobs.logs import read_log_tail
-from rdp.jobs.registry import JobRegistry
+from rdp.jobs.registry import EXAMPLE_GPU_TYPE, EXAMPLE_NAVIGATION_TYPE, JobRegistry
 from rdp.jobs.resource_examples import GpuExampleParameters, NavigationExampleParameters
 from rdp.jobs.scheduling_service import SchedulingService
 from rdp.jobs.scheduling_types import SchedulingCatalog
@@ -97,7 +102,6 @@ def configure_jobs(
     Time Semantics:
         启动接收请求前调用一次，不读墙钟，无等待。
     """
-    # 待实现：绑定入口显式提供的 SchedulingCatalog 和只读服务。
     engine = getattr(app.state, "database_engine", None)
     if engine is None:
         failure = _unavailable()
@@ -114,7 +118,9 @@ def configure_jobs(
         or Path(engine.url.database or "") != paths.database
     ):
         raise DefectError()
+    configured_scheduling = SchedulingService(engine, scheduling)
     app.state.job_service = JobService(engine, registry)
+    app.state.scheduling_service = configured_scheduling
     app.state.job_paths = paths
 
 
@@ -141,7 +147,6 @@ def get_job_context(request: Request, account: AuthenticatedContext) -> JobApiCo
     Time Semantics:
         每请求复用一个 UTC 时刻；不因轮询重置作业计时。
     """
-    # 待实现：从应用状态补齐 scheduling 服务，禁止在请求内读配置或创建资源池。
     service, paths = (
         getattr(request.app.state, "job_service", None),
         getattr(request.app.state, "job_paths", None),
@@ -151,7 +156,10 @@ def get_job_context(request: Request, account: AuthenticatedContext) -> JobApiCo
         raise failure
     if not isinstance(service, JobService) or not isinstance(paths, StatePaths):
         raise DefectError()
-    return JobApiContext(account, service, paths, scheduling=None)
+    scheduling = getattr(request.app.state, "scheduling_service", None)
+    if scheduling is not None and not isinstance(scheduling, SchedulingService):
+        raise DefectError()
+    return JobApiContext(account, service, paths, scheduling=scheduling)
 
 
 JobContext = Annotated[JobApiContext, Depends(get_job_context)]
@@ -284,7 +292,9 @@ def submit_gpu_job(context: JobContext, body: GpuExampleParameters) -> JobRespon
     Time Semantics:
         用请求唯一 UTC 时刻，普通写锁 5 秒；执行时长只作用于 worker，不在 HTTP 等待。
     """
-    raise NotImplementedError
+    return _response(
+        context.service.submit(_request(context), EXAMPLE_GPU_TYPE, body.model_dump(mode="json"))
+    )
 
 
 @router.post(
@@ -318,7 +328,11 @@ def submit_navigation_job(context: JobContext, body: NavigationExampleParameters
     Time Semantics:
         本请求单次普通事务，无重试；pause_s 在后台持锁阶段才生效。
     """
-    raise NotImplementedError
+    return _response(
+        context.service.submit(
+            _request(context), EXAMPLE_NAVIGATION_TYPE, body.model_dump(mode="json")
+        )
+    )
 
 
 @router.get("/{job_id}", response_model=JobResponse, operation_id="get_job")
@@ -487,14 +501,15 @@ def _request(context: JobApiContext) -> JobRequest:
 
 def _response(record: JobRecord) -> JobResponse:
     """在 HTTP 边界转换 64 位编号；系统账号编号保持 None，不输出字符串 None 或已删除标记。"""
-    # 待实现：系统身份保留 null，资源新增字段由记录快照映射，不读 worker 内存。
     data = asdict(record)
     data["job_id"] = str(record.job_id)
     data["resubmitted_from"] = (
         None if record.resubmitted_from is None else str(record.resubmitted_from)
     )
     data["submitted_by"] = {
-        "account_id": str(record.submitted_by.account_id),
+        "account_id": None
+        if record.submitted_by.account_id is None
+        else str(record.submitted_by.account_id),
         "name": record.submitted_by.name,
         "deleted": record.submitter_deleted,
     }
@@ -555,4 +570,43 @@ def get_scheduling(context: JobContext) -> SchedulingResponse:
     Time Semantics:
         使用 account.now 的唯一 UTC 请求时刻；普通读锁 5 秒、无内部轮询，页面约每秒查询。
     """
-    raise NotImplementedError
+    if context.scheduling is None:
+        failure = _unavailable()
+        raise failure
+    snapshot = context.scheduling.snapshot(_request(context))
+    return SchedulingResponse(
+        types=tuple(
+            TypeUsageResponse(**asdict(item.capacity), running_count=item.running_count)
+            for item in snapshot.types
+        ),
+        gpus=tuple(
+            GpuUsageResponse(
+                gpu_index=item.gpu_index,
+                job_id=None if item.job_id is None else str(item.job_id),
+                availability=item.availability,
+                diagnostics=item.diagnostics,
+                checked_at=item.checked_at,
+            )
+            for item in snapshot.gpus
+        ),
+        navigation_job_id=None
+        if snapshot.navigation_job_id is None
+        else str(snapshot.navigation_job_id),
+        schedules=tuple(
+            ScheduleResponse(
+                name=item.name,
+                next_run_at=item.next_run_at,
+                last_job_id=None
+                if item.last_submission is None
+                else str(item.last_submission.job_id),
+                last_submitted_at=None
+                if item.last_submission is None
+                else item.last_submission.submitted_at,
+                last_state=item.last_state,
+                last_outcome=item.last_outcome,
+            )
+            for item in snapshot.schedules
+        ),
+        checked_at=snapshot.checked_at,
+        worker_online=snapshot.worker_online,
+    )

@@ -16,7 +16,7 @@ from rdp.infra.config import PlatformConfig
 
 logger = logging.getLogger(__name__)
 
-# S1 要求集中定义数据库位置；具体 basename 是本票的命名提案，供第 05 张复用。
+# S1 要求集中定义数据库文件名，数据库入口和迁移共用此布局。
 DATABASE_FILENAME = "rdp.sqlite3"
 # ADR 0005 要求 worker 与运维命令共用单实例锁；basename 在本票统一，取锁属于第 08 张。
 WORKER_LOCK_FILENAME = "worker.lock"
@@ -47,7 +47,7 @@ class StatePaths:
     @property
     def navigation_example(self) -> Path:
         """示例写锁文件 root/navigation-example.jsonl 的绝对路径，只计算、不创建。"""
-        raise NotImplementedError
+        return self.root / "navigation-example.jsonl"
 
 
 def state_paths(config: PlatformConfig, job_types: Sequence[str]) -> StatePaths:

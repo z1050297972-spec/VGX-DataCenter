@@ -1,14 +1,6 @@
 // 作业 Query 契约（08）；缓存按身份清理，所有请求由 useAccountClient 的统一传输发出。
-import {
-  useMutation,
-  useQueryClient,
-  useQuery,
-  type UseMutationResult,
-  type UseQueryResult,
-} from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { toFailureView } from "../api/problems";
+import { useQuery, type UseMutationResult, type UseQueryResult } from "@tanstack/react-query";
+import { useJobAction } from "./_actions";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import {
   submitCountJob,
@@ -145,7 +137,7 @@ export function useCancelJob(_jobId: string): UseMutationResult<Job, Error, void
  * 为终态作业重新提交新记录。
  * @param _jobId - 原作业规范编号；前端按钮只在终态出现，服务端仍独立校验。
  * @returns 无参数 Mutation，新 Job 的 resubmitted_from 指向原编号。
- * @throws Error Provider 缺失；409/422 等错误由 mutation.error 呈现。
+ * @throws Error Provider 缺失；409、422 等错误由 mutation.error 呈现。
  * @sideEffects 调 resubmitJob，成功刷新列表并导航新详情；失败不修改原记录。
  * @timeSemantics 10 秒上限、无重试，离页终止传输并忽略迟到导航。
  */
@@ -155,57 +147,4 @@ export function useResubmitJob(_jobId: string): UseMutationResult<Job, Error, vo
     (_payload, signal) => resubmitJob({ client, jobId: _jobId, payload: undefined, signal }),
     true,
   );
-}
-
-// 写操作统一管理本次挂载的请求归属；迟到成功不能在离页或换号后导航。
-function useJobAction<T>(
-  send: (payload: T, signal: AbortSignal) => Promise<Job>,
-  redirect: boolean,
-): UseMutationResult<Job, Error, T> {
-  const cache = useQueryClient();
-  const navigate = useNavigate();
-  const owner = useRef<{ mounted: boolean; active: AbortController | null }>({
-    mounted: false,
-    active: null,
-  });
-  useEffect(() => {
-    const state = owner.current;
-    state.mounted = true;
-    return () => {
-      state.mounted = false;
-      state.active?.abort();
-    };
-  }, []);
-  return useMutation({
-    mutationFn: async (payload: T) => {
-      if (owner.current.active) throw new Error("请求处理中");
-      const controller = new AbortController();
-      owner.current.active = controller;
-      try {
-        const record = await send(payload, controller.signal);
-        if (!owner.current.mounted || controller.signal.aborted) throw new Error("请求已取消");
-        return record;
-      } finally {
-        if (owner.current.active === controller) owner.current.active = null;
-      }
-    },
-    onSuccess: async (record) => {
-      if (!isMounted(owner.current)) return;
-      await cache.invalidateQueries({ queryKey: ["jobs"] });
-      if (redirect && isMounted(owner.current))
-        await navigate({ to: "/jobs/$jobId", params: { jobId: record.job_id } });
-    },
-    onError: async (error) => {
-      const failure = toFailureView(error);
-      if (owner.current.mounted && failure.kind === "problem" && failure.problem.status === 409)
-        await cache.invalidateQueries({ queryKey: ["jobs"] });
-    },
-    retry: false,
-    gcTime: JOB_GC_TIME_MS,
-  });
-}
-
-// await期间组件可能卸载，成功回调再次读取当前归属。
-function isMounted(state: { mounted: boolean }): boolean {
-  return state.mounted;
 }

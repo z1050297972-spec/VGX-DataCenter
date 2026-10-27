@@ -2,17 +2,24 @@
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from pathlib import Path
 from threading import Event
+from typing import cast
 from uuid import uuid4
 
+from rdp.infra.db.connection import session_scope
 from rdp.infra.db.migration import check_database_version
-from rdp.infra.diagnostics import ConflictError, DefectError
+from rdp.infra.diagnostics import ConflictError, DefectError, ExternalError
 from rdp.infra.logging import LoggingSettings, configure_logging
 from rdp.jobs._clock import ClockReader
 from rdp.jobs.execution import ExecutorDependencies
+from rdp.jobs.gpu import verify_gpu
+from rdp.jobs.navigation import NavigationWriter
 from rdp.jobs.policy import WORKER_EXIT_ALREADY_RUNNING, WORKER_EXIT_FAILURE, WORKER_EXIT_OK
-from rdp.jobs.scheduling import WorkerScheduling
+from rdp.jobs.resources import ResourcePool, reset_resources_on_startup, save_gpu_checks
+from rdp.jobs.scheduling import WorkerResources, WorkerScheduling
+from rdp.jobs.scheduling_types import GpuCheck
 from rdp.jobs.types import WorkerHeartbeat
 from rdp.jobs.worker import run_loop, worker_lock
 
@@ -82,13 +89,13 @@ def run_worker(
         第11张systemd服务须KillMode=control-group、TimeoutStopSec>=WORKER_STOP_TIMEOUT_S（30秒），
         以结束worker被SIGKILL后继续运行的孤儿工具；测试由临时夹具清理，不靠worker持锁描述符杀子进程。
     """
-    # 待实现：装配每实例资源对象、启动核卡并注入每日登记，保留现有入口收尾路径。
     if (
         logging_settings.process != "worker"
         or logging_settings.log_dir != dependencies.paths.logs
         or not dependencies.engine.get_execution_options().get("rdp_managed")
     ):
         raise DefectError()
+    _validate_scheduling(scheduling)
     ClockReader(dependencies.clock).read()
     try:
         configure_logging(logging_settings)
@@ -107,7 +114,62 @@ def run_worker(
         return WorkerExit(WORKER_EXIT_FAILURE, "worker实例锁无法取得", False)
     now = dependencies.clock.now()
     heartbeat = WorkerHeartbeat(uuid4().hex, os.getpid(), now, now)
+    try:
+        with session_scope(dependencies.engine) as session:
+            reset_resources_on_startup(session)
+        resources = _start_resources(dependencies, scheduling, stop, heartbeat.instance_id)
+        if resources is None:
+            lock.finish(())
+            return WorkerExit(WORKER_EXIT_OK, "worker已停止", False)
+        dependencies = replace(dependencies, resources=resources)
+    except Exception:
+        logger.error("worker资源副本初始化失败，未开始恢复或领取", exc_info=True)
+        lock.finish(())
+        return WorkerExit(WORKER_EXIT_FAILURE, "worker资源副本初始化失败", False)
     result = run_loop(dependencies, stop, heartbeat)
     retained = lock.finish(result.unreaped_threads)
     message = "worker已停止" if result.code == WORKER_EXIT_OK else "worker失败退出，需要重启"
     return WorkerExit(result.code, message, retained)
+
+
+def _start_resources(
+    dependencies: ExecutorDependencies, scheduling: WorkerScheduling, stop: Event, instance_id: str
+) -> WorkerResources | None:
+    """核卡在任何数据库事务之外；全部结果发布成功后才让主循环取得新的资源池。"""
+    checks: list[GpuCheck] = []
+    for index in scheduling.catalog.settings.gpus:
+        if stop.is_set():
+            return None
+        if scheduling.nvidia_smi is None:
+            raise DefectError()
+        try:
+            verify_gpu(index, scheduling.nvidia_smi, log=None)
+        except ExternalError as error:
+            logger.error("GPU启动核对失败，移出本实例名额池 gpu_index=%d", index, exc_info=True)
+            checks.append(GpuCheck(index, False, error.diagnostics, dependencies.clock.now()))
+        else:
+            checks.append(GpuCheck(index, True, (), dependencies.clock.now()))
+    if stop.is_set():
+        return None
+    with session_scope(dependencies.engine) as session:
+        save_gpu_checks(session, instance_id, tuple(checks))
+    return WorkerResources(
+        scheduling,
+        ResourcePool(
+            scheduling.catalog.settings,
+            available_gpus=tuple(item.gpu_index for item in checks if item.available),
+        ),
+        NavigationWriter(),
+    )
+
+
+def _validate_scheduling(scheduling: WorkerScheduling) -> None:
+    """调用者配置在取得锁和探测硬件之前校验，缺命令不是硬件故障。"""
+    if not isinstance(cast(object, scheduling), WorkerScheduling):
+        raise DefectError()
+    command = scheduling.nvidia_smi
+    if command is None:
+        if scheduling.catalog.settings.gpus:
+            raise DefectError()
+    elif not isinstance(cast(object, command), Path) or not command.is_absolute():
+        raise DefectError()

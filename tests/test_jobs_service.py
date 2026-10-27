@@ -741,7 +741,9 @@ def test_cancel_vs_completion_orders(tmp_path: Path) -> None:
                 jobs.cancel(request, record.job_id)
             signals = ExecutionSignals(Event(), Event(), ExecutionMonitor([], None, Lock()))
             result = execute_job(
-                ExecutionWork(claimed, ExecutionMode.FRESH, None, claim=claim_fixture(claimed)),
+                ExecutionWork(
+                    claimed, ExecutionMode.FRESH, None, claim=claim_fixture(claimed, dependencies)
+                ),
                 dependencies,
                 signals,
             )

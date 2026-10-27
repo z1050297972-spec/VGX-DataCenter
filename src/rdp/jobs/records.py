@@ -1,22 +1,23 @@
 """作业持久化与唯一状态转换（领域层，08）；调用者拥有短事务，不在这里等待作业。
 
 SQLAlchemy 负责有条件 UPDATE 和事务；不复制队列库，ADR 0005 已排除不符合恢复语义的队列。
-除创建行的初始 queued 外，所有 state/outcome/起止时间写入只在 transition_job。
+常规 state/outcome/起止时间写入集中在 transition_job；本实例未启动领取另由 return_unstarted_job 受限退回。
 数据库错误经现有 translate_database_error 分类；本层补对象上下文，不记录运行日志。
 """
 
 import json
 from copy import deepcopy
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, select, text, update
+from sqlalchemy import CursorResult, func, select, text, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from rdp.infra.actors import ActorRef, is_display_name
+from rdp.infra.actors import SYSTEM_ACTOR, ActorRef, is_display_name
+from rdp.infra.config import MAX_GPU_INDEX
 from rdp.infra.diagnostics import ConflictError, DefectError, DiagnosticCategory
 from rdp.infra.ids import MAX_SQLITE_INTEGER
 from rdp.infra.state import StatePaths
@@ -26,7 +27,15 @@ from rdp.jobs.models import JobRow, WorkerHeartbeatRow
 from rdp.jobs.outcome import calculate_outcome
 from rdp.jobs.policy import JOB_DISPLAY_NAME_MAX_CHARS, JOB_PARAMETERS_MAX_BYTES
 from rdp.jobs.registry import JobDefinition, JobRegistry
-from rdp.jobs.types import ExecutionSnapshot, JobRecord, JobState, JobSummary, WorkerHeartbeat
+from rdp.jobs.types import (
+    ExecutionMode,
+    ExecutionSnapshot,
+    JobRecord,
+    JobState,
+    JobSummary,
+    WaitReason,
+    WorkerHeartbeat,
+)
 
 
 @dataclass(frozen=True)
@@ -35,7 +44,7 @@ class StateChange:
 
     Attributes:
         expected: 调用方读到的旧状态，不允许跳过比较。
-        target: 希望写入的新状态，只接受工单六条合法边。
+        target: 希望写入的新状态，只接受常规六条合法边；未启动领取的内部退回不使用 StateChange。
         now: aware UTC 微秒时刻，不以回拨拒绝转换。
         aborted: 仅running→completed可为True；取消或中断必须False。
         log_path: queued→running必填的已在当前领取事务预留的相对logs路径；其他边必须None，保留原路径。
@@ -90,7 +99,6 @@ def insert_job(session: Session, command: NewJob) -> JobRecord:
     Time Semantics:
         使用 command.now，不另读时钟；写锁已经取得，不增加等待或重试。
     """
-    # 待实现：接受账号或 SYSTEM_ACTOR，运维和其他空编号身份仍拒绝。
     _validate_new_job(command)
     with _storage.operation(session, write=True):
         # 写事务已经持有排他写锁；先区分序列耗尽与真正的磁盘满，不能将所有SQLITE_FULL改为冲突。
@@ -125,7 +133,7 @@ def insert_job(session: Session, command: NewJob) -> JobRecord:
 
 
 def transition_job(session: Session, job_id: int, change: StateChange) -> JobRecord:
-    """执行唯一状态转换，并在终态冻结与日志共用的摘要。
+    """执行常规状态转换，并在终态冻结与日志共用的摘要。
 
     Args:
         session: 已获普通 busy_timeout 写锁的受管 Session；禁止使用可跳过的进度事务。
@@ -147,7 +155,8 @@ def transition_job(session: Session, job_id: int, change: StateChange) -> JobRec
         ExternalError: 更新、flush 或摘要存储 I/O 失败。
 
     Side Effects:
-        所有状态写入集中于此，比较更新后 flush，不 commit，不记操作日志或运行日志。
+        常规状态写入集中于此；未启动领取的内部退回由 return_unstarted_job 单独约束，不开放通用回退边。
+        比较更新后 flush，不 commit，不记操作日志或运行日志。
         状态、时间、结果和摘要在一个事务中改变；调用者负责整个事务回滚，不跳过失败。
         进入任一终态必须同事务清 wait_reason/holds_navigation_lock，gpu_index 保留历史；
         不能让周期副本更新重新写回终态占用。
@@ -158,7 +167,6 @@ def transition_job(session: Session, job_id: int, change: StateChange) -> JobRec
         UTC 墙钟允许回拨，不修改首次开始时间；耗时取已经保存的 monotonic 片段。
         由外层普通 session_scope 提供 BUSY_TIMEOUT_MS 预算，不自动重试或重新读取后换边。
     """
-    # 待实现：终态转换同事务清空等待及持锁展示，保留历史 GPU。
     job_id = _storage.identifier(job_id, internal=True)
     _validate_change(change)
     now = _storage.moment(change.now)
@@ -269,6 +277,7 @@ def claim_job(
 
     Returns:
         queued→running后含started_at及非空log_path的快照；两者和状态同事务提交，之后才启动执行线程。
+        此快照只证明领取已提交；本实例尚未启动线程时，由主循环按 return_unstarted_job 的受限规则退回。
 
     Raises:
         JobNotFoundError: 已选编号不存在，永久记录被外部破坏。
@@ -288,7 +297,7 @@ def claim_job(
     Time Semantics:
         按类型容量与空闲卡逐条领取；主循环使用短锁事务，入场忙下轮再试，不在事务里休眠。
     """
-    # 待实现：领取同事务保存分配卡号及清空等待副本。
+    _validate_gpu_index(gpu_index)
     job_id = _storage.identifier(job_id, internal=True)
     now = _storage.moment(now)
     with _storage.operation(session, write=True):
@@ -297,9 +306,94 @@ def claim_job(
             failure = _state_conflict(job_id)
             raise failure
         relative = _claim_log_path(session, current, paths, now)
+        row = session.get(JobRow, job_id)
+        if row is None:
+            raise DefectError()
+        # 与状态/日志路径同一事务；先同时清等待，避免带卡号时触发等待GPU的组合约束。
+        row.gpu_index = gpu_index
+        row.wait_reason = None
+        row.holds_navigation_lock = False
+        session.flush()
         return transition_job(
             session, job_id, StateChange(JobState.QUEUED, JobState.RUNNING, now, log_path=relative)
         )
+
+
+def return_unstarted_job(
+    session: Session, record: JobRecord, *, mode: ExecutionMode, now: datetime
+) -> JobRecord:
+    """退回本实例已提交但执行线程从未启动的领取。
+
+    Args:
+        session: 已获短写锁的受管 Session；调用方持有 worker 单实例锁。
+        record: 本次领取返回的 running 快照；主循环必须已核验其仍是本实例未启动领取及有效资源凭据。
+        mode: 本次执行模式；fresh 才能退回 queued，resume/restart 不能抹去历史执行状态。
+        now: 注入 aware 时刻，仅在领取后已收到取消时用于完成取消，统一 UTC 微秒。
+
+    Returns:
+        fresh 返回 queued，并清 started_at/log_path/GPU/等待/持锁字段；提交身份、参数、编号及恢复次数不变。
+        fresh 已收到取消则保持取消意图并返回 cancelled，不重新入队。
+        resume/restart 仅清本次资源副本，保留原 running/cancelling 状态、开始时间、日志、进度及已经取得的恢复资格。
+
+    Raises:
+        DefectError: 非 running 领取快照、模式/时钟非法，或 fresh 快照已含执行/恢复痕迹。
+        JobNotFoundError: 作业记录缺失。
+        ConflictError: 存量快照已发生取消以外的变化，或短锁、更新、提交竞争失败；不能跳过。
+        InputError: 数据库存量损坏。
+        ExternalError: 读取或退回写入 I/O 失败。
+
+    Side Effects:
+        常规 transition_job 之外的内部补充，不能通过通用 StateChange 或 HTTP 请求回退已启动作业。
+        同一写事务重读并核对领取快照；fresh 的取消已提交时按现有转换完成取消，再清本次领取字段。
+        恢复候选的取消沿用下一实例恢复收尾及日志摘要流程，不在退回资源时提前落终态。
+        不写操作日志，不创建或删除作业日志，不增加恢复次数；失败由外层整体回滚并停止实例。
+
+    Time Semantics:
+        仅在线程未启动、主循环仍拥有本次领取时调用；BEGIN 使用 PROGRESS_LOCK_TIMEOUT_MS 短预算，无重试。
+        清首次领取时间使用 NULL，不读取第二份系统时钟或据墙钟推测线程是否已经启动。
+    """
+    if (
+        not isinstance(cast(object, record), JobRecord)
+        or record.state is not JobState.RUNNING
+        or not isinstance(cast(object, mode), ExecutionMode)
+    ):
+        raise DefectError()
+    now = _storage.moment(now)
+    if mode is ExecutionMode.FRESH and (
+        record.recovery_count != 0
+        or record.progress is not None
+        or record.elapsed_s != 0
+        or record.artifacts
+        or record.diagnostics
+        or record.tool_exit_code is not None
+    ):
+        raise DefectError()
+    with _storage.operation(session, write=True):
+        current = find_job(session, record.job_id)
+        if (
+            current.state not in {JobState.RUNNING, JobState.CANCELLING}
+            or replace(current, state=JobState.RUNNING) != record
+        ):
+            failure = _state_conflict(record.job_id)
+            raise failure
+        row = session.get(JobRow, record.job_id)
+        if row is None:
+            raise DefectError()
+        if mode is ExecutionMode.FRESH:
+            if current.state is JobState.CANCELLING:
+                transition_job(
+                    session,
+                    record.job_id,
+                    StateChange(JobState.CANCELLING, JobState.CANCELLED, now),
+                )
+            else:
+                row.state = JobState.QUEUED.value
+        row.gpu_index = row.wait_reason = None
+        row.holds_navigation_lock = False
+        if mode is ExecutionMode.FRESH:
+            row.started_at = row.log_path = None
+        session.flush()
+        return _views.record(row)
 
 
 def save_progress(
@@ -402,7 +496,7 @@ def save_heartbeat(session: Session, heartbeat: WorkerHeartbeat) -> None:
         session.expire_all()
 
 
-# 工单08仅允许六条边；其他入口不得自行赋state，恢复续跑/重跑也不新增自转换。
+# 常规转换维持六条边；未启动领取的退回由独立受限入口处理，恢复不新增自转换。
 _ALLOWED_TRANSITIONS = frozenset(
     {
         (JobState.QUEUED, JobState.RUNNING),
@@ -464,6 +558,9 @@ def _transition_values(row: JobRow, change: StateChange, now: datetime) -> dict[
     values: dict[str, object] = {"state": change.target.value}
     if change.target is JobState.RUNNING:
         values.update(started_at=now, log_path=change.log_path)
+    elif change.target is JobState.CANCELLING and row.wait_reason == WaitReason.GPU.value:
+        # 尚未重新领卡的恢复作业可以取消；取消态不再宣称等待 GPU。
+        values["wait_reason"] = None
     elif change.target in _TERMINAL_STATES:
         current = _views.record(row)
         outcome = None
@@ -490,6 +587,8 @@ def _transition_values(row: JobRow, change: StateChange, now: datetime) -> dict[
             tool_exit_code=row.tool_exit_code,
         )
         values.update(
+            wait_reason=None,
+            holds_navigation_lock=False,
             ended_at=now,
             outcome=outcome,
             aborted=change.aborted,
@@ -551,12 +650,12 @@ def _path_exists(path: Path) -> bool:
 
 def _validate_new_job(command: NewJob) -> None:
     """验证账号或 SYSTEM_ACTOR，拒绝运维和空编号假身份；参数有界且无秘密。"""
-    # 待实现：放开 SYSTEM_ACTOR 的空编号，账号身份维持正整数检查。
     if not isinstance(cast(object, command), NewJob) or not isinstance(
         cast(object, command.actor), ActorRef
     ):
         raise DefectError()
-    _storage.identifier(command.actor.account_id, internal=True)
+    if command.actor != SYSTEM_ACTOR:
+        _storage.identifier(command.actor.account_id, internal=True)
     if not is_display_name(command.actor.name):
         raise DefectError()
     if command.resubmitted_from is not None:
@@ -601,7 +700,21 @@ def assign_recovery_gpu(session: Session, job_id: int, gpu_index: int | None) ->
     Time Semantics:
         取得名额后、启动恢复线程前调用，短锁入场失败留到下轮，不能在事务里等待卡。
     """
-    raise NotImplementedError
+    _storage.identifier(job_id, internal=True)
+    _validate_gpu_index(gpu_index)
+    with _storage.operation(session, write=True):
+        current = find_job(session, job_id)
+        if current.state is not JobState.RUNNING:
+            failure = _state_conflict(job_id)
+            raise failure
+        row = session.get(JobRow, job_id)
+        if row is None:
+            raise DefectError()
+        row.gpu_index = gpu_index
+        row.wait_reason = None
+        row.holds_navigation_lock = False
+        session.flush()
+        return find_job(session, job_id)
 
 
 def queued_type_heads(session: Session) -> tuple[JobRecord, ...]:
@@ -626,4 +739,22 @@ def queued_type_heads(session: Session) -> tuple[JobRecord, ...]:
     Time Semantics:
         每轮重新取得队首，墙钟不影响顺序；快照可能被 Web 取消，领取时必须再次条件更新。
     """
-    raise NotImplementedError
+    with _storage.operation(session):
+        if session.info["rdp_read_only"] is not True:
+            raise DefectError()
+        # 只选每类最小编号，不把同类后项加载进内存；编号顺序不受墙钟回拨影响。
+        heads = (
+            select(func.min(JobRow.job_id))
+            .where(JobRow.state == JobState.QUEUED.value)
+            .group_by(JobRow.type_name)
+        )
+        rows = session.scalars(
+            select(JobRow).where(JobRow.job_id.in_(heads)).order_by(JobRow.job_id)
+        )
+        return tuple(_views.record(row) for row in rows)
+
+
+def _validate_gpu_index(value: int | None) -> None:
+    """卡号来自内存凭据，严格拒绝bool和超出配置编号范围的内部错误。"""
+    if value is not None and (type(value) is not int or not 0 <= value <= MAX_GPU_INDEX):
+        raise DefectError()

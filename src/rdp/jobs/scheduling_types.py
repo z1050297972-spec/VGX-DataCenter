@@ -5,11 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from zoneinfo import ZoneInfo
 
-from rdp.infra.diagnostics import Diagnostic
+from pydantic import ValidationError
+
+from rdp.infra.actors import is_display_name
+from rdp.infra.config import JobsConfig
+from rdp.infra.diagnostics import DefectError, Diagnostic
 from rdp.jobs.outcome import JobOutcome
+from rdp.jobs.policy import JOB_DISPLAY_NAME_MAX_CHARS
 from rdp.jobs.types import JobState
 from rdp.jobs.types import WaitReason as WaitReason
 
@@ -207,6 +212,45 @@ class SchedulingCatalog:
     settings: SchedulingSettings
     schedules: ScheduleRegistry
     timezone: ZoneInfo
+
+    def __post_init__(self) -> None:
+        """共享配置在两个入口构造时校验，坏时区、容量或缺类型不能延迟到请求或核卡时才失败。"""
+        from rdp.jobs.schedules import ScheduleRegistry
+
+        if (
+            not isinstance(cast(object, self.settings), SchedulingSettings)
+            or not isinstance(cast(object, self.schedules), ScheduleRegistry)
+            or not isinstance(cast(object, self.timezone), ZoneInfo)
+        ):
+            raise DefectError()
+        if type(self.settings.gpus) is not tuple or type(self.settings.types) is not tuple:
+            raise DefectError()
+        for item in self.settings.types:
+            if (
+                not isinstance(cast(object, item), TypeCapacity)
+                or type(item.requires_gpu) is not bool
+                or not is_display_name(item.display_name)
+                or len(item.display_name) > JOB_DISPLAY_NAME_MAX_CHARS
+            ):
+                raise DefectError()
+        try:
+            JobsConfig.model_validate(
+                {
+                    "gpus": self.settings.gpus,
+                    "concurrency": {
+                        item.type_name: item.concurrency for item in self.settings.types
+                    },
+                }
+            )
+        except (ValidationError, TypeError) as error:
+            raise DefectError() from error
+        names = tuple(item.type_name for item in self.settings.types)
+        if (
+            names != tuple(sorted(set(names)))
+            or self.settings.gpus != tuple(sorted(self.settings.gpus))
+            or any(item.type_name not in names for item in self.schedules.definitions())
+        ):
+            raise DefectError()
 
 
 class GpuAvailability(StrEnum):

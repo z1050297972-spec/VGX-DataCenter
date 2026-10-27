@@ -5,6 +5,7 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from threading import Event, Thread
 
+from jobs_scheduling_support import fresh_dependencies
 from jobs_storage_support import NOW
 
 from rdp.jobs.execution import ExecutorDependencies
@@ -17,6 +18,8 @@ def running_loop(
     dependencies: ExecutorDependencies,
 ) -> Generator[tuple[Event, Thread, list[WorkerLoopResult]]]:
     """测试线程仅承载主循环，后台异常不能变成pytest未处理线程警告。"""
+    if dependencies.resources is not None and dependencies.resources.pool.claims():
+        dependencies = fresh_dependencies(dependencies)
     stop = Event()
     results: list[WorkerLoopResult] = []
     failures: list[BaseException] = []

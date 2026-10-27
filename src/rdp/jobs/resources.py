@@ -4,15 +4,40 @@
 符合 ADR 0005 恢复语义的通用队列可替代。资源凭据不持久化，重启从空集合恢复。
 """
 
+from collections.abc import Generator
+from contextlib import contextmanager
+from threading import Lock
+from typing import Any, cast
+
+from pydantic import ValidationError
+from sqlalchemy import CursorResult, case, delete, update
 from sqlalchemy.orm import Session
 
+from rdp.infra.actors import is_display_name
+from rdp.infra.config import MAX_CONFIGURED_GPUS, MAX_GPU_INDEX, JobsConfig
+from rdp.infra.diagnostics import (
+    DIAGNOSTIC_SAMPLE_LIMIT,
+    ConflictError,
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+)
+from rdp.infra.ids import is_request_id
+from rdp.jobs import _storage, policy
+from rdp.jobs.models import JobRow
+from rdp.jobs.records import find_job
+from rdp.jobs.registry import JobRegistry
+from rdp.jobs.scheduling_models import WorkerGpuCheckRow
 from rdp.jobs.scheduling_types import (
     Admission,
     GpuCheck,
     ResourceClaim,
     ResourceDisplay,
     SchedulingSettings,
+    TypeCapacity,
 )
+from rdp.jobs.types import JobRecord, JobState, WaitReason
 
 
 class ResourcePool:
@@ -38,7 +63,11 @@ class ResourcePool:
         Time Semantics:
             在线程启动前构造；每个 worker 一份，进程崩溃后所有名额消失。
         """
-        raise NotImplementedError
+        _validate_pool_settings(settings, available_gpus)
+        self._types = {item.type_name: item for item in settings.types}
+        self._available = available_gpus
+        self._claims: dict[int, ResourceClaim] = {}
+        self._lock = Lock()
 
     def reserve(self, job_id: int, type_name: str) -> Admission:
         """同时预留类型名额和最小编号空闲卡。
@@ -59,11 +88,38 @@ class ResourcePool:
             成功原子增加本类型计数并标记卡主；失败不占任何资源。
             启动核对失败的卡本实例绝不分配，不提供运行期重新启用入口，修复后须重启再核对。
             领取事务失败、线程启动失败或停止前未启动时，调用方必须 release，不能等下次重启。
+            已提交但未启动的领取须先由主循环处理数据库退回，不能只归还内存名额而遗留伪运行状态。
 
         Time Semantics:
             只在主循环调用，不等待其他作业结束；内存短锁内不做 I/O。
         """
-        raise NotImplementedError
+        _storage.identifier(job_id, internal=True)
+        # 空登记表的公共查询只做同一套键校验，无匹配不会执行类型函数。
+        JobRegistry().lookup(type_name)
+        with self._guard():
+            definition = self._types.get(type_name)
+            capacity = 1 if definition is None else definition.concurrency
+            count = sum(
+                item.type_name == type_name
+                if definition is not None
+                else item.type_name not in self._types
+                for item in self._claims.values()
+            )
+            if job_id in self._claims:
+                raise DefectError()
+            if count >= capacity:
+                return Admission(None, None)
+            gpu_index = None
+            if definition is not None and definition.requires_gpu and self._available:
+                occupied = {item.gpu_index for item in self._claims.values()}
+                gpu_index = next(
+                    (index for index in self._available if index not in occupied), None
+                )
+                if gpu_index is None:
+                    return Admission(None, WaitReason.GPU)
+            claim = ResourceClaim(job_id, type_name, gpu_index)
+            self._claims[job_id] = claim
+            return Admission(claim, None)
 
     def release(self, claim: ResourceClaim) -> None:
         """归还当前凭据的类型名额和卡，防止跨作业释放。
@@ -84,7 +140,12 @@ class ResourcePool:
         Time Semantics:
             先停止本作业外部进程并回收输出线程，再归还；锁预算 RESOURCE_POOL_LOCK_TIMEOUT_S 秒。
         """
-        raise NotImplementedError
+        if not isinstance(cast(object, claim), ResourceClaim):
+            raise DefectError()
+        with self._guard():
+            if self._claims.get(claim.job_id) is not claim:
+                raise DefectError()
+            del self._claims[claim.job_id]
 
     def claims(self) -> tuple[ResourceClaim, ...]:
         """取得本实例已领名额，用于调度判断及停止核对。
@@ -104,7 +165,18 @@ class ResourcePool:
         Time Semantics:
             单次快照；只持 RESOURCE_POOL_LOCK_TIMEOUT_S 预算的短锁，不等待占用变化。
         """
-        raise NotImplementedError
+        with self._guard():
+            return tuple(self._claims[key] for key in sorted(self._claims))
+
+    @contextmanager
+    def _guard(self) -> Generator[None]:
+        """资源锁只保护小型内存账本，不在持锁期间进行数据库或工具I/O。"""
+        if not self._lock.acquire(timeout=policy.RESOURCE_POOL_LOCK_TIMEOUT_S):
+            raise DefectError()
+        try:
+            yield
+        finally:
+            self._lock.release()
 
 
 def save_resource_display(session: Session, job_id: int, display: ResourceDisplay) -> None:
@@ -138,7 +210,32 @@ def save_resource_display(session: Session, job_id: int, display: ResourceDispla
     Time Semantics:
         不取墙钟、不重试；锁预算由外层事务提供。展示允许暂时落后于实际内存资源。
     """
-    raise NotImplementedError
+    _storage.identifier(job_id, internal=True)
+    with _storage.operation(session, write=True):
+        current = find_job(session, job_id)
+        _validate_display(current, display)
+        if display.holds_navigation_lock:
+            # 旧持有者释放时可能跳过短锁；新持有者发布必须一起消除旧标记。
+            session.execute(
+                update(JobRow)
+                .where(JobRow.job_id != job_id, JobRow.holds_navigation_lock.is_(True))
+                .values(holds_navigation_lock=False)
+            )
+        result = session.execute(
+            update(JobRow)
+            .where(JobRow.job_id == job_id, JobRow.state == current.state.value)
+            .values(
+                wait_reason=None if display.wait_reason is None else display.wait_reason.value,
+                holds_navigation_lock=display.holds_navigation_lock,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if cast(CursorResult[Any], result).rowcount != 1:
+            raise ConflictError(
+                (_storage.diagnostic(job_id, "作业状态已变化", DiagnosticCategory.CONFLICT),)
+            )
+        session.flush()
+        session.expire_all()
 
 
 def reset_resources_on_startup(session: Session) -> int:
@@ -165,7 +262,21 @@ def reset_resources_on_startup(session: Session) -> int:
     Time Semantics:
         取得实例锁后、所有 recover_job 调用之前执行一次；普通 BUSY_TIMEOUT_MS 预算，无内部重试。
     """
-    raise NotImplementedError
+    with _storage.operation(session, write=True):
+        running = (JobState.RUNNING.value, JobState.CANCELLING.value)
+        result = session.execute(
+            update(JobRow)
+            .where(JobRow.state.in_((JobState.QUEUED.value, *running)))
+            .values(
+                wait_reason=None,
+                holds_navigation_lock=False,
+                gpu_index=case((JobRow.state.in_(running), None), else_=JobRow.gpu_index),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        session.flush()
+        session.expire_all()
+        return cast(CursorResult[Any], result).rowcount
 
 
 def save_gpu_checks(session: Session, instance_id: str, checks: tuple[GpuCheck, ...]) -> None:
@@ -192,4 +303,115 @@ def save_gpu_checks(session: Session, instance_id: str, checks: tuple[GpuCheck, 
     Time Semantics:
         核对结果来自注入 UTC 时钟；全部核对完成后、发布新实例首个心跳前提交，普通锁预算。
     """
-    raise NotImplementedError
+    if (
+        not is_request_id(instance_id)
+        or type(checks) is not tuple
+        or len(checks) > MAX_CONFIGURED_GPUS
+    ):
+        raise DefectError()
+    previous = -1
+    rows: list[WorkerGpuCheckRow] = []
+    for check in checks:
+        if (
+            not isinstance(cast(object, check), GpuCheck)
+            or type(check.gpu_index) is not int
+            or not previous < check.gpu_index <= MAX_GPU_INDEX
+        ):
+            raise DefectError()
+        if (
+            type(check.available) is not bool
+            or type(check.diagnostics) is not tuple
+            or len(check.diagnostics) > DIAGNOSTIC_SAMPLE_LIMIT
+        ):
+            raise DefectError()
+        if check.available == bool(check.diagnostics) or any(
+            not isinstance(cast(object, item), Diagnostic)
+            or item.level is not DiagnosticLevel.ERROR
+            or item.category is not DiagnosticCategory.EXTERNAL
+            for item in check.diagnostics
+        ):
+            raise DefectError()
+        previous = check.gpu_index
+        rows.append(
+            WorkerGpuCheckRow(
+                gpu_index=check.gpu_index,
+                instance_id=instance_id,
+                available=check.available,
+                diagnostics=[item.model_dump(mode="json") for item in check.diagnostics],
+                checked_at=_storage.moment(check.checked_at),
+            )
+        )
+    with _storage.operation(session, write=True):
+        session.execute(delete(WorkerGpuCheckRow))
+        session.add_all(rows)
+        session.flush()
+
+
+def _validate_pool_settings(settings: SchedulingSettings, available: tuple[int, ...]) -> None:
+    """复用配置层范围和去重规则，只补不可变快照、类型声明及启动可用卡子集约束。"""
+    if not isinstance(cast(object, settings), SchedulingSettings):
+        raise DefectError()
+    if (
+        type(settings.gpus) is not tuple
+        or type(settings.types) is not tuple
+        or type(available) is not tuple
+    ):
+        raise DefectError()
+    if any(not isinstance(cast(object, item), TypeCapacity) for item in settings.types):
+        raise DefectError()
+    names = [item.type_name for item in settings.types]
+    if len(set(names)) != len(names) or names != sorted(names):
+        raise DefectError()
+    if any(
+        type(item.requires_gpu) is not bool
+        or not is_display_name(item.display_name)
+        or len(item.display_name) > policy.JOB_DISPLAY_NAME_MAX_CHARS
+        for item in settings.types
+    ):
+        raise DefectError()
+    try:
+        JobsConfig.model_validate(
+            {
+                "gpus": settings.gpus,
+                "concurrency": {item.type_name: item.concurrency for item in settings.types},
+            }
+        )
+        JobsConfig.model_validate({"gpus": available})
+    except (ValidationError, TypeError) as error:
+        raise DefectError() from error
+    if (
+        settings.gpus != tuple(sorted(settings.gpus))
+        or available != tuple(sorted(available))
+        or not set(available) <= set(settings.gpus)
+    ):
+        raise DefectError()
+
+
+def _validate_display(current: JobRecord, display: ResourceDisplay) -> None:
+    """先判生命周期，再验字段组合，旧副本不得把终态重新标为占用。"""
+    if (
+        not isinstance(cast(object, display), ResourceDisplay)
+        or type(display.holds_navigation_lock) is not bool
+    ):
+        raise DefectError()
+    if display.wait_reason is not None and not isinstance(
+        cast(object, display.wait_reason), WaitReason
+    ):
+        raise DefectError()
+    if current.state not in {JobState.QUEUED, JobState.RUNNING, JobState.CANCELLING}:
+        raise ConflictError(
+            (
+                _storage.diagnostic(
+                    current.job_id, "作业已结束，拒绝过时资源副本", DiagnosticCategory.CONFLICT
+                ),
+            )
+        )
+    if display.holds_navigation_lock and display.wait_reason is not None:
+        raise DefectError()
+    navigation = display.holds_navigation_lock or display.wait_reason is WaitReason.NAVIGATION_LOCK
+    if navigation and current.state not in {JobState.RUNNING, JobState.CANCELLING}:
+        raise DefectError()
+    if display.wait_reason is WaitReason.GPU and (
+        current.state not in {JobState.QUEUED, JobState.RUNNING} or current.gpu_index is not None
+    ):
+        raise DefectError()

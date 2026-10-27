@@ -1,17 +1,28 @@
-"""清除作业适配（领域层，09/验收7）；复用第5/7张清除函数，不复制保留期 SQL。
+"""清除作业适配（领域层）；复用第5/7张清除函数，不复制保留期 SQL。
 
 报错保留期来自配置，操作/登录日志共用数据库设置；数据库事务在服务里，执行上下文只拿能力对象。
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import cast
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine
 
+from rdp.audit.errors import AuditInputError
+from rdp.audit.service import AuditMaintenance
 from rdp.audit.types import PurgeResult
+from rdp.infra.config import MAX_RETENTION_DAYS
+from rdp.infra.db.connection import session_scope
+from rdp.infra.db.records import clear_expired_errors
+from rdp.infra.diagnostics import DefectError
+from rdp.infra.ids import MAX_SQLITE_INTEGER
+from rdp.jobs import _storage
 from rdp.jobs.execution import ExecutionContext
+from rdp.jobs.registry import PURGE_ERRORS_NAME
+from rdp.jobs.types import JobProgress
 
 
 @dataclass(frozen=True)
@@ -55,7 +66,14 @@ class MaintenanceService:
         Time Semantics:
             构造不取时钟；报错保留期是入口启动配置快照。
         """
-        raise NotImplementedError
+        if (
+            not isinstance(cast(object, engine), Engine)
+            or not engine.get_execution_options().get("rdp_managed")
+            or type(error_retention_days) is not int
+            or not 1 <= error_retention_days <= MAX_RETENTION_DAYS
+        ):
+            raise DefectError()
+        self.engine, self.error_retention_days = engine, error_retention_days
 
     def purge_errors(self, now: datetime) -> int:
         """用配置保留期调用 clear_expired_errors 并提交删除计数。
@@ -79,7 +97,15 @@ class MaintenanceService:
         Time Semantics:
             保留期每一天固定 86400 秒，边界恰好相等/未来记录保留；锁最多 BUSY_TIMEOUT_MS。
         """
-        raise NotImplementedError
+        moment = _storage.moment(now)
+        try:
+            _ = moment - timedelta(days=self.error_retention_days)
+        except OverflowError as error:
+            raise DefectError() from error
+        with session_scope(self.engine) as session:
+            return clear_expired_errors(
+                session, now=moment, retention_days=self.error_retention_days
+            )
 
     def purge_logs(self, now: datetime) -> PurgeResult:
         """委托第 7 张服务按共同保留期原子清除两种日志。
@@ -103,7 +129,12 @@ class MaintenanceService:
         Time Semantics:
             执行时读取最新共同保留期，UTC 固定天数；一次普通锁预算，不跨两表重新读取 now。
         """
-        raise NotImplementedError
+        moment = _storage.moment(now)
+        try:
+            return AuditMaintenance(self.engine).purge_expired(moment)
+        except AuditInputError as error:
+            # purge_expired唯一的调用输入是内部时钟；设置损坏仍由其通用InputError传播。
+            raise DefectError() from error
 
 
 def execute_purge_errors(context: ExecutionContext) -> None:
@@ -130,7 +161,10 @@ def execute_purge_errors(context: ExecutionContext) -> None:
     Time Semantics:
         事务前后各检查一次取消，不在 DELETE 中间打断；耗时沿用 reporter 单调计时。
     """
-    raise NotImplementedError
+    actions = _actions(context)
+    context.reporter.check_cancelled()
+    count = _count(actions.purge_errors(_storage.moment(context.clock.now())))
+    _report(context, count, PURGE_ERRORS_NAME)
 
 
 def execute_purge_logs(context: ExecutionContext) -> None:
@@ -158,4 +192,46 @@ def execute_purge_logs(context: ExecutionContext) -> None:
     Time Semantics:
         两表使用同一 aware UTC now，严格早于共同截止才删除；取消检查在原子事务外。
     """
-    raise NotImplementedError
+    actions = _actions(context)
+    context.reporter.check_cancelled()
+    result = actions.purge_logs(_storage.moment(context.clock.now()))
+    if not isinstance(cast(object, result), PurgeResult):
+        raise DefectError()
+    operations, logins = _count(result.operation_count), _count(result.login_count)
+    _report(
+        context, _count(operations + logins), f"操作日志删除{operations}条，登录日志删除{logins}条"
+    )
+
+
+def _actions(context: ExecutionContext) -> MaintenanceActions:
+    """清除类型只能得到绑定能力，参数或装配错误不能当成零删除成功。"""
+    if not isinstance(context.parameters, PurgeParameters) or not isinstance(
+        context.maintenance, MaintenanceActions
+    ):
+        raise DefectError()
+    return context.maintenance
+
+
+def _count(value: int) -> int:
+    """数据库返回的计数必须是非负整数，禁止bool或非法服务结果进入摘要。"""
+    if type(value) is not int or not 0 <= value <= MAX_SQLITE_INTEGER:
+        raise DefectError()
+    return value
+
+
+def _report(context: ExecutionContext, count: int, name: str) -> None:
+    """真实提交之后上报完成数，最后检查取消但不撤销已完成的删除。"""
+    context.reporter.report(
+        JobProgress(
+            stage_index=1,
+            stage_count=1,
+            stage_name=name,
+            done=count,
+            total=count,
+            unit="条",
+            total_items=count,
+            failed_items=0,
+            warning_count=0,
+        )
+    )
+    context.reporter.check_cancelled()

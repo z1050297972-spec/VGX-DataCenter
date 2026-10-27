@@ -15,12 +15,26 @@ from typing import TYPE_CHECKING, cast, get_args
 from pydantic import AliasChoices, AliasPath, BaseModel, SecretBytes, SecretStr
 
 from rdp.infra.actors import is_display_name
+from rdp.infra.config import MAX_JOB_CONCURRENCY
 from rdp.infra.diagnostics import DefectError
+from rdp.infra.ids import JOB_TYPE_KEY_PATTERN
 from rdp.jobs.policy import JOB_DISPLAY_NAME_MAX_CHARS
 from rdp.jobs.types import RecoveryMode
 
 if TYPE_CHECKING:
     from rdp.jobs.execution import ExecutionContext
+
+
+# 类型键是持久化协议；登记、执行装配、定时规则和HTTP入口共用，不复用历史含义。
+EXAMPLE_GPU_TYPE = "example_gpu"
+EXAMPLE_NAVIGATION_TYPE = "example_navigation"
+PURGE_ERRORS_TYPE = "purge_errors"
+PURGE_AUDIT_LOGS_TYPE = "purge_audit_logs"
+# 清除作业固定名称也用于每日规则身份，不能作为可随意改写的界面文案。
+PURGE_ERRORS_NAME = "清除过期报错"
+PURGE_AUDIT_LOGS_NAME = "清除过期日志"
+# 两个清除类型共用维护能力和重跑约束，避免登记校验与执行装配各维护一份集合。
+MAINTENANCE_JOB_TYPES = frozenset({PURGE_ERRORS_TYPE, PURGE_AUDIT_LOGS_TYPE})
 
 
 @dataclass(frozen=True)
@@ -90,9 +104,14 @@ class JobRegistry:
         Time Semantics:
             启动期同步操作，不接受与 lookup 并发注册；无锁等待。
         """
-        # 待实现：登记时校验 09 新增的并发上限和 GPU 要求，保留现有校验执行路径。
         if not isinstance(cast(object, definition), JobDefinition) or not _valid_key(
             definition.type_name
+        ):
+            raise DefectError()
+        if (
+            type(definition.concurrency) is not int
+            or not 1 <= definition.concurrency <= MAX_JOB_CONCURRENCY
+            or type(definition.requires_gpu) is not bool
         ):
             raise DefectError()
         if definition.type_name in self._definitions:
@@ -176,9 +195,15 @@ def production_registry() -> JobRegistry:
     Time Semantics:
         Web 和 worker 启动时各调用一次并注入；无时钟、等待和自动发现。
     """
-    # 待实现：登记两个资源示例和两个维护类型，沿用当前工厂的独立对象生命周期。
     # 延迟导入避免登记定义和执行上下文的模块环；每次构造都返回独立对象。
     from rdp.jobs.example import CountParameters, execute_count
+    from rdp.jobs.maintenance import PurgeParameters, execute_purge_errors, execute_purge_logs
+    from rdp.jobs.resource_examples import (
+        GpuExampleParameters,
+        NavigationExampleParameters,
+        execute_gpu_example,
+        execute_navigation_example,
+    )
 
     registry = JobRegistry()
     registry.register(
@@ -186,12 +211,44 @@ def production_registry() -> JobRegistry:
             "example_count", "示例：数数", CountParameters, RecoveryMode.INTERRUPT, execute_count
         )
     )
+    for definition in (
+        JobDefinition(
+            EXAMPLE_GPU_TYPE,
+            "示例：占用 GPU",
+            GpuExampleParameters,
+            RecoveryMode.INTERRUPT,
+            execute_gpu_example,
+            requires_gpu=True,
+        ),
+        JobDefinition(
+            EXAMPLE_NAVIGATION_TYPE,
+            "示例：写锁",
+            NavigationExampleParameters,
+            RecoveryMode.INTERRUPT,
+            execute_navigation_example,
+        ),
+        JobDefinition(
+            PURGE_ERRORS_TYPE,
+            PURGE_ERRORS_NAME,
+            PurgeParameters,
+            RecoveryMode.RESTART,
+            execute_purge_errors,
+        ),
+        JobDefinition(
+            PURGE_AUDIT_LOGS_TYPE,
+            PURGE_AUDIT_LOGS_NAME,
+            PurgeParameters,
+            RecoveryMode.RESTART,
+            execute_purge_logs,
+        ),
+    ):
+        registry.register(definition)
     return registry
 
 
 def _valid_key(value: object) -> bool:
     """按登记契约全匹配英文稳定键，不能接受末尾换行或隐式强制转换。"""
-    return isinstance(value, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", value) is not None
+    return isinstance(value, str) and re.fullmatch(JOB_TYPE_KEY_PATTERN, value) is not None
 
 
 # 显式秘密字段不能进入作业记录或日志；只识别字段/别名，不猜测任意业务文本是否含秘密。

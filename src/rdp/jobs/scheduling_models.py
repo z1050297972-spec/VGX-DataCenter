@@ -1,7 +1,6 @@
-"""0005 的资源列与定时提交表声明（领域层，09），不注册到 0004 共用 MetaData。
+"""0005 调度持久化声明（领域层，09）；资源列由 JobRow 继承，两张表注册共用 MetaData。
 
-抽象声明隔离新增表/列，防止 ORM 查询要求数据库尚无的列；0005 的迁移单独负责激活。
-已有 JobRow 保持 0004 的实际列定义；这里给出合并进 jobs 的新列和新增 CHECK，不重定义旧列含义。
+只声明结构，不执行迁移、核卡或调度；数据库版本由入口在连接服务前检查。
 """
 
 from datetime import date, datetime
@@ -81,7 +80,6 @@ class ScheduleSubmissionRow(Base):
         submitted_at: UTC aware 提交时刻，由 UTCDateTime 编解码，不能是 monotonic。
     """
 
-    __abstract__ = True
     __tablename__ = "schedule_submissions"
     __table_args__ = (
         CheckConstraint("length(schedule_name) BETWEEN 1 AND 64", name="schedule_name"),
@@ -107,7 +105,6 @@ class WorkerGpuCheckRow(Base):
         checked_at: aware UTC 核对时刻，由 UTCDateTime 统一编解码。
     """
 
-    __abstract__ = True
     __tablename__ = "worker_gpu_checks"
     __table_args__ = (
         CheckConstraint("gpu_index >= 0", name="gpu_index"),

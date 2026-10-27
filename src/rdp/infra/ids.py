@@ -1,4 +1,4 @@
-"""基础层的请求、作业和错误编号规则（M0 工单 06 前置搬移）。
+"""基础层的请求、作业、错误编号与作业类型键规则（M0 工单 06 前置搬移）。
 
 Python、OpenAPI 与表模型复用同一编号声明；只依赖标准库 re 和 typing，
 不读取输入载荷，不依赖数据库或日志，不读取上下文或生成编号。
@@ -6,6 +6,9 @@ Python、OpenAPI 与表模型复用同一编号声明；只依赖标准库 re �
 
 import re
 from typing import Literal
+
+# 作业类型键是跨配置、登记和审计的稳定标识，统一使用完整匹配，长度为1至64字符。
+JOB_TYPE_KEY_PATTERN = r"[a-z][a-z0-9_]{0,63}"
 
 # SQLite 有符号 64 位整数上限；作业编号文本的范围与 SQLite INTEGER 一致。
 MAX_SQLITE_INTEGER = (1 << 63) - 1

@@ -1,9 +1,17 @@
 """定时提交去重记录（领域层，09）；调用方拥有事务，不绕过 JobService 提交作业。"""
 
 from datetime import date
+from typing import cast
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from rdp.infra.actors import is_display_name
+from rdp.infra.diagnostics import DefectError
+from rdp.jobs import _storage
+from rdp.jobs.models import JobRow
+from rdp.jobs.policy import SCHEDULE_LOOKAHEAD_DAYS
+from rdp.jobs.scheduling_models import ScheduleSubmissionRow
 from rdp.jobs.scheduling_types import ScheduleSubmission
 
 
@@ -29,7 +37,20 @@ def latest_submission(session: Session, schedule_name: str) -> ScheduleSubmissio
     Time Semantics:
         返回保存的 UTC 提交时刻和本地日期，不读取当前时钟、不补跑。
     """
-    raise NotImplementedError
+    if not is_display_name(schedule_name):
+        raise DefectError()
+    with _storage.operation(session):
+        row = session.scalar(
+            select(ScheduleSubmissionRow)
+            .where(ScheduleSubmissionRow.schedule_name == schedule_name)
+            .order_by(ScheduleSubmissionRow.job_id.desc())
+            .limit(1)
+        )
+        return (
+            None
+            if row is None
+            else ScheduleSubmission(row.schedule_name, row.local_date, row.job_id, row.submitted_at)
+        )
 
 
 def submission_dates(
@@ -58,7 +79,25 @@ def submission_dates(
     Time Semantics:
         日期不按 UTC 转换；候选范围由注入时钟的本地日期计算，不用系统当天日期。
     """
-    raise NotImplementedError
+    if (
+        not is_display_name(schedule_name)
+        or type(start) is not date
+        or type(end) is not date
+        or not 0 < (end - start).days <= SCHEDULE_LOOKAHEAD_DAYS
+    ):
+        raise DefectError()
+    with _storage.operation(session):
+        if session.info.get("rdp_read_only") is not True:
+            raise DefectError()
+        return frozenset(
+            session.scalars(
+                select(ScheduleSubmissionRow.local_date).where(
+                    ScheduleSubmissionRow.schedule_name == schedule_name,
+                    ScheduleSubmissionRow.local_date >= start,
+                    ScheduleSubmissionRow.local_date < end,
+                )
+            )
+        )
 
 
 def insert_submission(session: Session, submission: ScheduleSubmission) -> None:
@@ -83,4 +122,23 @@ def insert_submission(session: Session, submission: ScheduleSubmission) -> None:
     Time Semantics:
         时刻完全使用 submission.submitted_at，不二次取钟；不在事务内等待定时点或重试。
     """
-    raise NotImplementedError
+    if (
+        not isinstance(cast(object, submission), ScheduleSubmission)
+        or not is_display_name(submission.schedule_name)
+        or type(submission.local_date) is not date
+    ):
+        raise DefectError()
+    number = _storage.identifier(submission.job_id, internal=True)
+    moment = _storage.moment(submission.submitted_at)
+    with _storage.operation(session, write=True):
+        if session.get(JobRow, number) is None:
+            raise DefectError()
+        session.add(
+            ScheduleSubmissionRow(
+                schedule_name=submission.schedule_name,
+                local_date=submission.local_date,
+                job_id=number,
+                submitted_at=moment,
+            )
+        )
+        session.flush()

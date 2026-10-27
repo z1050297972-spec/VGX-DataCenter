@@ -5,7 +5,7 @@ import re
 from rdp.audit.errors import AuditInputError
 from rdp.audit.types import OperationDetails, OperationEvent, OperationResult, OperationType
 from rdp.infra.db.validation import invalid_field
-from rdp.infra.ids import MAX_SQLITE_INTEGER
+from rdp.infra.ids import JOB_TYPE_KEY_PATTERN, MAX_SQLITE_INTEGER
 
 
 def validate_job_operation(event: OperationEvent, details: OperationDetails) -> None:
@@ -91,5 +91,5 @@ def _identity(identifier: str | None, type_name: str | None, target: str | None)
         _number(identifier)
         and identifier == target
         and type_name is not None
-        and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", type_name) is not None
+        and re.fullmatch(JOB_TYPE_KEY_PATTERN, type_name) is not None
     )

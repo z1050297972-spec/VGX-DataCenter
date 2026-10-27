@@ -23,6 +23,7 @@ import { defaultFetch, type FetchImplementation } from "./api/client";
 import { toFailureView } from "./api/problems";
 import { DiagnosticCard } from "./DiagnosticCard";
 import { HealthPage } from "./HealthPage";
+import { SchedulingPage, SubmitResourceJobsPage } from "./scheduling/Pages";
 import { JobsPage, JobDetailPage, SubmitCountJobPage } from "./jobs/Pages";
 import type { JobSearch } from "./api/jobs";
 import { validateJobSearch } from "./jobs/search";
@@ -45,7 +46,6 @@ interface AppRouterOptions {
  * @timeSemantics 每次导航使用守卫的取消信号，身份聚焦查询由布局负责，无自动重试。
  */
 export function createAppRouter(options: AppRouterOptions) {
-  // 待实现：登记 SchedulingPage/SubmitResourceJobsPage ，调度不增加 search 参数，现有路由保持可运行。
   const client = createAccountClient({
     fetchImpl: options.fetchImpl,
     onUnauthorized: () => {
@@ -124,6 +124,16 @@ export function createAppRouter(options: AppRouterOptions) {
     path: "/jobs/new",
     component: SubmitCountJobPage,
   });
+  const scheduling = createRoute({
+    getParentRoute: () => root,
+    path: "/scheduling",
+    component: SchedulingPage,
+  });
+  const resources = createRoute({
+    getParentRoute: () => root,
+    path: "/jobs/resources",
+    component: SubmitResourceJobsPage,
+  });
   const instance = createRouter({
     routeTree: root.addChildren([
       index,
@@ -135,6 +145,8 @@ export function createAppRouter(options: AppRouterOptions) {
       jobs,
       jobDetail,
       submitCount,
+      scheduling,
+      resources,
     ]),
     history: options.history,
     defaultPreload: false,

@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import math
 from _thread import LockType
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
-from threading import Event, Lock, Thread
-from typing import TYPE_CHECKING, cast
+from threading import Event, Lock, Thread, get_ident
+from types import TracebackType
+from typing import cast
 
 from pydantic import ValidationError
 from sqlalchemy import Engine
@@ -40,10 +41,9 @@ from rdp.jobs.policy import (
     WORKER_OWNED_THREAD_LIMIT,
 )
 from rdp.jobs.records import save_progress
-from rdp.jobs.types import ExecutionSnapshot, JobClock, JobProgress, JobRecord, JobState
-
-if TYPE_CHECKING:
-    from rdp.jobs.scheduling_types import ResourceDisplay
+from rdp.jobs.resources import save_resource_display
+from rdp.jobs.scheduling_types import ResourceDisplay
+from rdp.jobs.types import ExecutionSnapshot, JobClock, JobProgress, JobRecord, JobState, WaitReason
 
 
 @dataclass
@@ -124,11 +124,24 @@ class ProgressReporter:
         self._last_attempt: float | None = None
         self._revision = 0
         self._saved_revision = 0
+        self._pending_resource: ResourceDisplay | None = None
+        self._defer_owner: int | None = None
+        self._deferred_timer = Event()
         self._progress = record.progress
         self._diagnostics = {(group.source, group.rule): group for group in record.diagnostics}
         self._artifacts = list(record.artifacts)
         self._tool_exit_code = record.tool_exit_code
         _views.snapshot_data(self.snapshot())
+
+    @property
+    def job_id(self) -> int:
+        """本作业正编号（1至2^63-1），供框架补诊断身份，只读且不访问数据库。"""
+        return self._record.job_id
+
+    @property
+    def clock(self) -> JobClock:
+        """本作业注入的UTC墙钟和单调秒时钟，只读，框架不另取隐式系统时钟。"""
+        return self._clock
 
     def report(self, progress: JobProgress) -> None:
         """保留最新完整进度，并按一秒预算尝试短事务写入。
@@ -260,7 +273,6 @@ class ProgressReporter:
             只用monotonic节流，每次尝试起点间至少PROGRESS_INTERVAL_S；无后续report也会在
             检查点、wait或外部进程轮询到截止时补写。延迟为1秒目标加获锁/I/O/调度，以及连续跳过次数乘1秒。
         """
-        # 待实现：同一轮短锁补写最新资源副本及进度，保留各自版本。
         with self._guard():
             now = self._monotonic()
             if self._revision == self._saved_revision or (
@@ -270,6 +282,7 @@ class ProgressReporter:
             self._last_attempt = now
             revision = self._revision
             snapshot = self._snapshot(now)
+            resource = self._pending_resource
         entered = False
         try:
             with session_scope_with_lock_timeout(
@@ -279,6 +292,8 @@ class ProgressReporter:
                 save_progress(
                     session, self._record.job_id, snapshot, now=_storage.moment(self._clock.now())
                 )
+                if resource is not None:
+                    save_resource_display(session, self._record.job_id, resource)
         except ConflictError as error:
             if not entered and _storage.entry_busy(error):
                 return
@@ -286,6 +301,8 @@ class ProgressReporter:
         with self._guard():
             # 保存期间其他线程新增的诊断/产物仍是脏值，不能清掉最新版本。
             self._saved_revision = revision
+            if self._pending_resource is resource:
+                self._pending_resource = None
 
     def set_resource_display(self, display: ResourceDisplay) -> None:
         """记录本作业的最新等待/持锁副本并尝试短锁落库。
@@ -311,7 +328,22 @@ class ProgressReporter:
             状态改变可立即一次短锁尝试，随后每 PROGRESS_INTERVAL_S 再试，使用同一单调节流器；
             不等待数据库写成功才允许释放导航锁。
         """
-        raise NotImplementedError
+        if (
+            not isinstance(cast(object, display), ResourceDisplay)
+            or type(display.holds_navigation_lock) is not bool
+        ):
+            raise DefectError()
+        if (
+            display.wait_reason is not None
+            and display.wait_reason is not WaitReason.NAVIGATION_LOCK
+        ):
+            raise DefectError()
+        if display.holds_navigation_lock and display.wait_reason is not None:
+            raise DefectError()
+        with self._guard():
+            self._pending_resource = display
+            self._revision += 1
+        self.flush_due()
 
     def defer_cancellation(self) -> AbstractContextManager[None]:
         """给导航写锁的持锁段提供协作取消屏蔽范围。
@@ -333,7 +365,21 @@ class ProgressReporter:
             只在获得导航锁并做最后一次取消检查后进入；verify/write 完成并放锁后退出，
             后续下一次 check_cancelled 才响应已保存的信号，不能在持锁时强制结束线程。
         """
-        raise NotImplementedError
+        return _CancellationDeferral(self._enter_deferral, self._exit_deferral)
+
+    def _enter_deferral(self) -> None:
+        """同一上报对象不能被另一个保护段占用；持有者只记录当前执行线程。"""
+        with self._guard():
+            if self._defer_owner is not None:
+                raise DefectError()
+            self._defer_owner = get_ident()
+
+    def _exit_deferral(self) -> None:
+        """只有进入保护段的执行线程可以恢复取消检查。"""
+        with self._guard():
+            if self._defer_owner != get_ident():
+                raise DefectError()
+            self._defer_owner = None
 
     def check_cancelled(self) -> None:
         """补写到期进度并检查取消或停止，阻止继续处理新条目。
@@ -360,12 +406,13 @@ class ProgressReporter:
             阶段前后、每步完成后调用；脏值存在时必须在next_flush_deadline前进入检查点，
             其他计算段检查间隔至多JOB_CHECKPOINT_MAX_S。一次短锁可另占100毫秒，不无限等待补写成功。
         """
-        # 待实现：导航锁保护段延后取消/停止控制异常，仍补写进度与资源状态。
+        with self._guard():
+            deferred = self._defer_owner == get_ident()
         cancelled, stopping = self._signals.cancelled.is_set(), self._signals.stopping.is_set()
         try:
             self.flush_due()
         except (InputError, ConflictError, ExternalError, DefectError) as error:
-            if not (
+            if deferred or not (
                 cancelled
                 or stopping
                 or self._signals.cancelled.is_set()
@@ -375,7 +422,7 @@ class ProgressReporter:
             # 不把停止控制信号换成存储故障；诊断留在快照供最终收尾保存。
             for diagnostic in error.diagnostics:
                 self._retain_diagnostic(diagnostic)
-        if cancelled or self._signals.cancelled.is_set():
+        if not deferred and (cancelled or self._signals.cancelled.is_set()):
             raise JobCancelledError(
                 (
                     _storage.diagnostic(
@@ -383,7 +430,7 @@ class ProgressReporter:
                     ),
                 )
             )
-        if stopping or self._signals.stopping.is_set():
+        if not deferred and (stopping or self._signals.stopping.is_set()):
             raise WorkerStoppingError(
                 (
                     _storage.diagnostic(
@@ -438,7 +485,11 @@ class ProgressReporter:
             wake = min(
                 deadline, now + PROCESS_POLL_INTERVAL_S, flush if flush is not None else deadline
             )
-            self._signals.cancelled.wait(max(0, wake - now))
+            with self._guard():
+                deferred = self._defer_owner == get_ident()
+            # 已置位取消Event会立即返回；保护段改等永不置位的计时Event，避免忙等。
+            waiter = self._deferred_timer if deferred else self._signals.cancelled
+            waiter.wait(max(0, wake - now))
 
     def track_output_thread(self, thread: Thread) -> None:
         """在启动前登记一个daemon输出线程，供停止边界核验存活资源。
@@ -620,3 +671,34 @@ def _validate_advance(previous: JobProgress | None, current: JobProgress) -> Non
         )
     ):
         raise DefectError()
+
+
+class _CancellationDeferral(AbstractContextManager[None]):
+    """一次性、限创建线程使用的取消屏蔽范围；退出不主动抛取消。"""
+
+    def __init__(self, enter: Callable[[], None], leave: Callable[[], None]) -> None:
+        """保存限当前上报对象的进入/退出能力，不跨类访问其私有字段。"""
+        self.enter, self.leave = enter, leave
+        self.owner = get_ident()
+        self.used = False
+        self.active = False
+
+    def __enter__(self) -> None:
+        """只允许一次成功进入，拒绝嵌套或把管理器交到另一线程。"""
+        if self.used or get_ident() != self.owner:
+            raise DefectError()
+        self.enter()
+        self.used = self.active = True
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool:
+        """恢复信号检查，不清除Event，不掩盖回调原异常。"""
+        if not self.active or get_ident() != self.owner:
+            raise DefectError()
+        self.leave()
+        self.active = False
+        return False

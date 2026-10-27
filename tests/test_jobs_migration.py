@@ -31,13 +31,13 @@ from rdp.jobs.types import JobState
 
 
 def test_active_declarations() -> None:
-    """迁移隔离：作业/心跳仍注册共用 MetaData，0004 为唯一 head，pending 的 0005 不被发现。"""
+    """迁移激活：作业/心跳共用 MetaData，0005 为唯一 head，版本链保留全部历史版本。"""
     for row in (JobRow, WorkerHeartbeatRow):
         assert "__abstract__" not in row.__dict__
         assert row.metadata is metadata
         assert row.__table__ is metadata.tables[row.__tablename__]
     config = migration_config()
-    assert ScriptDirectory.from_config(config).get_current_head() == "0004_jobs_worker"
+    assert ScriptDirectory.from_config(config).get_current_head() == "0005_job_scheduling"
     directory = config.get_main_option("script_location")
     assert directory is not None
     assert {item.revision for item in ScriptDirectory.from_config(config).walk_revisions()} == {
@@ -45,16 +45,17 @@ def test_active_declarations() -> None:
         "0002_accounts_sessions",
         "0003_audit_login_logs",
         "0004_jobs_worker",
+        "0005_job_scheduling",
     }
 
 
 def test_schema_v4(tmp_path: Path) -> None:
-    """0004：真实升级与独立metadata建库的DDL及compare_metadata一致，覆盖新表、审计CHECK、索引、UTC和无账号外键。"""
+    """0004引入的作业/心跳字段在当前版本仍与独立metadata建库一致，覆盖审计CHECK、索引、UTC和无账号外键。"""
     assert AccountRow.metadata is OperationLogRow.metadata is metadata
     paths = state_paths(PlatformConfig(state_dir=tmp_path / "state"), ())
     initialize_state(paths)
     result = migrate(paths, now=datetime(2026, 10, 26, tzinfo=UTC))
-    assert result.current_revision == "0004_jobs_worker"
+    assert result.current_revision == "0005_job_scheduling"
     engine = create_database_engine(paths.database)
     try:
         with engine.connect() as connection:
@@ -109,7 +110,12 @@ def test_audit_check_extension(tmp_path: Path) -> None:
         indexes = connection.execute(
             "SELECT name,sql FROM sqlite_master WHERE type='index' AND tbl_name='operation_logs' ORDER BY name"
         ).fetchall()
-    migrate(paths, now=datetime(2026, 10, 26, tzinfo=UTC))
+    engine = create_database_engine(paths.database)
+    try:
+        with engine.begin() as connection:
+            command.upgrade(migration_config(connection), "0004_jobs_worker")
+    finally:
+        engine.dispose()
     with sqlite_connection(paths.database) as connection:
         assert (
             connection.execute("SELECT * FROM operation_logs ORDER BY log_id").fetchall() == before

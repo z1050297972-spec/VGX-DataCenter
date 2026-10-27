@@ -1,4 +1,7 @@
-// 调度 HTTP 契约（09）：复用账号感知客户端和生成类型，不从浏览器探测硬件或拼服务器地址。
+// 调度 HTTP 契约：复用账号感知客户端和生成类型，不从浏览器探测硬件或拼服务器地址。
+import { boundedRequest } from "./_request";
+import { JOB_REQUEST_TIMEOUT_MS } from "./jobs";
+import { toFailureView } from "./problems";
 import type { AccountCall } from "./accounts";
 import type { Job } from "./jobs";
 import type { components } from "./schema";
@@ -18,9 +21,11 @@ export type NavigationInput = components["schemas"]["NavigationExampleParameters
  * @sideEffects 经 openapi-fetch 与 boundedRequest 发一次同源 GET；401 统一清理账号缓存，不读 cookie 或默认配置。
  * @timeSemantics 请求上限 JOB_REQUEST_TIMEOUT_MS=10000，无自动重试，卸载/换号取消并忽略迟到响应。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 参数属于公开契约，函数体按工单要求仅抛未实现错误。
 export function getScheduling(_input: AccountCall): Promise<Scheduling> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.GET("/api/worker/scheduling", { signal });
+    return required(response.data);
+  });
 }
 
 /**
@@ -31,9 +36,14 @@ export function getScheduling(_input: AccountCall): Promise<Scheduling> {
  * @sideEffects 一次同源 POST；不设置 CUDA 环境，不在浏览器挑卡，成功由调用方刷新作业查询。
  * @timeSemantics 请求最多 JOB_REQUEST_TIMEOUT_MS，禁止自动重试不确定的提交；等待时长只在 worker 生效。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 参数属于公开契约，函数体按工单要求仅抛未实现错误。
 export function submitGpuJob(_input: AccountCall<GpuInput>): Promise<Job> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.POST("/api/jobs/example/gpu", {
+      body: _input.payload,
+      signal,
+    });
+    return required(response.data);
+  });
 }
 
 /**
@@ -44,7 +54,19 @@ export function submitGpuJob(_input: AccountCall<GpuInput>): Promise<Job> {
  * @sideEffects 单次同源 POST，服务器记录点击账号；不乐观改示例文件状态。
  * @timeSemantics 10 秒请求上限，不重试；pause_s 的零至十秒暂停由后台锁内执行。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 参数属于公开契约，函数体按工单要求仅抛未实现错误。
 export function submitNavigationJob(_input: AccountCall<NavigationInput>): Promise<Job> {
-  throw new Error("未实现");
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.POST("/api/jobs/example/navigation", {
+      body: _input.payload,
+      signal,
+    });
+    return required(response.data);
+  });
+}
+
+// 成功但缺响应体仍是传输故障，不能把它变成空闲资源。
+function required<T>(data: T | undefined): T {
+  if (data === undefined || data === null)
+    throw new Error("请求失败", { cause: toFailureView(null) });
+  return data;
 }

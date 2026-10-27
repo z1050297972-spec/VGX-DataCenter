@@ -15,6 +15,8 @@ from typing import Annotated, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from rdp.infra.ids import JOB_TYPE_KEY_PATTERN
+
 logger = logging.getLogger(__name__)
 
 # 09 号决策票限定四级；配置、运行日志设置共用此类型，避免两份枚举漂移。
@@ -101,13 +103,17 @@ class JobsConfig(BaseModel):
     @classmethod
     def _unique_gpus(cls, value: tuple[int, ...]) -> tuple[int, ...]:
         """拒绝重复物理编号，保留配置输入顺序以供来源诊断；排序只在冻结配置时进行。"""
-        raise NotImplementedError
+        if len(value) != len(set(value)):
+            raise ValueError("GPU 编号不得重复")
+        return value
 
     @field_validator("concurrency")
     @classmethod
     def _type_keys(cls, value: dict[str, int]) -> dict[str, int]:
         """只接受 [a-z][a-z0-9_]{0,63} 类型键，未知类型由入口带登记表检查。"""
-        raise NotImplementedError
+        if any(re.fullmatch(JOB_TYPE_KEY_PATTERN, key) is None for key in value):
+            raise ValueError("并发覆盖必须使用合法作业类型键")
+        return value
 
 
 class PlatformConfig(BaseModel):
