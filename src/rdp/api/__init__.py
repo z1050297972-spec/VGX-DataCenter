@@ -28,6 +28,8 @@ from rdp.api.database import configure_database
 from rdp.api.error_details import get_error_details
 from rdp.api.errors import ErrorBoundary, install_error_handlers
 from rdp.api.health import HealthResponse, get_health
+from rdp.api.jobs import router as jobs_router
+from rdp.api.jobs import worker_router
 from rdp.infra.db.records import ErrorRecord
 from rdp.infra.logging import log_context
 
@@ -161,6 +163,8 @@ def create_app(
         健康/登录公开路径的错误方法不要求身份，但非安全方法必须先有正确 Origin 才返回 405/Allow。
         第 7 张另登记 /api/audit/operations、/logins 和 /retention 的管理员路由；
         应用工厂只登记日志 schema 和权限分类，不负责激活 0003 或日志模型。
+        第 8 张登记 /api/jobs 与 /api/worker/status，全部使用 get_authenticated_context；
+        显式状态目录和作业登记表由 Web 启动入口调用 configure_jobs 注入，不发现默认 home。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -207,6 +211,9 @@ def create_app(
     app.include_router(accounts_router)
     # 07 日志接口登记管理员路径和 OpenAPI；全局边界在参数校验前识别 get_admin_context。
     app.include_router(audit_router)
+    # 08 作业和心跳均允许全部登录账号，复用全局鉴权和同源写请求边界。
+    app.include_router(jobs_router)
+    app.include_router(worker_router)
     # 已知接口优先；兜底必须在静态挂载之前，不能让构建目录里的 api/ 文件遮蔽接口。
     for path in ("/api", "/api/{unknown:path}"):
         app.add_api_route(

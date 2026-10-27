@@ -1,4 +1,5 @@
 // 账号页面（06）：采用 antd 与 TanStack Router/Query；错误统一用 DiagnosticCard，秘密只在表单内存。
+import { WorkerStatusBanner } from "../jobs/Pages";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Card, Form, Input, Button, Typography, Alert, Table, Modal, Select, Space } from "antd";
@@ -499,6 +500,7 @@ export function AccountMenu(): ReactElement {
         角色：{identity.data.role === "administrator" ? "管理员" : "成员"}
       </Typography.Text>
       <Link to="/change-password">修改口令</Link>
+      <Link to="/jobs">作业</Link>
       {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
       {identity.data.role === "administrator" && (
         <>
@@ -533,7 +535,7 @@ export function AccountMenu(): ReactElement {
  * @throws 无。请求错误经 toFailureView/DiagnosticCard 呈现，不展示原始异常或执行服务端 HTML。
  * @sideEffects 由 guardAccountRoute 完成进入前鉴权，并保持一份活跃身份 Query（refetchOnWindowFocus: true、staleTime: 0）；
  * 成员被停用后，切回窗口立即重新查 /api/auth/me，收到 401 就清缓存并跳登录；任何其他 API 的 401 同样统一 handleUnauthorized。
- * 不使用定时轮询；空闲且不切回窗口时不承诺无请求自动跳转。根布局统一保护页面内容。
+ * 身份查询不使用定时轮询；worker 状态通过顶部横幅每秒查询，任意接口401均触发既有身份清理。根布局统一保护页面内容。
  * @timeSemantics 请求上限 ACCOUNT_TIMEOUT_MS；切页/卸载取消请求和倒计时，忽略迟到结果，无自动重试。
  */
 export function AccountLayout(): ReactElement {
@@ -557,6 +559,7 @@ export function AccountLayout(): ReactElement {
   return (
     <div style={{ padding: 24 }}>
       <AccountMenu />
+      <WorkerStatusBanner />
       {new URLSearchParams(location.searchStr).get("permission") === "denied" && (
         <Alert type="warning" title="需要管理员权限" />
       )}

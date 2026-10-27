@@ -1,0 +1,248 @@
+"""作业类型显式登记（领域层，08）；对象由 Web/worker 各自构造并注入，不用可变单例。
+
+Pydantic 负责参数校验；登记表只补稳定键、目录名和执行方式的业务约束。
+参数会写入作业记录和日志开头，类型作者不得声明口令、令牌、cookie、私钥等字段，
+也不得通过自由字典、命令行或配置文本绕过此限制；登记不能自动识别任意文本中的秘密。
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, cast, get_args
+
+from pydantic import AliasChoices, AliasPath, BaseModel, SecretBytes, SecretStr
+
+from rdp.infra.actors import is_display_name
+from rdp.infra.diagnostics import DefectError
+from rdp.jobs.policy import JOB_DISPLAY_NAME_MAX_CHARS
+from rdp.jobs.types import RecoveryMode
+
+if TYPE_CHECKING:
+    from rdp.jobs.execution import ExecutionContext
+
+
+@dataclass(frozen=True)
+class JobDefinition:
+    """一个当前可执行类型，参数模型和执行函数成对登记。
+
+    Attributes:
+        type_name: 稳定英文键，匹配 [a-z][a-z0-9_]{0,63}，不可复用历史含义。
+        display_name: 中文显示名兼目录分量，1-40 码点；无首尾空白、控制字符、斜杠、反斜杠，非 . 或 ..。
+        parameters_model: BaseModel 子类，extra=forbid、hide_input_in_errors=True，无秘密字段。
+        recovery_mode: resume/restart/interrupt 三选一，不由提交人覆盖。
+        execute: 仅接收 ExecutionContext 的同步函数，成功返回 None；每一步至多 JOB_CHECKPOINT_MAX_S
+            到达检查点，所有等待经上下文；异常由执行器外层收口，不自行写作业状态或结果。
+    """
+
+    type_name: str
+    display_name: str
+    parameters_model: type[BaseModel]
+    recovery_mode: RecoveryMode
+    execute: Callable[[ExecutionContext], None]
+
+
+class JobRegistry:
+    """一个入口私有的登记对象；启动前登记完成，工作期间只读，不跨线程变更。"""
+
+    def __init__(self) -> None:
+        """建立空登记表，允许测试登记隔离的类型。
+
+        Args:
+            无。
+
+        Returns:
+            无；每个实例互不共享登记内容。
+
+        Raises:
+            无。
+
+        Side Effects:
+            只分配实例内存，不自动导入插件或扫描目录。
+
+        Time Semantics:
+            同步构造，无时钟和等待；在线程启动前调用。
+        """
+        self._definitions: dict[str, JobDefinition] = {}
+
+    def register(self, definition: JobDefinition) -> None:
+        """登记类型并校验其身份和日志目录约束。
+
+        Args:
+            definition: 完整 JobDefinition；模型配置和执行函数满足上述类型作者约束。
+
+        Returns:
+            无；成功后按稳定英文键可查询，显示名也唯一。
+
+        Raises:
+            DefectError: 重复键/显示名、路径分量不合法、长度越界、非 Pydantic 模型、
+                非 callable、恢复方式非法，或模型显式声明秘密字段/SecretStr/SecretBytes。
+
+        Side Effects:
+            原子增加一项；失败保持原表。不创建日志目录、不执行模型或作业。
+
+        Time Semantics:
+            启动期同步操作，不接受与 lookup 并发注册；无锁等待。
+        """
+        if not isinstance(cast(object, definition), JobDefinition) or not _valid_key(
+            definition.type_name
+        ):
+            raise DefectError()
+        if definition.type_name in self._definitions:
+            raise DefectError()
+        if not isinstance(cast(object, definition.recovery_mode), RecoveryMode) or not callable(
+            definition.execute
+        ):
+            raise DefectError()
+        _check_model(definition.parameters_model, set())
+        name = definition.display_name
+        if (
+            not is_display_name(name)
+            or len(name) > JOB_DISPLAY_NAME_MAX_CHARS
+            or name in {".", ".."}
+            or "/" in name
+            or "\\" in name
+            or any(item.display_name == name for item in self._definitions.values())
+        ):
+            raise DefectError()
+        self._definitions[definition.type_name] = definition
+
+    def lookup(self, type_name: str) -> JobDefinition | None:
+        """查找当前安装的类型，允许历史类型已经被移除。
+
+        Args:
+            type_name: 稳定英文类型键，1-64 字符。
+
+        Returns:
+            已登记定义，或 None 表示未登记；不猜相近名称。
+
+        Raises:
+            DefectError: 调用方传入非字符串或非法键形状。
+
+        Side Effects:
+            无；只读实例登记内容，未找到不新增占位类型。
+
+        Time Semantics:
+            常数时间字典查询，无时钟或 I/O。
+        """
+        if not _valid_key(type_name):
+            raise DefectError()
+        return self._definitions.get(type_name)
+
+    def definitions(self) -> tuple[JobDefinition, ...]:
+        """枚举可提交类型，供入口构造日志路径与页面选项。
+
+        Args:
+            无。
+
+        Returns:
+            按 type_name 升序的不可变元组，空表返回空元组。
+
+        Raises:
+            无。
+
+        Side Effects:
+            无；不暴露底层可变字典。
+
+        Time Semantics:
+            同步快照，不读取时间，不等待类型出现。
+        """
+        return tuple(self._definitions[key] for key in sorted(self._definitions))
+
+
+def production_registry() -> JobRegistry:
+    """构造仅含“示例：数数”的生产登记表。
+
+    Args:
+        无。
+
+    Returns:
+        新 JobRegistry，类型键 example_count；恢复方式为标记中断。
+
+    Raises:
+        DefectError: 示例类型的静态定义违反登记契约。
+
+    Side Effects:
+        只在返回对象登记，不创建目录、启动线程或缓存模块级实例。
+
+    Time Semantics:
+        Web 和 worker 启动时各调用一次并注入；无时钟、等待和自动发现。
+    """
+    # 延迟导入避免登记定义和执行上下文的模块环；每次构造都返回独立对象。
+    from rdp.jobs.example import CountParameters, execute_count
+
+    registry = JobRegistry()
+    registry.register(
+        JobDefinition(
+            "example_count", "示例：数数", CountParameters, RecoveryMode.INTERRUPT, execute_count
+        )
+    )
+    return registry
+
+
+def _valid_key(value: object) -> bool:
+    """按登记契约全匹配英文稳定键，不能接受末尾换行或隐式强制转换。"""
+    return isinstance(value, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", value) is not None
+
+
+# 显式秘密字段不能进入作业记录或日志；只识别字段/别名，不猜测任意业务文本是否含秘密。
+_SECRET_PARAMETER_NAMES = frozenset(
+    {
+        "password",
+        "passwd",
+        "secret",
+        "token",
+        "access_token",
+        "refresh_token",
+        "api_key",
+        "cookie",
+        "private_key",
+        "ssh_private_key",
+        "口令",
+        "密码",
+        "令牌",
+        "私钥",
+    }
+)
+
+
+def _check_model(value: object, seen: set[type[BaseModel]]) -> None:
+    """遍历模型定义而不执行校验器；递归类型只访问一次，别名同样属于可被提交的字段。"""
+    if not isinstance(value, type) or not issubclass(value, BaseModel):
+        raise DefectError()
+    if value in seen:
+        return
+    if (
+        value.model_config.get("extra") != "forbid"
+        or value.model_config.get("hide_input_in_errors") is not True
+    ):
+        raise DefectError()
+    seen.add(value)
+    for name, field in value.model_fields.items():
+        names = [name, field.alias, field.serialization_alias, field.validation_alias]
+        if any(_secret_alias(alias) for alias in names):
+            raise DefectError()
+        _check_annotation(field.annotation, seen)
+
+
+def _secret_alias(value: object) -> bool:
+    """字段的输入/输出别名也不能把秘密藏在一个看似安全的Python标识符后。"""
+    if isinstance(value, str):
+        return value.casefold() in _SECRET_PARAMETER_NAMES
+    if isinstance(value, AliasChoices):
+        return any(_secret_alias(choice) for choice in value.choices)
+    if isinstance(value, AliasPath):
+        return any(_secret_alias(part) for part in value.path)
+    return False
+
+
+def _check_annotation(value: object, seen: set[type[BaseModel]]) -> None:
+    """容器、联合及嵌套模型中的秘密类型仍会落日志，不能仅检查顶层注解。"""
+    if isinstance(value, type):
+        if issubclass(value, (SecretStr, SecretBytes)):
+            raise DefectError()
+        if issubclass(value, BaseModel):
+            _check_model(value, seen)
+    for argument in get_args(value):
+        _check_annotation(argument, seen)

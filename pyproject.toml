@@ -110,8 +110,10 @@ type = "layers"
 layers = [
     # 两个入口互不依赖，避免 Web 入口与运维入口之间耦合。
     "rdp.api | rdp.ops",
-    # M0 第 7 张：各业务领域都可以写日志；日志领域不得反向依赖 jobs 或 accounts。
-    "rdp.jobs | rdp.accounts",
+    # M0 第 8 张：作业提交/取消写操作日志，并在同事务重验账号身份、查历史账号存在性。
+    # jobs 可依赖 accounts/audit；账号和日志不得反向依赖 jobs，避免请求上下文循环。
+    "rdp.jobs",
+    "rdp.accounts",
     "rdp.audit",
     "rdp.infra",
 ]
@@ -123,7 +125,7 @@ source_modules = [
     "rdp.infra",
     # M0 工单 04：作业结果必须可脱离入口调用，领域层同样禁用 Web 框架（规范 1.3）。
     "rdp.jobs",
-    # M0 工单 06：账号领域不依赖 Web 框架，与 jobs 同层且互不依赖。
+    # M0 工单 06：账号领域不依赖 Web 框架，禁止反向依赖 jobs。
     "rdp.accounts",
     # M0 第 7 张：日志可由运维和未来 worker 调用，不依赖 Web 框架。
     "rdp.audit",

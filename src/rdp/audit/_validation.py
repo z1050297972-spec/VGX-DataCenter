@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from rdp.audit._context import validate_context
 from rdp.audit.errors import AuditInputError
+from rdp.audit.job_contracts import validate_job_operation
 from rdp.audit.policy import MAX_DETAILS_BYTES
 from rdp.audit.types import (
     OPERATION_DETAIL_FIELDS,
@@ -69,8 +70,8 @@ def actor(value: object) -> None:
 
 
 def target(value: object) -> None:
-    """限定对象类型及规范账号编号文本，不把设置对象的键当作账号。"""
-    if not isinstance(value, ObjectRef) or value.kind not in {"account", "audit_settings"}:
+    """限定对象类型及规范账号/作业编号文本，不把设置对象的键当作账号。"""
+    if not isinstance(value, ObjectRef) or value.kind not in {"account", "audit_settings", "job"}:
         raise invalid("target")
     name(value.name)
     if value.kind == "audit_settings":
@@ -133,6 +134,12 @@ def operation(value: object) -> OperationEvent:
 
 def operation_shape(value: OperationEvent, checked: OperationDetails) -> None:
     """区分创建、删除与设置的前后值，避免撤回结构把未提交状态当成事实。"""
+    if value.target.kind == "job" or value.operation in {
+        OperationType.SUBMIT_JOB,
+        OperationType.CANCEL_JOB,
+    }:
+        validate_job_operation(value, checked)
+        return
     creating = value.operation in {OperationType.CREATE_ACCOUNT, OperationType.CREATE_FIRST_ADMIN}
     if creating and checked.before.model_dump(exclude_none=True):
         raise invalid("before")

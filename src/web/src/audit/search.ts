@@ -52,6 +52,8 @@ export const OPERATION_LABELS = {
   change_password: "改自己的口令",
   create_first_admin: "创建首个管理员",
   set_retention: "修改保留期",
+  submit_job: "提交作业",
+  cancel_job: "取消作业",
 } satisfies Record<NonNullable<OperationSearch["operation"]>, string>;
 /** 操作结果筛选和展示使用同一字典。 */
 export const OPERATION_RESULTS = { success: "成功", failure: "失败" };

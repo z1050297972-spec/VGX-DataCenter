@@ -7,6 +7,7 @@ import { createAppRouter } from "../router";
 import type { FetchImplementation } from "../api/client";
 import { account, problemResponse } from "./testSupport";
 import type { Account } from "../api/accounts";
+import { onlineWorker } from "../jobs/testSupport";
 import { ConfigProvider } from "antd";
 
 const caches: QueryClient[] = [];
@@ -36,7 +37,11 @@ function mount(path: string, fetchImpl: FetchImplementation) {
   caches.push(queryClient);
   const router = createAppRouter({
     queryClient,
-    fetchImpl,
+    // 作业横幅是新的独立查询；账号场景的通配失败替身只作用于账号请求。
+    fetchImpl: (...args) =>
+      new URL(args[0].url).pathname === "/api/worker/status"
+        ? Promise.resolve(Response.json(onlineWorker))
+        : fetchImpl(...args),
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   const view = render(
