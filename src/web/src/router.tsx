@@ -23,6 +23,7 @@ import { defaultFetch, type FetchImplementation } from "./api/client";
 import { toFailureView } from "./api/problems";
 import { DiagnosticCard } from "./DiagnosticCard";
 import { HealthPage } from "./HealthPage";
+import { SchedulingPage, SubmitResourceJobsPage } from "./scheduling/Pages";
 import { JobsPage, JobDetailPage, SubmitCountJobPage } from "./jobs/Pages";
 import type { JobSearch } from "./api/jobs";
 import { validateJobSearch } from "./jobs/search";
@@ -39,9 +40,9 @@ interface AppRouterOptions {
 /**
  * 创建独立、默认需要登录的应用路由。
  * @param options - 缓存、传输和可选 history，无秘密。
- * @returns TanStack Router 实例；同实例所有 API 401 共用清理和 replace 导航。
+ * @returns TanStack Router 实例；含所有登录账号可访问的 /scheduling 和 /jobs/resources；同实例所有 API 401 共用清理和 replace 导航。
  * @throws 无；创建不发请求，导航失败由诊断视图呈现。
- * @sideEffects 导航前核验身份；仅登录页公开，服务器仍独立鉴权；不保存浏览器凭据。
+ * @sideEffects 导航前核验身份；仅登录页公开，服务器仍独立鉴权；不保存浏览器凭据。调度路由为单一只读页，不定义 search 参数。
  * @timeSemantics 每次导航使用守卫的取消信号，身份聚焦查询由布局负责，无自动重试。
  */
 export function createAppRouter(options: AppRouterOptions) {
@@ -123,6 +124,16 @@ export function createAppRouter(options: AppRouterOptions) {
     path: "/jobs/new",
     component: SubmitCountJobPage,
   });
+  const scheduling = createRoute({
+    getParentRoute: () => root,
+    path: "/scheduling",
+    component: SchedulingPage,
+  });
+  const resources = createRoute({
+    getParentRoute: () => root,
+    path: "/jobs/resources",
+    component: SubmitResourceJobsPage,
+  });
   const instance = createRouter({
     routeTree: root.addChildren([
       index,
@@ -134,6 +145,8 @@ export function createAppRouter(options: AppRouterOptions) {
       jobs,
       jobDetail,
       submitCount,
+      scheduling,
+      resources,
     ]),
     history: options.history,
     defaultPreload: false,

@@ -1,4 +1,4 @@
-"""worker 单实例、心跳和串行调度（08/J1-J3）；不解析 CLI、不包含 Web 类型。
+"""worker 单实例、心跳和按类型并发调度（ADR 0005）；不解析 CLI、不包含 Web 类型。
 
 fcntl.flock 管锁生命周期，threading.Thread/Event 管执行与停止，数据库只作短轮询。
 主循环不等作业函数返回才写心跳；不引入消息队列或新的调度依赖。
@@ -25,7 +25,6 @@ from rdp.infra.diagnostics import (
 from rdp.infra.state import StatePaths
 from rdp.jobs import _storage
 from rdp.jobs.execution import ExecutorDependencies
-from rdp.jobs.policy import WORKER_OFFLINE_AFTER_S
 from rdp.jobs.types import WorkerHeartbeat
 
 logger = logging.getLogger(__name__)
@@ -183,17 +182,13 @@ def heartbeat_online(heartbeat: WorkerHeartbeat | None, *, now: datetime) -> boo
     Time Semantics:
         UTC 墙钟跨进程比较，不用 monotonic；边界恰好 15 秒在线，回拨不修改原记录。
     """
-    moment = _storage.moment(now)
-    if heartbeat is None:
-        return False
-    checked = _storage.heartbeat(heartbeat)
-    return max(0.0, (moment - checked.last_seen_at).total_seconds()) <= WORKER_OFFLINE_AFTER_S
+    return _storage.heartbeat_is_online(heartbeat, now)
 
 
 def run_loop(
     dependencies: ExecutorDependencies, stop: Event, heartbeat: WorkerHeartbeat
 ) -> WorkerLoopResult:
-    """恢复遗留作业并串行调度，失败时停止心跳、有限收尾并返回失败结果。
+    """恢复遗留作业并按类型容量并发调度，失败时有限收尾且保留实例锁规则。
 
     Args:
         dependencies: 当前实例依赖，入口已持单实例锁、检查版本并配置worker.log。
@@ -209,17 +204,32 @@ def run_loop(
         DefectError: 调用依赖/初始时钟非法，尚未创建任何线程；运行中的故障统一收尾并返回失败。
 
     Side Effects:
+        调用前已持单实例锁并原子清全部非终态等待/持锁及 running/cancelling 卡号，核卡结果已落库。
         启动立即心跳，此后每HEARTBEAT_INTERVAL_S短事务写一次；BEGIN忙只WARNING并下周期重试。
-        旧running/cancelling按job_id的有界keyset逐条recover_job；单条损坏/日志失败只处理该编号，
-        能落终态就落，不能则ERROR并跳过，本实例不再扫描它；随后恢复其他条并放行新queued。
+        对全部旧 running/cancelling 先逐条 recover_job 完成准备，不申请资源、不等容量；
+        正在取消转已取消，interrupt 直接中断，resume/restart 写中断段并只增加一次恢复资格。
+        单条损坏/日志失败能落终态就落，不能则 ERROR 并隔离，继续其他条；准备期间仍按周期写心跳。
         不能枚举队列等全局基础设施故障、已执行作业终态无法提交、执行线程结束后仍有未回收输出资源，
         都走整实例失败退出；不能因主执行线程已死就忽略monitor中的daemon读线程并领取下一作业。
         每个作业建立ExecutionMonitor；执行Thread在start前登记且daemon=True，读输出线程同样登记为daemon。
         每轮查当前状态；首次观察cancelling用monotonic起算，超过CANCEL_STALL_WARNING_S=60秒仍未退出，
         在边界记一次WARNING并通过monitor.reporter向作业日志写统一诊断（编号、阶段、已等时长、后果、下一步），
         不增加业务警告计数、不改变状态。先置一次性标记，后续轮询不重复；日志失败只补安全报告，不替代原取消。
-        空闲时只读next_queued_job，关闭读事务后claim_job，提交含日志路径的领取事务再启动线程；
-        同时最多WORKER_CONCURRENCY=1个执行线程，所有线程独立Session。
+        每轮先观察全部作业的取消/结束和补写资源，再处理定时提交和 Scheduler 候选；不以单个 thread 槽串行调度。
+        按类型实际容量启动多个执行线程，每个独立 Session、signals、monitor、取消首见时刻和一次性警告标记。
+        准备后的恢复候选只排在本类型新 queued 之前；领取受本类型容量和可用卡约束。
+        两个同类恢复候选即使只可运行一个，也不能阻挡另一个类型的新 queued；没有全局恢复资源屏障。
+        每轮调用 tick_schedules，再用 queued_type_heads 的每类最小编号与各类型恢复队首合并，
+        按 job_id 顺序逐个判断名额；不再维护跨轮队列扫描游标或排除集合。
+        主循环是 queued 的 GPU 等待原因唯一周期写入者；每轮重判，领卡/上限阻挡/取消都清旧原因，
+        领取和终态事务强制清空，短锁忙保留到下一轮重判，不把旧标记当作继续等卡的依据。
+        通过 Scheduler 的短锁领取提交含日志路径及卡号，提交后才启动线程。
+        本实例新领取但线程从未启动时，停止或启动失败须短事务退回 queued，清开始时间、日志路径和资源副本，
+        不写日志开头、不增加恢复次数、不写操作日志；取消已提交则完成取消，不重新入队。
+        退回事务失败令整实例失败，不能按 BEGIN 忙跳过；未使用的内存凭据仍在 finally 归还。
+        已有历史的 resume/restart 仅清本次新领资源，保留原运行/取消状态及恢复收尾流程；真正已启动的线程绝不走未启动退回。
+        新 queued 的类型达到上限就跳过整类，等 GPU 的同类后项不能插队，其他类不阻挡。
+        主循环不做 nvidia-smi 核对，已领作业在线程执行前核对，不拖住心跳。
         stop或执行器终态写失败后立即停止领取和心跳、通知stopping，30秒共同预算内join全部登记线程。
         执行器已报告的持久化失败不重复ERROR；超预算另记一次停止超时ERROR，返回存活线程，不能先放锁。
         不清空历史心跳；失败结果由入口交给第11张命令退出，systemd重启后再走恢复，禁止半活空转。

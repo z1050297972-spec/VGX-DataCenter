@@ -5,26 +5,33 @@
 回滚再按第 7 张短事务补记，补记失败附固定标记交 API 边界报告，不在本层打日志。
 """
 
-import json
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import date, datetime
 from typing import cast
 
-from pydantic import ValidationError
 from sqlalchemy import Engine, select
 
 from rdp.accounts.service import authorize_job_actor, existing_account_ids
 from rdp.accounts.types import SessionIdentity
-from rdp.audit.types import AuditContext, OperationEvent, OperationType
-from rdp.infra.db.connection import session_scope
-from rdp.infra.db.validation import invalid_field
+from rdp.audit.types import (
+    AuditContext,
+    AuditValues,
+    OperationDetails,
+    OperationEvent,
+    OperationResult,
+    OperationType,
+)
+from rdp.infra.actors import SYSTEM_ACTOR, is_display_name
+from rdp.infra.db.connection import session_scope, session_scope_with_lock_timeout
 from rdp.infra.diagnostics import ConflictError, DefectError, DiagnosticCategory
-from rdp.jobs import _audit, _pagination, _storage, _views
-from rdp.jobs.errors import JobInputError
+from rdp.jobs import _audit, _pagination, _storage, _views, policy
+from rdp.jobs._parameters import validate as validate_parameters
 from rdp.jobs.models import JobRow, WorkerHeartbeatRow
-from rdp.jobs.policy import JOB_PARAMETERS_MAX_BYTES
 from rdp.jobs.records import NewJob, StateChange, find_job, insert_job, transition_job
 from rdp.jobs.registry import JobDefinition, JobRegistry
+from rdp.jobs.schedule_records import insert_submission
+from rdp.jobs.scheduling_models import ScheduleSubmissionRow
+from rdp.jobs.scheduling_types import ScheduledJob, ScheduleSubmission
 from rdp.jobs.types import JobPage, JobQuery, JobRecord, JobState, WorkerHeartbeat
 
 
@@ -84,7 +91,8 @@ class JobService:
             parameters: 不可信 JSON 对象，至多 JOB_PARAMETERS_MAX_BYTES，按当前模型严格校验。
 
         Returns:
-            已提交的 queued 记录，提交人为事务内当前账号；参数保留模型的 JSON 值和默认值。
+            已提交的 queued 记录，提交人为事务内当前账号；有编号且名字为“系统”的账号照常提交，按编号区别固定系统身份。
+            参数保留模型的 JSON 值和默认值。
 
         Raises:
             AuthenticationError: 事务内会话已撤销/过期或账号停用、删除。
@@ -115,6 +123,71 @@ class JobService:
                 record = insert_job(session, NewJob(definition, checked, actor, request.now, None))
                 _audit.finish(session, attempted, record)
             return record
+        except Exception as error:
+            _audit.failed(self.engine, attempted, error)
+            raise
+
+    def submit_scheduled(
+        self, definition: ScheduledJob, local_date: date, *, now: datetime
+    ) -> ScheduleSubmission | None:
+        """以固定系统身份原子提交每日作业、审计及日期去重行。
+
+        Args:
+            definition: 已在入口显式登记并校验的规则，类型和参数仍按当前 JobRegistry 重验。
+            local_date: schedule_due 返回的本机本地日期，不能由 HTTP 客户端指定。
+            now: 注入 aware UTC 时刻；作业、日志和去重行共用，不能隐式读钟。
+
+        Returns:
+            本次成功提交的 ScheduleSubmission；同一规则/日期已经提交返回 None，不新增作业或日志。
+
+        Raises:
+            JobInputError: 当前类型已删除或参数不再合格，不回显原参数。
+            ConflictError: 短锁入场或入场后提交失败；日期唯一竞争单独识别并返回 None。
+            InputError: 数据库或历史去重记录损坏。
+            ExternalError: 作业/去重/日志插入或提交失败，整体回滚。
+            DefectError: 规则、日期、注入时刻或内部系统身份不合法。
+
+        Side Effects:
+            事务外复用账号提交的类型/参数校验；事务内使用 insert_job 与相同操作日志适配，
+            提交人为 SYSTEM_ACTOR，不伪造 SessionIdentity，不绕过公开 HTTP 的全局鉴权。
+            AuditContext 为服务端明确的无请求编号/无 IP 系统来源；同一事务插入唯一日期记录。
+            任一步失败回滚三者；真正开始执行后的失败沿用短锁失败审计补记，重复日期不记失败。
+            HTTP 不暴露本入口；账号重新提交系统作业仍由 resubmit 写点按钮的当前账号。
+
+        Time Semantics:
+            BEGIN 最多 PROGRESS_LOCK_TIMEOUT_MS，忙由调度器下一轮重试；不在本函数内部睡眠。
+            日期去重覆盖 worker 重启和墙钟回拨，不按执行完成时刻计算 24 小时补跑。
+        """
+        if (
+            not isinstance(cast(object, definition), ScheduledJob)
+            or not is_display_name(definition.name)
+            or type(local_date) is not date
+        ):
+            raise DefectError()
+        now = _storage.moment(now)
+        job, parameters = _parameters(self.registry, definition.type_name, definition.parameters)
+        attempted: OperationEvent | None = None
+        try:
+            with session_scope_with_lock_timeout(
+                self.engine, busy_timeout_ms=policy.PROGRESS_LOCK_TIMEOUT_MS
+            ) as session:
+                if session.get(ScheduleSubmissionRow, (definition.name, local_date)) is not None:
+                    return None
+                attempted = OperationEvent(
+                    now,
+                    SYSTEM_ACTOR,
+                    OperationType.SUBMIT_JOB,
+                    _audit.target(None),
+                    OperationResult.SUCCESS,
+                    None,
+                    AuditContext(None, None),
+                    OperationDetails(before=AuditValues(), after=AuditValues()),
+                )
+                record = insert_job(session, NewJob(job, parameters, SYSTEM_ACTOR, now, None))
+                _audit.finish(session, attempted, record)
+                submission = ScheduleSubmission(definition.name, local_date, record.job_id, now)
+                insert_submission(session, submission)
+            return submission
         except Exception as error:
             _audit.failed(self.engine, attempted, error)
             raise
@@ -247,6 +320,7 @@ class JobService:
 
         Returns:
             完整永久记录；账号已删除时保留历史名字并设置 submitter_deleted=True。
+            SYSTEM_ACTOR 的编号为 None、名字“系统”、submitter_deleted=False，不查同名账号。
 
         Raises:
             AuthenticationError: 会话或账号失效。
@@ -273,7 +347,9 @@ class JobService:
             present = existing_account_ids(
                 session, frozenset(() if identifier is None else (identifier,))
             )
-            return replace(record, submitter_deleted=identifier not in present)
+            return replace(
+                record, submitter_deleted=identifier is not None and identifier not in present
+            )
 
     def list(self, request: JobRequest, query: JobQuery) -> JobPage:
         """按状态和稳定游标查询所有提交人的作业。
@@ -285,6 +361,7 @@ class JobService:
         Returns:
             仅job_id DESC的有界页；自增编号就是提交顺序，submitted_at仅作展示；游标绑定状态、limit、首页最大编号，
             后续新增不插入既有翻页。状态会改变，跨页不承诺冻结整个队列；允许空页。
+            系统提交记录的 submitted_by.account_id=None、submitter_deleted=False。
 
         Raises:
             AuthenticationError: 查询事务身份无效。
@@ -330,7 +407,11 @@ class JobService:
                 ),
             )
             records = tuple(
-                replace(record, submitter_deleted=record.submitted_by.account_id not in present)
+                replace(
+                    record,
+                    submitter_deleted=record.submitted_by.account_id is not None
+                    and record.submitted_by.account_id not in present,
+                )
                 for record in records
             )
             next_cursor = (
@@ -380,27 +461,4 @@ def _parameters(
     registry: JobRegistry, type_name: str, parameters: dict[str, object]
 ) -> tuple[JobDefinition, dict[str, object]]:
     """参数校验在写事务外；只把固定字段诊断暴露给调用者，不回显拒绝的载荷。"""
-    try:
-        definition = registry.lookup(type_name)
-    except DefectError:
-        definition = None
-    if definition is None:
-        raise JobInputError(invalid_field("type_name", "已登记的作业类型").diagnostics)
-    try:
-        if (
-            not isinstance(cast(object, parameters), dict)
-            or len(json.dumps(parameters, ensure_ascii=False, allow_nan=False).encode())
-            > JOB_PARAMETERS_MAX_BYTES
-        ):
-            raise ValueError("参数不是有界JSON对象")
-        checked = definition.parameters_model.model_validate(parameters).model_dump(mode="json")
-        if (
-            len(json.dumps(checked, ensure_ascii=False, allow_nan=False).encode())
-            > JOB_PARAMETERS_MAX_BYTES
-        ):
-            raise ValueError("完整参数超过容量")
-    except (ValidationError, TypeError, ValueError, UnicodeError):
-        raise JobInputError(
-            invalid_field("parameters", "当前作业类型的合法有界参数").diagnostics
-        ) from None
-    return definition, checked
+    return validate_parameters(registry, type_name, parameters)

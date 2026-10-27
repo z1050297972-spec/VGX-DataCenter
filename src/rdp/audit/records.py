@@ -55,6 +55,7 @@ def append_operation(session: Session, event: OperationEvent) -> int:
         DefectError: event.context 不是合法 AuditContext（含非法 IP 或请求编号）、只读/非受管会话或 SQL/映射错误；安全异常链不含参数。
 
     Side Effects:
+        操作人允许账号、OPS_ACTOR 或 SYSTEM_ACTOR；空编号只能是两个固定身份。
         当前事务追加一行并 flush；不 commit、不另开事务、不修改已有日志。
         任意失败须由调用者退出整个工作单元回滚；成功日志与业务同时提交，回滚后两者均不留。
         操作人及对象取业务重读的名字快照，不按当前名字覆盖历史。

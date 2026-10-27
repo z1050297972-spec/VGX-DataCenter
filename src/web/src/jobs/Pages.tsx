@@ -20,7 +20,7 @@ const jobsRoute = getRouteApi("/jobs");
 
 /**
  * 显示所有提交人的作业列表及可分享状态筛选。
- * @returns 列表、状态筛选、游标翻页和提交示例入口；九种显示状态遵守 jobStatusLabel。
+ * @returns 列表、状态筛选、游标翻页和两类示例提交入口；九种显示状态遵守 jobStatusLabel，另列等待 GPU/等待导航层写锁，不增加作业状态。
  * @throws 无；无效筛选显示“作业筛选参数不合法”，请求错误由 DiagnosticCard 显示。
  * @sideEffects 经真实 /jobs Router 的 useSearch/useNavigate 读取和更新 typed search；筛选改变清 cursor，无效值不发列表请求。
  * @timeSemantics 合法列表每 JOB_POLL_INTERVAL_MS 轮询，离页取消，无自动重试；UTC 时刻仅显示时转浏览器本地。
@@ -31,6 +31,7 @@ export function JobsPage(): ReactElement {
     <section>
       <Typography.Title level={2}>作业列表</Typography.Title>
       <Link to="/jobs/new">提交示例作业</Link>
+      <Link to="/jobs/resources">提交资源示例</Link>
       <JobFilters key={JSON.stringify(search)} search={search} />
       {search.invalidJobSearch ? (
         <Alert type="error" title="作业筛选参数不合法" />
@@ -43,7 +44,7 @@ export function JobsPage(): ReactElement {
 
 /**
  * 显示一个作业的状态、进度、摘要、诊断和控制按钮。
- * @returns /jobs/$jobId 的详情；展示“阶段 2/4 · 名称”、已知总数进度条（百分比四舍五入为整数）或未知总数已处理量、独立计数、已用时间、速度/剩余、日志最后几十行和 DiagnosticCard；取消/中断无结果仍保留进度。
+ * @returns /jobs/$jobId 的详情；增加等待原因及领到的 GPU 卡号（终态保留历史），未领卡明确显示未分配；仅账号编号为 null 时按系统身份显示；有编号的同名账号保持账号删除标记；展示“阶段 2/4 · 名称”、已知总数进度条（百分比四舍五入为整数）或未知总数已处理量、独立计数、已用时间、速度/剩余、日志最后几十行和 DiagnosticCard；取消/中断无结果仍保留进度。
  * @throws 无；坏编号、404、409 与其他错误用统一诊断，不在页面拼接服务器失败信息。
  * @sideEffects 调 useJob/useJobLog；queued/running 可取消，cancelling 禁用取消，终态可重提；任意账号均可操作；显示重新提交自链接和历史名字删除标记，不输出工具 HTML。
  * @timeSemantics 进行中每秒轮询，终态取最后日志后停止；速度最近 10 秒、样本不足不显示，未知总数不显示百分比/剩余；已用时以服务器 elapsed_s 加本地单调增量，终态使用冻结摘要。
@@ -61,10 +62,9 @@ export function JobDetailPage(): ReactElement {
         {job.display_name} #{job.job_id}
       </Typography.Title>
       <Typography.Text>{jobStatusLabel(job)}</Typography.Text>
-      <div>
-        提交人：{job.submitted_by.name}
-        {job.submitted_by.deleted ? "（已删除）" : ""}
-      </div>
+      {job.wait_reason && <div>{waitLabel(job)}</div>}
+      <div>提交人：{submitterLabel(job)}</div>
+      <div>GPU：{job.gpu_index ?? "未分配"}</div>
       <JobProgressView job={job} timing={timing} />
       {job.resubmitted_from && (
         <Link to="/jobs/$jobId" params={{ jobId: job.resubmitted_from }}>
@@ -253,10 +253,10 @@ function JobListContent({ search }: { search: JobSearch }): ReactElement {
           },
           { title: "类型", dataIndex: "display_name" },
           { title: "状态", render: (_value: unknown, job) => jobStatusLabel(job) },
+          { title: "等待原因", render: (_value: unknown, job) => waitLabel(job) },
           {
             title: "提交人",
-            render: (_value: unknown, job) =>
-              job.submitted_by.name + (job.submitted_by.deleted ? "（已删除）" : ""),
+            render: (_value: unknown, job) => submitterLabel(job),
           },
         ]}
       />
@@ -431,5 +431,25 @@ function JobProgressView({ job, timing }: { job: Job; timing: JobTiming }): Reac
         <div>剩余时间 {timing.remainingSeconds.toFixed(1)} 秒</div>
       )}
     </>
+  );
+}
+
+// 等待是资源展示原因，独立于后端作业状态与结局。
+function waitLabel(job: Job): string {
+  return job.wait_reason === "gpu"
+    ? "等待 GPU"
+    : job.wait_reason === "navigation_lock"
+      ? "等待导航层写锁"
+      : "";
+}
+
+// 固定系统身份由空编号判断；同名账号仍显示账号身份及删除标记。
+function submitterLabel(job: Job): string {
+  const actor = job.submitted_by;
+  if (actor.account_id === null) return "系统";
+  return (
+    actor.name +
+    (actor.name === "系统" ? `（账号 #${actor.account_id}）` : "") +
+    (actor.deleted ? "（已删除）" : "")
   );
 }

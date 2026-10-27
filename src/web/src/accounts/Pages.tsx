@@ -213,7 +213,7 @@ export function PasswordPage(): ReactElement {
 }
 
 /**
- * 管理员分页账号列表、新建、改角色、启停、重置口令、删除。停用和删除均用 antd Modal 二次确认，取消不发请求；403/404/409/422/429/网络错误用 DiagnosticCard，失败保留原列表。
+ * 管理员分页账号列表、新建、改角色、启停、重置口令、删除。停用和删除均用 antd Modal 二次确认，取消不发请求；403、404、409、422、429/网络错误用 DiagnosticCard，失败保留原列表。
  *
  * @returns 使用 antd 的表单、状态或诊断视图；仅身份明确且权限满足时显示受保护内容。
  * @throws 无。请求错误经 toFailureView/DiagnosticCard 呈现，不展示原始异常或执行服务端 HTML。
@@ -473,7 +473,7 @@ export function AccountsPage(): ReactElement {
 /**
  * 在右上角显示当前显示名、角色、改口令入口和登出；管理员额外显示账号管理、操作日志和登录日志入口，成员不显示。
  *
- * @returns 使用 antd 的表单、状态或诊断视图；仅身份明确且权限满足时显示受保护内容。
+ * @returns 含所有登录账号可见的“调度”入口；使用 antd 的表单、状态或诊断视图；仅身份明确且权限满足时显示受保护内容。
  * @throws 无。请求错误经 toFailureView/DiagnosticCard 呈现，不展示原始异常或执行服务端 HTML。
  * @sideEffects 订阅共享的内存身份查询，设置 refetchOnWindowFocus: true、staleTime: 0；切回窗口重新查 /api/auth/me，401 统一清缓存并跳登录；登出成功或 401 才清缓存去登录页，网络失败显示 DiagnosticCard，不假装退出。
  * @timeSemantics 请求上限 ACCOUNT_TIMEOUT_MS；切页/卸载取消请求和倒计时，忽略迟到结果，无自动重试。
@@ -501,6 +501,7 @@ export function AccountMenu(): ReactElement {
       </Typography.Text>
       <Link to="/change-password">修改口令</Link>
       <Link to="/jobs">作业</Link>
+      <Link to="/scheduling">调度</Link>
       {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
       {identity.data.role === "administrator" && (
         <>

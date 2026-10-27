@@ -2,16 +2,24 @@
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from pathlib import Path
 from threading import Event
+from typing import cast
 from uuid import uuid4
 
+from rdp.infra.db.connection import session_scope
 from rdp.infra.db.migration import check_database_version
-from rdp.infra.diagnostics import ConflictError, DefectError
+from rdp.infra.diagnostics import ConflictError, DefectError, ExternalError
 from rdp.infra.logging import LoggingSettings, configure_logging
 from rdp.jobs._clock import ClockReader
 from rdp.jobs.execution import ExecutorDependencies
+from rdp.jobs.gpu import verify_gpu
+from rdp.jobs.navigation import NavigationWriter
 from rdp.jobs.policy import WORKER_EXIT_ALREADY_RUNNING, WORKER_EXIT_FAILURE, WORKER_EXIT_OK
+from rdp.jobs.resources import ResourcePool, reset_resources_on_startup, save_gpu_checks
+from rdp.jobs.scheduling import WorkerResources, WorkerScheduling
+from rdp.jobs.scheduling_types import GpuCheck
 from rdp.jobs.types import WorkerHeartbeat
 from rdp.jobs.worker import run_loop, worker_lock
 
@@ -34,7 +42,11 @@ class WorkerExit:
 
 
 def run_worker(
-    dependencies: ExecutorDependencies, stop: Event, logging_settings: LoggingSettings
+    dependencies: ExecutorDependencies,
+    stop: Event,
+    logging_settings: LoggingSettings,
+    *,
+    scheduling: WorkerScheduling,
 ) -> WorkerExit:
     """运行一个可在进程内停止的独立 worker 实例。
 
@@ -42,6 +54,7 @@ def run_worker(
         dependencies: 入口构造的引擎、production_registry 或测试登记表、已初始化状态布局及注入时钟。
         stop: 必填可注入停止 Event；不在函数内安装全局 signal handler。
         logging_settings: process 必须为 worker、log_dir 为 paths.logs；systemd 下 stderr=False。
+        scheduling: 必填关键字，显式资源/定时配置；nvidia_smi 仅在配置卡列表为空时允许 None。
 
     Returns:
         正常协作停止为 WORKER_EXIT_OK；非阻塞锁冲突为 WORKER_EXIT_ALREADY_RUNNING，
@@ -49,10 +62,19 @@ def run_worker(
         停止超预算也返回失败而不抛异常；lock_retained标识是否保留锁，不把遗留线程描述为已回收。
 
     Raises:
-        DefectError: 调用依赖非法，尚未取得锁或创建线程；停止超时和终态持久化失败不从这里抛出。
+        DefectError: 调用依赖非法，或配置卡列表非空但 nvidia_smi 为 None/非绝对路径；
+            尚未取得锁或创建线程。停止超时和终态持久化失败不从这里抛出。
 
     Side Effects:
         复用 configure_logging 写 worker.log，校验迁移版本但不自动迁移；取得 worker_lock 后才恢复/调度。
+        验证全部类型覆盖，拿到实例锁后先用一个事务清所有非终态等待/持锁及 running/cancelling 卡号。
+        启动逐卡调用 verify_gpu(log=None)，失败卡记一次 ERROR 到 worker.log 并移出本实例名额池，
+        通过的卡才交 ResourcePool；修复后须重启重新核对，本实例不再分配被移出的卡。
+        原子 save_gpu_checks 保存全部配置卡的核对结果，再发布同 instance_id 的首个心跳，Web 只读数据库。
+        全部配置卡失败等同空卡池，需卡作业领取后以“平台没有可用的卡”外部失败，CPU 作业继续。
+        构造实例共享 NavigationWriter 并注入 ExecutorDependencies；每次核卡前检查 stop，停止后不继续后续卡。
+        依赖/配置非法拒绝启动，不伪装成硬件故障。
+        注入定时登记及维护服务，不在启动时清理上个实例的孤儿外部进程。
         创建本实例 uuid4/pid/UTC 启动时刻，调用 run_loop。入口只记录未被作业边界报告的故障，
         同一异常不重复ERROR；锁冲突只说明无法启动。run_loop返回后调用WorkerLock.finish，
         所有框架线程均死才关闭原始fd；只要执行线程或读线程还活着就保留fd到进程退出，
@@ -73,6 +95,7 @@ def run_worker(
         or not dependencies.engine.get_execution_options().get("rdp_managed")
     ):
         raise DefectError()
+    _validate_scheduling(scheduling)
     ClockReader(dependencies.clock).read()
     try:
         configure_logging(logging_settings)
@@ -91,7 +114,62 @@ def run_worker(
         return WorkerExit(WORKER_EXIT_FAILURE, "worker实例锁无法取得", False)
     now = dependencies.clock.now()
     heartbeat = WorkerHeartbeat(uuid4().hex, os.getpid(), now, now)
+    try:
+        with session_scope(dependencies.engine) as session:
+            reset_resources_on_startup(session)
+        resources = _start_resources(dependencies, scheduling, stop, heartbeat.instance_id)
+        if resources is None:
+            lock.finish(())
+            return WorkerExit(WORKER_EXIT_OK, "worker已停止", False)
+        dependencies = replace(dependencies, resources=resources)
+    except Exception:
+        logger.error("worker资源副本初始化失败，未开始恢复或领取", exc_info=True)
+        lock.finish(())
+        return WorkerExit(WORKER_EXIT_FAILURE, "worker资源副本初始化失败", False)
     result = run_loop(dependencies, stop, heartbeat)
     retained = lock.finish(result.unreaped_threads)
     message = "worker已停止" if result.code == WORKER_EXIT_OK else "worker失败退出，需要重启"
     return WorkerExit(result.code, message, retained)
+
+
+def _start_resources(
+    dependencies: ExecutorDependencies, scheduling: WorkerScheduling, stop: Event, instance_id: str
+) -> WorkerResources | None:
+    """核卡在任何数据库事务之外；全部结果发布成功后才让主循环取得新的资源池。"""
+    checks: list[GpuCheck] = []
+    for index in scheduling.catalog.settings.gpus:
+        if stop.is_set():
+            return None
+        if scheduling.nvidia_smi is None:
+            raise DefectError()
+        try:
+            verify_gpu(index, scheduling.nvidia_smi, log=None)
+        except ExternalError as error:
+            logger.error("GPU启动核对失败，移出本实例名额池 gpu_index=%d", index, exc_info=True)
+            checks.append(GpuCheck(index, False, error.diagnostics, dependencies.clock.now()))
+        else:
+            checks.append(GpuCheck(index, True, (), dependencies.clock.now()))
+    if stop.is_set():
+        return None
+    with session_scope(dependencies.engine) as session:
+        save_gpu_checks(session, instance_id, tuple(checks))
+    return WorkerResources(
+        scheduling,
+        ResourcePool(
+            scheduling.catalog.settings,
+            available_gpus=tuple(item.gpu_index for item in checks if item.available),
+        ),
+        NavigationWriter(),
+    )
+
+
+def _validate_scheduling(scheduling: WorkerScheduling) -> None:
+    """调用者配置在取得锁和探测硬件之前校验，缺命令不是硬件故障。"""
+    if not isinstance(cast(object, scheduling), WorkerScheduling):
+        raise DefectError()
+    command = scheduling.nvidia_smi
+    if command is None:
+        if scheduling.catalog.settings.gpus:
+            raise DefectError()
+    elif not isinstance(cast(object, command), Path) or not command.is_absolute():
+        raise DefectError()

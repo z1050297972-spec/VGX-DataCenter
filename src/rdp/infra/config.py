@@ -11,9 +11,11 @@ import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, cast
+from typing import Annotated, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
+from rdp.infra.ids import JOB_TYPE_KEY_PATTERN
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +76,46 @@ class ErrorRetentionConfig(BaseModel):
     retention_days: int = Field(default=30, ge=1, le=MAX_RETENTION_DAYS)
 
 
+# 09：单类型至多 32 个执行线程，防止误配造成无限制线程/数据库争用。
+MAX_JOB_CONCURRENCY = 32
+# 09：配置列表至多 64 张卡，物理索引限定为 16 位非负整数；与硬件存在性检查分开。
+MAX_CONFIGURED_GPUS = 64
+MAX_GPU_INDEX = 65535
+GpuIndex = Annotated[int, Field(strict=True, ge=0, le=MAX_GPU_INDEX)]
+ConcurrencyLimit = Annotated[int, Field(strict=True, ge=1, le=MAX_JOB_CONCURRENCY)]
+
+
+class JobsConfig(BaseModel):
+    """作业资源配置；字段校验不访问登记表或 nvidia-smi。
+
+    Attributes:
+        gpus: 平台可用物理卡号，默认 (0, 1)，空表示不用 GPU；最多 MAX_CONFIGURED_GPUS，
+            每项严格整数 0 至 MAX_GPU_INDEX，不接受重复、bool、字符串。
+        concurrency: 按稳定类型键覆盖的并发上限，默认空字典，每值 1 至 MAX_JOB_CONCURRENCY；
+            启动时 resolve_scheduling 再核对类型存在性并复制成不可变快照。
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
+    gpus: tuple[GpuIndex, ...] = Field(default=(0, 1), max_length=MAX_CONFIGURED_GPUS)
+    concurrency: dict[str, ConcurrencyLimit] = Field(default_factory=dict)
+
+    @field_validator("gpus")
+    @classmethod
+    def _unique_gpus(cls, value: tuple[int, ...]) -> tuple[int, ...]:
+        """拒绝重复物理编号，保留配置输入顺序以供来源诊断；排序只在冻结配置时进行。"""
+        if len(value) != len(set(value)):
+            raise ValueError("GPU 编号不得重复")
+        return value
+
+    @field_validator("concurrency")
+    @classmethod
+    def _type_keys(cls, value: dict[str, int]) -> dict[str, int]:
+        """只接受 [a-z][a-z0-9_]{0,63} 类型键，未知类型由入口带登记表检查。"""
+        if any(re.fullmatch(JOB_TYPE_KEY_PATTERN, key) is None for key in value):
+            raise ValueError("并发覆盖必须使用合法作业类型键")
+        return value
+
+
 class PlatformConfig(BaseModel):
     """不可变的最终生效配置；嵌套模型也不可变，未知字段全部拒绝。
 
@@ -82,6 +124,7 @@ class PlatformConfig(BaseModel):
             load_config 的缺省值是注入 home 下的 .local/share/rdp。
             文件中允许绝对路径或 ~/ 前缀（也允许单独 ~），后者用注入 home 展开；
             不接受相对路径、~其他用户或环境变量展开，不解析软链接、不要求已存在。
+        jobs: JobsConfig，默认两张卡、没有并发覆盖；只允许 gpus/concurrency。
         web: WebConfig，无单位；默认 WebConfig()，只允许 host/port。
         log: LogConfig，无单位；默认 LogConfig()，只允许 level/retention_days。
         errors: ErrorRetentionConfig，无单位、不可空；默认 ErrorRetentionConfig()，
@@ -93,6 +136,7 @@ class PlatformConfig(BaseModel):
     web: WebConfig = Field(default_factory=WebConfig)
     log: LogConfig = Field(default_factory=LogConfig)
     errors: ErrorRetentionConfig = Field(default_factory=ErrorRetentionConfig)
+    jobs: JobsConfig = Field(default_factory=JobsConfig)
 
     @field_validator("state_dir")
     @classmethod

@@ -74,7 +74,8 @@ def test_sigkill_recovery(mode: str, tmp_path: Path) -> None:
             else:
                 assert initial is None or initial.total_items == 0
             case.wait_queued_terminal(PROCESS_READY_TIMEOUT_S)
-            assert case.execution_order() == (case.job_id, case.job_id, case.queued_job_id)
+            # 不同类型互不阻塞，所以只核对执行次数：队列作业一次、初跑一次、恢复一次。
+            assert sorted(case.execution_order()) == [case.job_id, case.job_id, case.queued_job_id]
         case.stop()
         assert second.wait(timeout=PROCESS_READY_TIMEOUT_S) == WORKER_EXIT_OK
     finally:

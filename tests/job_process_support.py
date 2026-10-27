@@ -15,6 +15,7 @@ from typing import cast
 
 from accounts_support import AUDIT_CONTEXT, EXAMPLE_SECRET, model_row
 from argon2 import PasswordHasher
+from jobs_scheduling_support import resources_fixture, scheduling_fixture
 from pydantic import BaseModel, ConfigDict
 
 from rdp.accounts.security import PasswordCodec
@@ -290,15 +291,18 @@ def worker_main(root: Path, mode: str) -> None:
     watcher = Thread(target=_watch_stop, args=(root, stop, finished), daemon=True)
     try:
         watcher.start()
+        registry = _registry(root, mode)
         result = run_worker(
             ExecutorDependencies(
                 engine,
-                _registry(root, mode),
+                registry,
                 paths,
                 JobClock(lambda: datetime.now(UTC), time.monotonic),
+                resources=resources_fixture(registry),
             ),
             stop,
             LoggingSettings("worker", paths.logs),
+            scheduling=scheduling_fixture(registry),
         )
         recorded, code, retained = asdict(result), result.code, result.lock_retained
         del result

@@ -57,7 +57,12 @@ class ToolCommand:
 
 
 def run_external_process(
-    command: ToolCommand, reporter: ProgressReporter, log: JobLog, clock: JobClock
+    command: ToolCommand,
+    reporter: ProgressReporter,
+    log: JobLog,
+    clock: JobClock,
+    *,
+    gpu_index: int | None = None,
 ) -> int:
     """完整捕获工具输出，并在取消时终止整个进程组。
 
@@ -66,6 +71,7 @@ def run_external_process(
         reporter: 当前作业上报对象，供检查取消/停止和保存真实 returncode。
         log: 当前作业线程安全日志；不另建输出文件或把整份输出留内存。
         clock: UTC 记录时刻与单调期限提供器，不修改全局时钟。
+        gpu_index: 当前作业所领非负物理卡号；None 沿用继承环境，不接受前端输入。
 
     Returns:
         工具正常退出时的零退出码；读线程排空并回收之后才返回。
@@ -81,6 +87,10 @@ def run_external_process(
         DefectError: 参数、依赖或时钟非法；未通过校验不启动任何进程。
 
     Side Effects:
+        gpu_index 非空时复制当前环境并强制设置 CUDA_VISIBLE_DEVICES 为该编号十进制文本、
+        CUDA_DEVICE_ORDER=PCI_BUS_ID；不修改父进程环境，并发作业不能串卡。
+        启动前把最终传给 Popen 的这两项实际值写入当前 JobLog 一行，不记录其他环境变量或秘密；
+        GPU 示例因此能展示隔离设置，不依赖 nvidia-smi 是否遵守 CUDA 环境。
         启动独立进程组，worker 锁文件描述符不可继承。stdout/stderr 每行追加前缀
         “stdout <工具名>│”/“stderr <工具名>│”并刷新，两个流各自保序，不伪造跨流总顺序。
         超长无换行输出按 PROCESS_OUTPUT_CHUNK_BYTES 分段并标记续行，内容不丢弃；
@@ -101,19 +111,32 @@ def run_external_process(
         直接子进程退出但后代仍持管道时也终止组，不能无限等 EOF；所有期限用 monotonic。
     """
     _validate_command(command)
+    environment = None
+    if gpu_index is not None:
+        if type(gpu_index) is not int or gpu_index < 0:
+            raise DefectError()
+        environment = dict(os.environ)
+        environment["CUDA_VISIBLE_DEVICES"] = str(gpu_index)
+        environment["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     reader = ClockReader(clock)
     reader.read()
-    return _ProcessRun(command, reporter, log, reader).run()
+    return _ProcessRun(command, reporter, log, reader, environment).run()
 
 
 class _ProcessRun:
     """一个直接进程及其两个读线程；独立进程组便于取消工具派生的后代。"""
 
     def __init__(
-        self, command: ToolCommand, reporter: ProgressReporter, log: JobLog, clock: ClockReader
+        self,
+        command: ToolCommand,
+        reporter: ProgressReporter,
+        log: JobLog,
+        clock: ClockReader,
+        environment: dict[str, str] | None,
     ) -> None:
         """保存当前命令及上报依赖，进程和读线程由run显式启动。"""
         self.command, self.reporter, self.log, self.clock = command, reporter, log, clock
+        self.environment = environment
         self.process: subprocess.Popen[bytes] | None = None
         self.readers: list[OutputReader] = []
         self.threads: list[Thread] = []
@@ -142,10 +165,19 @@ class _ProcessRun:
 
     def _start(self) -> None:
         """绝对程序及无shell参数来自登记执行函数，锁fd不可继承。"""
+        if self.environment is not None:
+            self.log.write_line(
+                "CUDA_VISIBLE_DEVICES="
+                + self.environment["CUDA_VISIBLE_DEVICES"]
+                + " CUDA_DEVICE_ORDER="
+                + self.environment["CUDA_DEVICE_ORDER"],
+                now=self.clock.clock.now(),
+            )
         try:
             self.process = subprocess.Popen(  # noqa: S603  # 理由：已校验绝对程序路径，登记函数提供argv，禁止shell。
                 self.command.argv,
                 cwd=self.command.cwd,
+                env=self.environment,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 start_new_session=True,

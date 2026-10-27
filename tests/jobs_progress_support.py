@@ -70,11 +70,11 @@ def diagnostic(index: int, *, rule: str = "样例规则") -> Diagnostic:
 
 @contextmanager
 def reporter_context(
-    root: Path, clock: JobClock, *, resume: bool = False
+    root: Path, clock: JobClock, *, resume: bool = False, job_id: int = 71
 ) -> Generator[tuple[ProgressReporter, Engine, ExecutionSignals, Path]]:
     """创建真实上报边界，finally释放日志和临时引擎，不开启后台线程。"""
     with job_database(root) as (engine, paths):
-        row = job_row()
+        row = job_row(job_id=job_id)
         if not resume:
             row.progress = None
             row.progress_at = None
@@ -84,7 +84,8 @@ def reporter_context(
             row.tool_exit_code = None
         with session_scope(engine) as session:
             session.add(row)
-        record = saved_record(engine)
+        with session_scope(engine, read_only=True) as session:
+            record = find_job(session, job_id)
         log, _ = open_job_log(paths, record)
         signals = ExecutionSignals(Event(), Event(), ExecutionMonitor([], None, Lock()))
         try:

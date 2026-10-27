@@ -10,6 +10,7 @@ from accounts_support import EXAMPLE_SECRET, NOW
 from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 from httpx import Client
+from jobs_scheduling_support import catalog_fixture
 
 from rdp.accounts.security import PasswordCodec
 from rdp.accounts.service import AccountService
@@ -22,10 +23,13 @@ from rdp.infra.db.connection import create_database_engine
 from rdp.infra.db.migration import migrate
 from rdp.infra.state import initialize_state, state_paths
 from rdp.jobs.registry import JobRegistry, production_registry
+from rdp.jobs.scheduling_types import SchedulingCatalog
 
 
 @contextmanager
-def job_api_case(root: Path, *, registry: JobRegistry | None = None) -> Generator[ApiCase]:
+def job_api_case(
+    root: Path, *, registry: JobRegistry | None = None, catalog: SchedulingCatalog | None = None
+) -> Generator[ApiCase]:
     """真实应用与临时迁移库，HTTP请求通过ASGI传输，不启动网络监听。"""
     paths = state_paths(PlatformConfig(state_dir=root), ("示例：数数",))
     initialize_state(paths)
@@ -43,7 +47,13 @@ def job_api_case(root: Path, *, registry: JobRegistry | None = None) -> Generato
         clock = Clock()
         app = create_app(None, database=engine, clock=clock)
         app.state.account_service = service
-        configure_jobs(app, paths, production_registry() if registry is None else registry)
+        configured_registry = production_registry() if registry is None else registry
+        configure_jobs(
+            app,
+            paths,
+            configured_registry,
+            scheduling=catalog_fixture(configured_registry) if catalog is None else catalog,
+        )
         with TestClient(
             app, raise_server_exceptions=False, headers={"Origin": "http://testserver"}
         ) as client:

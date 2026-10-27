@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from threading import Event, Lock
 
+from jobs_scheduling_support import claim_fixture, resources_fixture
 from jobs_storage_support import NOW, job_database, job_row
 
 from rdp.infra.db.connection import session_scope
@@ -37,10 +38,24 @@ def execution_case(
             row.recovery_mode = mode.value
             session.add(row)
         with session_scope(engine) as session:
-            record = claim_job(session, 71, now=NOW, paths=paths)
+            record = claim_job(session, 71, now=NOW, paths=paths, gpu_index=None)
         signals = ExecutionSignals(Event(), Event(), ExecutionMonitor([], None, Lock()))
-        yield (
-            ExecutionWork(record, ExecutionMode.FRESH, None),
-            ExecutorDependencies(engine, registry, paths, JobClock(lambda: NOW, time.monotonic)),
-            signals,
+        dependencies = ExecutorDependencies(
+            engine,
+            registry,
+            paths,
+            JobClock(lambda: NOW, time.monotonic),
+            resources=resources_fixture(registry),
         )
+        try:
+            yield (
+                ExecutionWork(
+                    record, ExecutionMode.FRESH, None, claim=claim_fixture(record, dependencies)
+                ),
+                dependencies,
+                signals,
+            )
+        finally:
+            if dependencies.resources is not None:
+                for claim in dependencies.resources.pool.claims():
+                    dependencies.resources.pool.release(claim)

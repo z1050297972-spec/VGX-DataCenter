@@ -4,8 +4,13 @@
 终态普通事务先保存最新进度，再经过 records.transition_job；禁止执行函数设置状态或结果。
 """
 
+from __future__ import annotations
+
 import logging
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import Engine
@@ -25,14 +30,21 @@ from rdp.infra.diagnostics import (
 from rdp.infra.exception_report import format_exception_report
 from rdp.infra.logging import log_context
 from rdp.infra.state import StatePaths
-from rdp.jobs import _diagnostics, _storage
+from rdp.jobs import _diagnostics, _storage, policy
 from rdp.jobs.errors import JobCancelledError, WorkerStoppingError
+from rdp.jobs.gpu import verify_gpu
 from rdp.jobs.logs import JobLog, JobLogMetadata, open_job_log
 from rdp.jobs.policy import OUTPUT_JOIN_TIMEOUT_S
 from rdp.jobs.processes import ToolCommand, run_external_process
 from rdp.jobs.progress import ExecutionSignals, ProgressReporter
 from rdp.jobs.records import StateChange, find_job, save_progress, transition_job
-from rdp.jobs.registry import JobRegistry
+from rdp.jobs.registry import (
+    EXAMPLE_GPU_TYPE,
+    EXAMPLE_NAVIGATION_TYPE,
+    MAINTENANCE_JOB_TYPES,
+    JobRegistry,
+)
+from rdp.jobs.resources import save_resource_display
 from rdp.jobs.types import (
     ExecutionMode,
     ExecutionSnapshot,
@@ -41,6 +53,13 @@ from rdp.jobs.types import (
     JobRecord,
     JobState,
 )
+
+if TYPE_CHECKING:
+    from rdp.jobs.maintenance import MaintenanceActions
+    from rdp.jobs.navigation import NavigationWriter
+    from rdp.jobs.scheduling import WorkerResources
+    from rdp.jobs.scheduling_types import ResourceClaim
+
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +78,12 @@ class ExecutionContext:
         reporter: 当前上报/取消/等待对象，每个条目完成后 report。
         log: 当前追加日志，已写开头或中断段。
         clock: 注入的两种时钟，供外部进程期限使用。
+        _navigation: 必填关键字，实例共享导航写入能力；不使用导航写入的直接执行调用可明确传 None。
+            类型只能用 write_navigation 入口，不暴露资源池、发布者或调度配置。
+        gpu_index: 当前领到的物理卡号，非负整数；无 GPU 为 None，不接受类型函数覆盖。
+        maintenance: 必填关键字，只有两个清除回调的 MaintenanceActions；非维护作业明确传 None。
+        gpu_example_command: 必填关键字，占卡示例的可信 ToolCommand；其他类型为 None，不让示例读取配置找路径。
+        navigation_example_path: 必填关键字，状态目录的示例文件绝对路径；其他类型为 None，不暴露整份路径配置。
     """
 
     job_id: int
@@ -68,6 +93,40 @@ class ExecutionContext:
     reporter: ProgressReporter
     log: JobLog
     clock: JobClock
+    _navigation: NavigationWriter | None = field(kw_only=True)
+    gpu_index: int | None = field(kw_only=True)
+    maintenance: MaintenanceActions | None = field(kw_only=True)
+    gpu_example_command: ToolCommand | None = field(kw_only=True)
+    navigation_example_path: Path | None = field(kw_only=True)
+
+    def write_navigation[T](self, verify: Callable[[], None], write: Callable[[], T]) -> T:
+        """用本 worker 共享写锁保护执行前核对与写入。
+
+        Args:
+            verify: 无参数同步核对函数，冲突抛 ConflictError，诊断由类型给出最后修改者。
+            write: 核对通过才执行的同步写入函数，不在返回后留下异步写入。
+
+        Returns:
+            write 的原返回值；不重新计算或重复调用两个回调。
+
+        Raises:
+            ConflictError: 核对失败或等锁超过 NAVIGATION_LOCK_TIMEOUT_S。
+            JobCancelledError: 等锁或进入保护段前取消，持锁期间延后到下一检查点。
+            WorkerStoppingError: 等锁/进入前停止，保护段内延后。
+            InputError: 回调输入拒绝或资源存储损坏。
+            ExternalError: 回调或展示副本发生不可跳过的 I/O 失败。
+            DefectError: _navigation 缺失、回调非法、递归取锁或其他程序异常。
+
+        Side Effects:
+            委托 _navigation.run(reporter, verify, write)，顺序和 finally 释放唯一由框架保证。
+            不由类型直接拿锁；写入残留按类型契约，取消不清产物。
+
+        Time Semantics:
+            分段等待 50 毫秒，总等待最多 300 秒；写锁内取消/停止不抛，释放后下一检查点响应。
+        """
+        if self._navigation is None:
+            raise DefectError()
+        return self._navigation.run(self.reporter, verify, write)
 
     def run_process(self, command: ToolCommand) -> int:
         """以本作业的取消、日志和时钟执行一个外部命令。
@@ -85,12 +144,16 @@ class ExecutionContext:
             DefectError: 非法命令或上下文，不在此重复记录。
 
         Side Effects:
-            委托 run_external_process，完整捕获两个输出流；本方法不写状态，不增加并行子进程。
+            委托 run_external_process 并传入 gpu_index，完整捕获两个输出流；
+            有卡时框架强制 CUDA_VISIBLE_DEVICES=<卡号>、CUDA_DEVICE_ORDER=PCI_BUS_ID，不能由作业覆盖。
+            本方法不写状态、不增加并行子进程、不修改全进程 os.environ。
 
         Time Semantics:
             执行有 command.timeout_s 上限，取消 TERM 宽限 10 秒后升级 KILL，随后有界回收。
         """
-        return run_external_process(command, self.reporter, self.log, self.clock)
+        return run_external_process(
+            command, self.reporter, self.log, self.clock, gpu_index=self.gpu_index
+        )
 
 
 @dataclass(frozen=True)
@@ -101,11 +164,13 @@ class ExecutionWork:
         record: 已领取或恢复后保持 running 的记录。
         mode: 本次执行原因，fresh/resume/restart。
         previous_progress: 恢复前持久化快照；fresh 为 None。
+        claim: 必填关键字；执行时为本次资源凭据，刚完成恢复准备但尚未领资源时必须显式 None。
     """
 
     record: JobRecord
     mode: ExecutionMode
     previous_progress: JobProgress | None
+    claim: ResourceClaim | None = field(kw_only=True)
 
 
 @dataclass(frozen=True)
@@ -117,12 +182,14 @@ class ExecutorDependencies:
         registry: 本 worker 的只读登记表。
         paths: 已初始化的状态布局，只写此布局下作业日志。
         clock: 注入时钟，墙钟持久化，monotonic 计时。
+        resources: 必填关键字，本实例资源对象；仅入口装配前或无资源的直接执行调用可显式 None，调度前必须装配完成。
     """
 
     engine: Engine
     registry: JobRegistry
     paths: StatePaths
     clock: JobClock
+    resources: WorkerResources | None = field(kw_only=True)
 
 
 def execute_job(
@@ -151,6 +218,11 @@ def execute_job(
 
     Side Effects:
         本执行线程为daemon，主循环start前登记到monitor；入口绑定job_id，finally恢复。
+        有 GPU 要求时，领取提交后在类型执行前用 verify_gpu 再核对；本实例可用卡集合为空（无配置或启动全失败）直接 ExternalError，诊断明确“平台没有可用的卡”，禁止 CPU 回退。
+        开头/中断段后写一行分配卡号；卡号由领取事务保存，作业终态后保留历史。
+        资源等待/持锁副本共用短锁补写；最终事务强制清等待和持锁标记，失败沿用整实例退出。
+        完成、失败、取消、停止、开日志/参数校验失败都 finally 归还 claim；必须先回收工具和输出资源，
+        仍存活的线程不可提前释放名额，主循环失败并保锁到退出。
         日志路径已随queued→running事务提交，只打开该路径，needs_header时先写开头，不再另开事务登记路径。
         构造reporter后在monitor锁内发布供主循环取消警告使用；每个daemon输出读线程独立copy_context。
         执行开始前普通日志打开/写头失败也先作为本条失败尝试提交终态，只有终态无法提交或资源不可回收才传播退出实例；
@@ -196,6 +268,10 @@ def recover_job(job_id: int, dependencies: ExecutorDependencies) -> ExecutionWor
         DefectError: 调用编号或dependencies本身非法；单条记录、日志、SQL/解码错误不从本边界抛出。
 
     Side Effects:
+        调用前 worker 已用一个事务统一清全部非终态等待/持锁，并清 running/cancelling 卡号。
+        本函数只做恢复准备，不需要 GPU 或类型名额，不等待容量；全部遗留行先完成此准备。
+        续跑/重跑返回 claim=None 的候选，只排在本类型新 queued 之前，调度时重新领资源，其他类型照常开始。
+        不新增 queued 状态边；准备只增加一次恢复次数，后续等待资源不重复调用本函数。
         在本边界读记录；已登记log_path但文件不存在/为空时新建原路径，先write_header再写中断段。
         中断段含旧阶段、完整最后进度、当前处理方式和原因：包括缺类型、任一声明interrupt或次数已达3。
         每种正常分支先flush中断段再写事务；事务重读状态，若Web已提交cancelling则改走取消收尾。
@@ -294,6 +370,32 @@ class _ExecutionRun:
             raise InputError(
                 (_execution_diagnostic(record, "历史参数不满足当前类型模型"),)
             ) from None
+        gpu_example_command = None
+        if definition.requires_gpu:
+            if record.gpu_index is None:
+                raise ExternalError(
+                    (
+                        _execution_diagnostic(
+                            record,
+                            "平台没有可用的卡：GPU配置为空或配置卡在启动核对时全部被移出",
+                            DiagnosticCategory.EXTERNAL,
+                        ),
+                    )
+                )
+            if dependencies.resources is None:
+                raise DefectError()
+            command = dependencies.resources.configuration.nvidia_smi
+            if command is None:
+                raise DefectError()
+            self.log.write_line(f"领到GPU卡号：{record.gpu_index}", now=dependencies.clock.now())
+            verify_gpu(record.gpu_index, command, log=self.log)
+            if record.type_name == EXAMPLE_GPU_TYPE:
+                gpu_example_command = ToolCommand(
+                    "nvidia-smi",
+                    (str(command), "-i", str(record.gpu_index)),
+                    dependencies.paths.root,
+                    policy.GPU_PROBE_TIMEOUT_S,
+                )
         context = ExecutionContext(
             record.job_id,
             parameters,
@@ -302,9 +404,31 @@ class _ExecutionRun:
             self.reporter,
             self.log,
             dependencies.clock,
+            _navigation=None
+            if dependencies.resources is None
+            else dependencies.resources.navigation,
+            gpu_index=record.gpu_index,
+            maintenance=self._maintenance_actions(),
+            gpu_example_command=gpu_example_command,
+            navigation_example_path=dependencies.paths.navigation_example
+            if record.type_name == EXAMPLE_NAVIGATION_TYPE
+            else None,
         )
         self.reporter.check_cancelled()
         definition.execute(context)
+
+    def _maintenance_actions(self) -> MaintenanceActions | None:
+        """只给两个清除类型注入已绑定的最小服务，不把引擎或配置放进上下文。"""
+        if self.work.record.type_name not in MAINTENANCE_JOB_TYPES:
+            return None
+        from rdp.jobs.maintenance import MaintenanceActions, MaintenanceService
+
+        if self.dependencies.resources is None:
+            raise DefectError()
+        service = MaintenanceService(
+            self.dependencies.engine, self.dependencies.resources.configuration.error_retention_days
+        )
+        return MaintenanceActions(service.purge_errors, service.purge_logs)
 
     def _failure(self, error: Exception) -> None:
         """统一诊断进入记录；日志失败时仍尝试落终态，不能在失败日志上递归报告。"""
@@ -409,6 +533,11 @@ class _ExecutionRun:
                 now=self.dependencies.clock.now(),
             )
 
+            # 执行函数已经退出保护段，最终进度事务同时清掉可能尚未补写的资源副本。
+            from rdp.jobs.scheduling_types import ResourceDisplay
+
+            save_resource_display(session, self.work.record.job_id, ResourceDisplay(None, False))
+
     def _close(self) -> None:
         """只关闭无读线程使用的文件，活资源留在monitor交主循环保锁。"""
         monitor = self.signals.monitor
@@ -427,6 +556,8 @@ class _ExecutionRun:
                 self.log.close()
             except Exception:
                 logger.error("关闭作业日志失败，已保存的状态不回滚", exc_info=True)
+        if not alive and self.work.claim is not None and self.dependencies.resources is not None:
+            self.dependencies.resources.pool.release(self.work.claim)
 
 
 def _execution_diagnostic(

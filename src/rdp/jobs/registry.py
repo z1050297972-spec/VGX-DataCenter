@@ -15,12 +15,26 @@ from typing import TYPE_CHECKING, cast, get_args
 from pydantic import AliasChoices, AliasPath, BaseModel, SecretBytes, SecretStr
 
 from rdp.infra.actors import is_display_name
+from rdp.infra.config import MAX_JOB_CONCURRENCY
 from rdp.infra.diagnostics import DefectError
+from rdp.infra.ids import JOB_TYPE_KEY_PATTERN
 from rdp.jobs.policy import JOB_DISPLAY_NAME_MAX_CHARS
 from rdp.jobs.types import RecoveryMode
 
 if TYPE_CHECKING:
     from rdp.jobs.execution import ExecutionContext
+
+
+# 类型键是持久化协议；登记、执行装配、定时规则和HTTP入口共用，不复用历史含义。
+EXAMPLE_GPU_TYPE = "example_gpu"
+EXAMPLE_NAVIGATION_TYPE = "example_navigation"
+PURGE_ERRORS_TYPE = "purge_errors"
+PURGE_AUDIT_LOGS_TYPE = "purge_audit_logs"
+# 清除作业固定名称也用于每日规则身份，不能作为可随意改写的界面文案。
+PURGE_ERRORS_NAME = "清除过期报错"
+PURGE_AUDIT_LOGS_NAME = "清除过期日志"
+# 两个清除类型共用维护能力和重跑约束，避免登记校验与执行装配各维护一份集合。
+MAINTENANCE_JOB_TYPES = frozenset({PURGE_ERRORS_TYPE, PURGE_AUDIT_LOGS_TYPE})
 
 
 @dataclass(frozen=True)
@@ -32,6 +46,8 @@ class JobDefinition:
         display_name: 中文显示名兼目录分量，1-40 码点；无首尾空白、控制字符、斜杠、反斜杠，非 . 或 ..。
         parameters_model: BaseModel 子类，extra=forbid、hide_input_in_errors=True，无秘密字段。
         recovery_mode: resume/restart/interrupt 三选一，不由提交人覆盖。
+        concurrency: 默认 1，严格整数 1 至 MAX_JOB_CONCURRENCY；配置可按类型覆盖。
+        requires_gpu: 默认 False，严格布尔；True 时领取必须同时申请 GPU，空配置在执行时失败。
         execute: 仅接收 ExecutionContext 的同步函数，成功返回 None；每一步至多 JOB_CHECKPOINT_MAX_S
             到达检查点，所有等待经上下文；异常由执行器外层收口，不自行写作业状态或结果。
     """
@@ -41,6 +57,8 @@ class JobDefinition:
     parameters_model: type[BaseModel]
     recovery_mode: RecoveryMode
     execute: Callable[[ExecutionContext], None]
+    concurrency: int = 1
+    requires_gpu: bool = False
 
 
 class JobRegistry:
@@ -77,7 +95,8 @@ class JobRegistry:
 
         Raises:
             DefectError: 重复键/显示名、路径分量不合法、长度越界、非 Pydantic 模型、
-                非 callable、恢复方式非法，或模型显式声明秘密字段/SecretStr/SecretBytes。
+                非 callable、恢复方式非法、concurrency 不是 1-MAX_JOB_CONCURRENCY 的严格整数、
+                requires_gpu 不是 bool，或模型显式声明秘密字段/SecretStr/SecretBytes。
 
         Side Effects:
             原子增加一项；失败保持原表。不创建日志目录、不执行模型或作业。
@@ -87,6 +106,12 @@ class JobRegistry:
         """
         if not isinstance(cast(object, definition), JobDefinition) or not _valid_key(
             definition.type_name
+        ):
+            raise DefectError()
+        if (
+            type(definition.concurrency) is not int
+            or not 1 <= definition.concurrency <= MAX_JOB_CONCURRENCY
+            or type(definition.requires_gpu) is not bool
         ):
             raise DefectError()
         if definition.type_name in self._definitions:
@@ -152,13 +177,14 @@ class JobRegistry:
 
 
 def production_registry() -> JobRegistry:
-    """构造仅含“示例：数数”的生产登记表。
+    """构造示例与维护作业的生产登记表。
 
     Args:
         无。
 
     Returns:
-        新 JobRegistry，类型键 example_count；恢复方式为标记中断。
+        新 JobRegistry：example_count、example_gpu、example_navigation、purge_errors、purge_audit_logs。
+        三个示例为 interrupt，两个清除为 restart；只有 example_gpu 需要 GPU，各类默认并发 1。
 
     Raises:
         DefectError: 示例类型的静态定义违反登记契约。
@@ -171,6 +197,13 @@ def production_registry() -> JobRegistry:
     """
     # 延迟导入避免登记定义和执行上下文的模块环；每次构造都返回独立对象。
     from rdp.jobs.example import CountParameters, execute_count
+    from rdp.jobs.maintenance import PurgeParameters, execute_purge_errors, execute_purge_logs
+    from rdp.jobs.resource_examples import (
+        GpuExampleParameters,
+        NavigationExampleParameters,
+        execute_gpu_example,
+        execute_navigation_example,
+    )
 
     registry = JobRegistry()
     registry.register(
@@ -178,12 +211,44 @@ def production_registry() -> JobRegistry:
             "example_count", "示例：数数", CountParameters, RecoveryMode.INTERRUPT, execute_count
         )
     )
+    for definition in (
+        JobDefinition(
+            EXAMPLE_GPU_TYPE,
+            "示例：占用 GPU",
+            GpuExampleParameters,
+            RecoveryMode.INTERRUPT,
+            execute_gpu_example,
+            requires_gpu=True,
+        ),
+        JobDefinition(
+            EXAMPLE_NAVIGATION_TYPE,
+            "示例：写锁",
+            NavigationExampleParameters,
+            RecoveryMode.INTERRUPT,
+            execute_navigation_example,
+        ),
+        JobDefinition(
+            PURGE_ERRORS_TYPE,
+            PURGE_ERRORS_NAME,
+            PurgeParameters,
+            RecoveryMode.RESTART,
+            execute_purge_errors,
+        ),
+        JobDefinition(
+            PURGE_AUDIT_LOGS_TYPE,
+            PURGE_AUDIT_LOGS_NAME,
+            PurgeParameters,
+            RecoveryMode.RESTART,
+            execute_purge_logs,
+        ),
+    ):
+        registry.register(definition)
     return registry
 
 
 def _valid_key(value: object) -> bool:
     """按登记契约全匹配英文稳定键，不能接受末尾换行或隐式强制转换。"""
-    return isinstance(value, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", value) is not None
+    return isinstance(value, str) and re.fullmatch(JOB_TYPE_KEY_PATTERN, value) is not None
 
 
 # 显式秘密字段不能进入作业记录或日志；只识别字段/别名，不猜测任意业务文本是否含秘密。

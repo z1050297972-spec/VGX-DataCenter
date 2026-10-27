@@ -1,9 +1,9 @@
-"""串行worker循环的内部实现；主线程只做短事务，执行线程和输出线程由同一monitor追踪。"""
+"""worker循环内部边界；每作业独立监视，恢复准备不拿资源，所有线程共用停止截止。"""
 
 import logging
 import time
 from contextvars import copy_context
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from threading import Event, Lock, Thread
 
 from sqlalchemy import select
@@ -22,58 +22,124 @@ from rdp.jobs._clock import ClockReader
 from rdp.jobs.execution import ExecutionWork, ExecutorDependencies, execute_job, recover_job
 from rdp.jobs.models import JobRow
 from rdp.jobs.progress import ExecutionMonitor, ExecutionSignals
-from rdp.jobs.records import claim_job, find_job, next_queued_job, save_heartbeat
-from rdp.jobs.types import ExecutionMode, JobState, WorkerHeartbeat
+from rdp.jobs.records import find_job, return_unstarted_job, save_heartbeat
+from rdp.jobs.scheduling import Scheduler
+from rdp.jobs.types import JobState, WorkerHeartbeat
 from rdp.jobs.worker import WorkerLoopResult
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class _Running:
+    """一个已启动作业的独立生命周期。
+
+    Attributes:
+        work: 已提交领取记录和本实例凭据。
+        monitor: 只包含本作业执行及输出线程。
+        signals: 独立取消Event，停止Event由本实例共享。
+        thread: 启动前登记的daemon执行线程。
+        cancel_seen: 本实例首次观察取消的单调秒数；尚未取消为None。
+        cancel_warned: 是否已经报告一次取消超时。
+    """
+
+    work: ExecutionWork
+    monitor: ExecutionMonitor
+    signals: ExecutionSignals
+    thread: Thread
+    cancel_seen: float | None = None
+    cancel_warned: bool = False
+
+
 class Loop:
-    """一次worker实例状态；停止或执行持久化失败后不再写心跳或领取。"""
+    """一次worker实例的执行集合，终态持久化失败后整个实例停止领取和心跳。"""
 
     def __init__(
         self, dependencies: ExecutorDependencies, stop: Event, heartbeat: WorkerHeartbeat
     ) -> None:
-        """保存本实例依赖、恢复游标和线程监视状态，初始时钟非法在启动前拒绝。"""
+        """保存依赖并验证注入时钟；执行集合只由当前主线程维护。"""
+        if dependencies.resources is None:
+            raise DefectError()
         self.dependencies, self.stop, self.heartbeat = dependencies, stop, heartbeat
+        self.resources = dependencies.resources
         self.clock = ClockReader(dependencies.clock)
         self.next_heartbeat = self.clock.read()
-        self.cursor = 0
-        self.recovery_done = False
-        self.monitor: ExecutionMonitor | None = None
-        self.signals: ExecutionSignals | None = None
-        self.thread: Thread | None = None
-        self.job_id: int | None = None
+        self.running: dict[int, _Running] = {}
         self.failed = False
         self.execution_failed = Event()
-        self.cancel_seen: float | None = None
-        self.cancel_warned = False
+        self.scheduler: Scheduler | None = None
+        self._unstarted: ExecutionWork | None = None
 
     def run(self) -> WorkerLoopResult:
-        """循环结束共用一个停止截止；运行中的基础设施故障转换失败结果。"""
+        """先完成全部恢复准备，再循环观察、定时检查和按类型领取。"""
         try:
+            self._prepare()
             while not self.stop.is_set():
                 if self.execution_failed.is_set():
                     self.failed = True
                     break
                 self._heartbeat()
-                if self.thread is not None:
-                    self._observe()
-                else:
-                    work = self._next()
-                    if work is not None:
-                        self._start(work)
+                for running in tuple(self.running.values()):
+                    self._observe(running)
                 if self.failed:
                     break
+                if self.scheduler is None:
+                    raise DefectError()
+                self.scheduler.tick_schedules()
+                self._fill()
                 self.stop.wait(policy.WORKER_POLL_INTERVAL_S)
         except Exception:
             self.failed = True
             logger.error("worker主循环失败，停止领取及心跳", exc_info=True)
         return self._shutdown()
 
+    def _prepare(self) -> None:
+        """逐编号准备所有遗留行，不受资源池容量约束；准备期间也更新心跳。"""
+        cursor = 0
+        recovered: list[ExecutionWork] = []
+        while not self.stop.is_set():
+            self._heartbeat()
+            with session_scope(self.dependencies.engine, read_only=True) as session:
+                number = session.scalar(
+                    select(JobRow.job_id)
+                    .where(
+                        JobRow.job_id > cursor,
+                        JobRow.state.in_((JobState.RUNNING.value, JobState.CANCELLING.value)),
+                    )
+                    .order_by(JobRow.job_id)
+                    .limit(1)
+                )
+            if number is None:
+                break
+            cursor = number
+            work = recover_job(number, self.dependencies)
+            if work is not None:
+                recovered.append(work)
+        self.scheduler = Scheduler(self.dependencies, self.resources, recovered=tuple(recovered))
+
+    def _fill(self) -> None:
+        """至多填满声明容量的线程槽，快作业也不能令本轮永远停在领取循环。"""
+        if self.scheduler is None:
+            raise DefectError()
+        # 加一是未登记类型的唯一诊断槽；已结束但尚未观察的线程也先占槽，下一轮再回收。
+        capacity = (
+            sum(item.concurrency for item in self.resources.configuration.catalog.settings.types)
+            + 1
+        )
+        for _ in range(max(0, capacity - len(self.running))):
+            if self.stop.is_set() or self.execution_failed.is_set():
+                return
+            work = self.scheduler.claim_next()
+            if work is None:
+                return
+            self._unstarted = work
+            if self.stop.is_set() or self.execution_failed.is_set():
+                self._return_unstarted(work)
+                return
+            self._start(work)
+
     def _heartbeat(self) -> None:
-        """入场短锁忙仅警告一次；入场后失败不隐藏成正常在线。"""
+        """入场短锁忙只跳过本次，不把入场后的失败当作正常在线。"""
         now = self.clock.read()
         if now < self.next_heartbeat:
             return
@@ -93,92 +159,90 @@ class Loop:
                 return
             raise
 
-    def _next(self) -> ExecutionWork | None:
-        """恢复扫描每次只取一个编号；失败行保留running也不会再次命中。"""
-        if not self.recovery_done:
-            with session_scope(self.dependencies.engine, read_only=True) as session:
-                job_id = session.scalar(
-                    select(JobRow.job_id)
-                    .where(
-                        JobRow.job_id > self.cursor,
-                        JobRow.state.in_((JobState.RUNNING.value, JobState.CANCELLING.value)),
-                    )
-                    .order_by(JobRow.job_id)
-                    .limit(1)
-                )
-            if job_id is not None:
-                self.cursor = job_id
-                return recover_job(job_id, self.dependencies)
-            self.recovery_done = True
-        with session_scope(self.dependencies.engine, read_only=True) as session:
-            candidate = next_queued_job(session)
-        if candidate is None:
-            return None
-        try:
-            with session_scope(self.dependencies.engine) as session:
-                record = claim_job(
-                    session,
-                    candidate.job_id,
-                    now=self.dependencies.clock.now(),
-                    paths=self.dependencies.paths,
-                )
-        except ConflictError:
-            # Web可能先提交排队取消；不把正常的条件更新落败当作执行失败。
-            return None
-        return ExecutionWork(record, ExecutionMode.FRESH, None)
-
     def _start(self, work: ExecutionWork) -> None:
-        """登记daemon执行线程后才start，显式复制调用方contextvars。"""
-        self.monitor = ExecutionMonitor([], None, Lock())
-        self.signals = ExecutionSignals(Event(), self.stop, self.monitor)
-        self.job_id = work.record.job_id
-        self.cancel_seen = None
-        self.cancel_warned = False
-        context = copy_context()
-        self.thread = Thread(
-            target=context.run, args=(self._execute, work, self.signals), daemon=True
-        )
-        self.monitor.threads.append(self.thread)
-        self.thread.start()
+        """先登记再启动；只有确认线程从未启动的失败才退回领取，已经启动的线程交停止收尾。"""
+        thread: Thread | None = None
+        try:
+            monitor = ExecutionMonitor([], None, Lock())
+            signals = ExecutionSignals(Event(), self.stop, monitor)
+            thread = Thread(
+                target=copy_context().run, args=(self._execute, work, signals), daemon=True
+            )
+            running = _Running(work, monitor, signals, thread)
+            monitor.threads.append(thread)
+            self.running[work.record.job_id] = running
+            thread.start()
+        except BaseException:
+            if thread is None or thread.ident is None:
+                self.running.pop(work.record.job_id, None)
+                self._return_unstarted(work)
+            else:
+                # start已交给操作系统时不能回退数据库或提前归还资源，即使调用随后抛异常。
+                self._unstarted = None
+            raise
+        self._unstarted = None
+
+    def _return_unstarted(self, work: ExecutionWork) -> None:
+        """本实例唯一的未启动领取才能退回；数据库失败仍归还未使用名额，并向主循环传播失败。"""
+        running = self.running.get(work.record.job_id)
+        if (
+            self._unstarted is not work
+            or (running is not None and running.thread.ident is not None)
+            or work.claim is None
+        ):
+            raise DefectError()
+        if not any(claim is work.claim for claim in self.resources.pool.claims()):
+            raise DefectError()
+        try:
+            with session_scope_with_lock_timeout(
+                self.dependencies.engine, busy_timeout_ms=policy.PROGRESS_LOCK_TIMEOUT_MS
+            ) as session:
+                return_unstarted_job(
+                    session, work.record, mode=work.mode, now=self.dependencies.clock.now()
+                )
+        except BaseException as error:
+            error.add_note(f"未启动领取退回失败 job_id={work.record.job_id}")
+            raise
+        finally:
+            self._unstarted = None
+            self.resources.pool.release(work.claim)
 
     def _execute(self, work: ExecutionWork, signals: ExecutionSignals) -> None:
-        """执行器已记录持久化失败，本线程只通知主循环，不重复ERROR。"""
+        """执行边界已报告持久化失败，线程只通知主循环，不重复ERROR。"""
         try:
             execute_job(work, self.dependencies, signals)
         except Exception:
             self.execution_failed.set()
 
-    def _observe(self) -> None:
-        """执行函数未返回时仍查取消，返回后先确认全部输出资源结束才能领取下一条。"""
-        if not (self.thread is not None and self.signals is not None and self.job_id is not None):
-            raise DefectError()
-        if not self.thread.is_alive():
-            self.thread.join(timeout=0)
-            if self.execution_failed.is_set() or self._alive():
+    def _observe(self, running: _Running) -> None:
+        """独立传播取消，执行线程结束后仍须确认输出线程已回收。"""
+        number = running.work.record.job_id
+        if not running.thread.is_alive():
+            running.thread.join(timeout=0)
+            if self.execution_failed.is_set() or self._monitor_alive(running.monitor):
                 self.failed = True
             else:
-                self.thread = None
+                self.running.pop(number)
             return
         with session_scope(self.dependencies.engine, read_only=True) as session:
-            record = find_job(session, self.job_id)
+            record = find_job(session, number)
         if record.state is JobState.CANCELLING:
-            self.signals.cancelled.set()
-            self._cancel_stall()
+            running.signals.cancelled.set()
+            self._cancel_stall(running)
 
-    def _cancel_stall(self) -> None:
-        """首次观察取消计单调时长；先置一次标记，日志故障也不反复打扰。"""
+    def _cancel_stall(self, running: _Running) -> None:
+        """每个作业独立计时且只警告一次，不把另一线程的取消时间混入。"""
         now = self.clock.read()
-        if self.cancel_seen is None:
-            self.cancel_seen = now
-        elapsed = now - self.cancel_seen
-        if self.cancel_warned or elapsed <= policy.CANCEL_STALL_WARNING_S:
+        if running.cancel_seen is None:
+            running.cancel_seen = now
+        elapsed = now - running.cancel_seen
+        if running.cancel_warned or elapsed <= policy.CANCEL_STALL_WARNING_S:
             return
-        self.cancel_warned = True
-        logger.warning(
-            "作业 job_id=%s 未响应取消，已等 %.3f 秒，保持正在取消", self.job_id, elapsed
-        )
-        monitor = self.monitor
-        if monitor is None or not monitor.lock.acquire(timeout=policy.OUTPUT_JOIN_TIMEOUT_S):
+        running.cancel_warned = True
+        number = running.work.record.job_id
+        logger.warning("作业 job_id=%s 未响应取消 elapsed_s=%.3f，保持正在取消", number, elapsed)
+        monitor = running.monitor
+        if not monitor.lock.acquire(timeout=policy.OUTPUT_JOIN_TIMEOUT_S):
             return
         try:
             reporter = monitor.reporter
@@ -193,30 +257,36 @@ class Loop:
                         category=DiagnosticCategory.CONFLICT,
                         stage="未知阶段" if progress is None else progress.stage_name,
                         source="平台",
-                        objects=(DiagnosticObject(key="job_id", value=str(self.job_id)),),
+                        objects=(DiagnosticObject(key="job_id", value=str(number)),),
                         rule="执行函数须及时响应取消",
                         actual=f"已等待{elapsed:.3f}秒仍未响应取消",
                         expected="到达检查点后退出",
-                        consequence="作业保持正在取消，暂不能领取下一作业",
+                        consequence="该作业保持正在取消并继续占用本类型名额",
                         next_step="检查执行函数检查点或重启worker",
                     )
                 )
             except Exception:
-                logger.warning("作业 job_id=%s 的取消诊断未完整写入，继续等待执行线程", self.job_id)
+                logger.warning("作业 job_id=%s 的取消诊断未完整写入，继续等待执行线程", number)
 
-    def _alive(self) -> tuple[Thread, ...]:
-        """monitor只在短锁内读列表，不在锁内join。"""
-        if self.monitor is None:
-            return ()
-        if not self.monitor.lock.acquire(timeout=policy.OUTPUT_JOIN_TIMEOUT_S):
+    def _monitor_alive(self, monitor: ExecutionMonitor) -> tuple[Thread, ...]:
+        """只在短锁内复制存活线程，不在监视锁内join。"""
+        if not monitor.lock.acquire(timeout=policy.OUTPUT_JOIN_TIMEOUT_S):
             raise DefectError()
         try:
-            return tuple(thread for thread in self.monitor.threads if thread.is_alive())
+            return tuple(thread for thread in monitor.threads if thread.is_alive())
         finally:
-            self.monitor.lock.release()
+            monitor.lock.release()
+
+    def _alive(self) -> tuple[Thread, ...]:
+        """枚举本实例所有作业登记的存活线程，不扫描调用方无关线程。"""
+        return tuple(
+            thread
+            for running in self.running.values()
+            for thread in self._monitor_alive(running.monitor)
+        )
 
     def _shutdown(self) -> WorkerLoopResult:
-        """共享总预算回收全部登记线程；坏注入时钟不能让收尾也失败或无限等待。"""
+        """全部执行/读线程共用截止，坏注入时钟不能延长真实收尾上限。"""
         self.stop.set()
         real_deadline = time.monotonic() + policy.WORKER_STOP_TIMEOUT_S
         try:
@@ -226,7 +296,6 @@ class Loop:
             deadline = None
         alive = self._alive()
         while alive:
-            # 真实单调上限防止坏/停滞的注入时钟扩展等待；正常情况仍受注入截止约束。
             remaining = max(0.0, real_deadline - time.monotonic())
             if deadline is not None:
                 try:

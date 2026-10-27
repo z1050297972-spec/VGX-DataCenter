@@ -51,7 +51,7 @@ def historical_audit_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     tables = {
         name: table
         for name, table in metadata.tables.items()
-        if name not in {"jobs", "worker_heartbeat"}
+        if name not in {"jobs", "worker_heartbeat", "schedule_submissions", "worker_gpu_checks"}
     }
     monkeypatch.setattr(metadata, "tables", tables)
     # 唯一新增的历史CHECK值由0004负责；旧票仍核对0003的完整SQL，不改成最新版再冒充历史覆盖。
@@ -62,6 +62,14 @@ def historical_audit_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         ):
             monkeypatch.setattr(
                 constraint, "sqltext", text("object_kind IN ('account','audit_settings')")
+            )
+    for constraint in metadata.tables["operation_logs"].constraints:
+        if (
+            isinstance(constraint, CheckConstraint)
+            and constraint.name == "ck_operation_logs_ops_actor"
+        ):
+            monkeypatch.setattr(
+                constraint, "sqltext", text("actor_id IS NOT NULL OR actor_name = '运维'")
             )
     yield
 

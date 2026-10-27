@@ -28,7 +28,7 @@ def prepare(job_id: int, dependencies: ExecutorDependencies) -> ExecutionWork | 
         if result.summary is not None:
             log.write_summary(result.summary, now=dependencies.clock.now())
             return None
-        return ExecutionWork(result, ExecutionMode(mode), record.progress)
+        return ExecutionWork(result, ExecutionMode(mode), record.progress, claim=None)
     finally:
         log.close()
 
@@ -57,7 +57,8 @@ def _commit(
     log: JobLog,
     dependencies: ExecutorDependencies,
 ) -> JobRecord:
-    """恢复资格和重跑清零原子提交；状态改变仍只经过transition_job。"""
+    """恢复资格、重跑清零与资源展示复位原子提交；状态仍只经过 transition_job。"""
+    # 待实现：启动统一清空已先完成；这里只准备恢复资格，不取名额或等待容量。
     with session_scope(dependencies.engine) as session, _storage.operation(session, write=True):
         current = find_job(session, record.job_id)
         if current.state is JobState.CANCELLING:

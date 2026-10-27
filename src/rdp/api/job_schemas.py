@@ -13,7 +13,7 @@ from rdp.jobs.policy import (
     JOB_RECOVERY_LIMIT,
     JOB_TYPE_MAX_CHARS,
 )
-from rdp.jobs.types import JobProgress, JobState, JobSummary, RecoveryMode
+from rdp.jobs.types import JobProgress, JobState, JobSummary, RecoveryMode, WaitReason
 
 
 class JobPayload(BaseModel):
@@ -56,7 +56,7 @@ class JobResponse(JobPayload):
         type_name: 稳定类型键，1-64 字符。
         display_name: 提交时显示名快照，1-40 码点。
         parameters: 无秘密参数 JSON；历史原值，不按新版本静默改写。
-        submitted_by: 历史身份和 deleted 标记；前端显示“名字（已删除）”。
+        submitted_by: 历史身份和 deleted 标记；系统的 account_id=None、name=“系统”、deleted=False。
         submitted_at: UTC 提交时刻。
         resubmitted_from: 原作业编号文本或 None。
         state: 六种状态之一。
@@ -70,6 +70,9 @@ class JobResponse(JobPayload):
         diagnostics: 有界诊断组，真实总数与前 N 样例分别展示。
         recovery_mode: 提交时恢复方式快照，只作记录及interrupt保护。
         recovery_count: 自动恢复资格累计次数，0至JOB_RECOVERY_LIMIT；不随重跑清零。
+        gpu_index: 物理卡号，未领过 None，终态保留历史。
+        wait_reason: gpu/navigation_lock/None，不新增 state；终态及恢复清空。
+        holds_navigation_lock: worker 保存的持锁展示副本，终态 False。
     """
 
     job_id: AccountId
@@ -90,6 +93,9 @@ class JobResponse(JobPayload):
     diagnostics: tuple[DiagnosticGroup, ...]
     recovery_mode: RecoveryMode
     recovery_count: int = Field(strict=True, ge=0, le=JOB_RECOVERY_LIMIT)
+    gpu_index: int | None = Field(default=None, strict=True, ge=0)
+    wait_reason: WaitReason | None = None
+    holds_navigation_lock: bool = False
 
 
 class JobListResponse(JobPayload):

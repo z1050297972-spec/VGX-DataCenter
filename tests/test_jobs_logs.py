@@ -76,7 +76,11 @@ def test_utc_filename(tmp_path: Path) -> None:
             session.add(job_row(JobState.QUEUED))
         with session_scope(engine) as session:
             record = claim_job(
-                session, 71, now=NOW.astimezone(timezone(timedelta(hours=-6))), paths=paths
+                session,
+                71,
+                now=NOW.astimezone(timezone(timedelta(hours=-6))),
+                paths=paths,
+                gpu_index=None,
             )
         assert record.log_path == "logs/示例：数数/2026-10-26_120000_000.log"
         log, needs_header = open_job_log(paths, record)
@@ -103,7 +107,7 @@ def test_millisecond_collision(tmp_path: Path) -> None:
         records: list[JobRecord] = []
         for job_id in (71, 72):
             with session_scope(engine) as session:
-                records.append(claim_job(session, job_id, now=NOW, paths=paths))
+                records.append(claim_job(session, job_id, now=NOW, paths=paths, gpu_index=None))
         assert [r.log_path for r in records] == [
             "logs/示例：数数/2026-10-26_120000_000.log",
             "logs/示例：数数/2026-10-26_120000_000_72.log",
@@ -111,7 +115,9 @@ def test_millisecond_collision(tmp_path: Path) -> None:
         existing = paths.logs / "示例：数数/2026-10-26_120001_000.log"
         existing.write_text("历史文件\n")
         with session_scope(engine) as session:
-            third = claim_job(session, 73, now=NOW + timedelta(seconds=1), paths=paths)
+            third = claim_job(
+                session, 73, now=NOW + timedelta(seconds=1), paths=paths, gpu_index=None
+            )
         assert third.log_path == "logs/示例：数数/2026-10-26_120001_000_73.log"
         for record in records + [third]:
             log, needs_header = open_job_log(paths, record)
@@ -361,7 +367,9 @@ def test_missing_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         assert fixture.client.get(path).json()["tail"]["status"] == "not_started"
         paths = state_paths(PlatformConfig(state_dir=tmp_path), ("示例：数数",))
         with session_scope(fixture.engine) as session:
-            record = claim_job(session, int(identifier), now=fixture.clock.value, paths=paths)
+            record = claim_job(
+                session, int(identifier), now=fixture.clock.value, paths=paths, gpu_index=None
+            )
         assert record.log_path is not None
         target = tmp_path / record.log_path
         target.write_text("旧日志\n")
@@ -576,7 +584,7 @@ def test_claim_atomic_path(tmp_path: Path) -> None:
         with session_scope(engine) as session:
             session.add(job_row(JobState.QUEUED))
         with pytest.raises(RuntimeError, match="提交失败"), session_scope(engine) as session:
-            claimed = claim_job(session, 71, now=NOW, paths=paths)
+            claimed = claim_job(session, 71, now=NOW, paths=paths, gpu_index=None)
             assert (
                 claimed.state is JobState.RUNNING and claimed.started_at == NOW and claimed.log_path
             )

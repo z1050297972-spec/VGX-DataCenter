@@ -80,9 +80,9 @@ class HistoricalActorResponse(AuditPayload):
     """不可变历史身份和本次查询所得的删除标记。
 
     Attributes:
-        account_id: 正整数十进制文本；运维 None，未知登录账号不构造本对象。
-        name: 当时显示名，1-64 码点，运维固定“运维”。
-        deleted: 当前快照编号不存在为 True；运维 False，必填。
+        account_id: 正整数十进制文本；运维或系统 None，未知登录账号不构造本对象。
+        name: 当时显示名，1-64 码点；空编号固定为“运维”或“系统”。
+        deleted: 当前快照编号不存在为 True；运维/系统 False，必填。
     """
 
     account_id: AccountId | None

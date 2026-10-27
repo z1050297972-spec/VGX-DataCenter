@@ -17,6 +17,12 @@ from jobs_execution_support import execution_case
 from jobs_loop_support import running_loop, wait_for
 from jobs_process_resources import BlockedTool
 from jobs_progress_support import MutableClock, saved_record
+from jobs_scheduling_support import (
+    claim_fixture,
+    fresh_dependencies,
+    resources_fixture,
+    scheduling_fixture,
+)
 from jobs_storage_support import NOW, PROGRESS, job_row
 from sqlalchemy import select
 
@@ -76,7 +82,9 @@ def test_serial_execution(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             dependencies, clock=JobClock(lambda: datetime.now(UTC), time.monotonic)
         )
         result = run_loop(
-            dependencies, stop, WorkerHeartbeat("00000000000040008000000000000001", 123, NOW, NOW)
+            fresh_dependencies(dependencies),
+            stop,
+            WorkerHeartbeat("00000000000040008000000000000001", 123, NOW, NOW),
         )
         assert result.code == 0 and result.unreaped_threads == ()
         assert order == [72] and heartbeats[0] > NOW
@@ -102,7 +110,9 @@ def test_recovery_priority(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             session.add(job_row(JobState.QUEUED, job_id=72))
         stop = Event()
         result = run_loop(
-            dependencies, stop, WorkerHeartbeat("00000000000040008000000000000001", 123, NOW, NOW)
+            fresh_dependencies(dependencies),
+            stop,
+            WorkerHeartbeat("00000000000040008000000000000001", 123, NOW, NOW),
         )
         assert result.code == 0 and order == [(71, "resume"), (72, "fresh")]
         assert saved_record(dependencies.engine).started_at == work.record.started_at
@@ -119,6 +129,8 @@ def test_resume_context(tmp_path: Path) -> None:
             save_progress(session, 71, ExecutionSnapshot(previous, (), ("产物",), -2, 4.5), now=NOW)
         recovered = recover_job(71, dependencies)
         assert recovered is not None and recovered.previous_progress == previous
+        dependencies = fresh_dependencies(dependencies)
+        recovered = replace(recovered, claim=claim_fixture(recovered.record, dependencies))
         record = execute_job(recovered, dependencies, signals)
         assert len(observed) == 1 and observed[0].mode.value == "resume"
         assert observed[0].previous_progress == previous
@@ -147,6 +159,8 @@ def test_restart_context(tmp_path: Path) -> None:
             save_progress(session, 71, ExecutionSnapshot(previous, (), ("产物",), -2, 4.5), now=NOW)
         recovered = recover_job(71, dependencies)
         assert recovered is not None and recovered.previous_progress == previous
+        dependencies = fresh_dependencies(dependencies)
+        recovered = replace(recovered, claim=claim_fixture(recovered.record, dependencies))
         record = execute_job(recovered, dependencies, signals)
         assert previous_values == [previous] and initial[0].progress is None
         assert initial[0].diagnostics == () and initial[0].tool_exit_code is None
@@ -300,7 +314,7 @@ def test_stop_in_process(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
         thread = Thread(
             target=lambda: results.append(
                 run_loop(
-                    dependencies,
+                    fresh_dependencies(dependencies),
                     stop,
                     WorkerHeartbeat("00000000000040008000000000000001", 123, NOW, NOW),
                 )
@@ -327,12 +341,18 @@ def test_lock_error_codes(tmp_path: Path) -> None:
     migrate(paths, now=NOW)
     engine = create_database_engine(paths.database)
     dependencies = ExecutorDependencies(
-        engine, production_registry(), paths, JobClock(lambda: NOW, time.monotonic)
+        engine,
+        production_registry(),
+        paths,
+        JobClock(lambda: NOW, time.monotonic),
+        resources=resources_fixture(production_registry()),
     )
     settings = LoggingSettings("worker", paths.logs)
     first = worker_lock(paths)
     try:
-        result = run_worker(dependencies, Event(), settings)
+        result = run_worker(
+            dependencies, Event(), settings, scheduling=scheduling_fixture(dependencies.registry)
+        )
         assert result.code == 2 and not result.lock_retained
         assert (
             "另一个 worker 正在运行" in result.message and str(paths.worker_lock) in result.message
@@ -343,11 +363,15 @@ def test_lock_error_codes(tmp_path: Path) -> None:
     try:
         stop = Event()
         stop.set()
-        result = run_worker(dependencies, stop, settings)
+        result = run_worker(
+            dependencies, stop, settings, scheduling=scheduling_fixture(dependencies.registry)
+        )
         assert result.code == 0 and not result.lock_retained
         paths.worker_lock.unlink()
         paths.worker_lock.mkdir()
-        result = run_worker(dependencies, Event(), settings)
+        result = run_worker(
+            dependencies, Event(), settings, scheduling=scheduling_fixture(dependencies.registry)
+        )
         assert result.code == 1
     finally:
         engine.dispose()
@@ -379,7 +403,7 @@ def test_context_logging(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
         stop = Event()
         with log_context(job_id=99, request_id="00000000000040008000000000000001"):
             result = run_loop(
-                dependencies,
+                fresh_dependencies(dependencies),
                 stop,
                 WorkerHeartbeat("00000000000040008000000000000001", 123, NOW, NOW),
             )
@@ -590,7 +614,9 @@ def test_recovery_heartbeat_not_blocked(tmp_path: Path, monkeypatch: pytest.Monk
         )
         stop = Event()
         result = run_loop(
-            dependencies, stop, WorkerHeartbeat("00000000000040008000000000000001", 123, NOW, NOW)
+            fresh_dependencies(dependencies),
+            stop,
+            WorkerHeartbeat("00000000000040008000000000000001", 123, NOW, NOW),
         )
         assert (
             result.code == 0 and seen[0] is not None and seen[1] is not None and seen[1] > seen[0]
@@ -752,7 +778,9 @@ def test_recovery_scan_advances(
             connection.execute("UPDATE jobs SET parameters='{broken' WHERE job_id=71")
         stop = Event()
         result = run_loop(
-            dependencies, stop, WorkerHeartbeat("00000000000040008000000000000001", 123, NOW, NOW)
+            fresh_dependencies(dependencies),
+            stop,
+            WorkerHeartbeat("00000000000040008000000000000001", 123, NOW, NOW),
         )
         assert result.code == 0 and executed == [72]
         assert len([entry for entry in caplog.records if "跳过该条" in entry.getMessage()]) == 1
@@ -1061,7 +1089,7 @@ def test_runtime_clock_failure_still_returns_failure(tmp_path: Path) -> None:
 
     with execution_case(tmp_path, {"steps": 3, "interval_ms": 0}) as (_, dependencies, _):
         result = run_loop(
-            replace(dependencies, clock=JobClock(lambda: NOW, clock)),
+            fresh_dependencies(replace(dependencies, clock=JobClock(lambda: NOW, clock))),
             Event(),
             WorkerHeartbeat("00000000000040008000000000000001", 123, NOW, NOW),
         )
@@ -1178,7 +1206,7 @@ def _retained_process(tmp_path: Path, mode: str) -> None:
 
 
 def test_whitespace_stderr_nonzero_stays_external(tmp_path: Path) -> None:
-    """评审1：真实工具只有空白stderr且非零退出，仍报告外部失败及退出码，不创建程序缺陷报错。"""
+    """契约：真实工具只有空白stderr且非零退出，仍报告外部失败及退出码，不创建程序缺陷报错。"""
     failures: list[ExternalError] = []
 
     def execute(context: ExecutionContext) -> None:
@@ -1219,7 +1247,7 @@ def test_whitespace_stderr_nonzero_stays_external(tmp_path: Path) -> None:
 def test_whitespace_stderr_unreaped_stays_external(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """评审1：已有空白stderr且SIGKILL后wait仍超时，保留外部失败和未知退出码，不被诊断校验改成缺陷。"""
+    """契约：已有空白stderr且SIGKILL后wait仍超时，保留外部失败和未知退出码，不被诊断校验改成缺陷。"""
     process = BlockedTool(True)
     failures: list[ExternalError] = []
     contexts: list[ExecutionContext] = []

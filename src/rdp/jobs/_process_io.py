@@ -2,6 +2,7 @@
 
 import os
 from collections import deque
+from collections.abc import Callable
 from typing import BinaryIO
 
 from rdp.jobs.logs import JobLog
@@ -14,41 +15,38 @@ from rdp.jobs.policy import (
 from rdp.jobs.types import JobClock
 
 
-class OutputReader:
-    """一个流对应一个daemon线程；故障交主执行线程收口，不在读线程记ERROR。"""
+class StreamCapture:
+    """线程读出与选择器读出共用的有界分行、转义和尾部缓存；写入能力由调用者提供。"""
 
-    def __init__(self, stream: BinaryIO, prefix: str, log: JobLog, clock: JobClock) -> None:
-        """绑定一个输出流与前缀，建立有限stderr尾缓存，不启动线程。"""
-        self.stream, self.prefix, self.log, self.clock = stream, prefix, log, clock
-        self.error: Exception | None = None
+    def __init__(self, prefix: str, write: Callable[[str], None]) -> None:
+        """建立单流的有界缓冲，不打开日志或读取进程。"""
+        self.prefix, self.write = prefix, write
+        self.chunk_size = min(
+            PROCESS_OUTPUT_CHUNK_BYTES,
+            (JOB_LOG_TAIL_MAX_BYTES - len(prefix.encode()) - len("[续行]".encode())) // 4,
+        )
+        self.pending = b""
+        self.continuation = False
         self.tail: deque[bytes] = deque()
         self.tail_bytes = 0
         self.truncated = False
 
-    def run(self) -> None:
-        """即使一行无限长也最多缓存一个块；非法UTF8可逆转义而不丢原字节。"""
-        chunk_size = min(
-            PROCESS_OUTPUT_CHUNK_BYTES,
-            (JOB_LOG_TAIL_MAX_BYTES - len(self.prefix.encode()) - len("[续行]".encode())) // 4,
-        )
-        pending = b""
-        continuation = False
-        try:
-            while data := os.read(self.stream.fileno(), chunk_size):
-                pending += data
-                while b"\n" in pending or len(pending) >= chunk_size:
-                    newline = pending.find(b"\n")
-                    complete = 0 <= newline < chunk_size
-                    end = newline if complete else chunk_size
-                    self._line(pending[:end], continuation)
-                    continuation = not complete
-                    pending = pending[end + (1 if complete else 0) :]
-            if pending:
-                self._line(pending, continuation)
-        except Exception as error:
-            self.error = error
-        finally:
-            self.stream.close()
+    def feed(self, data: bytes) -> None:
+        """每次最多送入一个标准输出块，完整行即时写出，不积累整个工具输出。"""
+        self.pending += data
+        while b"\n" in self.pending or len(self.pending) >= self.chunk_size:
+            newline = self.pending.find(b"\n")
+            complete = 0 <= newline < self.chunk_size
+            end = newline if complete else self.chunk_size
+            self._line(self.pending[:end], self.continuation)
+            self.continuation = not complete
+            self.pending = self.pending[end + (1 if complete else 0) :]
+
+    def finish(self) -> None:
+        """EOF时保留未换行的最后片段，重复结束不重复写出。"""
+        if self.pending:
+            self._line(self.pending, self.continuation)
+            self.pending = b""
 
     def _line(self, raw: bytes, continuation: bool) -> None:
         """先记录完整输出，再维护有字节/条数双上限的故障尾部。"""
@@ -57,9 +55,7 @@ class OutputReader:
             .replace(b"\r", b"\\r")
             .decode("utf-8", errors="backslashreplace")
         )
-        self.log.write_line(
-            self.prefix + ("[续行]" if continuation else "") + escaped, now=self.clock.now()
-        )
+        self.write(self.prefix + ("[续行]" if continuation else "") + escaped)
         encoded = escaped.encode()
         self.tail.append(encoded)
         self.tail_bytes += len(encoded)
@@ -85,3 +81,28 @@ class OutputReader:
             else "（无stderr）"
         )
         return rendered if rendered.strip() else "（stderr仅含空白）"
+
+
+class OutputReader:
+    """一个流对应一个daemon线程；故障交主执行线程收口，不在读线程记ERROR。"""
+
+    def __init__(self, stream: BinaryIO, prefix: str, log: JobLog, clock: JobClock) -> None:
+        """绑定一个输出流与前缀，建立有限stderr尾缓存，不启动线程。"""
+        self.stream = stream
+        self.capture = StreamCapture(prefix, lambda line: log.write_line(line, now=clock.now()))
+        self.error: Exception | None = None
+
+    def run(self) -> None:
+        """即使一行无限长也最多缓存一个块；非法UTF8可逆转义而不丢原字节。"""
+        try:
+            while data := os.read(self.stream.fileno(), self.capture.chunk_size):
+                self.capture.feed(data)
+            self.capture.finish()
+        except Exception as error:
+            self.error = error
+        finally:
+            self.stream.close()
+
+    def tail_text(self) -> str:
+        """返回共用分行器保留的有界stderr摘要。"""
+        return self.capture.tail_text()
