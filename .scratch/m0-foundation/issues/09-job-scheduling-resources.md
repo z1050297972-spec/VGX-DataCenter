@@ -1,6 +1,6 @@
 # 作业调度资源
 
-Status: ready-for-agent
+Status: in-progress
 
 ## 依据
 
@@ -90,3 +90,14 @@ worker 同时跑多个作业时不乱：同一类作业不超过上限，一张 
   - **K3**：同一类作业严格按提交顺序，不做优先级；不同类型互不阻挡。
   - Status 改成 `ready-for-agent`。等第 8 张合并以后再开票。
 - 2026-10-24，第 5 张定：定时作业里登记清除过期报错（`clear_expired_errors`，保留期取配置 `[errors] retention_days`）。
+- 2026-10-26，开票（执行线）。第 8 张已合并（`1885fdf`）。工作目录 `~/桌面/robot-data-platform.wt/m0-09-job-scheduling-resources`，分支 `t/m0-09-job-scheduling-resources`，基点 `02fbcfd`；`uv sync --frozen`、`pnpm install --frozen-lockfile` 后 `make check` 全绿（pytest 1517、Vitest 205）。Status 改为 `in-progress`。
+  - 派工 A（新会话，`assets/09-job-scheduling-resources/prompt-A.md`，输出 `out-A.md`，运行日志在执行线临时目录 `m0-09/ev-A.jsonl`，快照 `refs/rdp/m0-09/A`）。
+  - 执行线定的设计（写进提示）：
+    - 等待原因、领到的卡、写锁持有人落库，供 Web 显示（两个进程）；领卡和写锁本身只在 worker 内存。
+    - 同类按 `job_id` 严格排队，到上限或等卡时同类后面的也不越过，不同类不阻挡（K3）。
+    - 子进程设 `CUDA_VISIBLE_DEVICES` 和 `CUDA_DEVICE_ORDER=PCI_BUS_ID`；启动时卡不在只记 ERROR、worker 继续跑。
+    - 写锁期间不响应取消，等锁期间可以取消。
+    - 定时作业每个本地日期最多一次（唯一约束），从没跑过也算错过、补一次。
+    - 孤儿外部进程留给第 11 张的 systemd，本票不在 worker 启动时清理（和工单"风险"那句不同，沿用第 8 张的决定）。
+    - **和工单不同、要在骨架关卡告诉负责人**：清除作业登记两个不是三个——"清除过期报错"和"清除过期日志"（第 7 张的 `purge_expired` 按共同保留期在一个事务里同时清操作日志和登录日志）。
+  - 事先批准的只增扩展：`SYSTEM_ACTOR`（"系统"）、作业配置段、`StatePaths` 示例文件路径、第 8 张作业类型声明和依赖对象加字段。
