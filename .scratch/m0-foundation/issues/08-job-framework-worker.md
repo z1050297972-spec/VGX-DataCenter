@@ -1,6 +1,6 @@
 # 作业框架与 worker
 
-Status: in-review
+Status: done
 
 ## 依据
 
@@ -166,3 +166,5 @@ Web 提交一个作业，worker 接走、执行、写进度和日志，结束后
   - 演示复跑（最终代码，全新临时状态目录）：页面显示 27%，日志在框内换行、整页不再横向滚动（`demo8-r1-interrupted.png`）；其余流程同上轮。
   - 八项通过，打回 1 轮。实现提交 `446ea77 实现：作业框架与 worker`，提交钩子全绿。探针和演示目录已删。
   - Status 改为 `in-review`，等负责人说"合并"。合并时补手册：使用手册"作业"一节，运维手册"worker 没在运行时怎么办"。
+- 2026-10-26，负责人确认合并（回答"合并，然后开第 9 张"）。合并提交 `1885fdf 合并：作业框架与 worker`，main 上 `make check` 复跑全绿（pytest 1517、Vitest 205）。手册已补：使用手册"作业"一节（提交、进度、六种结局、取消、重新提交、离线提示）；运维手册"worker 没在运行时怎么办"，状态目录表更正作业日志路径。工作目录和分支已删。Status 改为 `done`。
+  - 交第 11 张：验收里加上 `KillMode=control-group`、`TimeoutStopSec>=30`，worker 被 SIGKILL 后孤儿外部程序由 systemd 清理。
