@@ -1,0 +1,158 @@
+# 2026-10-27 只读采集。导航层 /mnt/datasets 结构摘要，供假导航层清单使用。
+
+## 顶层
+d 
+d 按格式
+d 按任务
+d 工具
+d 解压样本
+d 索引
+d 文档
+d VGX_video
+
+## 按格式 下的格式目录（含空目录）
+lerobot/2.0	4 KiB 子项=0
+lerobot/2.1	4 KiB 子项=0
+lerobot/3.0	4 KiB 子项=31
+lerobot	4 KiB 子项=3
+mcap	4 KiB 子项=2
+mcap/EgoProStandard	4 KiB 子项=5
+mcap/R1_lite_table_withdrawing_mcap	4 KiB 子项=4
+tar、tar.gz（含分卷）	4 KiB 子项=2
+tar、tar.gz（含分卷）/agibot_world_2026	4 KiB 子项=7
+tar、tar.gz（含分卷）/agibot_world_alpha	4 KiB 子项=7
+
+## 5 个样本入口的软链接（入口/链接名 -> 目标）
+按任务/libero_10/原始数据 -> /mnt/dataset1/libero_v3/libero_10
+按任务/R1_lite_table_withdrawing_mcap/原始数据 -> /mnt/dataset2/R1_lite_table_withdrawing_mcap
+按任务/EgoProStandard/原始数据__dataset1 -> /mnt/dataset1/EgoProStandard
+按任务/EgoProStandard/原始数据__dataset2 -> /mnt/dataset2/EgoProStandard
+按任务/EgoProDemo/原始数据 -> /mnt/dataset2/EgoProDemo
+按任务/agibot_world_alpha/observations -> /mnt/dataset2/agibot_world_alpha/observations
+按任务/agibot_world_alpha/parameters -> /mnt/dataset2/agibot_world_alpha/parameters
+按任务/agibot_world_alpha/proprio_stats -> /mnt/dataset2/agibot_world_alpha/proprio_stats
+按任务/agibot_world_alpha/task_info -> /mnt/dataset2/agibot_world_alpha/task_info
+按格式/mcap/R1_lite_table_withdrawing_mcap/原始数据 -> /mnt/dataset2/R1_lite_table_withdrawing_mcap
+按格式/mcap/EgoProStandard/原始数据__dataset1 -> /mnt/dataset1/EgoProStandard/mcap
+按格式/mcap/EgoProStandard/原始数据__dataset2 -> /mnt/dataset2/EgoProStandard/mcap
+按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations -> /mnt/dataset2/agibot_world_alpha/observations
+按格式/tar、tar.gz（含分卷）/agibot_world_alpha/parameters -> /mnt/dataset2/agibot_world_alpha/parameters
+按格式/tar、tar.gz（含分卷）/agibot_world_alpha/proprio_stats -> /mnt/dataset2/agibot_world_alpha/proprio_stats
+按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info -> /mnt/dataset2/agibot_world_alpha/task_info
+按格式/lerobot/3.0/libero_10/原始数据 -> /mnt/dataset1/libero_v3/libero_10
+按格式/lerobot/3.0/EgoProDemo/原始数据 -> /mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot
+
+## 链接目标下第一层（名字，最多 12 个，及总数）
+### /mnt/dataset1/libero_v3/libero_10 （共 4 项）
+  Untitled
+  data
+  meta
+  videos
+### /mnt/dataset2/R1_lite_table_withdrawing_mcap （共 3 项）
+  20261009_table_withdrawing
+  20261010_table_withdrawing
+  20261011_table_withdrawing
+### /mnt/dataset1/EgoProStandard （共 1 项）
+  mcap
+### /mnt/dataset2/EgoProStandard （共 1 项）
+  mcap
+### /mnt/dataset1/EgoProStandard/mcap （共 326 项）
+  Adjust Seal Sticker
+  Affix Shipping Label to Package
+  Align Chair Orientations
+  Align Chairs
+  Align Chairs in a Row
+  Align Office Chairs
+  Align Papers
+  Align and Arrange Sofa Cushions
+  Archive Delivery Receipts
+  Arrange Breakfast Bread_plum
+  Arrange Document with Three Holes
+  Arrange Empty Boxes
+### /mnt/dataset2/EgoProStandard/mcap （共 408 项）
+  Adjust Shelf Labels
+  Adjust shelf levels based on weight
+  Affix Shipping Label (on Package Surface)
+  Align Cable Box
+  Align Drinking Cups
+  Align Paper
+  Align Tray and Tissue Box
+  Align and Arrange Seasoning Bottles
+  Align and Arrange Sneakers
+  Align and Arrange Spice Jars
+  Align and arrange sofa cushions
+  Align and restock condiments on shelves
+### /mnt/dataset2/EgoProDemo （共 2 项）
+  .cache
+  EgoProStandard-body
+### /mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot （共 93 项）
+  Adjust Shelf Labels
+  Affix Shipping Label (on Package Surface)
+  Affix Shipping Label to Package
+  Align Paper
+  Align and Arrange Cups
+  Align and Arrange Folders
+  Align and Arrange Magazines
+  Align and Arrange Seasoning Bottles
+  Align and Arrange Spice Jars
+  Apply Sealing Label
+  Apply sealing tape to bag opening
+  Arrange Toiletries
+### /mnt/dataset2/agibot_world_alpha/observations （共 36 项）
+  327
+  352
+  354
+  356
+  357
+  358
+  359
+  360
+  361
+  362
+  365
+  366
+### /mnt/dataset2/agibot_world_alpha/parameters （共 7 项）
+  648533-663816.tar
+  663817-675572.tar
+  675573-684635.tar
+  684637-694777.tar
+  694780-709954.tar
+  709960-737425.tar
+  737433-923022.tar
+### /mnt/dataset2/agibot_world_alpha/task_info （共 36 项）
+  task_327.json
+  task_352.json
+  task_354.json
+  task_356.json
+  task_357.json
+  task_358.json
+  task_359.json
+  task_360.json
+  task_361.json
+  task_362.json
+  task_365.json
+  task_366.json
+### /mnt/dataset2/agibot_world_alpha/proprio_stats （共 2 项）
+  327
+  648533-923022.tar
+
+## 非数据集目录第一层
+### 索引
+### 文档
+  f AgiBotWorld2026_官方格式核对.md
+  f AgiBotWorld2026_免解压查看指南.md
+  f LeRobot格式数据占比统计.md
+### 工具
+  d mcap2lerobot
+### 解压样本
+  d agibot_world_2026_simulation_scoop_popcorn_lite
+  d agitbot_world_2026_richinteraction_4439_458713
+### VGX_video
+  d photo_particles_edit
+  d photo_particles_fullframe
+
+## 挂载事实
+/mnt/dataset1 /dev/sda ext4 rw,relatime
+/mnt/dataset2 /dev/sdb ext4 rw,relatime
+lrwxrwxrwx 1 root root  9 Oct 27 06:21 2d3a48d6-3785-47fe-8c8f-a20857fdc41a -> ../../sda
+lrwxrwxrwx 1 root root  9 Oct 27 06:21 35445b14-9e83-4f74-ac73-1551e3db6d63 -> ../../sdb

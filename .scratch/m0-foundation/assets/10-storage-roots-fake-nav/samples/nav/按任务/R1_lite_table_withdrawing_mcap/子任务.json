@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-35",
+  "dataset_name": "R1_lite_table_withdrawing_mcap",
+  "view": "task",
+  "format": null,
+  "version": null,
+  "task_count": 1,
+  "data_unit": "original_dataset",
+  "semantics": {
+    "task_labels": "记录源任务标签和已有子任务说明；同源多标签不自动认定为同一长任务的顺序步骤。",
+    "source_sequences": "多个子任务可以共享同一数据集、轨迹或视频；本目录只链接原始数据，不按语义标签复制、裁剪视频。",
+    "scope": "whole_root为源根；episodes为已有完整轨迹编号；archive为整包。范围字段按原标注保存。",
+    "video_mapping": "episode编号不是视频文件编号；未提供的时间边界或视频映射不作推断。"
+  },
+  "tasks": [
+    {
+      "task_key": "R1_lite_table_withdrawing_3057251c9fdb",
+      "family": "R1_lite_table_withdrawing",
+      "display_name": "table withdrawing（原生录制）",
+      "description": "执行餐桌撤台任务。",
+      "label_status": "verified_source_name",
+      "notes": [
+        "录制批次；MCAP与转换后的episode数量并非一一对应。"
+      ],
+      "sources": [
+        {
+          "root": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261009_table_withdrawing",
+          "scope": "native_files",
+          "evidence": [
+            {
+              "path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261009_table_withdrawing",
+              "field": "directory_name",
+              "text": "20261009_table_withdrawing"
+            }
+          ],
+          "format": "mcap",
+          "source_id": "src_01e0bc7e9cc8",
+          "validation_status": "path_exists_only",
+          "entry_path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261009_table_withdrawing",
+          "component": "mcap",
+          "entry_type": "original_source_path"
+        },
+        {
+          "root": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261010_table_withdrawing",
+          "scope": "native_files",
+          "evidence": [
+            {
+              "path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261010_table_withdrawing",
+              "field": "directory_name",
+              "text": "20261010_table_withdrawing"
+            }
+          ],
+          "format": "mcap",
+          "source_id": "src_d5edab567d18",
+          "validation_status": "path_exists_only",
+          "entry_path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261010_table_withdrawing",
+          "component": "mcap",
+          "entry_type": "original_source_path"
+        },
+        {
+          "root": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261011_table_withdrawing",
+          "scope": "native_files",
+          "evidence": [
+            {
+              "path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261011_table_withdrawing",
+              "field": "directory_name",
+              "text": "20261011_table_withdrawing"
+            }
+          ],
+          "format": "mcap",
+          "source_id": "src_04a13d43b1b0",
+          "validation_status": "path_exists_only",
+          "entry_path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261011_table_withdrawing",
+          "component": "mcap",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/R1_lite_table_withdrawing_mcap",
+      "dataset_ids": [
+        "dataset-35"
+      ],
+      "entry_paths": [
+        "按任务/R1_lite_table_withdrawing_mcap"
+      ],
+      "subtask_json_paths": [
+        "按任务/R1_lite_table_withdrawing_mcap/子任务.json"
+      ]
+    }
+  ],
+  "shared_source_roots": []
+}

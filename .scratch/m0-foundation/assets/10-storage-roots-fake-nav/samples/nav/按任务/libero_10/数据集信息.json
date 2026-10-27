@@ -1,0 +1,82 @@
+{
+  "dataset_id": "dataset-14",
+  "title": "14. libero_10",
+  "fields": [
+    {
+      "number": 1,
+      "name": "数据集标识",
+      "value_markdown": "`libero_10`；本地目录为本报告标识；训练注册表键和 robot_config 未在数据目录提供"
+    },
+    {
+      "number": 2,
+      "name": "地址",
+      "value_markdown": "本地：[/mnt/dataset1/libero_v3/libero_10](</mnt/dataset1/libero_v3/libero_10>)；外部来源（本地 README 所载）：`https://huggingface.co/datasets/nvidia/LIBERO_LeRobot_v3`"
+    },
+    {
+      "number": 3,
+      "name": "类型与组成",
+      "value_markdown": "仿真机器人操作演示（本地 LIBERO README）；按任务套件存储"
+    },
+    {
+      "number": 4,
+      "name": "数据大小",
+      "value_markdown": "0.000631 TB / 0.000574 TiB（631,143,389 B；0.631 GB）；包含该子目录的元信息及视频"
+    },
+    {
+      "number": 5,
+      "name": "采集机器人型号",
+      "value_markdown": "本地 robot_type=`franka`"
+    },
+    {
+      "number": 6,
+      "name": "任务与场景",
+      "value_markdown": "语言条件下的物体操作；具体任务以本地任务表为准。 任务原文示例：`turn on the stove and put the moka pot on it`；`put both the alphabet soup and the tomato sauce in the basket`；`put the white mug on the left plate and put the yellow and white mug on the right plate`；`put the black bowl in the bottom drawer of the cabinet and close it`；`pick up the book and place it in the back compartment of the caddy`；其余见任务源文件（共 10 个条目）"
+    },
+    {
+      "number": 7,
+      "name": "数据格式",
+      "value_markdown": "LeRobot v3.0；Parquet 数据 + MP4 视频 + meta 元数据；data_path=`data/chunk-{chunk_index:03d}/file-{file_index:03d}.parquet`；video_path=`videos/{video_key}/chunk-{chunk_index:03d}/file-{file_index:03d}.mp4`"
+    },
+    {
+      "number": 8,
+      "name": "FPS",
+      "value_markdown": "20（meta/info.json 声明的数据帧率）"
+    },
+    {
+      "number": 9,
+      "name": "相机配置",
+      "value_markdown": "2 路图像字段（不等同于物理相机数量）；`observation.images.wrist_image`：256×256，彩色/三通道，video，编码 av1；`observation.images.image`：256×256，彩色/三通道，video，编码 av1"
+    },
+    {
+      "number": 10,
+      "name": "状态维度",
+      "value_markdown": "`observation.state`：8 维，shape=`[8]`，声明类型 `float32`；索引顺序（从 0 开始）：0:`x`, 1:`y`, 2:`z`, 3:`axis_angle1`, 4:`axis_angle2`, 5:`axis_angle3`, 6:`gripper`, 7:`gripper`"
+    },
+    {
+      "number": 11,
+      "name": "动作维度",
+      "value_markdown": "`action`：7 维，shape=`[7]`，声明类型 `float32`；索引顺序（从 0 开始）：0:`x`, 1:`y`, 2:`z`, 3:`axis_angle1`, 4:`axis_angle2`, 5:`axis_angle3`, 6:`gripper`"
+    },
+    {
+      "number": 12,
+      "name": "动作控制方式及单位",
+      "value_markdown": "末端 xyz、旋转 3 项、夹爪 1 项；libero_90 命名为 roll/pitch/yaw，其余套件命名为 axis_angle1/2/3。本地命名存在差异，不能仅凭名称统一旋转含义；控制增量、缩放、坐标系及单位未在本地转换说明中确认。"
+    },
+    {
+      "number": 13,
+      "name": "轨迹／帧数",
+      "value_markdown": "info 声明 379 条轨迹、101,469 帧、10 个任务索引；全部 2 个数据 Parquet 实读页脚共 101,469 行；轨迹表 379 行，length 合计 101,469。 行数与轨迹数匹配。"
+    },
+    {
+      "number": 14,
+      "name": "信息来源与核验日期",
+      "value_markdown": "[/mnt/dataset1/libero_v3/libero_10/meta/info.json](</mnt/dataset1/libero_v3/libero_10/meta/info.json>)；[/mnt/dataset1/libero_v3/libero_10/meta/tasks.parquet](</mnt/dataset1/libero_v3/libero_10/meta/tasks.parquet>)；`/mnt/dataset1/libero_v3/libero_10/data/**/*.parquet`（全部数据分片页脚行数）；`/mnt/dataset1/libero_v3/libero_10/meta/episodes` 或 episodes.jsonl（轨迹索引）。核验：2026-10-12T20:55:45-06:00；本地读取，不代表逐帧内容质检"
+    }
+  ],
+  "summary_path": "/mnt/datasets/文档/两块数据盘数据集信息汇总_14项标准_2026-10-12.md",
+  "summary_sha256": "f2ff6d8f00a28efa2bbc5e280cc175440cad999c4bc605af03117c7fa4a5b1f6",
+  "summary_anchor": "dataset-14",
+  "snapshot_date": "2026-10-12",
+  "extracted_at": "2026-10-16T07:53:13-06:00",
+  "information_scope": "原汇总中该数据集的14项原文与快照日期；不是本格式视图重新统计的大小或轨迹数。"
+}

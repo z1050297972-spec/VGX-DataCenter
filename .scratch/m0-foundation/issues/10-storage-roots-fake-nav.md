@@ -88,3 +88,4 @@ Status: ready-for-agent
   - **L3**："存储根"页面所有登录账号都能看，只读。
   - 补记：两块数据盘在系统层面是 `rw` 挂载（2026-10-23 `findmnt`），"只读"是平台按登记执行的规则。
   - Status 改成 `ready-for-agent`。等第 9 张合并以后再开票。
+- 2026-10-27，派工前样本采集（执行线，只读，未写 /mnt）：5 个必选数据集在两个视图的三份 JSON（30 份）+ 2 份 `meta/info.json`（libero_10；EgoProDemo 是每任务每条一份，取 `Adjust Shelf Labels/5800ed0b-…/meta/info.json` 为代表）复制到 `assets/10-storage-roots-fake-nav/samples/`，来源路径、sha256、字节数在 `sources.tsv`（32 行）。导航层顶层、`按格式` 目录（含空的 `lerobot/2.0`、`lerobot/2.1`）、18 条样本链接及目标、目标下第一层、非数据集目录（索引/文档/工具/解压样本/VGX_video）第一层、挂载事实在 `layout.txt`。注意导航层顶层比盘点多一个 `VGX_video/`（非数据集目录）。等第 9 张合并后开票。

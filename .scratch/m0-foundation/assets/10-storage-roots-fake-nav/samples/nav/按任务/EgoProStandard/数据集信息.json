@@ -1,0 +1,82 @@
+{
+  "dataset_id": "dataset-32",
+  "title": "32. EgoProStandard（跨两盘合并）",
+  "fields": [
+    {
+      "number": 1,
+      "name": "数据集标识",
+      "value_markdown": "EgoProStandard；按两盘同名数据族合并整理，保留各盘路径；没有机器人训练注册表或 robot_config"
+    },
+    {
+      "number": 2,
+      "name": "地址",
+      "value_markdown": "本地：[/mnt/dataset1/EgoProStandard](</mnt/dataset1/EgoProStandard>)；[/mnt/dataset2/EgoProStandard](</mnt/dataset2/EgoProStandard>)；盘内未提供 README/下载仓库地址"
+    },
+    {
+      "number": 3,
+      "name": "类型与组成",
+      "value_markdown": "人类第一视角操作演示，Protobuf MCAP；样本包含头部、左右手姿态、相机标定、视频及语义分段，没有机器人控制命令"
+    },
+    {
+      "number": 4,
+      "name": "数据大小",
+      "value_markdown": "合计 9.399164 TB / 8.548490 TiB（9,399,163,801,933 B；9399.164 GB）；dataset1 3.600611 TB / 3.274737 TiB（3,600,611,153,073 B；3600.611 GB）；dataset2 5.798553 TB / 5.273753 TiB（5,798,552,648,860 B；5798.553 GB）"
+    },
+    {
+      "number": 5,
+      "name": "采集机器人型号",
+      "value_markdown": "不适用机器人型号：人体穿戴采集；样本 session.devices 含头部双目及双腕相机，具体设备型号 cam_model 未提供"
+    },
+    {
+      "number": 6,
+      "name": "任务与场景",
+      "value_markdown": "两盘共 734 个任务目录名称（dataset1 326、dataset2 408），包含垃圾处理、清洁、文件/物品整理、餐具摆放等。样本场景含物流站分拣区、办公室；任务目录存在多语言名称，名称数不能视为语义去重后的任务数"
+    },
+    {
+      "number": 7,
+      "name": "数据格式",
+      "value_markdown": "每个任务目录下多个 UUID.mcap；包含 Protobuf schema 和 summary。没有 LeRobot meta/info.json；本报告只读取索引、统计和选定样本消息，没有转换数据"
+    },
+    {
+      "number": 8,
+      "name": "FPS",
+      "value_markdown": "两盘各 1 个抽查 MCAP 的 RGB 设备均标注 30 FPS；样本 head_left 视频消息数分别为 3,107 和 2,839，统计时长约 103.53 s 和 94.60 s。全量 FPS 分布未检查"
+    },
+    {
+      "number": 9,
+      "name": "相机配置",
+      "value_markdown": "两个样本实际均有 4 路 RGB 视频：head_left/right 1920×1456、left_wrist/right_wrist 1920×1536。session.devices 还声明 320×240、5 FPS 头部深度设备，但样本 topic 中没有深度流，不能据此记为实际含深度数据"
+    },
+    {
+      "number": 10,
+      "name": "状态维度",
+      "value_markdown": "原生为 /pose/head、/pose/headcam、/pose/left_hand、/pose/right_hand、/pose/right_eye_cam 等消息，无统一 observation.state。抽查每只手 21 个变换（位置 xyz + 四元数 wxyz），头部 1 个变换；样本未见 /pose/body，不能沿用 EgoProDemo-body 的 469 维"
+    },
+    {
+      "number": 11,
+      "name": "动作维度",
+      "value_markdown": "未提供机器人 action；语义分段描述人类操作，不是执行器控制向量"
+    },
+    {
+      "number": 12,
+      "name": "动作控制方式及单位",
+      "value_markdown": "不适用机器人控制方式。姿态消息含 xyz 与 wxyz 四元数；坐标系、平移单位在样本 schema 中未明确注释，待采集协议核验"
+    },
+    {
+      "number": 13,
+      "name": "轨迹／帧数",
+      "value_markdown": "23,734 个 MCAP 文件（dataset1 9,926、dataset2 13,808）；跨盘 task/filename 相对路径没有重合。这是录制文件数，未遍历每个 session 的 episode_uuid，也未做内容哈希去重；全量视频帧数未统计，不能将所有 topic 消息数当作帧数"
+    },
+    {
+      "number": 14,
+      "name": "信息来源与核验日期",
+      "value_markdown": "全量目录/文件大小清点；抽查：[/mnt/dataset1/EgoProStandard/mcap/replace full trash bin/c8e8ea2f-5025-4ffd-9981-acdf6bbd9acc.mcap](</mnt/dataset1/EgoProStandard/mcap/replace full trash bin/c8e8ea2f-5025-4ffd-9981-acdf6bbd9acc.mcap>)；[/mnt/dataset2/EgoProStandard/mcap/Daur Ulang Botol Air Kosong/c0a9617a-e814-4f3d-a6b1-a3b0292c5ff2.mcap](</mnt/dataset2/EgoProStandard/mcap/Daur Ulang Botol Air Kosong/c0a9617a-e814-4f3d-a6b1-a3b0292c5ff2.mcap>)，读取 summary、schema、session metadata、CameraCalibration、pose。核验：2026-10-12T20:55:45-06:00；schema/FPS/分辨率结论仅适用于上述样本"
+    }
+  ],
+  "summary_path": "/mnt/datasets/文档/两块数据盘数据集信息汇总_14项标准_2026-10-12.md",
+  "summary_sha256": "f2ff6d8f00a28efa2bbc5e280cc175440cad999c4bc605af03117c7fa4a5b1f6",
+  "summary_anchor": "dataset-32",
+  "snapshot_date": "2026-10-12",
+  "extracted_at": "2026-10-16T07:53:13-06:00",
+  "information_scope": "原汇总中该数据集的14项原文与快照日期；不是本格式视图重新统计的大小或轨迹数。"
+}

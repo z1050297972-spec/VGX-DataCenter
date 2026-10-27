@@ -1,6 +1,6 @@
 # 作业调度资源
 
-Status: in-progress
+Status: in-review
 
 ## 依据
 
@@ -124,3 +124,23 @@ worker 同时跑多个作业时不乱：同一类作业不超过上限，一张 
 - 2026-10-27，A-r1 复核（执行线）。快照 `refs/rdp/m0-09/A-r1-done`（04356b4）。`make check` 复跑全绿（pytest 1517 passed / 143 skipped，Vitest 205 / 23 skipped）；运行日志干净；文件归属干净。3 条阻塞逐条核对已改：启动时统一清资源副本，全部遗留行先准备、不等容量，恢复候选只排在本类型队首（`test_recovery_different_types` 改为验证不挡别类）；主循环是排队等待原因的唯一写入者、每轮重判；必填依赖去掉默认值。负责人三项决定、11 条顺手改都已落实（扫描改为每类队首、坏卡隔离表 `worker_gpu_checks`、"系统"单向约束、示例路径 `/api/jobs/example/gpu|navigation`）。
   - 不阻塞，实现评审时再看：`ExecutionContext` 为两个示例类型带了 `gpu_example_command`、`navigation_example_path` 两个专用字段。
   - 契约提交 `e8a8148 契约：作业调度资源`（钩子全绿）。按负责人在关卡的授权进入实现，派工 B（续接同一会话，`prompt-B.md`，快照 `refs/rdp/m0-09/B`）。
+
+- 2026-10-27 派工 B 检查点 1（快照 `refs/rdp/m0-09/B-cp1` 5c1832b）：配置与 0005 迁移完成，去掉 20 条跳过；执行线复跑 make check 全绿（pytest 1537/123 skipped，Vitest 205/23 skipped），日志审计 0 行。续派 prompt-B2。
+- 2026-10-27 检查点 2（`refs/rdp/m0-09/B-cp2` 98b1daf）：资源池、按类型领取、恢复、五类登记；复跑全绿（pytest 1572/91 skipped，Vitest 205/23），审计 0 行。`test_sigkill_recovery` 按 K3 改为排序比较（接受，注释过程说法要改）。续派 prompt-B3。
+- 2026-10-27 检查点 3（`refs/rdp/m0-09/B-cp3` 7f72098）：导航写锁、CUDA 环境、写锁示例；复跑全绿（pytest 1595/70 skipped，Vitest 205/23），审计 0 行。Codex 契约申请：`read_example_value` 读取预算 4096→LINE_MAX+1 字节（多一字节确认行界，单行上限不变）。执行线批准：只改示例函数的有界读取细节，不改对外行为。续派 prompt-B4。
+- 2026-10-27 负责人要求暂停。B4 中途停止 Codex，未完成的工作区快照 `refs/rdp/m0-09/B4-paused`（未验证是否全绿）；上一个确认全绿的点是 B-cp3。
+- 2026-10-27 负责人要求继续。机器 06:21 重启过，/tmp 下执行线运行日志丢失（ev-*.jsonl、check 日志；输出 out-*.md 在 assets 里完好），仓库、快照、工作区完好（工作区与 B4-paused 一致）。B4-paused 的 make check 停在 lint/格式。续派 prompt-B4b。
+- 2026-10-27 07:07 B4b 第一次派出后 Codex 卡在断网重连 43 分钟、未执行任何命令（工作区仍等于 B4-paused），停掉重派同一 prompt-B4b。
+- 2026-10-27 07:10 重派后仍连不上：本机 HTTPS 全部 TLS 失败（含 baidu、github），Clash Verge 在运行但代理不通。已停 Codex，等负责人恢复网络后重派 prompt-B4b。工作区仍等于 B4-paused。
+- 2026-10-27 负责人说 Codex 已恢复，重派 prompt-B4b（工作区仍等于 B4-paused）。
+- 2026-10-27 08:40 负责人："我有其他事情做，9完成后可以合并，然后开始10"。即：本票实现完成、3.5 评审通过（含真实 GPU 演示）后，执行线按 3.7 合并，不再等关卡；随后开第 10 张，推进到骨架关卡（需负责人拍板处停下）。
+- 2026-10-27 B4b 到 90 分钟时限（最终回复未写出），快照 `refs/rdp/m0-09/B4-timeout` bcc6cb2；执行线复跑全绿（pytest 1667/0 skipped，Vitest 205/23 skipped），审计 0 行。后端完成，续派 prompt-B5 做前端。
+- 2026-10-27 后端变异抽查（快照 B4-timeout，探测工作树）：11 个全部被抓住（类型上限、最低空闲卡、凭据归还、同类 FIFO、等卡不挡别类、等锁可取消、写锁上限、CUDA_DEVICE_ORDER、补跑阈值、到点边界、报错清除边界），每个都由对应行为测试失败抓住。
+- 2026-10-27 B5 完成（前端）。实现评审（执行线），快照 `refs/rdp/m0-09/B-done` 43773c2：
+  - `make check` 复跑全绿（pytest 1667、Vitest 228，0 skipped）；文件归属干净，受保护文件未动；日志审计 0 行；公开签名对 e8a8148 无变化。
+  - 真实 GPU 浏览器演示（`demo09.py`/`demo09.mjs`，截图 `demo9-*.png`，日志 `demo09-run.log`）：配置 `[jobs.concurrency] example_gpu=3, example_navigation=2`。三个占卡作业：#3 GPU0、#4 GPU1、#5 排队"等待 GPU"，调度页"GPU 0：#3 GPU 1：#4"；#3 结束后 #5 领到 GPU0；作业日志有 `CUDA_VISIBLE_DEVICES=0 CUDA_DEVICE_ORDER=PCI_BUS_ID`。两个写锁作业：#6 持锁（调度页"导航层写锁 #6"），#7 运行中"等待导航层写锁"；#7 以冲突失败（"在你预览之后被作业 #6 改过"），带期望值 6 的 #8 成功。验收 9 通过。
+  - 三路评审：规格无阻塞；并发/安全无阻塞，但核实出 3 条真实缺陷；规范有 5 条 7.1 硬性问题。打回第 1 轮（`prompt-B-r1.md`，8 条）：跨类型抢卡次序竞争、写锁收尾 `sys.exception()` 取到无关异常（已实测）、恢复取消日志写失败停实例；"待实现"/"（09）"过程说法、前端消息字面量、类型键/显示名重复字面量、类型键正则第三份、日志 key=value。
+  - 后续（不阻塞）：claim 后启动前停止会耗一次恢复次数（interrupt 类型未跑就中断）；写入成功后展示清理失败记为失败；持锁展示走 1 秒节流有滞后；非 GPU 子进程继承 worker 的 CUDA 环境变量；时钟回拨后每秒一次写事务查重；任何登录账号都能经 `POST /jobs` 提前跑清除作业、或排满 GPU（权限留给负责人定）；调度页遇数据库不变量破坏返回 500；有过 GPU 作业后 0005 无法降级（docstring 明示）；`execution.py` 按类型名分支注入能力（M1 改为类型声明能力）；目录校验/展示校验重复；`_cancel_recovered` 用默认 busy_timeout；`24 * 60` 等未命名常量；已改文件里旧的"本票"措辞。
+  - 合并时要补：运维手册"调度"一节（改并发上限、留卡、定时作业几点跑；说明示例类型默认上限 1，演示需改 `[jobs.concurrency]`）；使用手册"查看日志"里清除等第 9 张的说明更新。
+- 2026-10-27 r1 被会话中断（快照 `refs/rdp/m0-09/B-r1-cut` 96f866a），执行线核对 8 条均已改到、审计 0 行；但 make check 1 失败：`test_serial_execution` 整套负载下偶发，根因是停止信号落在领取提交与线程启动之间时留下从未启动的 running 行（即并发评审后续 #3），会令合并钩子不稳定，升为阻塞。打回第 2 轮（`prompt-B-r2.md`）：领取后未启动退回 queued，确定性测试。
+- 2026-10-27 r2 复核（执行线），快照 `refs/rdp/m0-09/B-r2-done` 1329207：make check 全绿（pytest 1681、Vitest 228，0 skipped），审计 0 行；整套 pytest 连跑 3 次全绿（1681×3）；变异 2 个都被抓住（停止后不退回、同轮等卡后放后项领卡）。新增内部入口 `return_unstarted_job`（只用于本实例刚领取、线程未启动的退回，不新增状态），按批准的契约补充收下。实现提交 `71d5e3a 实现：作业调度资源`（钩子全绿）。负责人已授权"9完成后可以合并"，按 3.7 合并。

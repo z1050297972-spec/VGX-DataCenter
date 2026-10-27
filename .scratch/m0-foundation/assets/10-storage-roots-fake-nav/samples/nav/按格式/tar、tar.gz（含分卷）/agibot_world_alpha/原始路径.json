@@ -1,0 +1,2776 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-31",
+  "dataset_name": "agibot_world_alpha",
+  "dataset_roots": [
+    "/mnt/dataset2/agibot_world_alpha"
+  ],
+  "view": "format",
+  "format": "archives",
+  "version": null,
+  "links": [
+    {
+      "name": "observations",
+      "source_path": "/mnt/dataset2/agibot_world_alpha/observations",
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations",
+      "source_type": "directory"
+    },
+    {
+      "name": "parameters",
+      "source_path": "/mnt/dataset2/agibot_world_alpha/parameters",
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/parameters",
+      "source_type": "directory"
+    },
+    {
+      "name": "proprio_stats",
+      "source_path": "/mnt/dataset2/agibot_world_alpha/proprio_stats",
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/proprio_stats",
+      "source_type": "directory"
+    },
+    {
+      "name": "task_info",
+      "source_path": "/mnt/dataset2/agibot_world_alpha/task_info",
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info",
+      "source_type": "directory"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "src_0ce579c7bddf",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327",
+      "format": "lerobot",
+      "version": "2.0",
+      "entry_path": "/mnt/dataset2/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass",
+      "entry_type": "original_source_path"
+    },
+    {
+      "source_id": "src_2a2c94e25231",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "/mnt/dataset2/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21",
+      "source_role": "data",
+      "validation_status": "attention_required",
+      "entry_type": "original_source_path"
+    },
+    {
+      "source_id": "src_489eb4dc26b6",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old",
+      "format": "lerobot",
+      "version": "2.1",
+      "entry_path": "/mnt/dataset2/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass",
+      "entry_type": "original_source_path"
+    },
+    {
+      "source_id": "src_73acac5cbe70",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/327",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/327",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/327",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_0f83f4b86200",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/352",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/352",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/352",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_b2267d51c1dd",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/354",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/354",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/354",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_55ee2fb85a85",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/356",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/356",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/356",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_557894de5e29",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/357",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/357",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/357",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_d9f8bc2452ae",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/358",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/358",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/358",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_fc23b1099088",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/359",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/359",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/359",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_0a100dd3e1b4",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/360",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/360",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/360",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_a4d796ab7eda",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/361",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/361",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/361",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_13c22e4eb843",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_327a97b82246",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/649552-654138.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/649552-654138.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/649552-654138.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_45a673537ec3",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/654147-657316.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/654147-657316.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/654147-657316.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_fd36fd2d089a",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/657325-661071.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/657325-661071.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/657325-661071.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_9115b06707de",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/661079-663555.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/661079-663555.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/661079-663555.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_a4225822961c",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/663556-665699.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/663556-665699.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/663556-665699.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_8fb7808db7a0",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/665700-667359.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/665700-667359.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/665700-667359.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_7b40f2a415c2",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/667362-669177.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/667362-669177.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/667362-669177.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_ccb5e67a3773",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/669182-670144.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/669182-670144.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/669182-670144.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_ff15eaa1c74e",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/670145-673929.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/670145-673929.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/670145-673929.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_583f3bd3390f",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/673948-716884.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/673948-716884.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/673948-716884.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_caf61ee9bf01",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/716885-719240.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/716885-719240.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/716885-719240.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_0287314d5712",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/719246-721179.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/719246-721179.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/719246-721179.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_4cf641eb8e18",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/721186-722984.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/721186-722984.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/721186-722984.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_8057303c3cc8",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/722997-725049.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/722997-725049.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/722997-725049.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_c037d0152f62",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/725055-726563.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/725055-726563.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/725055-726563.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_8fe957ff49a5",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/726569-728009.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/726569-728009.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/726569-728009.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_e4a7af67a1a4",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/728011-729574.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/728011-729574.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/728011-729574.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_3a4efa69462b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/729579-731240.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/729579-731240.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/729579-731240.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_85533d91676b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/731241-733014.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/731241-733014.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/731241-733014.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_1aba51b739c4",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/733017-734242.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/733017-734242.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/733017-734242.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_2729f8395380",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/734252-735431.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/734252-735431.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/734252-735431.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_1745a92b4ad9",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/735440-737089.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/735440-737089.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/735440-737089.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_f1116a22746d",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/737092-738553.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/737092-738553.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/737092-738553.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_5c53a041b448",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/738558-739824.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/738558-739824.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/738558-739824.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_404e31b29f5a",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/739828-741408.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/739828-741408.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/739828-741408.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_cabd255cbab5",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/741413-742766.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/741413-742766.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/741413-742766.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_f119c94050b2",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/742767-744324.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/742767-744324.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/742767-744324.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_0b36e93ea3f1",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/744327-745864.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/744327-745864.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/744327-745864.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_df91db230225",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/745876-747274.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/745876-747274.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/745876-747274.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_1131a912013b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/747278-751761.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/747278-751761.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/747278-751761.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_8e196e72275f",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/751765-753220.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/751765-753220.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/751765-753220.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_c3bb814f9423",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/753224-754597.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/753224-754597.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/753224-754597.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_648b78ac1d0d",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/754603-760137.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/754603-760137.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/754603-760137.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_1df29c9be7ac",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/362/760138-760386.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/362/760138-760386.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/362/760138-760386.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_0a08b0edcd54",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/365",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/365",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/365",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_9c715e292c19",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/366",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/366",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/366",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_fb172611fa37",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/366/656861-663922.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/366/656861-663922.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/366/656861-663922.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_99ccd3d5a5ca",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/366/663936-716611.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/366/663936-716611.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/366/663936-716611.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_63f63f653036",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/366/716618-723189.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/366/716618-723189.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/366/716618-723189.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_39c30f588ad1",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/366/723201-725367.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/366/723201-725367.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/366/723201-725367.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_1a8300e83ffb",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/367",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/367",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/367",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_857895346c4b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/367/648961-652994.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/367/648961-652994.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/367/648961-652994.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_636bd6668233",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/368",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/368",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/368",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_9efa3bb907b9",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/368/652910-665784.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/368/652910-665784.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/368/652910-665784.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_cb06bf40eebd",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/368/665817-671349.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/368/665817-671349.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/368/665817-671349.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_fe289d09037b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/368/671374-674544.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/368/671374-674544.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/368/671374-674544.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_eaca5b33b628",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/368/677644-680016.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/368/677644-680016.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/368/677644-680016.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_fbc024e1fd01",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/368/680033-684309.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/368/680033-684309.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/368/680033-684309.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_431fe7db7311",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/368/686874-693286.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/368/686874-693286.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/368/686874-693286.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_26a027e6a248",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/368/693312-702425.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/368/693312-702425.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/368/693312-702425.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_ac3b9b5777b1",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/372",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/372",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/372",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_7c14af06e17e",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/372/662013-678710.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/372/662013-678710.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/372/662013-678710.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_9891f7738faf",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/372/678728-690350.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/372/678728-690350.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/372/678728-690350.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_9bfd9f331ada",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/372/690365-692033.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/372/690365-692033.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/372/690365-692033.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_16117d177272",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/374",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/374",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/374",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_ee4e69268dda",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/374/648533-669373.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/374/648533-669373.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/374/648533-669373.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_f88c5eece4de",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/375",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/375",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/375",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_7e2dd7d2f1d7",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/375/648545-654710.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/375/648545-654710.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/375/648545-654710.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_2f5f21d4febf",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/375/654735-673707.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/375/654735-673707.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/375/654735-673707.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_8bcfb7df405f",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/375/673726-695615.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/375/673726-695615.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/375/673726-695615.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_7909ffcfe435",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/376",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/376",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/376",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_d2f5d3685b13",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/376/649764-673797.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/376/649764-673797.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/376/649764-673797.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_2ae196e3cea4",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/376/673808-683699.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/376/673808-683699.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/376/673808-683699.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_112bb51ebe08",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/377",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/377",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/377",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_3c67f7f59b55",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/377/648559-652205.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/377/648559-652205.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/377/648559-652205.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_1dffe0a8fd8b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/377/652243-658307.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/377/652243-658307.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/377/652243-658307.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_13af6c3efdec",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/377/658322-670778.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/377/658322-670778.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/377/658322-670778.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_8ad507ddb52b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/377/670788-674830.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/377/670788-674830.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/377/670788-674830.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_4c972adc177b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/377/674836-676267.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/377/674836-676267.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/377/674836-676267.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_14f63fd146e8",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/377/676287-687166.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/377/676287-687166.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/377/676287-687166.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_a3b7245cb59c",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/377/687223-694464.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/377/687223-694464.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/377/687223-694464.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_5ae52dad5247",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/377/694494-695612.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/377/694494-695612.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/377/694494-695612.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_eb0f2c0b3639",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/378",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/378",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/378",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_f8b1dd832444",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/378/648539-664508.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/378/648539-664508.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/378/648539-664508.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_79c6c2eb0a97",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/378/664526-669609.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/378/664526-669609.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/378/664526-669609.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_6381c8b9035c",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/378/669651-678894.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/378/669651-678894.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/378/669651-678894.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_781d978eaf38",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/378/678906-685894.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/378/678906-685894.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/378/678906-685894.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_e13c9af5e4c2",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/378/685913-686496.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/378/685913-686496.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/378/685913-686496.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_5cbaff9e8ceb",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/380",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/380",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/380",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_b5214ead7d16",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/380/648681-664249.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/380/648681-664249.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/380/648681-664249.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_7631b9446c6b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/380/664273-672282.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/380/664273-672282.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/380/664273-672282.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_f9b3df5b9086",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/380/672394-679548.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/380/672394-679548.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/380/672394-679548.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_715256092db7",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/380/679552-685222.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/380/679552-685222.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/380/679552-685222.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_881bd6ee40a4",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/380/685254-690980.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/380/685254-690980.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/380/685254-690980.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_910d452a0586",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/380/691118-697039.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/380/691118-697039.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/380/691118-697039.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_60be76475a9d",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/380/697040-700357.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/380/697040-700357.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/380/697040-700357.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_e0a363b0d034",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/380/700384-711214.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/380/700384-711214.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/380/700384-711214.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_4ebb9af9930a",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/380/711221-748284.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/380/711221-748284.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/380/711221-748284.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_7db7f6b8c691",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/384",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/384",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/384",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_fc62562462b0",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/384/655302-662593.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/384/655302-662593.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/384/655302-662593.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_9cf2fd29bb33",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/384/662616-673224.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/384/662616-673224.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/384/662616-673224.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_12067b7bc60e",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/384/673235-684473.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/384/673235-684473.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/384/673235-684473.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_474f2c2a9125",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/384/684493-692530.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/384/684493-692530.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/384/684493-692530.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_8e17549dce59",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/385",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/385",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/385",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_5d31e77335f9",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/385/672112-682120.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/385/672112-682120.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/385/672112-682120.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_bc728bedc9f0",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/385/682138-683861.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/385/682138-683861.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/385/682138-683861.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_24bcf48fc4b5",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/388",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/388",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/388",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_a98a349d33e7",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/388/685716-696617.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/388/685716-696617.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/388/685716-696617.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_e78bfc9df790",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/389",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/389",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/389",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_0ecbb89cff94",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/389/653277-674257.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/389/653277-674257.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/389/653277-674257.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_26fa441ddbd4",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/389/674277-691624.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/389/674277-691624.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/389/674277-691624.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_c81eab0096e0",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/390",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/390",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/390",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_b1ac35eee577",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/390/648634-654682.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/390/648634-654682.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/390/648634-654682.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_9979d9ee1238",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/390/654695-660285.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/390/654695-660285.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/390/654695-660285.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_c7b143a58f2d",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/390/660296-681700.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/390/660296-681700.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/390/660296-681700.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_db3b054cd35c",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/390/681779-687395.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/390/681779-687395.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/390/681779-687395.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_53d4f2cf221b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/390/687438-705260.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/390/687438-705260.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/390/687438-705260.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_b1649bb9a768",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/390/705270-712370.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/390/705270-712370.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/390/705270-712370.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_b80ba0e3cfec",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_0d72a3367a7f",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/648676-653400.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/648676-653400.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/648676-653400.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_0756421a038a",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/653438-663754.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/653438-663754.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/653438-663754.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_c6289eab92d9",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/663782-672249.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/663782-672249.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/663782-672249.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_bd4d19d5d8d4",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/672277-675344.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/672277-675344.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/672277-675344.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_af405cd6c2bf",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/675376-679375.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/675376-679375.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/675376-679375.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_005f02c6b15b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/679412-681479.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/679412-681479.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/679412-681479.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_d874528f2a0e",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/681492-683454.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/681492-683454.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/681492-683454.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_759283eef94c",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/683475-685615.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/683475-685615.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/683475-685615.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_cef7cc92e9e9",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/685652-688082.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/685652-688082.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/685652-688082.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_e2572fc987e0",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/688092-693057.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/688092-693057.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/688092-693057.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_4a3bfd08eadd",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/693061-695274.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/693061-695274.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/693061-695274.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_6e800a819d11",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/392/695284-695613.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/392/695284-695613.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/392/695284-695613.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_6a088a106c8e",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/398",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/398",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/398",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_bb53cdbd5de2",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/398/680010-686486.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/398/680010-686486.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/398/680010-686486.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_e753c76d8b09",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/410",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/410",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/410",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_a13af15c8e33",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/410/648773-660695.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/410/648773-660695.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/410/648773-660695.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_39f5220d9379",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/410/660702-676857.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/410/660702-676857.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/410/660702-676857.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_5632be6de4f9",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/410/676859-686819.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/410/676859-686819.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/410/676859-686819.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_9c057bb65e08",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/410/686871-686871.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/410/686871-686871.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/410/686871-686871.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_b64a7f95b5c7",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_d118e5db3a1b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/668454-673508.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/668454-673508.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/668454-673508.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_d30431e5eb9a",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/673569-676289.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/673569-676289.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/673569-676289.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_7a65bc21f61b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/676303-679354.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/676303-679354.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/676303-679354.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_ceb109a66c68",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/679366-683907.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/679366-683907.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/679366-683907.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_2a09c1d92f76",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/683908-686024.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/683908-686024.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/683908-686024.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_b5f42ad6e88f",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/686064-699280.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/686064-699280.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/686064-699280.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_42205abdd4f8",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/699284-700997.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/699284-700997.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/699284-700997.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_22db9e12eaeb",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/701048-702394.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/701048-702394.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/701048-702394.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_c1c210d23f5c",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/702395-703641.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/702395-703641.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/702395-703641.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_cb1b0e8d6042",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/703651-705024.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/703651-705024.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/703651-705024.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_30568a409e39",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/705027-707183.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/705027-707183.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/705027-707183.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_2c8f8855961f",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/707192-709126.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/707192-709126.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/707192-709126.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_e0e09004c8cf",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/709134-710493.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/709134-710493.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/709134-710493.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_eef71b667fe7",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/710509-713861.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/710509-713861.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/710509-713861.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_082547db4579",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/414/713877-716390.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/414/713877-716390.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/414/713877-716390.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_199df1c9156a",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/421",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/421",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/421",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_3fd053d82b8a",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/421/678610-681471.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/421/678610-681471.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/421/678610-681471.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_8193ac5e0db8",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/421/681489-684996.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/421/681489-684996.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/421/681489-684996.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_be4de7d4e7c9",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/421/685006-688189.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/421/685006-688189.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/421/685006-688189.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_2115b400d5ca",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/421/688201-689258.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/421/688201-689258.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/421/688201-689258.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_ecc002e54312",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/421/689260-694667.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/421/689260-694667.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/421/689260-694667.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_90bf924788d7",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/421/694677-702785.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/421/694677-702785.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/421/694677-702785.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_75682f294add",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/421/702804-709260.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/421/702804-709260.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/421/702804-709260.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_e1b2af812f70",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/421/709271-923022.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/421/709271-923022.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/421/709271-923022.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_950dfee40eaa",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_efe00f46028d",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/686221-692312.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/686221-692312.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/686221-692312.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_20b34e748be1",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/692324-699105.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/692324-699105.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/692324-699105.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_6c244825a84c",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/699115-706126.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/699115-706126.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/699115-706126.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_6568c4c0756b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/706136-708839.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/706136-708839.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/706136-708839.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_e541aa741d82",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/708852-712475.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/708852-712475.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/708852-712475.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_0e07cc90fae0",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/712497-715563.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/712497-715563.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/712497-715563.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_eabd4b931b84",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/715580-718817.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/715580-718817.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/715580-718817.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_7bd3d7499b97",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/718821-722371.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/718821-722371.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/718821-722371.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_62afcc03a46c",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/722385-725424.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/722385-725424.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/722385-725424.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_3b93b99b7a6f",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/725430-728642.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/725430-728642.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/725430-728642.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_6300d6faf9ae",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/728651-731826.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/728651-731826.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/728651-731826.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_42f854d28498",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/731843-736490.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/731843-736490.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/731843-736490.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_39dbb9feed00",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/736553-740620.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/736553-740620.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/736553-740620.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_020a772209f3",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/740635-745203.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/740635-745203.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/740635-745203.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_891b5d491c39",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/422/745225-748569.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/422/745225-748569.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/422/745225-748569.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_fb5d586208e3",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/424",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/424",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/424",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_40057802d72f",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/424/690053-699002.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/424/690053-699002.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/424/690053-699002.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_8eafd960ae15",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/424/699065-700326.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/424/699065-700326.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/424/699065-700326.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_5a4ba6e05b16",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/424/700337-701754.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/424/700337-701754.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/424/700337-701754.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_f66767d0bd6f",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/424/701773-705280.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/424/701773-705280.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/424/701773-705280.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_770abf810c20",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/424/705291-707037.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/424/705291-707037.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/424/705291-707037.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_2c4367127135",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/424/707097-707870.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/424/707097-707870.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/424/707097-707870.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_132f6f62a8f9",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/440",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/440",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/440",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_70fae9a87c47",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/440/684756-691509.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/440/684756-691509.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/440/684756-691509.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_d66ae1e47edb",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/440/691525-711686.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/440/691525-711686.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/440/691525-711686.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_0eb5f3909e69",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/440/711702-716688.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/440/711702-716688.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/440/711702-716688.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_da6db441c6db",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/440/716713-722848.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/440/716713-722848.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/440/716713-722848.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_4cc68ba09c0c",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/440/722862-735074.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/440/722862-735074.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/440/722862-735074.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_2efed3f0d49a",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/440/735099-741532.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/440/735099-741532.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/440/735099-741532.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_361e03504441",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/440/741541-752548.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/440/741541-752548.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/440/741541-752548.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_259843346038",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/440/752568-753689.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/440/752568-753689.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/440/752568-753689.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_defa2c8d6f99",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/446",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/446",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/446",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_01da2975f467",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/446/687380-691304.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/446/687380-691304.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/446/687380-691304.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_76a75e8f612e",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/475",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/475",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/475",
+      "source_role": "archive_collection",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_5c563b7f8b80",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/475/698269-702549.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/475/698269-702549.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/475/698269-702549.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_94246ea7a3a3",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/475/702578-743685.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/475/702578-743685.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/475/702578-743685.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_26d10f3365dc",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/475/743719-754318.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/475/743719-754318.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/475/743719-754318.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_b5f1582e0ff6",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/475/754335-759043.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/475/754335-759043.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/475/754335-759043.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_1c056e964154",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/observations/475/759073-764829.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/observations/475/759073-764829.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/475/759073-764829.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_6a6c4c879bdb",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/parameters/648533-663816.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/parameters/648533-663816.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/parameters/648533-663816.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_781cefdd3c3b",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/parameters/663817-675572.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/parameters/663817-675572.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/parameters/663817-675572.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_8f035714c470",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/parameters/675573-684635.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/parameters/675573-684635.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/parameters/675573-684635.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_801b0387d9e3",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/parameters/684637-694777.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/parameters/684637-694777.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/parameters/684637-694777.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_7bb901775af9",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/parameters/694780-709954.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/parameters/694780-709954.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/parameters/694780-709954.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_185f6ec44e1f",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/parameters/709960-737425.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/parameters/709960-737425.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/parameters/709960-737425.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_04ba25b7b6d0",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/parameters/737433-923022.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/parameters/737433-923022.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/parameters/737433-923022.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_ff3b2b3968e4",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/proprio_stats/327",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/proprio_stats/327",
+      "format": "hdf5",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/proprio_stats/327",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    },
+    {
+      "source_id": "src_9ee49bd4dc6e",
+      "original_path": "/mnt/dataset2/agibot_world_alpha/proprio_stats/648533-923022.tar",
+      "direct_path": "/mnt/dataset2/agibot_world_alpha/proprio_stats/648533-923022.tar",
+      "format": "archives",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/proprio_stats/648533-923022.tar",
+      "source_role": "archive",
+      "validation_status": "archive_not_opened",
+      "entry_type": "through_direct_dataset_symlink"
+    }
+  ],
+  "notes": [
+    "按用户要求，两种视图均只链接四个原始组件目录，目录名沿用原盘。",
+    "observations对应观测数据，proprio_stats对应本体状态统计；原始目录内的归档、展开数据和元数据共同可见。",
+    "LeRobot转换副本保留原始路径记录，不再建立单独的软链接或格式入口。"
+  ],
+  "source_files_modified": false,
+  "task_metadata": [
+    {
+      "task_key": "agibot_alpha_task327",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_327.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_327.json",
+        "record_count": 209,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "34965d77a86b26e8fa1c37c19b2475fbd47171445c495514b344f7e4d9fe7d53"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task352",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_352.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_352.json",
+        "record_count": 1387,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "072826a96eed7c3a2f8d041f16ea6ebff4c809a075adedf2d2e6f17616c3c4b9"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task354",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_354.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_354.json",
+        "record_count": 516,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "0341c9e3481014ab462975bf565d49dccb053b2404f598777b6a724220626362"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task356",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_356.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_356.json",
+        "record_count": 475,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "2e5669c670128999019ba7799d078e15513689d1a6ac54c1e3be35704ab057df"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task357",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_357.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_357.json",
+        "record_count": 428,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "97cee0f9a5ca52deb9d0fb821c5879f17b18fddd4b929db20c6730531b6d7c85"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task358",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_358.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_358.json",
+        "record_count": 470,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "696986a0b36324dfc4cb75cac4510aa9a1a225cc37c9f9a9ad447858f4fbbb8b"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task359",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_359.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_359.json",
+        "record_count": 644,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "d10ba6ad68de3da28763bbb3af3511e76cfd6c5d3b708662cb18730f9506eaee"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task360",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_360.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_360.json",
+        "record_count": 517,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "29adec92f5cdf62aeb45b095ac6bc4533c29ee89a6c85e6266bd484c0cd07a89"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task361",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_361.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_361.json",
+        "record_count": 2554,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "d4a913bfc7fdce2be82471ceebc13533a54a083ef88895bcd7a17cd541e0b1b3"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task362",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_362.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_362.json",
+        "record_count": 8233,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "7ac1e9dedd6676d4b0e5056ec8a7fc9883e3415ccc7f30556612a5b82906384b"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task365",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_365.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_365.json",
+        "record_count": 503,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "f6784bc3ac1ea86b5af8aa52a791bb87a6b29a06dd1a47dbf3485c78a5502792"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task366",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_366.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_366.json",
+        "record_count": 728,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "012cb1ec637f5759b57649c24c2056dfddf3bb1955a378f2e8108a5a1dbd9652"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task367",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_367.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_367.json",
+        "record_count": 257,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "5aad5d872645c14fc2595f307efb8ba63d29601158238a5148eda153b5d56732"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task368",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_368.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_368.json",
+        "record_count": 588,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "0d1f93006ef4178986be182f470203b0bd8afbe9a2dd527aecbe51d98cbf37d0"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task372",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_372.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_372.json",
+        "record_count": 537,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "59cd7c566145f59efdf7b92c3b7ac3e42c9f2e01563a6c241c64a2447ac25913"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task374",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_374.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_374.json",
+        "record_count": 91,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "87f64871bd411c6886d6fbe760c52f3e97e43e8427415222e8e0b3403fbe9e77"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task375",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_375.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_375.json",
+        "record_count": 422,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "6c2f922b9a2bd7adca5120549153a904e14ca78c3baa426d0373ac60d10a68f5"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task376",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_376.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_376.json",
+        "record_count": 403,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "e70854dc1b032240e8c2f0d4d23d453f38c60f8342cb28c906ba9478167d8def"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task377",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_377.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_377.json",
+        "record_count": 794,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "eec2edb18211f67e46662201668669e9d6a3e1ec76f74972eb48e1d3c86ac780"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task378",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_378.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_378.json",
+        "record_count": 739,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "2abb494b4307ed4b5c85f006173f99870bec0545739aa4c635bd358c6a541f3d"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task380",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_380.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_380.json",
+        "record_count": 815,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "9e84db063849a2228c703d2bcfb49fcb8df2a8dc33ff969a38c72a69e427e73b"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task384",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_384.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_384.json",
+        "record_count": 808,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "4099a45395155c83e3c8292b17172fb6899de3539fddfd9116d7eb1a8fc123f7"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task385",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_385.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_385.json",
+        "record_count": 214,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "c119c626da521df7995fb5636864025fb041ed1bdecc9eb15f98d2a44d50d699"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task388",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_388.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_388.json",
+        "record_count": 92,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "d8abccc9d917cbbed5ef7933c545173bc3b19345f358fdab5c6f878c1364588d"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task389",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_389.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_389.json",
+        "record_count": 312,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "a7fc0c1e6ddb3bb5805ee94c0a0c944565cb0e000ce2eccfb489557655db28d1"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task390",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_390.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_390.json",
+        "record_count": 750,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "9cd69fb66c9e6b4f5413f8bf19adf249ee9d7f351229f6bf39b056c865ab8f1d"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task392",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_392.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_392.json",
+        "record_count": 977,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "6f4aa7b939e6c25879df37e0e9777f9622bb15bee1c74f38ebab478849eaa371"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task398",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_398.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_398.json",
+        "record_count": 173,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "06cd14cc87a8e09b2378c9640ac866c02ea2f77292933a9eec563c2028630125"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task410",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_410.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_410.json",
+        "record_count": 1091,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "5ac9cd9eee3e7bd6c1cb730cabc21aaa12c098e67e23b34d19c463734b0e967a"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task414",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_414.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_414.json",
+        "record_count": 2064,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "19f792f311b2f00853d86df19b66b38349eb017991c9e27fc55eaad8e698de92"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task421",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_421.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_421.json",
+        "record_count": 1654,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "edc8842599f492e3bd273bff1e1e3891df7985071138c031401a7ae37d9e5b3a"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task422",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_422.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_422.json",
+        "record_count": 2089,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "7ed174a2ededc4bdb22f807bf00cad71bc56fcb4524a11fde52b424efae63fee"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task424",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_424.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_424.json",
+        "record_count": 916,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "f619cdf3b433b11ff528f6a28aa681cd89e1e3161913a020c72b822323f69a3c"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task440",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_440.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_440.json",
+        "record_count": 1087,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "bc7d4ecf6054c7b6a247b9fa9addbf79b5f221513c423ca25a9931f7bb258197"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task446",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_446.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_446.json",
+        "record_count": 72,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "c0933f842ea5ff9aa65ed978b75f836340cdc5289aca579a904eb663a0e0ef5f"
+      }
+    },
+    {
+      "task_key": "agibot_alpha_task475",
+      "task_info": {
+        "source_path": "/mnt/dataset2/agibot_world_alpha/task_info/task_475.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_475.json",
+        "record_count": 903,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "e777417a9a6404317751badb4d26672f03b3ca918df7af94b433b4523b6dca55"
+      }
+    }
+  ],
+  "navigation_scope": "original_component_or_category_directories",
+  "excluded_from_navigation": [
+    "/mnt/dataset2/agibot_world_alpha/lerobot_v2_output"
+  ]
+}

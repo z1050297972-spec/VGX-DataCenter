@@ -1,0 +1,848 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-14",
+  "dataset_name": "libero_10",
+  "view": "format",
+  "format": "lerobot",
+  "version": "3.0",
+  "task_count": 10,
+  "data_unit": "original_dataset",
+  "semantics": {
+    "task_labels": "记录源任务标签和已有子任务说明；同源多标签不自动认定为同一长任务的顺序步骤。",
+    "source_sequences": "多个子任务可以共享同一数据集、轨迹或视频；本目录只链接原始数据，不按语义标签复制、裁剪视频。",
+    "scope": "whole_root为源根；episodes为已有完整轨迹编号；archive为整包。范围字段按原标注保存。",
+    "video_mapping": "episode编号不是视频文件编号；未提供的时间边界或视频映射不作推断。"
+  },
+  "tasks": [
+    {
+      "task_key": "libero_v3_28f14f4b739c",
+      "family": "libero_v3",
+      "display_name": "put both moka pots on the stove",
+      "description": "Put both moka pots on the stove.",
+      "label_status": "verified_metadata",
+      "notes": [
+        "选择范围为包含该任务标注的完整轨迹；若一条轨迹还有其它任务标注，返回上下文轨迹而非纯任务片段。"
+      ],
+      "sources": [
+        {
+          "root": "/mnt/dataset1/libero_v3/libero_10",
+          "scope": "episodes",
+          "evidence": [
+            {
+              "path": "/mnt/dataset1/libero_v3/libero_10/meta/episodes",
+              "field": "tasks",
+              "text": "put both moka pots on the stove"
+            }
+          ],
+          "episode_indices": [
+            10,
+            20,
+            23,
+            46,
+            51,
+            54,
+            57,
+            67,
+            70,
+            73,
+            86,
+            100,
+            106,
+            115,
+            143,
+            149,
+            179,
+            187,
+            194,
+            204,
+            214,
+            270,
+            283,
+            288,
+            306,
+            314,
+            316,
+            341,
+            376
+          ],
+          "selection_semantics": "whole_episodes_containing_task",
+          "source_id": "src_0b33c900c7fa",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "/mnt/dataset1/libero_v3/libero_10",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/libero_10",
+      "dataset_ids": [
+        "dataset-14"
+      ],
+      "entry_paths": [
+        "按任务/libero_10"
+      ],
+      "subtask_json_paths": [
+        "按任务/libero_10/子任务.json"
+      ]
+    },
+    {
+      "task_key": "libero_v3_2a3da0cbc71b",
+      "family": "libero_v3",
+      "display_name": "pick up the book and place it in the back compartment of the caddy",
+      "description": "Pick up the book and place it in the back compartment of the caddy.",
+      "label_status": "verified_metadata",
+      "notes": [
+        "选择范围为包含该任务标注的完整轨迹；若一条轨迹还有其它任务标注，返回上下文轨迹而非纯任务片段。"
+      ],
+      "sources": [
+        {
+          "root": "/mnt/dataset1/libero_v3/libero_10",
+          "scope": "episodes",
+          "evidence": [
+            {
+              "path": "/mnt/dataset1/libero_v3/libero_10/meta/episodes",
+              "field": "tasks",
+              "text": "pick up the book and place it in the back compartment of the caddy"
+            }
+          ],
+          "episode_indices": [
+            27,
+            28,
+            47,
+            55,
+            61,
+            64,
+            81,
+            103,
+            104,
+            109,
+            111,
+            127,
+            133,
+            136,
+            141,
+            147,
+            154,
+            158,
+            159,
+            180,
+            191,
+            209,
+            213,
+            227,
+            228,
+            229,
+            258,
+            261,
+            279,
+            290,
+            298,
+            299,
+            311,
+            313,
+            348,
+            349,
+            364,
+            366,
+            368,
+            372,
+            374
+          ],
+          "selection_semantics": "whole_episodes_containing_task",
+          "source_id": "src_0b33c900c7fa",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "/mnt/dataset1/libero_v3/libero_10",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/libero_10",
+      "dataset_ids": [
+        "dataset-14",
+        "dataset-15"
+      ],
+      "entry_paths": [
+        "按任务/libero_10",
+        "按任务/libero_90"
+      ],
+      "subtask_json_paths": [
+        "按任务/libero_10/子任务.json",
+        "按任务/libero_90/子任务.json"
+      ]
+    },
+    {
+      "task_key": "libero_v3_2bfccbeaf894",
+      "family": "libero_v3",
+      "display_name": "put the white mug on the plate and put the chocolate pudding to the right of the plate",
+      "description": "Put the white mug on the plate and put the chocolate pudding to the right of the plate.",
+      "label_status": "verified_metadata",
+      "notes": [
+        "选择范围为包含该任务标注的完整轨迹；若一条轨迹还有其它任务标注，返回上下文轨迹而非纯任务片段。"
+      ],
+      "sources": [
+        {
+          "root": "/mnt/dataset1/libero_v3/libero_10",
+          "scope": "episodes",
+          "evidence": [
+            {
+              "path": "/mnt/dataset1/libero_v3/libero_10/meta/episodes",
+              "field": "tasks",
+              "text": "put the white mug on the plate and put the chocolate pudding to the right of the plate"
+            }
+          ],
+          "episode_indices": [
+            1,
+            4,
+            5,
+            11,
+            19,
+            21,
+            37,
+            52,
+            62,
+            68,
+            108,
+            110,
+            113,
+            130,
+            138,
+            146,
+            152,
+            168,
+            176,
+            197,
+            206,
+            210,
+            212,
+            216,
+            220,
+            224,
+            242,
+            248,
+            252,
+            271,
+            302,
+            322,
+            325,
+            355,
+            356,
+            369
+          ],
+          "selection_semantics": "whole_episodes_containing_task",
+          "source_id": "src_0b33c900c7fa",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "/mnt/dataset1/libero_v3/libero_10",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/libero_10",
+      "dataset_ids": [
+        "dataset-14"
+      ],
+      "entry_paths": [
+        "按任务/libero_10"
+      ],
+      "subtask_json_paths": [
+        "按任务/libero_10/子任务.json"
+      ]
+    },
+    {
+      "task_key": "libero_v3_39b87baed0d4",
+      "family": "libero_v3",
+      "display_name": "put both the alphabet soup and the cream cheese box in the basket",
+      "description": "Put both the alphabet soup and the cream cheese box in the basket.",
+      "label_status": "verified_metadata",
+      "notes": [
+        "选择范围为包含该任务标注的完整轨迹；若一条轨迹还有其它任务标注，返回上下文轨迹而非纯任务片段。"
+      ],
+      "sources": [
+        {
+          "root": "/mnt/dataset1/libero_v3/libero_10",
+          "scope": "episodes",
+          "evidence": [
+            {
+              "path": "/mnt/dataset1/libero_v3/libero_10/meta/episodes",
+              "field": "tasks",
+              "text": "put both the alphabet soup and the cream cheese box in the basket"
+            }
+          ],
+          "episode_indices": [
+            7,
+            9,
+            25,
+            29,
+            30,
+            41,
+            63,
+            74,
+            82,
+            83,
+            96,
+            98,
+            124,
+            135,
+            148,
+            160,
+            161,
+            163,
+            171,
+            174,
+            188,
+            195,
+            196,
+            205,
+            208,
+            221,
+            222,
+            223,
+            237,
+            246,
+            250,
+            256,
+            265,
+            266,
+            275,
+            281,
+            286,
+            289,
+            293,
+            297,
+            318,
+            331,
+            373
+          ],
+          "selection_semantics": "whole_episodes_containing_task",
+          "source_id": "src_0b33c900c7fa",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "/mnt/dataset1/libero_v3/libero_10",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/libero_10",
+      "dataset_ids": [
+        "dataset-14"
+      ],
+      "entry_paths": [
+        "按任务/libero_10"
+      ],
+      "subtask_json_paths": [
+        "按任务/libero_10/子任务.json"
+      ]
+    },
+    {
+      "task_key": "libero_v3_4332cffe7bc0",
+      "family": "libero_v3",
+      "display_name": "turn on the stove and put the moka pot on it",
+      "description": "Turn on the stove and put the moka pot on it.",
+      "label_status": "verified_metadata",
+      "notes": [
+        "选择范围为包含该任务标注的完整轨迹；若一条轨迹还有其它任务标注，返回上下文轨迹而非纯任务片段。"
+      ],
+      "sources": [
+        {
+          "root": "/mnt/dataset1/libero_v3/libero_10",
+          "scope": "episodes",
+          "evidence": [
+            {
+              "path": "/mnt/dataset1/libero_v3/libero_10/meta/episodes",
+              "field": "tasks",
+              "text": "turn on the stove and put the moka pot on it"
+            }
+          ],
+          "episode_indices": [
+            6,
+            38,
+            40,
+            45,
+            48,
+            49,
+            50,
+            66,
+            72,
+            87,
+            93,
+            95,
+            134,
+            150,
+            153,
+            162,
+            182,
+            184,
+            185,
+            202,
+            203,
+            218,
+            225,
+            239,
+            240,
+            243,
+            253,
+            259,
+            263,
+            272,
+            277,
+            278,
+            287,
+            292,
+            303,
+            321,
+            345,
+            351,
+            354,
+            358,
+            361
+          ],
+          "selection_semantics": "whole_episodes_containing_task",
+          "source_id": "src_0b33c900c7fa",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "/mnt/dataset1/libero_v3/libero_10",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/libero_10",
+      "dataset_ids": [
+        "dataset-14"
+      ],
+      "entry_paths": [
+        "按任务/libero_10"
+      ],
+      "subtask_json_paths": [
+        "按任务/libero_10/子任务.json"
+      ]
+    },
+    {
+      "task_key": "libero_v3_8405398832a6",
+      "family": "libero_v3",
+      "display_name": "put both the alphabet soup and the tomato sauce in the basket",
+      "description": "Put both the alphabet soup and the tomato sauce in the basket.",
+      "label_status": "verified_metadata",
+      "notes": [
+        "选择范围为包含该任务标注的完整轨迹；若一条轨迹还有其它任务标注，返回上下文轨迹而非纯任务片段。"
+      ],
+      "sources": [
+        {
+          "root": "/mnt/dataset1/libero_v3/libero_10",
+          "scope": "episodes",
+          "evidence": [
+            {
+              "path": "/mnt/dataset1/libero_v3/libero_10/meta/episodes",
+              "field": "tasks",
+              "text": "put both the alphabet soup and the tomato sauce in the basket"
+            }
+          ],
+          "episode_indices": [
+            8,
+            13,
+            26,
+            39,
+            69,
+            71,
+            77,
+            79,
+            92,
+            101,
+            102,
+            118,
+            132,
+            137,
+            156,
+            181,
+            199,
+            200,
+            219,
+            234,
+            238,
+            241,
+            260,
+            291,
+            308,
+            317,
+            334,
+            336,
+            340,
+            350,
+            352,
+            359,
+            363
+          ],
+          "selection_semantics": "whole_episodes_containing_task",
+          "source_id": "src_0b33c900c7fa",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "/mnt/dataset1/libero_v3/libero_10",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/libero_10",
+      "dataset_ids": [
+        "dataset-14"
+      ],
+      "entry_paths": [
+        "按任务/libero_10"
+      ],
+      "subtask_json_paths": [
+        "按任务/libero_10/子任务.json"
+      ]
+    },
+    {
+      "task_key": "libero_v3_8e287134a296",
+      "family": "libero_v3",
+      "display_name": "put the white mug on the left plate and put the yellow and white mug on the right plate",
+      "description": "Put the white mug on the left plate and put the yellow and white mug on the right plate.",
+      "label_status": "verified_metadata",
+      "notes": [
+        "选择范围为包含该任务标注的完整轨迹；若一条轨迹还有其它任务标注，返回上下文轨迹而非纯任务片段。"
+      ],
+      "sources": [
+        {
+          "root": "/mnt/dataset1/libero_v3/libero_10",
+          "scope": "episodes",
+          "evidence": [
+            {
+              "path": "/mnt/dataset1/libero_v3/libero_10/meta/episodes",
+              "field": "tasks",
+              "text": "put the white mug on the left plate and put the yellow and white mug on the right plate"
+            }
+          ],
+          "episode_indices": [
+            0,
+            18,
+            22,
+            33,
+            58,
+            85,
+            88,
+            105,
+            107,
+            114,
+            121,
+            125,
+            129,
+            157,
+            167,
+            170,
+            190,
+            207,
+            211,
+            231,
+            233,
+            235,
+            236,
+            247,
+            249,
+            257,
+            264,
+            267,
+            295,
+            301,
+            307,
+            309,
+            315,
+            323,
+            343,
+            346,
+            362,
+            367
+          ],
+          "selection_semantics": "whole_episodes_containing_task",
+          "source_id": "src_0b33c900c7fa",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "/mnt/dataset1/libero_v3/libero_10",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/libero_10",
+      "dataset_ids": [
+        "dataset-14"
+      ],
+      "entry_paths": [
+        "按任务/libero_10"
+      ],
+      "subtask_json_paths": [
+        "按任务/libero_10/子任务.json"
+      ]
+    },
+    {
+      "task_key": "libero_v3_9f1272e843cc",
+      "family": "libero_v3",
+      "display_name": "put the yellow and white mug in the microwave and close it",
+      "description": "Put the yellow and white mug in the microwave and close it.",
+      "label_status": "verified_metadata",
+      "notes": [
+        "选择范围为包含该任务标注的完整轨迹；若一条轨迹还有其它任务标注，返回上下文轨迹而非纯任务片段。"
+      ],
+      "sources": [
+        {
+          "root": "/mnt/dataset1/libero_v3/libero_10",
+          "scope": "episodes",
+          "evidence": [
+            {
+              "path": "/mnt/dataset1/libero_v3/libero_10/meta/episodes",
+              "field": "tasks",
+              "text": "put the yellow and white mug in the microwave and close it"
+            }
+          ],
+          "episode_indices": [
+            2,
+            3,
+            34,
+            35,
+            44,
+            59,
+            80,
+            84,
+            99,
+            123,
+            126,
+            139,
+            140,
+            142,
+            145,
+            164,
+            173,
+            178,
+            186,
+            193,
+            217,
+            226,
+            230,
+            245,
+            269,
+            276,
+            282,
+            285,
+            312,
+            324,
+            339,
+            342,
+            357,
+            365
+          ],
+          "selection_semantics": "whole_episodes_containing_task",
+          "source_id": "src_0b33c900c7fa",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "/mnt/dataset1/libero_v3/libero_10",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/libero_10",
+      "dataset_ids": [
+        "dataset-14"
+      ],
+      "entry_paths": [
+        "按任务/libero_10"
+      ],
+      "subtask_json_paths": [
+        "按任务/libero_10/子任务.json"
+      ]
+    },
+    {
+      "task_key": "libero_v3_c0d6cce5a78a",
+      "family": "libero_v3",
+      "display_name": "put both the cream cheese box and the butter in the basket",
+      "description": "Put both the cream cheese box and the butter in the basket.",
+      "label_status": "verified_metadata",
+      "notes": [
+        "选择范围为包含该任务标注的完整轨迹；若一条轨迹还有其它任务标注，返回上下文轨迹而非纯任务片段。"
+      ],
+      "sources": [
+        {
+          "root": "/mnt/dataset1/libero_v3/libero_10",
+          "scope": "episodes",
+          "evidence": [
+            {
+              "path": "/mnt/dataset1/libero_v3/libero_10/meta/episodes",
+              "field": "tasks",
+              "text": "put both the cream cheese box and the butter in the basket"
+            }
+          ],
+          "episode_indices": [
+            12,
+            17,
+            24,
+            42,
+            43,
+            53,
+            56,
+            60,
+            65,
+            76,
+            78,
+            91,
+            94,
+            116,
+            117,
+            119,
+            122,
+            128,
+            131,
+            165,
+            166,
+            172,
+            175,
+            183,
+            201,
+            215,
+            232,
+            244,
+            251,
+            273,
+            280,
+            284,
+            294,
+            296,
+            305,
+            310,
+            320,
+            326,
+            328,
+            329,
+            330,
+            332,
+            333,
+            335,
+            344,
+            347,
+            360,
+            370,
+            378
+          ],
+          "selection_semantics": "whole_episodes_containing_task",
+          "source_id": "src_0b33c900c7fa",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "/mnt/dataset1/libero_v3/libero_10",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/libero_10",
+      "dataset_ids": [
+        "dataset-14"
+      ],
+      "entry_paths": [
+        "按任务/libero_10"
+      ],
+      "subtask_json_paths": [
+        "按任务/libero_10/子任务.json"
+      ]
+    },
+    {
+      "task_key": "libero_v3_fb511f1ad744",
+      "family": "libero_v3",
+      "display_name": "put the black bowl in the bottom drawer of the cabinet and close it",
+      "description": "Put the black bowl in the bottom drawer of the cabinet and close it.",
+      "label_status": "verified_metadata",
+      "notes": [
+        "选择范围为包含该任务标注的完整轨迹；若一条轨迹还有其它任务标注，返回上下文轨迹而非纯任务片段。"
+      ],
+      "sources": [
+        {
+          "root": "/mnt/dataset1/libero_v3/libero_10",
+          "scope": "episodes",
+          "evidence": [
+            {
+              "path": "/mnt/dataset1/libero_v3/libero_10/meta/episodes",
+              "field": "tasks",
+              "text": "put the black bowl in the bottom drawer of the cabinet and close it"
+            }
+          ],
+          "episode_indices": [
+            14,
+            15,
+            16,
+            31,
+            32,
+            36,
+            75,
+            89,
+            90,
+            97,
+            112,
+            120,
+            144,
+            151,
+            155,
+            169,
+            177,
+            189,
+            192,
+            198,
+            254,
+            255,
+            262,
+            268,
+            274,
+            300,
+            304,
+            319,
+            327,
+            337,
+            338,
+            353,
+            371,
+            375,
+            377
+          ],
+          "selection_semantics": "whole_episodes_containing_task",
+          "source_id": "src_0b33c900c7fa",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "/mnt/dataset1/libero_v3/libero_10",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/libero_10",
+      "dataset_ids": [
+        "dataset-14"
+      ],
+      "entry_paths": [
+        "按任务/libero_10"
+      ],
+      "subtask_json_paths": [
+        "按任务/libero_10/子任务.json"
+      ]
+    }
+  ],
+  "shared_source_roots": [
+    {
+      "source_id": "src_0b33c900c7fa",
+      "root": "/mnt/dataset1/libero_v3/libero_10",
+      "task_keys": [
+        "libero_v3_28f14f4b739c",
+        "libero_v3_2a3da0cbc71b",
+        "libero_v3_2bfccbeaf894",
+        "libero_v3_39b87baed0d4",
+        "libero_v3_4332cffe7bc0",
+        "libero_v3_8405398832a6",
+        "libero_v3_8e287134a296",
+        "libero_v3_9f1272e843cc",
+        "libero_v3_c0d6cce5a78a",
+        "libero_v3_fb511f1ad744"
+      ]
+    }
+  ]
+}

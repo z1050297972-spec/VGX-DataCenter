@@ -1,0 +1,2363 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-33",
+  "dataset_name": "EgoProDemo",
+  "dataset_roots": [
+    "/mnt/dataset2/EgoProDemo"
+  ],
+  "view": "task",
+  "format": null,
+  "version": null,
+  "links": [
+    {
+      "name": "原始数据",
+      "source_path": "/mnt/dataset2/EgoProDemo",
+      "entry_path": "按任务/EgoProDemo/原始数据",
+      "source_type": "directory"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "src_accf48ec594b",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_4d589639da3c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/11deec69-bf40-4a5a-a8c7-7a397b3df648",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/11deec69-bf40-4a5a-a8c7-7a397b3df648",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/11deec69-bf40-4a5a-a8c7-7a397b3df648",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_5e68c866729a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/1b15e61d-2430-488d-8da5-023fd5cd9be5",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/1b15e61d-2430-488d-8da5-023fd5cd9be5",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/1b15e61d-2430-488d-8da5-023fd5cd9be5",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_c6b40b36b9e2",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/1e809d32-2962-4297-8606-70b0eb510b48",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/1e809d32-2962-4297-8606-70b0eb510b48",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/1e809d32-2962-4297-8606-70b0eb510b48",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_f2f4cd12d150",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/1f61530b-9a22-4e4c-b4e7-461528bc82d8",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/1f61530b-9a22-4e4c-b4e7-461528bc82d8",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/1f61530b-9a22-4e4c-b4e7-461528bc82d8",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_ac25f4857862",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/5917e686-77e0-43fb-b9b9-a1bf1f134416",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/5917e686-77e0-43fb-b9b9-a1bf1f134416",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/5917e686-77e0-43fb-b9b9-a1bf1f134416",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e21391b5bab3",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label to Package/6d54df69-cc80-41a8-98a5-e84eed31e4e0",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label to Package/6d54df69-cc80-41a8-98a5-e84eed31e4e0",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Affix Shipping Label to Package/6d54df69-cc80-41a8-98a5-e84eed31e4e0",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_0ac867c3cb98",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label to Package/a2c432c6-5ccb-46d1-975f-9c30c4d631e2",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label to Package/a2c432c6-5ccb-46d1-975f-9c30c4d631e2",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Affix Shipping Label to Package/a2c432c6-5ccb-46d1-975f-9c30c4d631e2",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_d7bbcd692ec4",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label to Package/b9f0d6e9-5521-4dee-aa7e-c5c1b2771f0f",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label to Package/b9f0d6e9-5521-4dee-aa7e-c5c1b2771f0f",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Affix Shipping Label to Package/b9f0d6e9-5521-4dee-aa7e-c5c1b2771f0f",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_da12626fd8c3",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label to Package/e29286b4-def3-4fc6-addc-24d76444de84",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label to Package/e29286b4-def3-4fc6-addc-24d76444de84",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Affix Shipping Label to Package/e29286b4-def3-4fc6-addc-24d76444de84",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_7b07e2cb7784",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label to Package/ea1cd083-3bae-475a-99f2-04379c64bb7e",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label to Package/ea1cd083-3bae-475a-99f2-04379c64bb7e",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Affix Shipping Label to Package/ea1cd083-3bae-475a-99f2-04379c64bb7e",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_7f64a5f6ad5c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/1f49cc37-25b9-4570-9a51-5b0769eeee8e",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/1f49cc37-25b9-4570-9a51-5b0769eeee8e",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align Paper/1f49cc37-25b9-4570-9a51-5b0769eeee8e",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_a7fc53db40c8",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/5b4a3924-9883-486c-98cd-98ec9f015bc1",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/5b4a3924-9883-486c-98cd-98ec9f015bc1",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align Paper/5b4a3924-9883-486c-98cd-98ec9f015bc1",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_c3be435e7862",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/5d852202-fdca-49a6-b4fc-02123e9f4f51",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/5d852202-fdca-49a6-b4fc-02123e9f4f51",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align Paper/5d852202-fdca-49a6-b4fc-02123e9f4f51",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_9d7f489bcdd1",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/6d06a9ea-81a3-43d4-9124-359067541130",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/6d06a9ea-81a3-43d4-9124-359067541130",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align Paper/6d06a9ea-81a3-43d4-9124-359067541130",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_3002f8669326",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/89f3fb2f-6893-4791-8625-0706ebb8b60b",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/89f3fb2f-6893-4791-8625-0706ebb8b60b",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align Paper/89f3fb2f-6893-4791-8625-0706ebb8b60b",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_165bd6929320",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/e08a0fed-4e42-4c28-922b-e0a6abfec3b2",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align Paper/e08a0fed-4e42-4c28-922b-e0a6abfec3b2",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align Paper/e08a0fed-4e42-4c28-922b-e0a6abfec3b2",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_963d647355d9",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Cups/abe1c82e-2bb0-4624-a2f5-6e1014733183",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Cups/abe1c82e-2bb0-4624-a2f5-6e1014733183",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align and Arrange Cups/abe1c82e-2bb0-4624-a2f5-6e1014733183",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_09ea398b662f",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Cups/cd433b80-1756-4f88-a010-241a67ae7312",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Cups/cd433b80-1756-4f88-a010-241a67ae7312",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align and Arrange Cups/cd433b80-1756-4f88-a010-241a67ae7312",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_ab5bdd3862d1",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Folders/dc9f6ea8-c4f7-42f3-8256-76070a890bb5",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Folders/dc9f6ea8-c4f7-42f3-8256-76070a890bb5",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align and Arrange Folders/dc9f6ea8-c4f7-42f3-8256-76070a890bb5",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_1ee5e7a738ea",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Magazines/76e3860c-9b40-4a5c-8244-a62e255a287e",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Magazines/76e3860c-9b40-4a5c-8244-a62e255a287e",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align and Arrange Magazines/76e3860c-9b40-4a5c-8244-a62e255a287e",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_b843500d0c90",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Magazines/c6c1b972-ab7e-465a-9b3f-0ce229b41384",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Magazines/c6c1b972-ab7e-465a-9b3f-0ce229b41384",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align and Arrange Magazines/c6c1b972-ab7e-465a-9b3f-0ce229b41384",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_cc91215b7deb",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Seasoning Bottles/33b739eb-47a9-4ffc-b3db-959b8ee992e6",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Seasoning Bottles/33b739eb-47a9-4ffc-b3db-959b8ee992e6",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align and Arrange Seasoning Bottles/33b739eb-47a9-4ffc-b3db-959b8ee992e6",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_15ffe0779fe7",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Seasoning Bottles/8fc9b837-5352-4bf7-a7ca-3f78167a7f96",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Seasoning Bottles/8fc9b837-5352-4bf7-a7ca-3f78167a7f96",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align and Arrange Seasoning Bottles/8fc9b837-5352-4bf7-a7ca-3f78167a7f96",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_908b33bcd2a0",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Seasoning Bottles/9c7baa8a-73aa-4ffa-bb44-ff8b0f890680",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Seasoning Bottles/9c7baa8a-73aa-4ffa-bb44-ff8b0f890680",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align and Arrange Seasoning Bottles/9c7baa8a-73aa-4ffa-bb44-ff8b0f890680",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e7fc0d9bc906",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Spice Jars/32e1be1e-7198-4b94-a4fb-8120c8e0b024",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Spice Jars/32e1be1e-7198-4b94-a4fb-8120c8e0b024",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align and Arrange Spice Jars/32e1be1e-7198-4b94-a4fb-8120c8e0b024",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_09e29657d048",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Spice Jars/47323185-e024-4077-aaa3-ff79c59f2f3c",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Align and Arrange Spice Jars/47323185-e024-4077-aaa3-ff79c59f2f3c",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Align and Arrange Spice Jars/47323185-e024-4077-aaa3-ff79c59f2f3c",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_b4e002e089b4",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Apply Sealing Label/1c78e84b-8a24-4839-a834-04715c36d7e0",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Apply Sealing Label/1c78e84b-8a24-4839-a834-04715c36d7e0",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Apply Sealing Label/1c78e84b-8a24-4839-a834-04715c36d7e0",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_c5c227d108e5",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Apply Sealing Label/7c9cff9b-4e3a-43a5-942f-c18504204088",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Apply Sealing Label/7c9cff9b-4e3a-43a5-942f-c18504204088",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Apply Sealing Label/7c9cff9b-4e3a-43a5-942f-c18504204088",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_21297137c0f8",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Apply Sealing Label/937d23a2-b75a-40ca-bcae-e6fd4cfb3981",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Apply Sealing Label/937d23a2-b75a-40ca-bcae-e6fd4cfb3981",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Apply Sealing Label/937d23a2-b75a-40ca-bcae-e6fd4cfb3981",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_eebe8192ae3f",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Apply sealing tape to bag opening/384be3c4-f35c-48b6-b835-edf7b3bd0a95",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Apply sealing tape to bag opening/384be3c4-f35c-48b6-b835-edf7b3bd0a95",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Apply sealing tape to bag opening/384be3c4-f35c-48b6-b835-edf7b3bd0a95",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_0d7a4674f0b4",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Apply sealing tape to bag opening/96fbd10b-f262-4355-a7d1-33edfb9ab74e",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Apply sealing tape to bag opening/96fbd10b-f262-4355-a7d1-33edfb9ab74e",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Apply sealing tape to bag opening/96fbd10b-f262-4355-a7d1-33edfb9ab74e",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_5825e86b92f8",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/15e16693-a8cc-4db1-8115-a41615da7e56",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/15e16693-a8cc-4db1-8115-a41615da7e56",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange Toiletries/15e16693-a8cc-4db1-8115-a41615da7e56",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_8e0a4106229e",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/2567e22f-5efc-4b55-b8fb-86b48a5bff86",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/2567e22f-5efc-4b55-b8fb-86b48a5bff86",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange Toiletries/2567e22f-5efc-4b55-b8fb-86b48a5bff86",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_ea3bf9d381d1",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/7b7e7d51-ea3b-4572-ae4c-e658bc5b6447",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/7b7e7d51-ea3b-4572-ae4c-e658bc5b6447",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange Toiletries/7b7e7d51-ea3b-4572-ae4c-e658bc5b6447",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e60e26285c3a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/8ff42aa1-dadb-4b56-9fab-723245e9197e",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/8ff42aa1-dadb-4b56-9fab-723245e9197e",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange Toiletries/8ff42aa1-dadb-4b56-9fab-723245e9197e",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_c8df4c47c9e2",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/a1bb9bc5-0769-4b80-856a-f201b7fe8454",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/a1bb9bc5-0769-4b80-856a-f201b7fe8454",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange Toiletries/a1bb9bc5-0769-4b80-856a-f201b7fe8454",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_825d96280406",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/dc98661e-93b8-4a9d-93af-11ac5f1525ab",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/dc98661e-93b8-4a9d-93af-11ac5f1525ab",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange Toiletries/dc98661e-93b8-4a9d-93af-11ac5f1525ab",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_b863ccbd96e7",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/fb059e6b-48f3-4502-97e7-241a8d36db6f",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange Toiletries/fb059e6b-48f3-4502-97e7-241a8d36db6f",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange Toiletries/fb059e6b-48f3-4502-97e7-241a8d36db6f",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_df8c4351d455",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/3437417a-d6ae-457d-88f1-db3eb01fb152",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/3437417a-d6ae-457d-88f1-db3eb01fb152",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange basketball referee whistles/3437417a-d6ae-457d-88f1-db3eb01fb152",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_6f285792db38",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/3eeb6b7a-4abf-496a-ad5a-59224e27fa59",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/3eeb6b7a-4abf-496a-ad5a-59224e27fa59",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange basketball referee whistles/3eeb6b7a-4abf-496a-ad5a-59224e27fa59",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_c62e5bb2b7d9",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/4dcabba2-4e58-4a27-a9eb-b44ea9c64c0e",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/4dcabba2-4e58-4a27-a9eb-b44ea9c64c0e",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange basketball referee whistles/4dcabba2-4e58-4a27-a9eb-b44ea9c64c0e",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e09003ddb677",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/834caeec-7d41-40b3-a36f-953700e93611",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/834caeec-7d41-40b3-a36f-953700e93611",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange basketball referee whistles/834caeec-7d41-40b3-a36f-953700e93611",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_fdff3f94df95",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/9184af86-2674-4824-adc4-ff4473317cb5",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/9184af86-2674-4824-adc4-ff4473317cb5",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange basketball referee whistles/9184af86-2674-4824-adc4-ff4473317cb5",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_093c158234e4",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/98e72111-5346-455b-b28b-8a279e3037ab",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/98e72111-5346-455b-b28b-8a279e3037ab",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange basketball referee whistles/98e72111-5346-455b-b28b-8a279e3037ab",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_622ae116e3c3",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/bcd9bd75-70d0-4ea8-80ec-6d03fd994702",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/bcd9bd75-70d0-4ea8-80ec-6d03fd994702",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange basketball referee whistles/bcd9bd75-70d0-4ea8-80ec-6d03fd994702",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_a634f3db4d47",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/c939e6ae-8a17-4e60-bb85-6d0912366610",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/c939e6ae-8a17-4e60-bb85-6d0912366610",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange basketball referee whistles/c939e6ae-8a17-4e60-bb85-6d0912366610",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_3c0a16a097a2",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/d1bd08f7-6aed-44e2-8566-617167e6e4a4",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange basketball referee whistles/d1bd08f7-6aed-44e2-8566-617167e6e4a4",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange basketball referee whistles/d1bd08f7-6aed-44e2-8566-617167e6e4a4",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_8d9c9426ec90",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange the file organizer/a49095d6-40f3-4a0b-a68a-8045266fc911",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange the file organizer/a49095d6-40f3-4a0b-a68a-8045266fc911",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange the file organizer/a49095d6-40f3-4a0b-a68a-8045266fc911",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_3ea1b2a7f6e6",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange the file organizer/b96c6d00-da6b-4e23-ae56-6605543879b1",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Arrange the file organizer/b96c6d00-da6b-4e23-ae56-6605543879b1",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Arrange the file organizer/b96c6d00-da6b-4e23-ae56-6605543879b1",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_58082ace3764",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/10f22535-17cf-4f57-b88b-411a12a328dc",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/10f22535-17cf-4f57-b88b-411a12a328dc",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/10f22535-17cf-4f57-b88b-411a12a328dc",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_3ee92468d2fa",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/1915e944-ce6f-4c0d-a757-8838207ebeb8",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/1915e944-ce6f-4c0d-a757-8838207ebeb8",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/1915e944-ce6f-4c0d-a757-8838207ebeb8",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_424085fb2e51",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/27bbb082-871c-4009-9361-9f97db3fddd5",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/27bbb082-871c-4009-9361-9f97db3fddd5",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/27bbb082-871c-4009-9361-9f97db3fddd5",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_19a3c6032c39",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/3690d8a7-3936-49bc-8c0e-e27e3351d48f",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/3690d8a7-3936-49bc-8c0e-e27e3351d48f",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/3690d8a7-3936-49bc-8c0e-e27e3351d48f",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_13cfe6577c9a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/5a665251-0c11-4ff3-bf67-e0aa4eb394b3",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/5a665251-0c11-4ff3-bf67-e0aa4eb394b3",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/5a665251-0c11-4ff3-bf67-e0aa4eb394b3",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_58fc692c34be",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/5df0e818-ec26-4522-9dfe-480621e98b2b",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/5df0e818-ec26-4522-9dfe-480621e98b2b",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/5df0e818-ec26-4522-9dfe-480621e98b2b",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_f80485272ba7",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/a9df20ea-9dae-453b-a931-3b2cd683217a",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/a9df20ea-9dae-453b-a931-3b2cd683217a",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/a9df20ea-9dae-453b-a931-3b2cd683217a",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_0a78cb1d9e0b",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/abb4b16f-b754-4849-8c0b-cf96aee72314",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/abb4b16f-b754-4849-8c0b-cf96aee72314",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/abb4b16f-b754-4849-8c0b-cf96aee72314",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_1b033c31e8fb",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/e928da24-04f1-4c49-81fc-bb656207fc27",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/e928da24-04f1-4c49-81fc-bb656207fc27",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/e928da24-04f1-4c49-81fc-bb656207fc27",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_fc1912be0f36",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/ebfbaf28-ae93-4d97-a601-50a3457d8aa7",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/ebfbaf28-ae93-4d97-a601-50a3457d8aa7",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Assemble Shipping Cardboard Box/ebfbaf28-ae93-4d97-a601-50a3457d8aa7",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_dd2c168bbf98",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/510b21ff-5254-459e-8f9b-6e5ade9771bb",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/510b21ff-5254-459e-8f9b-6e5ade9771bb",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Bagging Paper Clips/510b21ff-5254-459e-8f9b-6e5ade9771bb",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_cf62f5bd4e8c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/5bbe85d2-fd50-4095-bf96-76fb42e3a018",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/5bbe85d2-fd50-4095-bf96-76fb42e3a018",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Bagging Paper Clips/5bbe85d2-fd50-4095-bf96-76fb42e3a018",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_f1c112d1963a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/a6a6efa6-f6b6-4102-97e6-935dd5b7e8e3",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/a6a6efa6-f6b6-4102-97e6-935dd5b7e8e3",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Bagging Paper Clips/a6a6efa6-f6b6-4102-97e6-935dd5b7e8e3",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_d98b3ae9bfa0",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/a850e87a-d25c-49e5-a370-e2e13d3f30fb",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/a850e87a-d25c-49e5-a370-e2e13d3f30fb",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Bagging Paper Clips/a850e87a-d25c-49e5-a370-e2e13d3f30fb",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_14305b986d32",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/aa6c887a-e93d-40eb-8194-24c38c4966ba",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/aa6c887a-e93d-40eb-8194-24c38c4966ba",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Bagging Paper Clips/aa6c887a-e93d-40eb-8194-24c38c4966ba",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_43d9a412ae0a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/bd5f29ed-59b3-4c7e-a0d6-6b14ccf66e68",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/bd5f29ed-59b3-4c7e-a0d6-6b14ccf66e68",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Bagging Paper Clips/bd5f29ed-59b3-4c7e-a0d6-6b14ccf66e68",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e634a6327993",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/c15e4774-121e-4180-ae75-3aec821fdf59",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/c15e4774-121e-4180-ae75-3aec821fdf59",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Bagging Paper Clips/c15e4774-121e-4180-ae75-3aec821fdf59",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_a9998743ea61",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/c204b841-4430-4ca6-bf83-7b3ad932fa04",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/c204b841-4430-4ca6-bf83-7b3ad932fa04",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Bagging Paper Clips/c204b841-4430-4ca6-bf83-7b3ad932fa04",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_a4ed240827c0",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/d5f76e6f-1d0f-4718-bed3-10c3f22b21e4",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/d5f76e6f-1d0f-4718-bed3-10c3f22b21e4",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Bagging Paper Clips/d5f76e6f-1d0f-4718-bed3-10c3f22b21e4",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_2a7371bc0a1e",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/fa14b529-ce07-47c5-9bf1-3408a16e6939",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Bagging Paper Clips/fa14b529-ce07-47c5-9bf1-3408a16e6939",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Bagging Paper Clips/fa14b529-ce07-47c5-9bf1-3408a16e6939",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_44493c174fad",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cable Tidying and Bundling/e043380e-4c8d-408e-9bb9-aa97c9a9ce61",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cable Tidying and Bundling/e043380e-4c8d-408e-9bb9-aa97c9a9ce61",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Cable Tidying and Bundling/e043380e-4c8d-408e-9bb9-aa97c9a9ce61",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_81636c6fef9f",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cake Box Folding Assembly/7a37b749-e810-4555-a326-1d8eda284894",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cake Box Folding Assembly/7a37b749-e810-4555-a326-1d8eda284894",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Cake Box Folding Assembly/7a37b749-e810-4555-a326-1d8eda284894",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_bfb57bd5f450",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap Whiteboard Markers/186c89f1-2c3c-4812-a1ff-09801c9ab91d",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap Whiteboard Markers/186c89f1-2c3c-4812-a1ff-09801c9ab91d",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Cap Whiteboard Markers/186c89f1-2c3c-4812-a1ff-09801c9ab91d",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e8f38f66b2be",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap Whiteboard Markers/e63ca914-dc70-4822-9bb5-401fea73eb05",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap Whiteboard Markers/e63ca914-dc70-4822-9bb5-401fea73eb05",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Cap Whiteboard Markers/e63ca914-dc70-4822-9bb5-401fea73eb05",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_01af19adaf2c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap the whiteboard marker and return it to the pen holder/0ef7fcbc-c733-4199-afad-adfb5e6428af",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap the whiteboard marker and return it to the pen holder/0ef7fcbc-c733-4199-afad-adfb5e6428af",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Cap the whiteboard marker and return it to the pen holder/0ef7fcbc-c733-4199-afad-adfb5e6428af",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e1d23ab328bb",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap the whiteboard marker and return it to the pen holder/db15e5fa-c1fd-49db-a3a3-da93daba9721",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap the whiteboard marker and return it to the pen holder/db15e5fa-c1fd-49db-a3a3-da93daba9721",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Cap the whiteboard marker and return it to the pen holder/db15e5fa-c1fd-49db-a3a3-da93daba9721",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_a1ddf736c99d",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap the whiteboard marker and return it to the pen holder/f40e8a35-3ea0-4fbe-aa2a-bea8f5b9eaa6",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap the whiteboard marker and return it to the pen holder/f40e8a35-3ea0-4fbe-aa2a-bea8f5b9eaa6",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Cap the whiteboard marker and return it to the pen holder/f40e8a35-3ea0-4fbe-aa2a-bea8f5b9eaa6",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_97e738d8d5db",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap whiteboard markers and return them to the pen holder_plum/d342b9a3-04f4-43a5-89f8-57998b241dd8",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cap whiteboard markers and return them to the pen holder_plum/d342b9a3-04f4-43a5-89f8-57998b241dd8",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Cap whiteboard markers and return them to the pen holder_plum/d342b9a3-04f4-43a5-89f8-57998b241dd8",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_fc762cab52a1",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cardboard Glue Bonding_plum/91cd716e-b0f0-4e50-b893-09c9f9c26e93",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Cardboard Glue Bonding_plum/91cd716e-b0f0-4e50-b893-09c9f9c26e93",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Cardboard Glue Bonding_plum/91cd716e-b0f0-4e50-b893-09c9f9c26e93",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_3dff6a96db1f",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clamp Papers with Binder Clip/86ee774d-1198-420e-b455-1ec0f038b21d",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clamp Papers with Binder Clip/86ee774d-1198-420e-b455-1ec0f038b21d",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clamp Papers with Binder Clip/86ee774d-1198-420e-b455-1ec0f038b21d",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_997ac78ee760",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clamp Papers with Binder Clip/b65536d5-49f4-4020-b7da-245c4d2561f1",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clamp Papers with Binder Clip/b65536d5-49f4-4020-b7da-245c4d2561f1",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clamp Papers with Binder Clip/b65536d5-49f4-4020-b7da-245c4d2561f1",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_060285f95d09",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Baby Bottle/a586d089-6d62-41f4-8716-5c2584cb2f8c",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Baby Bottle/a586d089-6d62-41f4-8716-5c2584cb2f8c",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Baby Bottle/a586d089-6d62-41f4-8716-5c2584cb2f8c",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_9a3e0e7d75b0",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Desk Waste/095af748-e7d7-44b9-8ce5-499819662310",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Desk Waste/095af748-e7d7-44b9-8ce5-499819662310",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Desk Waste/095af748-e7d7-44b9-8ce5-499819662310",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_f8b368c0376c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Desk Waste/6bf41f3a-a6c6-4862-bf00-ec8579d5f4c1",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Desk Waste/6bf41f3a-a6c6-4862-bf00-ec8579d5f4c1",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Desk Waste/6bf41f3a-a6c6-4862-bf00-ec8579d5f4c1",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_eeff2b59c9b3",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Door Handle/bf808803-b93f-4dfc-85e9-00404cace9c9",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Door Handle/bf808803-b93f-4dfc-85e9-00404cace9c9",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Door Handle/bf808803-b93f-4dfc-85e9-00404cace9c9",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_0c46bd62568f",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Glasses and Store in Case/31197279-1345-47bb-9c82-639f0d1bac8b",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Glasses and Store in Case/31197279-1345-47bb-9c82-639f0d1bac8b",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Glasses and Store in Case/31197279-1345-47bb-9c82-639f0d1bac8b",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_5fda49c606f1",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Glasses and Store in Case/4c08fd7e-321f-4057-96a4-1a2abcf97737",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Glasses and Store in Case/4c08fd7e-321f-4057-96a4-1a2abcf97737",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Glasses and Store in Case/4c08fd7e-321f-4057-96a4-1a2abcf97737",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_f820e8bfd114",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Glasses and Store in Case/6077dd05-80be-4be9-a42f-16b7904b6d81",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Glasses and Store in Case/6077dd05-80be-4be9-a42f-16b7904b6d81",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Glasses and Store in Case/6077dd05-80be-4be9-a42f-16b7904b6d81",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_3e2fe17a797a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Mouse/b350df13-dba3-458e-96e9-fa73afd35060",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Mouse/b350df13-dba3-458e-96e9-fa73afd35060",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Mouse/b350df13-dba3-458e-96e9-fa73afd35060",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_04a6ec1d3bfe",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Mousepad/a1ca828f-da09-4140-a2f4-b5a7ceee0a7a",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Mousepad/a1ca828f-da09-4140-a2f4-b5a7ceee0a7a",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Mousepad/a1ca828f-da09-4140-a2f4-b5a7ceee0a7a",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_c675f3d5ea58",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Scissors/35d9b062-ab6a-4eee-b078-05f7257ffaf6",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Scissors/35d9b062-ab6a-4eee-b078-05f7257ffaf6",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Scissors/35d9b062-ab6a-4eee-b078-05f7257ffaf6",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_dcea9af02bea",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Scissors/518070b4-c64e-4dee-8370-bb28abf2b87f",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Scissors/518070b4-c64e-4dee-8370-bb28abf2b87f",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Scissors/518070b4-c64e-4dee-8370-bb28abf2b87f",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_24aca1bacf3c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Scissors/622fa024-f598-4e32-9b9b-6fac2b701db4",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Scissors/622fa024-f598-4e32-9b9b-6fac2b701db4",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Scissors/622fa024-f598-4e32-9b9b-6fac2b701db4",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_907ddae38ac4",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Scissors/7d18ad13-bd6c-4ece-849f-be28147c62d9",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Scissors/7d18ad13-bd6c-4ece-849f-be28147c62d9",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Scissors/7d18ad13-bd6c-4ece-849f-be28147c62d9",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_2c104c859c6a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Scissors/f6604309-a14e-4893-80e7-7c6c22fad718",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean Scissors/f6604309-a14e-4893-80e7-7c6c22fad718",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean Scissors/f6604309-a14e-4893-80e7-7c6c22fad718",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_81d429faad17",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean punch waste bin/24dceb8c-2fb5-474b-abdb-00504c1cb64c",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean punch waste bin/24dceb8c-2fb5-474b-abdb-00504c1cb64c",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean punch waste bin/24dceb8c-2fb5-474b-abdb-00504c1cb64c",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_05872c589ef1",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean punch waste bin/b9c6a1bb-79e7-46fa-81b5-27296c8c7847",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean punch waste bin/b9c6a1bb-79e7-46fa-81b5-27296c8c7847",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean punch waste bin/b9c6a1bb-79e7-46fa-81b5-27296c8c7847",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_bc5f870b0080",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean the tissue box and replace the tissue pack/128e56bd-9d37-45c1-98b7-e7966ef687bd",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clean the tissue box and replace the tissue pack/128e56bd-9d37-45c1-98b7-e7966ef687bd",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clean the tissue box and replace the tissue pack/128e56bd-9d37-45c1-98b7-e7966ef687bd",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_ced2057ea8a8",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Close Tissue Box/df5b8de4-9997-417c-9c17-4ae19427a732",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Close Tissue Box/df5b8de4-9997-417c-9c17-4ae19427a732",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Close Tissue Box/df5b8de4-9997-417c-9c17-4ae19427a732",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_84df556e17db",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Close Tissue Box/e9e911fc-2fdb-45e7-b796-ff5ecc564a36",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Close Tissue Box/e9e911fc-2fdb-45e7-b796-ff5ecc564a36",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Close Tissue Box/e9e911fc-2fdb-45e7-b796-ff5ecc564a36",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e42391b72e8f",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clothesline Garment Organization/0dd1483f-7958-45e8-b330-c3e5fe89e444",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Clothesline Garment Organization/0dd1483f-7958-45e8-b330-c3e5fe89e444",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Clothesline Garment Organization/0dd1483f-7958-45e8-b330-c3e5fe89e444",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_a0dd418b8c44",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Coffee Companion Restocking Rack/85fbb959-1904-40fe-935e-831eee723006",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Coffee Companion Restocking Rack/85fbb959-1904-40fe-935e-831eee723006",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Coffee Companion Restocking Rack/85fbb959-1904-40fe-935e-831eee723006",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_fcf74f561316",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Coffee Table Clutter Organizer Storage Box_plum/824a2bfb-4f03-47ac-b8b4-40c22cb347ae",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Coffee Table Clutter Organizer Storage Box_plum/824a2bfb-4f03-47ac-b8b4-40c22cb347ae",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Coffee Table Clutter Organizer Storage Box_plum/824a2bfb-4f03-47ac-b8b4-40c22cb347ae",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_70bcf673de52",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Coiling and Securing (Loose Cables)/ff77aaa2-c701-448e-ba9a-79c564c7438c",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Coiling and Securing (Loose Cables)/ff77aaa2-c701-448e-ba9a-79c564c7438c",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Coiling and Securing (Loose Cables)/ff77aaa2-c701-448e-ba9a-79c564c7438c",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_82de02794d5b",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Correct Upside-Down Packages/50521af4-e1ae-4606-bc34-ec809ab037b9",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Correct Upside-Down Packages/50521af4-e1ae-4606-bc34-ec809ab037b9",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Correct Upside-Down Packages/50521af4-e1ae-4606-bc34-ec809ab037b9",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_670fed9d6418",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Correct Upside-Down Packages/728ee6b2-e017-4260-87d5-94ff71907461",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Correct Upside-Down Packages/728ee6b2-e017-4260-87d5-94ff71907461",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Correct Upside-Down Packages/728ee6b2-e017-4260-87d5-94ff71907461",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_1d400189e0d6",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding and Bottom Sealing_plum/3055a93d-d0bd-4176-80e1-7670e690a225",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding and Bottom Sealing_plum/3055a93d-d0bd-4176-80e1-7670e690a225",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Courier Box Folding and Bottom Sealing_plum/3055a93d-d0bd-4176-80e1-7670e690a225",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_5c30d31925dd",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/3452c1d3-bad2-4733-9b4b-a3a7b9895d23",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/3452c1d3-bad2-4733-9b4b-a3a7b9895d23",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/3452c1d3-bad2-4733-9b4b-a3a7b9895d23",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e71d82e8f23b",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/5ee92148-bad1-4f44-98f1-aefe6a0f707f",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/5ee92148-bad1-4f44-98f1-aefe6a0f707f",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/5ee92148-bad1-4f44-98f1-aefe6a0f707f",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_76d19aef3d65",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/9038760f-c644-4ad5-afc4-4b44d44b9500",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/9038760f-c644-4ad5-afc4-4b44d44b9500",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/9038760f-c644-4ad5-afc4-4b44d44b9500",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_2190e57ee012",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/aabdce31-5fdc-4738-ab2f-8402950bcdc5",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/aabdce31-5fdc-4738-ab2f-8402950bcdc5",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/aabdce31-5fdc-4738-ab2f-8402950bcdc5",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_b5e39c06baa6",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/af146626-f1f8-4dec-af7d-b874258078c8",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/af146626-f1f8-4dec-af7d-b874258078c8",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/af146626-f1f8-4dec-af7d-b874258078c8",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_91456fcc9f06",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/f5422d9b-8b85-4d18-960e-d21dedb8b64e",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/f5422d9b-8b85-4d18-960e-d21dedb8b64e",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Courier Box Folding, Forming, and Bottom Sealing/f5422d9b-8b85-4d18-960e-d21dedb8b64e",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_0a87e089d7d8",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Dining Tableware Arrangement_plum/84857728-c739-4d6b-b886-f1745a16f0b6",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Dining Tableware Arrangement_plum/84857728-c739-4d6b-b886-f1745a16f0b6",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Dining Tableware Arrangement_plum/84857728-c739-4d6b-b886-f1745a16f0b6",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_9e2688578d96",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Document Scanning and Upload/bb6efe43-9682-4ecd-9e33-e09659e6b9b4",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Document Scanning and Upload/bb6efe43-9682-4ecd-9e33-e09659e6b9b4",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Document Scanning and Upload/bb6efe43-9682-4ecd-9e33-e09659e6b9b4",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_40a64223231a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Document Staple Removal and Restapling/f86596b0-761f-4451-9955-5b312f94c6a2",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Document Staple Removal and Restapling/f86596b0-761f-4451-9955-5b312f94c6a2",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Document Staple Removal and Restapling/f86596b0-761f-4451-9955-5b312f94c6a2",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_d8187427b812",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase Whiteboard Content/184da5d2-4355-4d8e-9267-0404aa89d43c",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase Whiteboard Content/184da5d2-4355-4d8e-9267-0404aa89d43c",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Erase Whiteboard Content/184da5d2-4355-4d8e-9267-0404aa89d43c",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_b44d4b6afdd1",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase Whiteboard Content/40d9c1da-25d2-4764-a29a-6a45839e6aec",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase Whiteboard Content/40d9c1da-25d2-4764-a29a-6a45839e6aec",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Erase Whiteboard Content/40d9c1da-25d2-4764-a29a-6a45839e6aec",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_758012b2bcfd",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase Whiteboard Content/46fa6880-4d36-4143-b8aa-0fe4b19f77ab",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase Whiteboard Content/46fa6880-4d36-4143-b8aa-0fe4b19f77ab",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Erase Whiteboard Content/46fa6880-4d36-4143-b8aa-0fe4b19f77ab",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_213da1634788",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase Whiteboard Content/a59cf6de-7da8-4604-82d6-3cbc33f5d563",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase Whiteboard Content/a59cf6de-7da8-4604-82d6-3cbc33f5d563",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Erase Whiteboard Content/a59cf6de-7da8-4604-82d6-3cbc33f5d563",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_67adf5ec359b",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase Whiteboard Content/a89fb04c-2482-4434-b6f6-b97824d98cf6",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase Whiteboard Content/a89fb04c-2482-4434-b6f6-b97824d98cf6",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Erase Whiteboard Content/a89fb04c-2482-4434-b6f6-b97824d98cf6",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_be921ef76d65",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase and Clean Pencil Marks from Paper/d2a96d2e-106f-4d17-9f73-898a3a7ccc65",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Erase and Clean Pencil Marks from Paper/d2a96d2e-106f-4d17-9f73-898a3a7ccc65",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Erase and Clean Pencil Marks from Paper/d2a96d2e-106f-4d17-9f73-898a3a7ccc65",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_0bb15936b2bd",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Essence Dropper Dispensing/1173dca7-42ea-43ad-99fc-9d304666767f",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Essence Dropper Dispensing/1173dca7-42ea-43ad-99fc-9d304666767f",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Essence Dropper Dispensing/1173dca7-42ea-43ad-99fc-9d304666767f",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_a46d23e9d5f4",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Essence Dropper Dispensing/b6b6b907-93e6-498b-bc70-13cffb085da1",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Essence Dropper Dispensing/b6b6b907-93e6-498b-bc70-13cffb085da1",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Essence Dropper Dispensing/b6b6b907-93e6-498b-bc70-13cffb085da1",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_c974c115249b",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/File A4 Papers/b1792488-ae68-46ee-b4e7-c345ae56e261",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/File A4 Papers/b1792488-ae68-46ee-b4e7-c345ae56e261",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/File A4 Papers/b1792488-ae68-46ee-b4e7-c345ae56e261",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_ee031825324f",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/File Archiving/277d0b04-13b3-45be-a549-aff1ef59d41d",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/File Archiving/277d0b04-13b3-45be-a549-aff1ef59d41d",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/File Archiving/277d0b04-13b3-45be-a549-aff1ef59d41d",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_d04174d209d3",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fill Cardboard Box (Internal Packaging for Goods)/86cd878c-1bc2-4f67-b59e-4b1cba4917b8",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fill Cardboard Box (Internal Packaging for Goods)/86cd878c-1bc2-4f67-b59e-4b1cba4917b8",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fill Cardboard Box (Internal Packaging for Goods)/86cd878c-1bc2-4f67-b59e-4b1cba4917b8",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_6dc1a395e30e",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fill Kettle with Water/a571f855-2376-42ad-92aa-3f47b3c2c580",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fill Kettle with Water/a571f855-2376-42ad-92aa-3f47b3c2c580",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fill Kettle with Water/a571f855-2376-42ad-92aa-3f47b3c2c580",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_8d652af2f6ec",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fill Kettle with Water/bb659d21-8c79-4de3-92cb-32d344904285",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fill Kettle with Water/bb659d21-8c79-4de3-92cb-32d344904285",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fill Kettle with Water/bb659d21-8c79-4de3-92cb-32d344904285",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_a53c9eb07505",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fill and boil water in kettle/2eb9dcc4-6a9a-4f51-b304-d01e0d9bdd6d",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fill and boil water in kettle/2eb9dcc4-6a9a-4f51-b304-d01e0d9bdd6d",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fill and boil water in kettle/2eb9dcc4-6a9a-4f51-b304-d01e0d9bdd6d",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_b2d92ea8a4f2",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fill and boil water in kettle/64ee7ce6-c5a6-40b1-a45a-e3e0d6161a59",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fill and boil water in kettle/64ee7ce6-c5a6-40b1-a45a-e3e0d6161a59",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fill and boil water in kettle/64ee7ce6-c5a6-40b1-a45a-e3e0d6161a59",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_2e0e4698ccd5",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fit Garbage Bag/ec108848-bf8b-4650-b07d-0c8519774f5d",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fit Garbage Bag/ec108848-bf8b-4650-b07d-0c8519774f5d",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fit Garbage Bag/ec108848-bf8b-4650-b07d-0c8519774f5d",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_dadfe85128f2",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Gym Towels/358c4b3d-c7d9-4fda-91b6-fee93e99679c",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Gym Towels/358c4b3d-c7d9-4fda-91b6-fee93e99679c",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fold Gym Towels/358c4b3d-c7d9-4fda-91b6-fee93e99679c",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_d04d3965870a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Gym Towels/68775be4-5897-4391-ba4d-9b55ef8ef6b5",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Gym Towels/68775be4-5897-4391-ba4d-9b55ef8ef6b5",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fold Gym Towels/68775be4-5897-4391-ba4d-9b55ef8ef6b5",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_6b2c3d74bb7b",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Tabletop Tissues/28baf278-0835-46db-9788-cb637c669368",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Tabletop Tissues/28baf278-0835-46db-9788-cb637c669368",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fold Tabletop Tissues/28baf278-0835-46db-9788-cb637c669368",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_603cd70aaa4c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Tabletop Tissues/4a155d66-e907-408c-a901-ff784a6f118e",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Tabletop Tissues/4a155d66-e907-408c-a901-ff784a6f118e",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fold Tabletop Tissues/4a155d66-e907-408c-a901-ff784a6f118e",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_28ca33c2de59",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Tabletop Tissues/6f58f8cc-acf2-4092-bbee-0c837c443ad8",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Tabletop Tissues/6f58f8cc-acf2-4092-bbee-0c837c443ad8",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fold Tabletop Tissues/6f58f8cc-acf2-4092-bbee-0c837c443ad8",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_740200a36295",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Tabletop Tissues/8e6911e0-a942-456c-8721-a2b90dc7076f",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Tabletop Tissues/8e6911e0-a942-456c-8721-a2b90dc7076f",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fold Tabletop Tissues/8e6911e0-a942-456c-8721-a2b90dc7076f",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_7087385860d3",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Tabletop Tissues/90576f8c-037e-4b1d-be2f-3ad03f76b302",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Tabletop Tissues/90576f8c-037e-4b1d-be2f-3ad03f76b302",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fold Tabletop Tissues/90576f8c-037e-4b1d-be2f-3ad03f76b302",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_6942a087994f",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Towel and Hang Back/15984566-c1f0-4eab-9234-beca1a83ad00",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fold Towel and Hang Back/15984566-c1f0-4eab-9234-beca1a83ad00",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fold Towel and Hang Back/15984566-c1f0-4eab-9234-beca1a83ad00",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_c5ef4d234548",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Folding Recycling (Empty Parcel Boxes)/66947b03-99f4-448e-9299-ce542f594a05",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Folding Recycling (Empty Parcel Boxes)/66947b03-99f4-448e-9299-ce542f594a05",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Folding Recycling (Empty Parcel Boxes)/66947b03-99f4-448e-9299-ce542f594a05",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_b0caa81b2378",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Folding Recycling (Empty Parcel Boxes)/9486625f-b19e-4cd2-a772-91945c61d999",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Folding Recycling (Empty Parcel Boxes)/9486625f-b19e-4cd2-a772-91945c61d999",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Folding Recycling (Empty Parcel Boxes)/9486625f-b19e-4cd2-a772-91945c61d999",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_64d758ff1fa5",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Folding Recycling (Empty Parcel Boxes)/fe42622e-bddd-49f9-ac20-2d2abc38ddce",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Folding Recycling (Empty Parcel Boxes)/fe42622e-bddd-49f9-ac20-2d2abc38ddce",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Folding Recycling (Empty Parcel Boxes)/fe42622e-bddd-49f9-ac20-2d2abc38ddce",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_8ac6739f55ae",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/3aa0136b-3782-4d14-bfe3-b29062a57128",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/3aa0136b-3782-4d14-bfe3-b29062a57128",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/3aa0136b-3782-4d14-bfe3-b29062a57128",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_f4905e094b74",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/6f814022-27f5-4196-801a-b3113e4742cc",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/6f814022-27f5-4196-801a-b3113e4742cc",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/6f814022-27f5-4196-801a-b3113e4742cc",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_401f8ca6286a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/8c156aae-613c-4003-b018-f7c4b5ca1f51",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/8c156aae-613c-4003-b018-f7c4b5ca1f51",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/8c156aae-613c-4003-b018-f7c4b5ca1f51",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_fae72b1d5332",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/b475a5a5-877d-4040-a8a6-31e30e6cd5f9",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/b475a5a5-877d-4040-a8a6-31e30e6cd5f9",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/b475a5a5-877d-4040-a8a6-31e30e6cd5f9",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_5002e9c05a64",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/d5327b79-056b-48dd-9531-ce87b20816f7",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/d5327b79-056b-48dd-9531-ce87b20816f7",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/d5327b79-056b-48dd-9531-ce87b20816f7",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_3cfbfb2a314a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/d817399a-cfae-4639-9183-8d8166242fa1",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/d817399a-cfae-4639-9183-8d8166242fa1",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/d817399a-cfae-4639-9183-8d8166242fa1",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_15a7e9d463be",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/ed2c313b-ec01-4b6f-8c2c-a61305fd1325",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/ed2c313b-ec01-4b6f-8c2c-a61305fd1325",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Fragile Item Warning Label Application/ed2c313b-ec01-4b6f-8c2c-a61305fd1325",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_09d31a6bb6f6",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Handle Damaged Packaging/09d538f8-b6c9-4e34-8ae7-2c9b1cd89b47",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Handle Damaged Packaging/09d538f8-b6c9-4e34-8ae7-2c9b1cd89b47",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Handle Damaged Packaging/09d538f8-b6c9-4e34-8ae7-2c9b1cd89b47",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_27f849c137df",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Handle Damaged Packaging/2f0e32e9-05f2-4974-835a-7e84b221c2ec",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Handle Damaged Packaging/2f0e32e9-05f2-4974-835a-7e84b221c2ec",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Handle Damaged Packaging/2f0e32e9-05f2-4974-835a-7e84b221c2ec",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_2db29129749a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Handle Damaged Packaging/6cab32a2-5a8e-4e6e-9f5e-a8f3c2b98c15",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Handle Damaged Packaging/6cab32a2-5a8e-4e6e-9f5e-a8f3c2b98c15",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Handle Damaged Packaging/6cab32a2-5a8e-4e6e-9f5e-a8f3c2b98c15",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_1339a31af7da",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Handle Damaged Packaging/b857b2a8-5793-43ce-9d29-bf17e4c54ac6",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Handle Damaged Packaging/b857b2a8-5793-43ce-9d29-bf17e4c54ac6",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Handle Damaged Packaging/b857b2a8-5793-43ce-9d29-bf17e4c54ac6",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_ac29d682071b",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Handle Damaged Packaging/bf9b0ed2-effb-41b6-91fa-27947bc5f5d7",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Handle Damaged Packaging/bf9b0ed2-effb-41b6-91fa-27947bc5f5d7",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Handle Damaged Packaging/bf9b0ed2-effb-41b6-91fa-27947bc5f5d7",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_4fed57fdf238",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Hang the apron with its ties properly arranged/216fd96b-cee9-4698-99df-db4499801a51",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Hang the apron with its ties properly arranged/216fd96b-cee9-4698-99df-db4499801a51",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Hang the apron with its ties properly arranged/216fd96b-cee9-4698-99df-db4499801a51",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_9873960052dd",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Hang the apron with its ties properly arranged/61e7c25c-79e5-4d2f-bdc3-4d9c57118ab8",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Hang the apron with its ties properly arranged/61e7c25c-79e5-4d2f-bdc3-4d9c57118ab8",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Hang the apron with its ties properly arranged/61e7c25c-79e5-4d2f-bdc3-4d9c57118ab8",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_cacc1d38c5bb",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Hang the apron with its ties properly arranged/c55d0863-74ce-481a-a8ce-f1baeae35e4e",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Hang the apron with its ties properly arranged/c55d0863-74ce-481a-a8ce-f1baeae35e4e",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Hang the apron with its ties properly arranged/c55d0863-74ce-481a-a8ce-f1baeae35e4e",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_70f87886dd57",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Headphone Stand Return and Cable Management/98f94f76-601c-47d8-87e2-dce9817d2c87",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Headphone Stand Return and Cable Management/98f94f76-601c-47d8-87e2-dce9817d2c87",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Headphone Stand Return and Cable Management/98f94f76-601c-47d8-87e2-dce9817d2c87",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_89acf5af9cb2",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Inspect for Damage/6733b85c-5483-4580-ad22-cac43d4ac365",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Inspect for Damage/6733b85c-5483-4580-ad22-cac43d4ac365",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Inspect for Damage/6733b85c-5483-4580-ad22-cac43d4ac365",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_5cb7106b6815",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Inspect for Damage/92e6644d-83d6-436a-8fe9-2704df068cfa",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Inspect for Damage/92e6644d-83d6-436a-8fe9-2704df068cfa",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Inspect for Damage/92e6644d-83d6-436a-8fe9-2704df068cfa",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_bc7868b7b725",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/5001b64a-2ca8-4ff5-9c8c-6bb5fe31539d",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/5001b64a-2ca8-4ff5-9c8c-6bb5fe31539d",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/5001b64a-2ca8-4ff5-9c8c-6bb5fe31539d",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_0ffb0e8d742f",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/54467d85-dcbf-4d2f-8e22-e542163eef03",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/54467d85-dcbf-4d2f-8e22-e542163eef03",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/54467d85-dcbf-4d2f-8e22-e542163eef03",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_1265caf0b5f1",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/974bcb43-e18f-4a85-a603-34d4dfbda3ab",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/974bcb43-e18f-4a85-a603-34d4dfbda3ab",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/974bcb43-e18f-4a85-a603-34d4dfbda3ab",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_146b60b12c48",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/f5bc52a0-1ac5-4fa7-9eac-9b4c91fe1ecf",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/f5bc52a0-1ac5-4fa7-9eac-9b4c91fe1ecf",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Marker Pen Test Write, Cap, Return, Arrange/f5bc52a0-1ac5-4fa7-9eac-9b4c91fe1ecf",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_36438b42d293",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Open Sauce Container, Scoop and Serve into Bowl_plum/9341997f-fda5-43d6-a94e-1b73ac2a1c80",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Open Sauce Container, Scoop and Serve into Bowl_plum/9341997f-fda5-43d6-a94e-1b73ac2a1c80",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Open Sauce Container, Scoop and Serve into Bowl_plum/9341997f-fda5-43d6-a94e-1b73ac2a1c80",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_72759c6cbe44",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Adapter Storage Box/80c096e4-5d0c-4f83-9785-26f4d9cda51a",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Adapter Storage Box/80c096e4-5d0c-4f83-9785-26f4d9cda51a",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Adapter Storage Box/80c096e4-5d0c-4f83-9785-26f4d9cda51a",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e04cf0ce52eb",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Data Cables into a Bundle/d600668c-ce81-4772-9332-beee6c861cae",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Data Cables into a Bundle/d600668c-ce81-4772-9332-beee6c861cae",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Data Cables into a Bundle/d600668c-ce81-4772-9332-beee6c861cae",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_8c0b49beb46e",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Data and Charging Cables/5fa19605-62cf-4e65-9b40-9dbc078f5758",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Data and Charging Cables/5fa19605-62cf-4e65-9b40-9dbc078f5758",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Data and Charging Cables/5fa19605-62cf-4e65-9b40-9dbc078f5758",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_24f47930e49e",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Desk Cable Management Tray/0133b115-b062-4813-b977-4eacb9278fb7",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Desk Cable Management Tray/0133b115-b062-4813-b977-4eacb9278fb7",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Desk Cable Management Tray/0133b115-b062-4813-b977-4eacb9278fb7",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_bd15df4e0304",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Dishwashing Sponge/d76af74a-72d0-4f7b-ab71-41c70077ccaf",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Dishwashing Sponge/d76af74a-72d0-4f7b-ab71-41c70077ccaf",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Dishwashing Sponge/d76af74a-72d0-4f7b-ab71-41c70077ccaf",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_237bc09a1692",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Folder Papers/3868125f-9689-4163-97d7-7b7c64fdb8f4",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Folder Papers/3868125f-9689-4163-97d7-7b7c64fdb8f4",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Folder Papers/3868125f-9689-4163-97d7-7b7c64fdb8f4",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e4f4a8d49b59",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Folder Papers/8c9f5d9c-9309-4d46-aef4-b685870aec36",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Folder Papers/8c9f5d9c-9309-4d46-aef4-b685870aec36",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Folder Papers/8c9f5d9c-9309-4d46-aef4-b685870aec36",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_15bdc8c285ef",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Folder Papers/8fa84d28-f650-4f60-bb43-5fe7fa2b9f80",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Folder Papers/8fa84d28-f650-4f60-bb43-5fe7fa2b9f80",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Folder Papers/8fa84d28-f650-4f60-bb43-5fe7fa2b9f80",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_35b4d5d84049",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Folder Papers/b04a486d-3e3a-4fe6-9216-97f0baea5a49",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Folder Papers/b04a486d-3e3a-4fe6-9216-97f0baea5a49",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Folder Papers/b04a486d-3e3a-4fe6-9216-97f0baea5a49",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_17d8f09e5793",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Hair Dryer Power Cord/afaf1601-cc94-4318-8a2c-67c4004b75ed",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Hair Dryer Power Cord/afaf1601-cc94-4318-8a2c-67c4004b75ed",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Hair Dryer Power Cord/afaf1601-cc94-4318-8a2c-67c4004b75ed",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_8c341a1ad154",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Hair Dryer Power Cord/b590cfbc-3951-4038-bc4c-721d4b4928e1",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Hair Dryer Power Cord/b590cfbc-3951-4038-bc4c-721d4b4928e1",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Hair Dryer Power Cord/b590cfbc-3951-4038-bc4c-721d4b4928e1",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_b2c58671a874",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Jump Ropes into Storage Box/abec3d57-4172-4f01-9ecb-bab20ff3b530",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Jump Ropes into Storage Box/abec3d57-4172-4f01-9ecb-bab20ff3b530",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Jump Ropes into Storage Box/abec3d57-4172-4f01-9ecb-bab20ff3b530",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_7193a25962b4",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Round Table Surface/65d05e52-3676-4eee-9a1f-8b65d0fad13d",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Round Table Surface/65d05e52-3676-4eee-9a1f-8b65d0fad13d",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Round Table Surface/65d05e52-3676-4eee-9a1f-8b65d0fad13d",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_7ab8b8906de3",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Small Items/023e8035-ee13-4bab-aa37-921a35952f65",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Small Items/023e8035-ee13-4bab-aa37-921a35952f65",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Small Items/023e8035-ee13-4bab-aa37-921a35952f65",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_506ede0d167c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Small Items/12c901da-63ab-492b-b6f4-5e98e879e530",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Small Items/12c901da-63ab-492b-b6f4-5e98e879e530",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Small Items/12c901da-63ab-492b-b6f4-5e98e879e530",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_de1c0a2b681e",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Small Items/61132597-fa5d-4dd6-b5c2-792e0c954632",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Small Items/61132597-fa5d-4dd6-b5c2-792e0c954632",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Small Items/61132597-fa5d-4dd6-b5c2-792e0c954632",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_fe379ca6057c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Small Items/c67e6f2d-ed46-4003-8320-c8156c157d45",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Small Items/c67e6f2d-ed46-4003-8320-c8156c157d45",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Small Items/c67e6f2d-ed46-4003-8320-c8156c157d45",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_60e7d2c576eb",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Small Items/d889490a-1162-49f3-b5ba-af0285610233",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Small Items/d889490a-1162-49f3-b5ba-af0285610233",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Small Items/d889490a-1162-49f3-b5ba-af0285610233",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_c5dcc0ad3692",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Storage Box/a6da11b1-0a96-4e43-959d-5664350b2e07",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Storage Box/a6da11b1-0a96-4e43-959d-5664350b2e07",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Storage Box/a6da11b1-0a96-4e43-959d-5664350b2e07",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_aebfd19a4f25",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Straws/854fe375-5805-46fd-a117-a28f495b75fc",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Straws/854fe375-5805-46fd-a117-a28f495b75fc",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Straws/854fe375-5805-46fd-a117-a28f495b75fc",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_49e7a610dde0",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Straws/9d707314-86f4-4dae-a82e-17179fca4cb2",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Straws/9d707314-86f4-4dae-a82e-17179fca4cb2",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Straws/9d707314-86f4-4dae-a82e-17179fca4cb2",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_5bb994a28a75",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Straws/a2133de4-e612-49b9-bdb3-c87cd49bcf86",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Straws/a2133de4-e612-49b9-bdb3-c87cd49bcf86",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Straws/a2133de4-e612-49b9-bdb3-c87cd49bcf86",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_b7c84caa713a",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Straws/c00f63a9-4453-4b40-b99e-51090182faca",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Straws/c00f63a9-4453-4b40-b99e-51090182faca",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Straws/c00f63a9-4453-4b40-b99e-51090182faca",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_82387abc8d67",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize TV Cabinet Items/71aeeb95-8b74-40f4-86d5-3e63723b85ab",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize TV Cabinet Items/71aeeb95-8b74-40f4-86d5-3e63723b85ab",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize TV Cabinet Items/71aeeb95-8b74-40f4-86d5-3e63723b85ab",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_16d08c5b4070",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Toothpicks/27beabf4-37a8-4728-b66b-9ff828089c7f",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Toothpicks/27beabf4-37a8-4728-b66b-9ff828089c7f",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Toothpicks/27beabf4-37a8-4728-b66b-9ff828089c7f",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_d0603576f545",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Toothpicks/9a20b0cc-3548-48b6-b079-560e7669f1e5",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Toothpicks/9a20b0cc-3548-48b6-b079-560e7669f1e5",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Toothpicks/9a20b0cc-3548-48b6-b079-560e7669f1e5",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_1ab3ccec740c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Toothpicks/aaff628c-6e5b-40f5-8d2d-ec90fdb9f5d3",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Toothpicks/aaff628c-6e5b-40f5-8d2d-ec90fdb9f5d3",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Toothpicks/aaff628c-6e5b-40f5-8d2d-ec90fdb9f5d3",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_57237fd4365c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Toothpicks/b820226b-6cdc-4615-a8ff-c9d5882b89f2",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Toothpicks/b820226b-6cdc-4615-a8ff-c9d5882b89f2",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Toothpicks/b820226b-6cdc-4615-a8ff-c9d5882b89f2",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_300d6a710cbb",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Weightlifting Wrist Wraps/74a153df-307b-4621-937e-1c40e6e30e2b",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize Weightlifting Wrist Wraps/74a153df-307b-4621-937e-1c40e6e30e2b",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize Weightlifting Wrist Wraps/74a153df-307b-4621-937e-1c40e6e30e2b",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e49f3c3ae8fd",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize and Deliver to File Slots/c610dd31-66fc-4d76-bd3e-71e55b61a9dd",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize and Deliver to File Slots/c610dd31-66fc-4d76-bd3e-71e55b61a9dd",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize and Deliver to File Slots/c610dd31-66fc-4d76-bd3e-71e55b61a9dd",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_5dfb694c000e",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize and Deliver to File Slots/c6e252c9-48bd-4d62-9a75-ae4ff340d121",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize and Deliver to File Slots/c6e252c9-48bd-4d62-9a75-ae4ff340d121",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize and Deliver to File Slots/c6e252c9-48bd-4d62-9a75-ae4ff340d121",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_2c4f3987f0e5",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize and Deliver to File Slots/e9dc7907-99d0-4202-be5d-704735fbdf5e",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize and Deliver to File Slots/e9dc7907-99d0-4202-be5d-704735fbdf5e",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize and Deliver to File Slots/e9dc7907-99d0-4202-be5d-704735fbdf5e",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_cd2cfb29001d",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize and Return External Medicine Box Items/10b93f2b-152f-4a35-9e2c-c9ef99be1585",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize and Return External Medicine Box Items/10b93f2b-152f-4a35-9e2c-c9ef99be1585",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize and Return External Medicine Box Items/10b93f2b-152f-4a35-9e2c-c9ef99be1585",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_6b2ff6957006",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize and Return External Medicine Box Items/c3d2a652-8502-4648-84d6-679a74f2c53f",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize and Return External Medicine Box Items/c3d2a652-8502-4648-84d6-679a74f2c53f",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize and Return External Medicine Box Items/c3d2a652-8502-4648-84d6-679a74f2c53f",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e2099b5d12e6",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize backpack items into the backpack/010fcf28-31fe-42b1-9646-d0188fa03c28",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize backpack items into the backpack/010fcf28-31fe-42b1-9646-d0188fa03c28",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize backpack items into the backpack/010fcf28-31fe-42b1-9646-d0188fa03c28",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_d36cf3c74ccc",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize charging cables into drawer/75bd2704-7df6-45d6-9a5d-1fd5f56012ba",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize charging cables into drawer/75bd2704-7df6-45d6-9a5d-1fd5f56012ba",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize charging cables into drawer/75bd2704-7df6-45d6-9a5d-1fd5f56012ba",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_f62757910911",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize charging cables into drawer/96e480f8-46d2-4152-b3d1-104569912996",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize charging cables into drawer/96e480f8-46d2-4152-b3d1-104569912996",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize charging cables into drawer/96e480f8-46d2-4152-b3d1-104569912996",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_20cdf3658b9e",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize charging cables into drawer/9ccfc0fc-981b-4ce8-8a8e-d30698e87015",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize charging cables into drawer/9ccfc0fc-981b-4ce8-8a8e-d30698e87015",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize charging cables into drawer/9ccfc0fc-981b-4ce8-8a8e-d30698e87015",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_63118599ff1d",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize charging cables into drawer/b4be22e2-3746-4e64-aa1f-c5191836f8b1",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize charging cables into drawer/b4be22e2-3746-4e64-aa1f-c5191836f8b1",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize charging cables into drawer/b4be22e2-3746-4e64-aa1f-c5191836f8b1",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_a36de7e64ed2",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize coffee cups into drawer/7458374f-5a78-4931-9269-b996dcfbe7d0",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Organize coffee cups into drawer/7458374f-5a78-4931-9269-b996dcfbe7d0",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Organize coffee cups into drawer/7458374f-5a78-4931-9269-b996dcfbe7d0",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_ff23ae01cc01",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Pack Coffee Beans/0d0f61d2-8e52-4115-b3a6-b8a0689aeebc",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Pack Coffee Beans/0d0f61d2-8e52-4115-b3a6-b8a0689aeebc",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Pack Coffee Beans/0d0f61d2-8e52-4115-b3a6-b8a0689aeebc",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_7596053e3876",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Pack Coffee Beans/dda5d307-5cca-4970-bbb1-73134121f0b2",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Pack Coffee Beans/dda5d307-5cca-4970-bbb1-73134121f0b2",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Pack Coffee Beans/dda5d307-5cca-4970-bbb1-73134121f0b2",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_df6ffb27b116",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Barcode Scanning for Inbound Storage/2a797a4e-5011-400e-b573-e32d80cc8a54",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Barcode Scanning for Inbound Storage/2a797a4e-5011-400e-b573-e32d80cc8a54",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Package Barcode Scanning for Inbound Storage/2a797a4e-5011-400e-b573-e32d80cc8a54",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_bfe4727009e6",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Barcode Scanning for Inbound Storage/5c74f350-daf1-47ac-a0a6-e7935e4b03b5",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Barcode Scanning for Inbound Storage/5c74f350-daf1-47ac-a0a6-e7935e4b03b5",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Package Barcode Scanning for Inbound Storage/5c74f350-daf1-47ac-a0a6-e7935e4b03b5",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_281e7502a7e4",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Labeling (Fragile)/03b04126-e9fe-4e39-bb54-56dadbb27bcc",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Labeling (Fragile)/03b04126-e9fe-4e39-bb54-56dadbb27bcc",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Package Labeling (Fragile)/03b04126-e9fe-4e39-bb54-56dadbb27bcc",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_dca06354417c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Labeling (Fragile)/2e3bd930-4989-4b3a-95e8-ce52b6e05915",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Labeling (Fragile)/2e3bd930-4989-4b3a-95e8-ce52b6e05915",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Package Labeling (Fragile)/2e3bd930-4989-4b3a-95e8-ce52b6e05915",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_d968f196e83d",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Labeling (Fragile)/541f15ac-e7fa-46db-8221-bfb407da9651",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Labeling (Fragile)/541f15ac-e7fa-46db-8221-bfb407da9651",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Package Labeling (Fragile)/541f15ac-e7fa-46db-8221-bfb407da9651",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_e5aa2e2c23eb",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Labeling (Fragile)/8da3e6d4-2316-4c8f-a94a-db55751e3b44",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Labeling (Fragile)/8da3e6d4-2316-4c8f-a94a-db55751e3b44",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Package Labeling (Fragile)/8da3e6d4-2316-4c8f-a94a-db55751e3b44",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_cb5a51428919",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Labeling (Fragile)/a65b131e-f425-432a-9572-e10df57d7595",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Package Labeling (Fragile)/a65b131e-f425-432a-9572-e10df57d7595",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Package Labeling (Fragile)/a65b131e-f425-432a-9572-e10df57d7595",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_1d3424f548a9",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/334cf7d3-b4dc-4c6e-8a6e-28cfd7cc5bd5",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/334cf7d3-b4dc-4c6e-8a6e-28cfd7cc5bd5",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/334cf7d3-b4dc-4c6e-8a6e-28cfd7cc5bd5",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_d6a79531f0f2",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/61ec9fe4-1148-4687-a6df-9edf9ed8ae3a",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/61ec9fe4-1148-4687-a6df-9edf9ed8ae3a",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/61ec9fe4-1148-4687-a6df-9edf9ed8ae3a",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_99bfc1be8fde",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/8e2260fe-320c-442b-bda6-1c77d16eee17",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/8e2260fe-320c-442b-bda6-1c77d16eee17",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/8e2260fe-320c-442b-bda6-1c77d16eee17",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_bbe44799dc45",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/e5f2f71b-96a1-4033-9899-545b8e0a2af2",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/e5f2f71b-96a1-4033-9899-545b8e0a2af2",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Paper Clip and Staple Sorting/e5f2f71b-96a1-4033-9899-545b8e0a2af2",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_bf04607a06b1",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/2993523a-2d8f-4fba-985f-2c63ba66d2e0",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/2993523a-2d8f-4fba-985f-2c63ba66d2e0",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Paper Clips into Box/2993523a-2d8f-4fba-985f-2c63ba66d2e0",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_3895e6fdf82f",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/4040d71e-4e1c-4911-8638-a782564ffc9d",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/4040d71e-4e1c-4911-8638-a782564ffc9d",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Paper Clips into Box/4040d71e-4e1c-4911-8638-a782564ffc9d",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_9c1696b69935",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/476a5b84-ba89-4e0d-837c-b28ef743fdb8",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/476a5b84-ba89-4e0d-837c-b28ef743fdb8",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Paper Clips into Box/476a5b84-ba89-4e0d-837c-b28ef743fdb8",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_3bc9131c2bab",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/6128ded0-eae7-467d-b94d-4154320cc1f2",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/6128ded0-eae7-467d-b94d-4154320cc1f2",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Paper Clips into Box/6128ded0-eae7-467d-b94d-4154320cc1f2",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_b9af0e4e1f4e",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/6b2d5f9b-eafb-430e-9acc-defb2ea0f333",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/6b2d5f9b-eafb-430e-9acc-defb2ea0f333",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Paper Clips into Box/6b2d5f9b-eafb-430e-9acc-defb2ea0f333",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_577f4fb435b0",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/f5c21096-839c-4e13-8881-b9ec347844e1",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Clips into Box/f5c21096-839c-4e13-8881-b9ec347844e1",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Paper Clips into Box/f5c21096-839c-4e13-8881-b9ec347844e1",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_f0e0079b4d4e",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Distribution and Delivery/18ba76d3-7d9b-4c6d-8164-9c62eb9e03e1",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Paper Distribution and Delivery/18ba76d3-7d9b-4c6d-8164-9c62eb9e03e1",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Paper Distribution and Delivery/18ba76d3-7d9b-4c6d-8164-9c62eb9e03e1",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_ba503eb91dfd",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Photo Frame Cleaning and Photo Replacement/d1272aee-e924-43a6-9d41-cebee2793b58",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Photo Frame Cleaning and Photo Replacement/d1272aee-e924-43a6-9d41-cebee2793b58",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Photo Frame Cleaning and Photo Replacement/d1272aee-e924-43a6-9d41-cebee2793b58",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_978de9d94301",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Place countertop cup upside down into drying rack_plum/a59cfb9e-933e-4372-a2ae-2feb92c9af06",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Place countertop cup upside down into drying rack_plum/a59cfb9e-933e-4372-a2ae-2feb92c9af06",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Place countertop cup upside down into drying rack_plum/a59cfb9e-933e-4372-a2ae-2feb92c9af06",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_fb681f9ab9f7",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/0086b2e3-528d-43ff-a307-01a848dc9525",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/0086b2e3-528d-43ff-a307-01a848dc9525",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/0086b2e3-528d-43ff-a307-01a848dc9525",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_3cb8c018443c",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/03f0943a-9a2c-4154-8562-2dd63d766356",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/03f0943a-9a2c-4154-8562-2dd63d766356",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/03f0943a-9a2c-4154-8562-2dd63d766356",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_368ee83b6772",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/35a5a6ce-4ccb-45c1-846c-3bc1b256e897",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/35a5a6ce-4ccb-45c1-846c-3bc1b256e897",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/35a5a6ce-4ccb-45c1-846c-3bc1b256e897",
+      "source_role": "data",
+      "validation_status": "attention_required"
+    },
+    {
+      "source_id": "src_fd09c2468433",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/bb0454f1-86af-4908-a739-e32a414c5488",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/bb0454f1-86af-4908-a739-e32a414c5488",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Portion Nuts into Small Resealable Bags/bb0454f1-86af-4908-a739-e32a414c5488",
+      "source_role": "data",
+      "validation_status": "attention_required"
+    },
+    {
+      "source_id": "src_f1aa10f5b5ee",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Post Notice Announcement_plum/089f873e-79ed-4edf-bd47-48192a0dbc5c",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Post Notice Announcement_plum/089f873e-79ed-4edf-bd47-48192a0dbc5c",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Post Notice Announcement_plum/089f873e-79ed-4edf-bd47-48192a0dbc5c",
+      "source_role": "data",
+      "validation_status": "attention_required"
+    },
+    {
+      "source_id": "src_33a9373eaa11",
+      "original_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/mcap/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d.mcap",
+      "direct_path": "/mnt/dataset2/EgoProDemo/EgoProStandard-body/mcap/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d.mcap",
+      "format": "mcap",
+      "version": null,
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/mcap/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d.mcap",
+      "source_role": "data",
+      "validation_status": "path_exists_only"
+    }
+  ],
+  "notes": [],
+  "source_files_modified": false
+}

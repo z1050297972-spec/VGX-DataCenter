@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-35",
+  "dataset_name": "R1_lite_table_withdrawing_mcap",
+  "dataset_roots": [
+    "/mnt/dataset2/R1_lite_table_withdrawing_mcap"
+  ],
+  "view": "task",
+  "format": null,
+  "version": null,
+  "links": [
+    {
+      "name": "原始数据",
+      "source_path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap",
+      "entry_path": "按任务/R1_lite_table_withdrawing_mcap/原始数据",
+      "source_type": "directory"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "src_01e0bc7e9cc8",
+      "original_path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261009_table_withdrawing",
+      "direct_path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261009_table_withdrawing",
+      "format": "mcap",
+      "version": null,
+      "entry_path": "按任务/R1_lite_table_withdrawing_mcap/原始数据/20261009_table_withdrawing",
+      "source_role": "data",
+      "validation_status": "path_exists_only"
+    },
+    {
+      "source_id": "src_d5edab567d18",
+      "original_path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261010_table_withdrawing",
+      "direct_path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261010_table_withdrawing",
+      "format": "mcap",
+      "version": null,
+      "entry_path": "按任务/R1_lite_table_withdrawing_mcap/原始数据/20261010_table_withdrawing",
+      "source_role": "data",
+      "validation_status": "path_exists_only"
+    },
+    {
+      "source_id": "src_04a13d43b1b0",
+      "original_path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261011_table_withdrawing",
+      "direct_path": "/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261011_table_withdrawing",
+      "format": "mcap",
+      "version": null,
+      "entry_path": "按任务/R1_lite_table_withdrawing_mcap/原始数据/20261011_table_withdrawing",
+      "source_role": "data",
+      "validation_status": "path_exists_only"
+    }
+  ],
+  "notes": [],
+  "source_files_modified": false
+}
