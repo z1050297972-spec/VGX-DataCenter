@@ -91,3 +91,4 @@ Status: ready-for-agent
   - Status 改成 `ready-for-agent`。等第 10 张合并以后再开票。
 - 2026-10-23，按第 3 张评审补范围：`rdp web` 传 `log_config=None, access_log=False`；启动时按活动日志文件的修改日期补归档（R1，负责人批准）。验收加 2a、2b。
 - 2026-10-24，第 5 张定（B1、B3）：启动入口必须把数据库引擎传给 `create_app`（验收加一条）；关闭引擎前等写报错表的线程结束；升级步骤先停 Web 和 worker 再 `migrate`。
+- 2026-10-26，第 8 张合并时补充（执行线）：worker 的外部程序在自己的进程组里运行（`start_new_session`），worker 被 SIGKILL 时不会跟着结束；第 8 张不在 worker 里清理孤儿，依赖本票的服务单元。验收补一条：worker 单元 `KillMode=control-group`、`TimeoutStopSec` 不少于 30 秒（第 8 张 `WORKER_STOP_TIMEOUT_S`）；测试或演示里 `systemctl --user kill -s KILL` worker 后，残留的外部程序随单元一起被清掉。入口必须 `sys.exit(result.code)`，失败码交 systemd 重启（见 `rdp.ops.worker.run_worker` docstring）。

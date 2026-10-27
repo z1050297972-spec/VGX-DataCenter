@@ -168,3 +168,4 @@ Web 提交一个作业，worker 接走、执行、写进度和日志，结束后
   - Status 改为 `in-review`，等负责人说"合并"。合并时补手册：使用手册"作业"一节，运维手册"worker 没在运行时怎么办"。
 - 2026-10-26，负责人确认合并（回答"合并，然后开第 9 张"）。合并提交 `1885fdf 合并：作业框架与 worker`，main 上 `make check` 复跑全绿（pytest 1517、Vitest 205）。手册已补：使用手册"作业"一节（提交、进度、六种结局、取消、重新提交、离线提示）；运维手册"worker 没在运行时怎么办"，状态目录表更正作业日志路径。工作目录和分支已删。Status 改为 `done`。
   - 交第 11 张：验收里加上 `KillMode=control-group`、`TimeoutStopSec>=30`，worker 被 SIGKILL 后孤儿外部程序由 systemd 清理。
+  - 流程偏差：合并时直接 `git merge --no-ff`，没按 3.7 先 `--no-commit` 再 `git commit`，钩子没在合并结果上跑；随后在 main 上手动跑了 `make check`，全绿，等效。没有新依赖，未重跑 `uv sync`。快照 `refs/rdp/m0-08/*` 已删。
