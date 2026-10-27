@@ -1,8 +1,7 @@
 """作业领域的容量、周期和等待预算（M0/08）；不读取配置或创建全局登记表。"""
 
-# J3 与前端轮询一致，单位秒；第 9 张再加入各类并发和资源调度。
+# J3 与前端轮询一致，单位秒；09 按每类型的容量领取。
 WORKER_POLL_INTERVAL_S = 1.0
-WORKER_CONCURRENCY = 1
 # 工单心跳每 5 秒写一次，超过 15 秒视为离线；跨进程判定使用 UTC。
 HEARTBEAT_INTERVAL_S = 5.0
 WORKER_OFFLINE_AFTER_S = 15.0
@@ -52,8 +51,29 @@ JOB_ARTIFACT_MAX_CHARS = 4096
 JOB_RECOVERY_LIMIT = 3
 # 执行函数60秒仍未响应取消时仅警告一次；从本实例首次观察cancelling起用monotonic计时。
 CANCEL_STALL_WARNING_S = 60.0
-# 框架同时最多一个执行线程和两个输出线程；全部daemon，保留活线程才能决定是否释放实例锁。
+# 每个作业最多一个执行线程和两个输出线程；全部daemon，全部作业共用停止预算。
 WORKER_OWNED_THREAD_LIMIT = 3
 
 # 跨来源/规则的溢出样例必须保留原身份，只有该保留键允许样例的分组键不同（规范6.6）。
 JOB_DIAGNOSTIC_OVERFLOW_KEY = ("平台", "诊断规则种类超过上限")
+
+# 09：硬件核对至多五秒，输出沿用有界 stderr 尾部；不把工具卡死当成缺卡等待。
+GPU_PROBE_TIMEOUT_S = 5.0
+# 写锁每 50 毫秒检查一次取消；单次等待最多 300 秒，超时按资源竞争失败，可重新提交。
+NAVIGATION_LOCK_POLL_S = 0.05
+NAVIGATION_LOCK_TIMEOUT_S = 300.0
+# 演示等待最多十分钟；锁内暂停最多十秒，不超过 worker 共用三十秒停止预算。
+GPU_EXAMPLE_MAX_HOLD_S = 600
+NAVIGATION_EXAMPLE_MAX_PAUSE_S = 10
+# 演示文件每条 JSON 行至多 4 KiB，新值最多 256 码点，尾读有界而不加载整个文件。
+NAVIGATION_EXAMPLE_LINE_MAX_BYTES = 4096
+NAVIGATION_EXAMPLE_VALUE_MAX_CHARS = 256
+# 登记每天规则最多 100 项；24 小时为 UTC 固定秒数，不用本地日期差来算补跑。
+SCHEDULE_LIMIT = 100
+SCHEDULE_CATCH_UP_AFTER_S = 86400
+# 覆盖一年及闰年/跳过日期的余量；超出说明时钟或持久化状态异常，不能无限扫描。
+SCHEDULE_LOOKAHEAD_DAYS = 370
+
+
+# 09：资源池只做内存读写，取锁预算独立于输出线程回收，单位秒。
+RESOURCE_POOL_LOCK_TIMEOUT_S = 0.1

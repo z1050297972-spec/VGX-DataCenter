@@ -20,12 +20,13 @@ const jobsRoute = getRouteApi("/jobs");
 
 /**
  * 显示所有提交人的作业列表及可分享状态筛选。
- * @returns 列表、状态筛选、游标翻页和提交示例入口；九种显示状态遵守 jobStatusLabel。
+ * @returns 列表、状态筛选、游标翻页和两类示例提交入口；九种显示状态遵守 jobStatusLabel，另列等待 GPU/等待导航层写锁，不增加作业状态。
  * @throws 无；无效筛选显示“作业筛选参数不合法”，请求错误由 DiagnosticCard 显示。
  * @sideEffects 经真实 /jobs Router 的 useSearch/useNavigate 读取和更新 typed search；筛选改变清 cursor，无效值不发列表请求。
  * @timeSemantics 合法列表每 JOB_POLL_INTERVAL_MS 轮询，离页取消，无自动重试；UTC 时刻仅显示时转浏览器本地。
  */
 export function JobsPage(): ReactElement {
+  // 待实现：从生成记录显示等待原因并增加资源示例入口，保留已有列表交互。
   const search = jobsRoute.useSearch();
   return (
     <section>
@@ -43,12 +44,13 @@ export function JobsPage(): ReactElement {
 
 /**
  * 显示一个作业的状态、进度、摘要、诊断和控制按钮。
- * @returns /jobs/$jobId 的详情；展示“阶段 2/4 · 名称”、已知总数进度条（百分比四舍五入为整数）或未知总数已处理量、独立计数、已用时间、速度/剩余、日志最后几十行和 DiagnosticCard；取消/中断无结果仍保留进度。
+ * @returns /jobs/$jobId 的详情；增加等待原因及领到的 GPU 卡号（终态保留历史），未领卡明确显示未分配；仅账号编号为 null 时按系统身份显示；有编号的同名账号保持账号删除标记；展示“阶段 2/4 · 名称”、已知总数进度条（百分比四舍五入为整数）或未知总数已处理量、独立计数、已用时间、速度/剩余、日志最后几十行和 DiagnosticCard；取消/中断无结果仍保留进度。
  * @throws 无；坏编号、404、409 与其他错误用统一诊断，不在页面拼接服务器失败信息。
  * @sideEffects 调 useJob/useJobLog；queued/running 可取消，cancelling 禁用取消，终态可重提；任意账号均可操作；显示重新提交自链接和历史名字删除标记，不输出工具 HTML。
  * @timeSemantics 进行中每秒轮询，终态取最后日志后停止；速度最近 10 秒、样本不足不显示，未知总数不显示百分比/剩余；已用时以服务器 elapsed_s 加本地单调增量，终态使用冻结摘要。
  */
 export function JobDetailPage(): ReactElement {
+  // 待实现：显示等待原因、历史 GPU 卡号及空编号的系统提交人。
   const { jobId } = getRouteApi("/jobs/$jobId").useParams();
   const query = useJob(jobId);
   const timing = useJobTiming(query.data);

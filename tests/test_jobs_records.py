@@ -178,9 +178,9 @@ def test_claim_registers_unique_log_path_in_transaction(tmp_path: Path) -> None:
                 [job_row(JobState.QUEUED, job_id=71), job_row(JobState.QUEUED, job_id=72)]
             )
         with session_scope(engine) as session:
-            first = claim_job(session, 71, now=NOW, paths=paths)
+            first = claim_job(session, 71, now=NOW, paths=paths, gpu_index=None)
         with session_scope(engine) as session:
-            second = claim_job(session, 72, now=NOW, paths=paths)
+            second = claim_job(session, 72, now=NOW, paths=paths, gpu_index=None)
         assert (first.state, first.started_at, first.log_path) == (
             JobState.RUNNING,
             NOW,

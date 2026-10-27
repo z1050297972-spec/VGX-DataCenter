@@ -607,6 +607,89 @@
         "title": "ErrorRecord",
         "type": "object"
       },
+      "GpuAvailability": {
+        "description": "当前 worker 实例启动核对的展示状态，不通过 Web 再探测硬件。",
+        "enum": [
+          "unknown",
+          "available",
+          "excluded"
+        ],
+        "title": "GpuAvailability",
+        "type": "string"
+      },
+      "GpuExampleParameters": {
+        "additionalProperties": false,
+        "description": "示例占卡参数，不能指定物理卡号或命令路径。\n\nAttributes:\n    hold_s: 严格整数秒数，0 至 GPU_EXAMPLE_MAX_HOLD_S=600；必填。",
+        "properties": {
+          "hold_s": {
+            "maximum": 600.0,
+            "minimum": 0.0,
+            "title": "Hold S",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hold_s"
+        ],
+        "title": "GpuExampleParameters",
+        "type": "object"
+      },
+      "GpuUsageResponse": {
+        "additionalProperties": false,
+        "description": "一张配置卡的展示占用，空闲不是硬件健康承诺。\n\nAttributes:\n    gpu_index: 非负物理编号，最大 MAX_GPU_INDEX。\n    job_id: 当前作业编号文本，空闲/移出池 None；历史终态不计占用。\n    availability: available/excluded/unknown；未有本实例核对记录不能当作可用。\n    diagnostics: 移出池的有界统一诊断，通过或未知为空。\n    checked_at: 启动核对的 UTC 时刻；未知为 None。",
+        "properties": {
+          "availability": {
+            "$ref": "#/components/schemas/GpuAvailability"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "gpu_index": {
+            "maximum": 65535.0,
+            "minimum": 0.0,
+            "title": "Gpu Index",
+            "type": "integer"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "maxLength": 19,
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          }
+        },
+        "required": [
+          "gpu_index",
+          "job_id",
+          "availability",
+          "diagnostics",
+          "checked_at"
+        ],
+        "title": "GpuUsageResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -637,7 +720,7 @@
       },
       "HistoricalActorResponse": {
         "additionalProperties": false,
-        "description": "不可变历史身份和本次查询所得的删除标记。\n\nAttributes:\n    account_id: 正整数十进制文本；运维 None，未知登录账号不构造本对象。\n    name: 当时显示名，1-64 码点，运维固定“运维”。\n    deleted: 当前快照编号不存在为 True；运维 False，必填。",
+        "description": "不可变历史身份和本次查询所得的删除标记。\n\nAttributes:\n    account_id: 正整数十进制文本；运维或系统 None，未知登录账号不构造本对象。\n    name: 当时显示名，1-64 码点；空编号固定为“运维”或“系统”。\n    deleted: 当前快照编号不存在为 True；运维/系统 False，必填。",
         "properties": {
           "account_id": {
             "anyOf": [
@@ -801,7 +884,7 @@
       },
       "JobResponse": {
         "additionalProperties": false,
-        "description": "详情及列表中的永久记录，字段单位与 JobRecord 相同；时刻统一 UTC 微秒。\n\nAttributes:\n    job_id: 1 至 2^63-1 规范十进制文本。\n    type_name: 稳定类型键，1-64 字符。\n    display_name: 提交时显示名快照，1-40 码点。\n    parameters: 无秘密参数 JSON；历史原值，不按新版本静默改写。\n    submitted_by: 历史身份和 deleted 标记；前端显示“名字（已删除）”。\n    submitted_at: UTC 提交时刻。\n    resubmitted_from: 原作业编号文本或 None。\n    state: 六种状态之一。\n    started_at: 首次开始 UTC 时刻或 None。\n    ended_at: 终态结束 UTC 时刻或 None。\n    progress: 最后进度或 None，未知 total 返回 null。\n    progress_at: 最后进度 UTC 时刻或 None。\n    elapsed_s: 有限非负秒数，存储的已运行时长；页面可据本地单调样本增量显示。\n    log_path: 状态目录相对路径或 None，浏览器不据此直接访问文件。\n    summary: 终态冻结摘要或 None，只有 completed 内 outcome 非空。\n    diagnostics: 有界诊断组，真实总数与前 N 样例分别展示。\n    recovery_mode: 提交时恢复方式快照，只作记录及interrupt保护。\n    recovery_count: 自动恢复资格累计次数，0至JOB_RECOVERY_LIMIT；不随重跑清零。",
+        "description": "详情及列表中的永久记录，字段单位与 JobRecord 相同；时刻统一 UTC 微秒。\n\nAttributes:\n    job_id: 1 至 2^63-1 规范十进制文本。\n    type_name: 稳定类型键，1-64 字符。\n    display_name: 提交时显示名快照，1-40 码点。\n    parameters: 无秘密参数 JSON；历史原值，不按新版本静默改写。\n    submitted_by: 历史身份和 deleted 标记；系统的 account_id=None、name=“系统”、deleted=False。\n    submitted_at: UTC 提交时刻。\n    resubmitted_from: 原作业编号文本或 None。\n    state: 六种状态之一。\n    started_at: 首次开始 UTC 时刻或 None。\n    ended_at: 终态结束 UTC 时刻或 None。\n    progress: 最后进度或 None，未知 total 返回 null。\n    progress_at: 最后进度 UTC 时刻或 None。\n    elapsed_s: 有限非负秒数，存储的已运行时长；页面可据本地单调样本增量显示。\n    log_path: 状态目录相对路径或 None，浏览器不据此直接访问文件。\n    summary: 终态冻结摘要或 None，只有 completed 内 outcome 非空。\n    diagnostics: 有界诊断组，真实总数与前 N 样例分别展示。\n    recovery_mode: 提交时恢复方式快照，只作记录及interrupt保护。\n    recovery_count: 自动恢复资格累计次数，0至JOB_RECOVERY_LIMIT；不随重跑清零。\n    gpu_index: 物理卡号，未领过 None，终态保留历史。\n    wait_reason: gpu/navigation_lock/None，不新增 state；终态及恢复清空。\n    holds_navigation_lock: worker 保存的持锁展示副本，终态 False。",
         "properties": {
           "diagnostics": {
             "items": {
@@ -832,6 +915,23 @@
               }
             ],
             "title": "Ended At"
+          },
+          "gpu_index": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpu Index"
+          },
+          "holds_navigation_lock": {
+            "default": false,
+            "title": "Holds Navigation Lock",
+            "type": "boolean"
           },
           "job_id": {
             "maxLength": 19,
@@ -937,6 +1037,16 @@
           "type_name": {
             "title": "Type Name",
             "type": "string"
+          },
+          "wait_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WaitReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1268,6 +1378,29 @@
         "title": "LoginResult",
         "type": "string"
       },
+      "NavigationExampleParameters": {
+        "additionalProperties": false,
+        "description": "写锁演示的预览值和有界暂停。\n\nAttributes:\n    expected_value: 预览看到的最后一条 value，0-256 码点；文件不存在时必须为空字符串。\n    pause_s: 核对通过后、追加前的暂停，严格整数秒数 0-10，默认零；持锁期间不响应取消。",
+        "properties": {
+          "expected_value": {
+            "maxLength": 256,
+            "title": "Expected Value",
+            "type": "string"
+          },
+          "pause_s": {
+            "default": 0,
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Pause S",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_value"
+        ],
+        "title": "NavigationExampleParameters",
+        "type": "object"
+      },
       "ObjectResponse": {
         "additionalProperties": false,
         "description": "对象的历史名字，保留给未来撤回功能定位。\n\nAttributes:\n    kind: account/audit_settings/job，必填；job 不表示账号。\n    object_id: 账号/作业编号十进制文本或设置键 retention；失败新建尚无编号时 None。\n    name: 当时显示名、固定设置名或“作业显示名 #编号”，1-64 码点，必填。\n    deleted: 账号编号已不存在为 True；设置、作业或未分配编号为 False。",
@@ -1598,6 +1731,135 @@
         "title": "RoleRequest",
         "type": "object"
       },
+      "ScheduleResponse": {
+        "additionalProperties": false,
+        "description": "每日计划及最近一次提交的结果。\n\nAttributes:\n    name: 稳定登记名。\n    next_run_at: 按本机时区算出的下一次按点 UTC 时刻，浏览器仅负责本地显示。\n    last_job_id: 最近提交的作业编号文本，从未提交 None。\n    last_submitted_at: 最近提交的 UTC 时刻，从未提交 None。\n    last_state: 最近作业六态之一，未提交 None。\n    last_outcome: 仅最近作业 completed 时非空，不把取消/中断伪装失败结果。",
+        "properties": {
+          "last_job_id": {
+            "anyOf": [
+              {
+                "maxLength": 19,
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Job Id"
+          },
+          "last_outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Submitted At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "next_run_at": {
+            "format": "date-time",
+            "title": "Next Run At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "next_run_at",
+          "last_job_id",
+          "last_submitted_at",
+          "last_state",
+          "last_outcome"
+        ],
+        "title": "ScheduleResponse",
+        "type": "object"
+      },
+      "SchedulingResponse": {
+        "additionalProperties": false,
+        "description": "一个只读调度快照；无修改配置或分配资源的 HTTP 接口。\n\nAttributes:\n    types: 按类型键升序的配置与数量。\n    gpus: 按物理编号升序的占用。\n    navigation_job_id: 持锁作业编号文本，无人持锁 None。\n    schedules: 按登记名字升序的定时计划。\n    checked_at: 服务端本请求 UTC 时刻。\n    worker_online: 同一快照按心跳判断；False 时展示注明是最后已保存状态。",
+        "properties": {
+          "checked_at": {
+            "format": "date-time",
+            "title": "Checked At",
+            "type": "string"
+          },
+          "gpus": {
+            "items": {
+              "$ref": "#/components/schemas/GpuUsageResponse"
+            },
+            "title": "Gpus",
+            "type": "array"
+          },
+          "navigation_job_id": {
+            "anyOf": [
+              {
+                "maxLength": 19,
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Navigation Job Id"
+          },
+          "schedules": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleResponse"
+            },
+            "title": "Schedules",
+            "type": "array"
+          },
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/TypeUsageResponse"
+            },
+            "title": "Types",
+            "type": "array"
+          },
+          "worker_online": {
+            "title": "Worker Online",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "types",
+          "gpus",
+          "navigation_job_id",
+          "schedules",
+          "checked_at",
+          "worker_online"
+        ],
+        "title": "SchedulingResponse",
+        "type": "object"
+      },
       "StatusRequest": {
         "additionalProperties": false,
         "description": "启停修改请求。\n\nAttributes:\n    status: enabled/disabled，无单位、不可空、无默认。",
@@ -1635,6 +1897,44 @@
           "parameters"
         ],
         "title": "SubmitJobPayload",
+        "type": "object"
+      },
+      "TypeUsageResponse": {
+        "additionalProperties": false,
+        "description": "一类作业的生效上限与数据库运行数。\n\nAttributes:\n    type_name: 稳定英文键。\n    display_name: 中文显示名。\n    concurrency: 生效上限，1 至 MAX_JOB_CONCURRENCY。\n    requires_gpu: 是否需要一张 GPU。\n    running_count: running/cancelling 数量，非负，恢复时可大于新配置上限。",
+        "properties": {
+          "concurrency": {
+            "maximum": 32.0,
+            "minimum": 1.0,
+            "title": "Concurrency",
+            "type": "integer"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "requires_gpu": {
+            "title": "Requires Gpu",
+            "type": "boolean"
+          },
+          "running_count": {
+            "minimum": 0.0,
+            "title": "Running Count",
+            "type": "integer"
+          },
+          "type_name": {
+            "title": "Type Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type_name",
+          "display_name",
+          "concurrency",
+          "requires_gpu",
+          "running_count"
+        ],
+        "title": "TypeUsageResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -1676,6 +1976,15 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "WaitReason": {
+        "description": "资源等待不增加作业状态；无等待用 None，终态必须清空。",
+        "enum": [
+          "gpu",
+          "navigation_lock"
+        ],
+        "title": "WaitReason",
+        "type": "string"
       },
       "WorkerStatusResponse": {
         "additionalProperties": false,
@@ -4518,6 +4827,260 @@
         ]
       }
     },
+    "/api/jobs/example/gpu": {
+      "post": {
+        "description": "提交示例占卡作业，不在请求进程访问 GPU。\n\nArgs:\n    context: 完成全局 Origin/认证/改密检查的当前账号上下文。\n    body: 占用秒数 0 至 GPU_EXAMPLE_MAX_HOLD_S，不接受卡号或命令路径。\n\nReturns:\n    HTTP 201，新 example_gpu queued 记录；提交人是当前账号。\n\nRaises:\n    JobInputError: 占用时长非法或类型未登记，422。\n    AuthenticationError: 会话无效，401。\n    PasswordChangeRequiredError: 必须改口令，403。\n    ConflictError: 提交/审计事务竞争，409。\n    InputError: 数据库损坏，400。\n    ExternalError: 持久化失败，502。\n    DefectError: 装配、时钟或响应映射错误，500；状态码以规范 6.2 为准。\n\nSide Effects:\n    调 JobService.submit，共享提交审计和参数校验；无 nvidia-smi 子进程或资源预留。\n\nTime Semantics:\n    用请求唯一 UTC 时刻，普通写锁 5 秒；执行时长只作用于 worker，不在 HTTP 等待。",
+        "operationId": "submit_gpu_job",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GpuExampleParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Submit Gpu Job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/example/navigation": {
+      "post": {
+        "description": "提交带预览期望值的写锁演示，不在 Web 核对或写示例文件。\n\nArgs:\n    context: 任意已登录且完成改密的账号与审计来源，Origin 已通过全局检查。\n    body: 期望字符串 0-256 码点、锁内暂停 0-10 秒，拒绝文件路径和操作者声明。\n\nReturns:\n    HTTP 201，新 example_navigation queued 记录；期待值是否匹配交 worker 锁内核对。\n\nRaises:\n    JobInputError: 参数不合格或类型未登记，422；不以当前文件状态拒绝提交。\n    AuthenticationError: 事务内身份失效，401。\n    PasswordChangeRequiredError: 账号须改口令，403。\n    ConflictError: 提交写锁/约束冲突，409。\n    InputError: 数据库损坏，400。\n    ExternalError: 新作业或审计事务失败，502。\n    DefectError: 类型/时钟/响应转换缺陷，500。\n\nSide Effects:\n    仅经 JobService.submit 新增作业及操作日志；不读取导航层、数据盘或示例文件，不持写锁。\n\nTime Semantics:\n    本请求单次普通事务，无重试；pause_s 在后台持锁阶段才生效。",
+        "operationId": "submit_navigation_job",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NavigationExampleParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Submit Navigation Job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
     "/api/jobs/{job_id}": {
       "get": {
         "description": "读取任意作业详情和历史提交人。\n\nArgs:\n    context: 已认证上下文，不要求管理员或原提交人。\n    job_id: 规范正整数十进制文本，最大 2^63-1，转换前校验。\n\nReturns:\n    HTTP 200；未知进度总数为 null，取消/中断无 outcome，已删账号名字快照仍保留。\n\nRaises:\n    JobInputError: 编号非法，422。\n    JobNotFoundError: 编号不存在，404。\n    AuthenticationError: 重验身份失败，401。\n    PasswordChangeRequiredError: 须改密，403。\n    InputError: 数据库损坏，400。\n    ConflictError: 读取冲突，409。\n    ExternalError: 查询失败，502。\n    DefectError: 状态/结果映射错误，500。\n\nSide Effects:\n    只读记录和账号存在性；不把日志文件全量装进响应。\n\nTime Semantics:\n    UTC 微秒输出，浏览器转本地；单次普通读锁预算，无重试。",
@@ -5027,6 +5590,123 @@
         "summary": "Resubmit Job",
         "tags": [
           "jobs"
+        ]
+      }
+    },
+    "/api/worker/scheduling": {
+      "get": {
+        "description": "向全部登录账号返回调度的数据库展示快照。\n\nArgs:\n    context: 全局认证得到的上下文，必须改密规则照旧；不要求管理员。\n\nReturns:\n    HTTP 200，类型上限/数量、卡主、写锁持有人、每日下次时间及上次结果；编号文本、时刻 UTC。\n\nRaises:\n    AuthenticationError: 未登录或会话重验失败，401。\n    PasswordChangeRequiredError: 必须先改口令，403。\n    InputError: 数据库/历史记录损坏，400。\n    ConflictError: 快照读取锁竞争，409。\n    ExternalError: 未注入调度配置或数据库不可读，502，不能伪装为空闲。\n    DefectError: 资源副本矛盾、非法时钟或映射错误，500。\n\nSide Effects:\n    只调用 SchedulingService.snapshot；不读配置文件、不探测 GPU、不调用 worker 内存或访问数据盘。\n    全部路径走第 6 张全局鉴权，拒绝时先于业务查询；不记查看操作日志。\n\nTime Semantics:\n    使用 account.now 的唯一 UTC 请求时刻；普通读锁 5 秒、无内部轮询，页面约每秒查询。",
+        "operationId": "get_scheduling",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Scheduling",
+        "tags": [
+          "worker"
         ]
       }
     },

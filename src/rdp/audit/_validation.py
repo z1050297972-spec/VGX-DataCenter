@@ -58,7 +58,8 @@ def name(value: object) -> str:
 
 
 def actor(value: object) -> None:
-    """账号身份必须是原编号快照；只有运维可以没有编号。"""
+    """账号身份保持原编号；空编号只允许 OPS_ACTOR 或 SYSTEM_ACTOR 两个固定身份。"""
+    # 待实现：与 0005 空编号固定身份 CHECK 同步放开系统身份。
     if not isinstance(value, ActorRef):
         raise invalid("actor")
     name(value.name)

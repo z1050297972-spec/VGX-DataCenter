@@ -10,6 +10,7 @@ from accounts_support import EXAMPLE_SECRET, NOW
 from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 from httpx import Client
+from jobs_scheduling_support import catalog_fixture
 
 from rdp.accounts.security import PasswordCodec
 from rdp.accounts.service import AccountService
@@ -43,7 +44,10 @@ def job_api_case(root: Path, *, registry: JobRegistry | None = None) -> Generato
         clock = Clock()
         app = create_app(None, database=engine, clock=clock)
         app.state.account_service = service
-        configure_jobs(app, paths, production_registry() if registry is None else registry)
+        configured_registry = production_registry() if registry is None else registry
+        configure_jobs(
+            app, paths, configured_registry, scheduling=catalog_fixture(configured_registry)
+        )
         with TestClient(
             app, raise_server_exceptions=False, headers={"Origin": "http://testserver"}
         ) as client:

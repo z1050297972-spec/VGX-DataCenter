@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from accounts_support import AUDIT_CONTEXT, EXAMPLE_SECRET, NOW, member_grant, scenario
+from jobs_scheduling_support import claim_fixture, resources_fixture
 from sqlalchemy import select, update
 
 from rdp.accounts.errors import AuthenticationError, PasswordChangeRequiredError
@@ -203,7 +204,11 @@ def test_cancel_running(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
         record = jobs.submit(request, "example_count", {"steps": 2, "interval_ms": 60000})
         paths = state_paths(PlatformConfig(state_dir=tmp_path), ("示例：数数",))
         dependencies = ExecutorDependencies(
-            fixture.engine, registry, paths, JobClock(lambda: NOW, time.monotonic)
+            fixture.engine,
+            registry,
+            paths,
+            JobClock(lambda: NOW, time.monotonic),
+            resources=resources_fixture(registry),
         )
 
         def first_step() -> bool:
@@ -722,17 +727,23 @@ def test_cancel_vs_completion_orders(tmp_path: Path) -> None:
         jobs = JobService(fixture.engine, registry)
         paths = state_paths(PlatformConfig(state_dir=tmp_path), ("示例：数数",))
         dependencies = ExecutorDependencies(
-            fixture.engine, registry, paths, JobClock(lambda: NOW, time.monotonic)
+            fixture.engine,
+            registry,
+            paths,
+            JobClock(lambda: NOW, time.monotonic),
+            resources=resources_fixture(registry),
         )
         for cancel_first in (True, False):
             record = jobs.submit(request, "example_count", {"steps": 3, "interval_ms": 0})
             with session_scope(fixture.engine) as session:
-                claimed = claim_job(session, record.job_id, now=NOW, paths=paths)
+                claimed = claim_job(session, record.job_id, now=NOW, paths=paths, gpu_index=None)
             if cancel_first:
                 jobs.cancel(request, record.job_id)
             signals = ExecutionSignals(Event(), Event(), ExecutionMonitor([], None, Lock()))
             result = execute_job(
-                ExecutionWork(claimed, ExecutionMode.FRESH, None), dependencies, signals
+                ExecutionWork(claimed, ExecutionMode.FRESH, None, claim=claim_fixture(claimed)),
+                dependencies,
+                signals,
             )
             assert result is not None and result.state is (
                 JobState.CANCELLED if cancel_first else JobState.COMPLETED

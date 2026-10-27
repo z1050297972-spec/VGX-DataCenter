@@ -35,6 +35,7 @@ class StatePaths:
         job_logs: (作业类型, logs/作业类型的绝对 Path) 元组序列，无单位；
             保持输入顺序、类型不重复，允许为空；必填，无默认值，不使用可变 dict。
         worker_lock: root/worker.lock 的绝对 Path，无单位；必填，无默认值。
+        navigation_example: 由 root 派生的示例文件绝对路径，只有示例写锁作业可追加。
     """
 
     root: Path
@@ -42,6 +43,11 @@ class StatePaths:
     logs: Path
     job_logs: tuple[tuple[str, Path], ...]
     worker_lock: Path
+
+    @property
+    def navigation_example(self) -> Path:
+        """示例写锁文件 root/navigation-example.jsonl 的绝对路径，只计算、不创建。"""
+        raise NotImplementedError
 
 
 def state_paths(config: PlatformConfig, job_types: Sequence[str]) -> StatePaths:

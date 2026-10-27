@@ -7,7 +7,7 @@
 
 import json
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import date, datetime
 from typing import cast
 
 from pydantic import ValidationError
@@ -25,6 +25,7 @@ from rdp.jobs.models import JobRow, WorkerHeartbeatRow
 from rdp.jobs.policy import JOB_PARAMETERS_MAX_BYTES
 from rdp.jobs.records import NewJob, StateChange, find_job, insert_job, transition_job
 from rdp.jobs.registry import JobDefinition, JobRegistry
+from rdp.jobs.scheduling_types import ScheduledJob, ScheduleSubmission
 from rdp.jobs.types import JobPage, JobQuery, JobRecord, JobState, WorkerHeartbeat
 
 
@@ -84,7 +85,8 @@ class JobService:
             parameters: 不可信 JSON 对象，至多 JOB_PARAMETERS_MAX_BYTES，按当前模型严格校验。
 
         Returns:
-            已提交的 queued 记录，提交人为事务内当前账号；参数保留模型的 JSON 值和默认值。
+            已提交的 queued 记录，提交人为事务内当前账号；有编号且名字为“系统”的账号照常提交，按编号区别固定系统身份。
+            参数保留模型的 JSON 值和默认值。
 
         Raises:
             AuthenticationError: 事务内会话已撤销/过期或账号停用、删除。
@@ -118,6 +120,39 @@ class JobService:
         except Exception as error:
             _audit.failed(self.engine, attempted, error)
             raise
+
+    def submit_scheduled(
+        self, definition: ScheduledJob, local_date: date, *, now: datetime
+    ) -> ScheduleSubmission | None:
+        """以固定系统身份原子提交每日作业、审计及日期去重行。
+
+        Args:
+            definition: 已在入口显式登记并校验的规则，类型和参数仍按当前 JobRegistry 重验。
+            local_date: schedule_due 返回的本机本地日期，不能由 HTTP 客户端指定。
+            now: 注入 aware UTC 时刻；作业、日志和去重行共用，不能隐式读钟。
+
+        Returns:
+            本次成功提交的 ScheduleSubmission；同一规则/日期已经提交返回 None，不新增作业或日志。
+
+        Raises:
+            JobInputError: 当前类型已删除或参数不再合格，不回显原参数。
+            ConflictError: 短锁入场或入场后提交失败；日期唯一竞争单独识别并返回 None。
+            InputError: 数据库或历史去重记录损坏。
+            ExternalError: 作业/去重/日志插入或提交失败，整体回滚。
+            DefectError: 规则、日期、注入时刻或内部系统身份不合法。
+
+        Side Effects:
+            事务外复用账号提交的类型/参数校验；事务内使用 insert_job 与相同操作日志适配，
+            提交人为 SYSTEM_ACTOR，不伪造 SessionIdentity，不绕过公开 HTTP 的全局鉴权。
+            AuditContext 为服务端明确的无请求编号/无 IP 系统来源；同一事务插入唯一日期记录。
+            任一步失败回滚三者；真正开始执行后的失败沿用短锁失败审计补记，重复日期不记失败。
+            HTTP 不暴露本入口；账号重新提交系统作业仍由 resubmit 写点按钮的当前账号。
+
+        Time Semantics:
+            BEGIN 最多 PROGRESS_LOCK_TIMEOUT_MS，忙由调度器下一轮重试；不在本函数内部睡眠。
+            日期去重覆盖 worker 重启和墙钟回拨，不按执行完成时刻计算 24 小时补跑。
+        """
+        raise NotImplementedError
 
     def cancel(self, request: JobRequest, job_id: int) -> JobRecord:
         """请求取消任意账号提交的作业，取消身份记为当前账号。
@@ -247,6 +282,7 @@ class JobService:
 
         Returns:
             完整永久记录；账号已删除时保留历史名字并设置 submitter_deleted=True。
+            SYSTEM_ACTOR 的编号为 None、名字“系统”、submitter_deleted=False，不查同名账号。
 
         Raises:
             AuthenticationError: 会话或账号失效。
@@ -264,6 +300,7 @@ class JobService:
         Time Semantics:
             请求时刻只用于身份核验，数据库时刻保留 UTC 微秒；读锁沿用 BUSY_TIMEOUT_MS，无轮询。
         """
+        # 待实现：系统提交人不标记为已删除，账号仍按编号判断。
         _audit.validate_request(request)
         _storage.identifier(job_id)
         with session_scope(self.engine, read_only=True) as session:
@@ -285,6 +322,7 @@ class JobService:
         Returns:
             仅job_id DESC的有界页；自增编号就是提交顺序，submitted_at仅作展示；游标绑定状态、limit、首页最大编号，
             后续新增不插入既有翻页。状态会改变，跨页不承诺冻结整个队列；允许空页。
+            系统提交记录的 submitted_by.account_id=None、submitter_deleted=False。
 
         Raises:
             AuthenticationError: 查询事务身份无效。
@@ -301,6 +339,7 @@ class JobService:
         Time Semantics:
             墙钟回拨不禁止查询未来提交记录；只读锁最多 BUSY_TIMEOUT_MS，无自动重试。
         """
+        # 待实现：页内系统身份无需账号存在性查询，删除标记固定 False。
         _audit.validate_request(request)
         cursor = _pagination.decode(query)
         with session_scope(self.engine, read_only=True) as session, _storage.operation(session):

@@ -30,6 +30,9 @@ export const job: Job = {
   diagnostics: [],
   recovery_mode: "interrupt",
   recovery_count: 0,
+  gpu_index: null,
+  wait_reason: null,
+  holds_navigation_lock: false,
 };
 export const onlineWorker: WorkerStatus = {
   online: true,

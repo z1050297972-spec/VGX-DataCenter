@@ -31,7 +31,7 @@ class JobRow(Base):
         type_name: 稳定英文类型，1-64 字符。
         display_name: 提交时显示名，1-40 码点，恢复使用同一路径。
         parameters: 无秘密 JSON 对象，最多 16 KiB。
-        submitter_id: 正账号编号，不设外键，删除账号不受阻挡。
+        submitter_id: 正账号编号或系统的 None，不设外键；0005 可空声明隔离在 JobSchedulingColumns。
         submitter_name: 提交人名字快照，1-64 码点。
         submitted_at: UTC 微秒提交时刻。
         resubmitted_from: 原作业编号，普通提交 NULL；永久记录不级联删除。
@@ -97,7 +97,8 @@ class JobRow(Base):
     type_name: Mapped[str] = mapped_column(String(64), nullable=False)
     display_name: Mapped[str] = mapped_column(String(40), nullable=False)
     parameters: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
-    submitter_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    # 0004 共用 MetaData 维持 NOT NULL；0005 的可空列和空编号身份约束单独声明，避免查询提前改表。
+    submitter_id: Mapped[int | None] = mapped_column(Integer, nullable=False)
     submitter_name: Mapped[str] = mapped_column(String(64), nullable=False)
     submitted_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     resubmitted_from: Mapped[int | None] = mapped_column(Integer)

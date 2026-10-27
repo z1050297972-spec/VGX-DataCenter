@@ -29,6 +29,13 @@ class JobState(StrEnum):
     INTERRUPTED = "interrupted"
 
 
+class WaitReason(StrEnum):
+    """资源等待不增加作业状态；无等待用 None，终态必须清空。"""
+
+    GPU = "gpu"
+    NAVIGATION_LOCK = "navigation_lock"
+
+
 class RecoveryMode(StrEnum):
     """类型登记的三种中断处理；续跑和重跑不新增状态边。"""
 
@@ -156,7 +163,7 @@ class JobRecord:
         type_name: 登记时稳定英文键，1-64 字符；升级后可能已不在登记表。
         display_name: 提交时显示名快照，1-40 码点；日志目录恢复不随类型改名改变。
         parameters: 校验后的 JSON 对象，UTF-8 最多 JOB_PARAMETERS_MAX_BYTES；不得含秘密。
-        submitted_by: ActorRef 编号及名字快照，本票只接受账号身份。
+        submitted_by: 账号或 SYSTEM_ACTOR；空编号只允许名字为“系统”，有编号的同名账号按编号识别，运维身份不可提交。
         submitter_deleted: 查询时该编号不存在为 True，按编号查，不按同名猜测。
         submitted_at: aware UTC 微秒时刻，允许因墙钟回拨晚于开始时间。
         resubmitted_from: 原作业正编号；普通提交为 None。
@@ -173,6 +180,10 @@ class JobRecord:
         diagnostics: 总数及前 N 样例的元组；规则组最多 100，溢出另组保留完整总数。
         recovery_mode: 提交时类型方式快照；仅作记录及interrupt保护，执行方式取当前登记。
         recovery_count: 已提交的续跑/重跑资格次数，0至JOB_RECOVERY_LIMIT=3；达到3后再次恢复标中断。
+        gpu_index: 非负物理卡号；未领过为 None，正常终态保留；启动统一清 running/cancelling 的旧卡，恢复重新领取后更新。
+        wait_reason: None、GPU、NAVIGATION_LOCK，不改变 state；主循环唯一写 queued 的 GPU 等待，
+            每轮重判，领到卡、类型上限阻挡或取消后清旧原因；终态强制清空，启动统一清全部非终态。
+        holds_navigation_lock: 展示副本，默认 False；终态和恢复处理时清空，不是真正的互斥锁。
     """
 
     job_id: int
@@ -196,6 +207,9 @@ class JobRecord:
     diagnostics: tuple[DiagnosticGroup, ...]
     recovery_mode: RecoveryMode
     recovery_count: int
+    gpu_index: int | None = None
+    wait_reason: WaitReason | None = None
+    holds_navigation_lock: bool = False
 
 
 @dataclass(frozen=True)

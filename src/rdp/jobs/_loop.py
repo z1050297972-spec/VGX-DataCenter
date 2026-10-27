@@ -1,4 +1,6 @@
-"""串行worker循环的内部实现；主线程只做短事务，执行线程和输出线程由同一monitor追踪。"""
+"""worker 循环内部边界；主线程只做短事务，每作业独立 monitor，所有线程共用停止预算。"""
+
+# 待实现：把单 thread/signals/monitor 槽替换为按 job_id 的有界集合，统一完成恢复准备后按每类队首调用 Scheduler，逐轮重判 GPU 等待并执行定时检查。
 
 import logging
 import time
@@ -23,6 +25,7 @@ from rdp.jobs.execution import ExecutionWork, ExecutorDependencies, execute_job,
 from rdp.jobs.models import JobRow
 from rdp.jobs.progress import ExecutionMonitor, ExecutionSignals
 from rdp.jobs.records import claim_job, find_job, next_queued_job, save_heartbeat
+from rdp.jobs.scheduling_types import ResourceClaim
 from rdp.jobs.types import ExecutionMode, JobState, WorkerHeartbeat
 from rdp.jobs.worker import WorkerLoopResult
 
@@ -121,11 +124,17 @@ class Loop:
                     candidate.job_id,
                     now=self.dependencies.clock.now(),
                     paths=self.dependencies.paths,
+                    gpu_index=None,
                 )
         except ConflictError:
             # Web可能先提交排队取消；不把正常的条件更新落败当作执行失败。
             return None
-        return ExecutionWork(record, ExecutionMode.FRESH, None)
+        return ExecutionWork(
+            record,
+            ExecutionMode.FRESH,
+            None,
+            claim=ResourceClaim(record.job_id, record.type_name, record.gpu_index),
+        )
 
     def _start(self, work: ExecutionWork) -> None:
         """登记daemon执行线程后才start，显式复制调用方contextvars。"""

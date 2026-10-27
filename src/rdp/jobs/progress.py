@@ -9,10 +9,10 @@ from __future__ import annotations
 import math
 from _thread import LockType
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from threading import Event, Lock, Thread
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from pydantic import ValidationError
 from sqlalchemy import Engine
@@ -41,6 +41,9 @@ from rdp.jobs.policy import (
 )
 from rdp.jobs.records import save_progress
 from rdp.jobs.types import ExecutionSnapshot, JobClock, JobProgress, JobRecord, JobState
+
+if TYPE_CHECKING:
+    from rdp.jobs.scheduling_types import ResourceDisplay
 
 
 @dataclass
@@ -251,11 +254,13 @@ class ProgressReporter:
         Side Effects:
             到期用PROGRESS_LOCK_TIMEOUT_MS短锁保存最新快照，BEGIN BUSY/LOCKED仅跳过本次；
             report和各等待路径共用同一尝试时刻和脏标记，不能在一秒内叠加写入或无限重试。
+            同时补写 set_resource_display 的最新脏副本，清持锁标记不能因没有新进度而永远遗漏。
 
         Time Semantics:
             只用monotonic节流，每次尝试起点间至少PROGRESS_INTERVAL_S；无后续report也会在
             检查点、wait或外部进程轮询到截止时补写。延迟为1秒目标加获锁/I/O/调度，以及连续跳过次数乘1秒。
         """
+        # 待实现：同一轮短锁补写最新资源副本及进度，保留各自版本。
         with self._guard():
             now = self._monotonic()
             if self._revision == self._saved_revision or (
@@ -282,6 +287,54 @@ class ProgressReporter:
             # 保存期间其他线程新增的诊断/产物仍是脏值，不能清掉最新版本。
             self._saved_revision = revision
 
+    def set_resource_display(self, display: ResourceDisplay) -> None:
+        """记录本作业的最新等待/持锁副本并尝试短锁落库。
+
+        Args:
+            display: 合法 ResourceDisplay；执行线程只能设置写锁等待或持锁，GPU 排队由主循环发布。
+
+        Returns:
+            无；短锁忙时内存保留最新值，后续检查点补写，不丢掉释放锁后的清空。
+
+        Raises:
+            InputError: 资源存储读取或更新遇数据库损坏。
+            ConflictError: 已进入事务后的冲突，不能当作可跳过的 BEGIN 忙。
+            ExternalError: 资源副本 I/O 失败。
+            DefectError: 状态组合错误或非本作业生命周期调用。
+
+        Side Effects:
+            直接用已有 engine 开短事务调用 save_resource_display；只写本作业的导航锁等待/持锁，
+            queued 的 GPU 等待唯一由主循环写。BEGIN 忙时只保留本作业最新值及版本，内存有界。
+            flush_due 统一补写，过期版本不能覆盖新版本，终态最后由执行器普通事务强制清空。
+
+        Time Semantics:
+            状态改变可立即一次短锁尝试，随后每 PROGRESS_INTERVAL_S 再试，使用同一单调节流器；
+            不等待数据库写成功才允许释放导航锁。
+        """
+        raise NotImplementedError
+
+    def defer_cancellation(self) -> AbstractContextManager[None]:
+        """给导航写锁的持锁段提供协作取消屏蔽范围。
+
+        Args:
+            无。
+
+        Returns:
+            仅限当前执行线程使用的一次性上下文管理器；退出不主动检查取消或清除信号。
+
+        Raises:
+            DefectError: 嵌套屏蔽、跨线程进入/退出或重复使用同一上下文。
+
+        Side Effects:
+            进入后 check_cancelled/wait 不抛 JobCancelledError 或 WorkerStoppingError，
+            仍补写进度和资源，普通 I/O/缺陷照常传播；finally 恢复屏蔽状态，不掩盖写回调异常。
+
+        Time Semantics:
+            只在获得导航锁并做最后一次取消检查后进入；verify/write 完成并放锁后退出，
+            后续下一次 check_cancelled 才响应已保存的信号，不能在持锁时强制结束线程。
+        """
+        raise NotImplementedError
+
     def check_cancelled(self) -> None:
         """补写到期进度并检查取消或停止，阻止继续处理新条目。
 
@@ -289,11 +342,11 @@ class ProgressReporter:
             无。
 
         Returns:
-            无；补写检查结束且没有停止信号时返回。
+            无；没有停止信号，或当前处于导航写锁的 defer_cancellation 范围时返回。
 
         Raises:
-            JobCancelledError: cancelled已置位，优先于stopping和补写故障；补写失败保留给最终收尾诊断。
-            WorkerStoppingError: 仅stopping已置位，执行器不落终态。
+            JobCancelledError: cancelled已置位且不在屏蔽范围，优先于stopping和补写故障；补写失败保留给最终收尾诊断。
+            WorkerStoppingError: 仅stopping已置位且不在屏蔽范围，执行器不落终态。
             InputError: 无停止信号时补写遇数据库损坏。
             ConflictError: 无停止信号时补写已进入事务后失败。
             ExternalError: 无停止信号时补写I/O失败。
@@ -307,6 +360,7 @@ class ProgressReporter:
             阶段前后、每步完成后调用；脏值存在时必须在next_flush_deadline前进入检查点，
             其他计算段检查间隔至多JOB_CHECKPOINT_MAX_S。一次短锁可另占100毫秒，不无限等待补写成功。
         """
+        # 待实现：导航锁保护段延后取消/停止控制异常，仍补写进度与资源状态。
         cancelled, stopping = self._signals.cancelled.is_set(), self._signals.stopping.is_set()
         try:
             self.flush_due()
@@ -357,6 +411,8 @@ class ProgressReporter:
 
         Side Effects:
             Event小段等待不持数据库锁；每次醒来检查信号并调用flush_due，不因没有新report漏掉最新值。
+            defer_cancellation 期间不用已置位的取消 Event 作等待对象，改用有界计时等待，避免忙等；
+            仍遵守相同单调截止和补写周期，不因屏蔽信号而跳过整个 interval_s。
             仅到期且有脏数据才申请一次短锁，拿不到保留并在下一秒再试。
 
         Time Semantics:

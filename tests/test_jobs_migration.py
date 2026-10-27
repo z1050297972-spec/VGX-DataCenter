@@ -31,7 +31,7 @@ from rdp.jobs.types import JobState
 
 
 def test_active_declarations() -> None:
-    """迁移激活：作业/心跳注册共用MetaData，0004为唯一head，pending目录删除。"""
+    """迁移隔离：作业/心跳仍注册共用 MetaData，0004 为唯一 head，pending 的 0005 不被发现。"""
     for row in (JobRow, WorkerHeartbeatRow):
         assert "__abstract__" not in row.__dict__
         assert row.metadata is metadata
@@ -39,7 +39,13 @@ def test_active_declarations() -> None:
     config = migration_config()
     assert ScriptDirectory.from_config(config).get_current_head() == "0004_jobs_worker"
     directory = config.get_main_option("script_location")
-    assert directory is not None and not (Path(directory) / "pending").exists()
+    assert directory is not None
+    assert {item.revision for item in ScriptDirectory.from_config(config).walk_revisions()} == {
+        "0001_error_reports",
+        "0002_accounts_sessions",
+        "0003_audit_login_logs",
+        "0004_jobs_worker",
+    }
 
 
 def test_schema_v4(tmp_path: Path) -> None:

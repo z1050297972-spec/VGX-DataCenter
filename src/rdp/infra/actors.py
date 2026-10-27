@@ -14,9 +14,9 @@ class ActorRef:
     """可在账号删除后继续显示的操作者身份快照。
 
     Attributes:
-        account_id: 内部编号，1 至 2^63-1，无单位、无默认；仅运维操作为 None，不建外键。
+        account_id: 内部编号，1 至 2^63-1，无单位、无默认；仅固定运维或系统身份为 None，不建外键。
         name: 当时的显示名，1-64 个 Unicode 码点、无首尾空白或控制字符、不可空、无默认；
-            account_id 为 None 时固定为“运维”，用于首个管理员及运维重置。
+            account_id 为 None 时仅“运维”或“系统”；作业提交只允许其中的“系统”。
     """
 
     account_id: int | None
@@ -25,6 +25,8 @@ class ActorRef:
 
 # 06/07 运维命令的固定历史身份，不创建账号行；不可变对象由写入及校验共用。
 OPS_ACTOR = ActorRef(None, "运维")
+# 09：定时提交没有账号行；不可冒用运维身份，查询时不标记为已删除。
+SYSTEM_ACTOR = ActorRef(None, "系统")
 
 # 06 显示名与 07 历史名字共用码点上限；放在基础层避免日志反向依赖账号领域。
 DISPLAY_NAME_MAX_CHARS = 64

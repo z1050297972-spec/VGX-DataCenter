@@ -6,6 +6,7 @@
 
 import re
 from dataclasses import asdict, dataclass
+from dataclasses import field as dataclass_field
 from pathlib import Path
 from typing import Annotated, cast
 
@@ -22,6 +23,7 @@ from rdp.api.job_schemas import (
     SubmitJobPayload,
     WorkerStatusResponse,
 )
+from rdp.api.scheduling_schemas import SchedulingResponse
 from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import (
     DefectError,
@@ -36,6 +38,9 @@ from rdp.jobs.errors import JobInputError
 from rdp.jobs.example import CountParameters
 from rdp.jobs.logs import read_log_tail
 from rdp.jobs.registry import JobRegistry
+from rdp.jobs.resource_examples import GpuExampleParameters, NavigationExampleParameters
+from rdp.jobs.scheduling_service import SchedulingService
+from rdp.jobs.scheduling_types import SchedulingCatalog
 from rdp.jobs.service import JobRequest, JobService
 from rdp.jobs.types import JobQuery, JobRecord
 from rdp.jobs.worker import heartbeat_online
@@ -53,20 +58,30 @@ class JobApiContext:
         account: 第 6 张已认证上下文，含唯一请求时刻和审计来源。
         service: 应用私有 JobService，不创建线程或缓存权限。
         paths: 应用显式状态路径，只允许日志尾读。
+        scheduling: 必填关键字，应用只读调度服务；确实尚未配置时显式 None，调度接口报依赖不可用。
     """
 
     account: AccountRequestContext
     service: JobService
     paths: StatePaths
+    scheduling: SchedulingService | None = dataclass_field(kw_only=True)
 
 
-def configure_jobs(app: FastAPI, paths: StatePaths, registry: JobRegistry) -> None:
+def configure_jobs(
+    app: FastAPI,
+    paths: StatePaths,
+    registry: JobRegistry,
+    *,
+    scheduling: SchedulingCatalog,
+) -> None:
     """给已配置数据库的 Web 应用绑定作业依赖。
 
     Args:
         app: create_app 返回的应用，database 非空且已迁移。
         paths: 显式配置的状态目录布局，不访问真实默认 home。
         registry: Web 入口构造的 production_registry 或测试登记对象。
+        scheduling: 必填关键字，Web 入口提供的有效资源配置、定时登记和本地时区；
+            无卡/无定时规则须提供相应空集合，不能省略或传 None 伪造未装配。
 
     Returns:
         无；应用 state 持有作业服务与路径，离线 OpenAPI 导出不需要调用。
@@ -76,11 +91,13 @@ def configure_jobs(app: FastAPI, paths: StatePaths, registry: JobRegistry) -> No
         DefectError: 装配类型非法、路径与数据库不匹配或重复覆盖运行中服务。
 
     Side Effects:
-        只修改 app.state；不迁移、不初始化目录、不启动 worker、不修改已注册路径。
+        只修改 app.state，绑定 SchedulingService，Web 不自己读配置或构造资源池。
+        不迁移、不初始化目录、不启动 worker、不修改已注册路径。
 
     Time Semantics:
         启动接收请求前调用一次，不读墙钟，无等待。
     """
+    # 待实现：绑定入口显式提供的 SchedulingCatalog 和只读服务。
     engine = getattr(app.state, "database_engine", None)
     if engine is None:
         failure = _unavailable()
@@ -124,6 +141,7 @@ def get_job_context(request: Request, account: AuthenticatedContext) -> JobApiCo
     Time Semantics:
         每请求复用一个 UTC 时刻；不因轮询重置作业计时。
     """
+    # 待实现：从应用状态补齐 scheduling 服务，禁止在请求内读配置或创建资源池。
     service, paths = (
         getattr(request.app.state, "job_service", None),
         getattr(request.app.state, "job_paths", None),
@@ -133,7 +151,7 @@ def get_job_context(request: Request, account: AuthenticatedContext) -> JobApiCo
         raise failure
     if not isinstance(service, JobService) or not isinstance(paths, StatePaths):
         raise DefectError()
-    return JobApiContext(account, service, paths)
+    return JobApiContext(account, service, paths, scheduling=None)
 
 
 JobContext = Annotated[JobApiContext, Depends(get_job_context)]
@@ -236,6 +254,71 @@ def submit_count_job(context: JobContext, body: CountParameters) -> JobResponse:
         _request(context), "example_count", body.model_dump(mode="json")
     )
     return _response(record)
+
+
+@router.post(
+    "/example/gpu", response_model=JobResponse, status_code=201, operation_id="submit_gpu_job"
+)
+def submit_gpu_job(context: JobContext, body: GpuExampleParameters) -> JobResponse:
+    """提交示例占卡作业，不在请求进程访问 GPU。
+
+    Args:
+        context: 完成全局 Origin/认证/改密检查的当前账号上下文。
+        body: 占用秒数 0 至 GPU_EXAMPLE_MAX_HOLD_S，不接受卡号或命令路径。
+
+    Returns:
+        HTTP 201，新 example_gpu queued 记录；提交人是当前账号。
+
+    Raises:
+        JobInputError: 占用时长非法或类型未登记，422。
+        AuthenticationError: 会话无效，401。
+        PasswordChangeRequiredError: 必须改口令，403。
+        ConflictError: 提交/审计事务竞争，409。
+        InputError: 数据库损坏，400。
+        ExternalError: 持久化失败，502。
+        DefectError: 装配、时钟或响应映射错误，500；状态码以规范 6.2 为准。
+
+    Side Effects:
+        调 JobService.submit，共享提交审计和参数校验；无 nvidia-smi 子进程或资源预留。
+
+    Time Semantics:
+        用请求唯一 UTC 时刻，普通写锁 5 秒；执行时长只作用于 worker，不在 HTTP 等待。
+    """
+    raise NotImplementedError
+
+
+@router.post(
+    "/example/navigation",
+    response_model=JobResponse,
+    status_code=201,
+    operation_id="submit_navigation_job",
+)
+def submit_navigation_job(context: JobContext, body: NavigationExampleParameters) -> JobResponse:
+    """提交带预览期望值的写锁演示，不在 Web 核对或写示例文件。
+
+    Args:
+        context: 任意已登录且完成改密的账号与审计来源，Origin 已通过全局检查。
+        body: 期望字符串 0-256 码点、锁内暂停 0-10 秒，拒绝文件路径和操作者声明。
+
+    Returns:
+        HTTP 201，新 example_navigation queued 记录；期待值是否匹配交 worker 锁内核对。
+
+    Raises:
+        JobInputError: 参数不合格或类型未登记，422；不以当前文件状态拒绝提交。
+        AuthenticationError: 事务内身份失效，401。
+        PasswordChangeRequiredError: 账号须改口令，403。
+        ConflictError: 提交写锁/约束冲突，409。
+        InputError: 数据库损坏，400。
+        ExternalError: 新作业或审计事务失败，502。
+        DefectError: 类型/时钟/响应转换缺陷，500。
+
+    Side Effects:
+        仅经 JobService.submit 新增作业及操作日志；不读取导航层、数据盘或示例文件，不持写锁。
+
+    Time Semantics:
+        本请求单次普通事务，无重试；pause_s 在后台持锁阶段才生效。
+    """
+    raise NotImplementedError
 
 
 @router.get("/{job_id}", response_model=JobResponse, operation_id="get_job")
@@ -403,7 +486,8 @@ def _request(context: JobApiContext) -> JobRequest:
 
 
 def _response(record: JobRecord) -> JobResponse:
-    """在HTTP边界将64位编号转换文本，领域保持整数，不另造结果或摘要。"""
+    """在 HTTP 边界转换 64 位编号；系统账号编号保持 None，不输出字符串 None 或已删除标记。"""
+    # 待实现：系统身份保留 null，资源新增字段由记录快照映射，不读 worker 内存。
     data = asdict(record)
     data["job_id"] = str(record.job_id)
     data["resubmitted_from"] = (
@@ -444,3 +528,31 @@ def _unavailable() -> ExternalError:
             ),
         )
     )
+
+
+@worker_router.get("/scheduling", response_model=SchedulingResponse, operation_id="get_scheduling")
+def get_scheduling(context: JobContext) -> SchedulingResponse:
+    """向全部登录账号返回调度的数据库展示快照。
+
+    Args:
+        context: 全局认证得到的上下文，必须改密规则照旧；不要求管理员。
+
+    Returns:
+        HTTP 200，类型上限/数量、卡主、写锁持有人、每日下次时间及上次结果；编号文本、时刻 UTC。
+
+    Raises:
+        AuthenticationError: 未登录或会话重验失败，401。
+        PasswordChangeRequiredError: 必须先改口令，403。
+        InputError: 数据库/历史记录损坏，400。
+        ConflictError: 快照读取锁竞争，409。
+        ExternalError: 未注入调度配置或数据库不可读，502，不能伪装为空闲。
+        DefectError: 资源副本矛盾、非法时钟或映射错误，500。
+
+    Side Effects:
+        只调用 SchedulingService.snapshot；不读配置文件、不探测 GPU、不调用 worker 内存或访问数据盘。
+        全部路径走第 6 张全局鉴权，拒绝时先于业务查询；不记查看操作日志。
+
+    Time Semantics:
+        使用 account.now 的唯一 UTC 请求时刻；普通读锁 5 秒、无内部轮询，页面约每秒查询。
+    """
+    raise NotImplementedError

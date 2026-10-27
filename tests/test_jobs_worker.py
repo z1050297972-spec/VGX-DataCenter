@@ -17,6 +17,7 @@ from jobs_execution_support import execution_case
 from jobs_loop_support import running_loop, wait_for
 from jobs_process_resources import BlockedTool
 from jobs_progress_support import MutableClock, saved_record
+from jobs_scheduling_support import resources_fixture, scheduling_fixture
 from jobs_storage_support import NOW, PROGRESS, job_row
 from sqlalchemy import select
 
@@ -327,12 +328,18 @@ def test_lock_error_codes(tmp_path: Path) -> None:
     migrate(paths, now=NOW)
     engine = create_database_engine(paths.database)
     dependencies = ExecutorDependencies(
-        engine, production_registry(), paths, JobClock(lambda: NOW, time.monotonic)
+        engine,
+        production_registry(),
+        paths,
+        JobClock(lambda: NOW, time.monotonic),
+        resources=resources_fixture(production_registry()),
     )
     settings = LoggingSettings("worker", paths.logs)
     first = worker_lock(paths)
     try:
-        result = run_worker(dependencies, Event(), settings)
+        result = run_worker(
+            dependencies, Event(), settings, scheduling=scheduling_fixture(dependencies.registry)
+        )
         assert result.code == 2 and not result.lock_retained
         assert (
             "另一个 worker 正在运行" in result.message and str(paths.worker_lock) in result.message
@@ -343,11 +350,15 @@ def test_lock_error_codes(tmp_path: Path) -> None:
     try:
         stop = Event()
         stop.set()
-        result = run_worker(dependencies, stop, settings)
+        result = run_worker(
+            dependencies, stop, settings, scheduling=scheduling_fixture(dependencies.registry)
+        )
         assert result.code == 0 and not result.lock_retained
         paths.worker_lock.unlink()
         paths.worker_lock.mkdir()
-        result = run_worker(dependencies, Event(), settings)
+        result = run_worker(
+            dependencies, Event(), settings, scheduling=scheduling_fixture(dependencies.registry)
+        )
         assert result.code == 1
     finally:
         engine.dispose()

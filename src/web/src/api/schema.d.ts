@@ -798,6 +798,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs/example/gpu": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Gpu Job
+         * @description 提交示例占卡作业，不在请求进程访问 GPU。
+         *
+         *     Args:
+         *         context: 完成全局 Origin/认证/改密检查的当前账号上下文。
+         *         body: 占用秒数 0 至 GPU_EXAMPLE_MAX_HOLD_S，不接受卡号或命令路径。
+         *
+         *     Returns:
+         *         HTTP 201，新 example_gpu queued 记录；提交人是当前账号。
+         *
+         *     Raises:
+         *         JobInputError: 占用时长非法或类型未登记，422。
+         *         AuthenticationError: 会话无效，401。
+         *         PasswordChangeRequiredError: 必须改口令，403。
+         *         ConflictError: 提交/审计事务竞争，409。
+         *         InputError: 数据库损坏，400。
+         *         ExternalError: 持久化失败，502。
+         *         DefectError: 装配、时钟或响应映射错误，500；状态码以规范 6.2 为准。
+         *
+         *     Side Effects:
+         *         调 JobService.submit，共享提交审计和参数校验；无 nvidia-smi 子进程或资源预留。
+         *
+         *     Time Semantics:
+         *         用请求唯一 UTC 时刻，普通写锁 5 秒；执行时长只作用于 worker，不在 HTTP 等待。
+         */
+        post: operations["submit_gpu_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/example/navigation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Navigation Job
+         * @description 提交带预览期望值的写锁演示，不在 Web 核对或写示例文件。
+         *
+         *     Args:
+         *         context: 任意已登录且完成改密的账号与审计来源，Origin 已通过全局检查。
+         *         body: 期望字符串 0-256 码点、锁内暂停 0-10 秒，拒绝文件路径和操作者声明。
+         *
+         *     Returns:
+         *         HTTP 201，新 example_navigation queued 记录；期待值是否匹配交 worker 锁内核对。
+         *
+         *     Raises:
+         *         JobInputError: 参数不合格或类型未登记，422；不以当前文件状态拒绝提交。
+         *         AuthenticationError: 事务内身份失效，401。
+         *         PasswordChangeRequiredError: 账号须改口令，403。
+         *         ConflictError: 提交写锁/约束冲突，409。
+         *         InputError: 数据库损坏，400。
+         *         ExternalError: 新作业或审计事务失败，502。
+         *         DefectError: 类型/时钟/响应转换缺陷，500。
+         *
+         *     Side Effects:
+         *         仅经 JobService.submit 新增作业及操作日志；不读取导航层、数据盘或示例文件，不持写锁。
+         *
+         *     Time Semantics:
+         *         本请求单次普通事务，无重试；pause_s 在后台持锁阶段才生效。
+         */
+        post: operations["submit_navigation_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -964,6 +1048,47 @@ export interface paths {
          *         新提交采用请求 UTC 时刻，不继承旧起止时间；不等待 worker 运行，无自动重试。
          */
         post: operations["resubmit_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worker/scheduling": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Scheduling
+         * @description 向全部登录账号返回调度的数据库展示快照。
+         *
+         *     Args:
+         *         context: 全局认证得到的上下文，必须改密规则照旧；不要求管理员。
+         *
+         *     Returns:
+         *         HTTP 200，类型上限/数量、卡主、写锁持有人、每日下次时间及上次结果；编号文本、时刻 UTC。
+         *
+         *     Raises:
+         *         AuthenticationError: 未登录或会话重验失败，401。
+         *         PasswordChangeRequiredError: 必须先改口令，403。
+         *         InputError: 数据库/历史记录损坏，400。
+         *         ConflictError: 快照读取锁竞争，409。
+         *         ExternalError: 未注入调度配置或数据库不可读，502，不能伪装为空闲。
+         *         DefectError: 资源副本矛盾、非法时钟或映射错误，500。
+         *
+         *     Side Effects:
+         *         只调用 SchedulingService.snapshot；不读配置文件、不探测 GPU、不调用 worker 内存或访问数据盘。
+         *         全部路径走第 6 张全局鉴权，拒绝时先于业务查询；不记查看操作日志。
+         *
+         *     Time Semantics:
+         *         使用 account.now 的唯一 UTC 请求时刻；普通读锁 5 秒、无内部轮询，页面约每秒查询。
+         */
+        get: operations["get_scheduling"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1346,6 +1471,45 @@ export interface components {
             /** Summary */
             summary: string;
         };
+        /**
+         * GpuAvailability
+         * @description 当前 worker 实例启动核对的展示状态，不通过 Web 再探测硬件。
+         * @enum {string}
+         */
+        GpuAvailability: "unknown" | "available" | "excluded";
+        /**
+         * GpuExampleParameters
+         * @description 示例占卡参数，不能指定物理卡号或命令路径。
+         *
+         *     Attributes:
+         *         hold_s: 严格整数秒数，0 至 GPU_EXAMPLE_MAX_HOLD_S=600；必填。
+         */
+        GpuExampleParameters: {
+            /** Hold S */
+            hold_s: number;
+        };
+        /**
+         * GpuUsageResponse
+         * @description 一张配置卡的展示占用，空闲不是硬件健康承诺。
+         *
+         *     Attributes:
+         *         gpu_index: 非负物理编号，最大 MAX_GPU_INDEX。
+         *         job_id: 当前作业编号文本，空闲/移出池 None；历史终态不计占用。
+         *         availability: available/excluded/unknown；未有本实例核对记录不能当作可用。
+         *         diagnostics: 移出池的有界统一诊断，通过或未知为空。
+         *         checked_at: 启动核对的 UTC 时刻；未知为 None。
+         */
+        GpuUsageResponse: {
+            availability: components["schemas"]["GpuAvailability"];
+            /** Checked At */
+            checked_at: string | null;
+            /** Diagnostics */
+            diagnostics: components["schemas"]["Diagnostic"][];
+            /** Gpu Index */
+            gpu_index: number;
+            /** Job Id */
+            job_id: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1370,9 +1534,9 @@ export interface components {
          * @description 不可变历史身份和本次查询所得的删除标记。
          *
          *     Attributes:
-         *         account_id: 正整数十进制文本；运维 None，未知登录账号不构造本对象。
-         *         name: 当时显示名，1-64 码点，运维固定“运维”。
-         *         deleted: 当前快照编号不存在为 True；运维 False，必填。
+         *         account_id: 正整数十进制文本；运维或系统 None，未知登录账号不构造本对象。
+         *         name: 当时显示名，1-64 码点；空编号固定为“运维”或“系统”。
+         *         deleted: 当前快照编号不存在为 True；运维/系统 False，必填。
          */
         HistoricalActorResponse: {
             /** Account Id */
@@ -1457,7 +1621,7 @@ export interface components {
          *         type_name: 稳定类型键，1-64 字符。
          *         display_name: 提交时显示名快照，1-40 码点。
          *         parameters: 无秘密参数 JSON；历史原值，不按新版本静默改写。
-         *         submitted_by: 历史身份和 deleted 标记；前端显示“名字（已删除）”。
+         *         submitted_by: 历史身份和 deleted 标记；系统的 account_id=None、name=“系统”、deleted=False。
          *         submitted_at: UTC 提交时刻。
          *         resubmitted_from: 原作业编号文本或 None。
          *         state: 六种状态之一。
@@ -1471,6 +1635,9 @@ export interface components {
          *         diagnostics: 有界诊断组，真实总数与前 N 样例分别展示。
          *         recovery_mode: 提交时恢复方式快照，只作记录及interrupt保护。
          *         recovery_count: 自动恢复资格累计次数，0至JOB_RECOVERY_LIMIT；不随重跑清零。
+         *         gpu_index: 物理卡号，未领过 None，终态保留历史。
+         *         wait_reason: gpu/navigation_lock/None，不新增 state；终态及恢复清空。
+         *         holds_navigation_lock: worker 保存的持锁展示副本，终态 False。
          */
         JobResponse: {
             /** Diagnostics */
@@ -1481,6 +1648,13 @@ export interface components {
             elapsed_s: number;
             /** Ended At */
             ended_at: string | null;
+            /** Gpu Index */
+            gpu_index?: number | null;
+            /**
+             * Holds Navigation Lock
+             * @default false
+             */
+            holds_navigation_lock: boolean;
             /** Job Id */
             job_id: string;
             /** Log Path */
@@ -1509,6 +1683,7 @@ export interface components {
             summary: components["schemas"]["JobSummary"] | null;
             /** Type Name */
             type_name: string;
+            wait_reason?: components["schemas"]["WaitReason"] | null;
         };
         /**
          * JobState
@@ -1649,6 +1824,23 @@ export interface components {
          * @enum {string}
          */
         LoginResult: "success" | "wrong_password" | "disabled" | "waiting" | "account_missing" | "failure";
+        /**
+         * NavigationExampleParameters
+         * @description 写锁演示的预览值和有界暂停。
+         *
+         *     Attributes:
+         *         expected_value: 预览看到的最后一条 value，0-256 码点；文件不存在时必须为空字符串。
+         *         pause_s: 核对通过后、追加前的暂停，严格整数秒数 0-10，默认零；持锁期间不响应取消。
+         */
+        NavigationExampleParameters: {
+            /** Expected Value */
+            expected_value: string;
+            /**
+             * Pause S
+             * @default 0
+             */
+            pause_s: number;
+        };
         /**
          * ObjectResponse
          * @description 对象的历史名字，保留给未来撤回功能定位。
@@ -1842,6 +2034,62 @@ export interface components {
             role: components["schemas"]["Role"];
         };
         /**
+         * ScheduleResponse
+         * @description 每日计划及最近一次提交的结果。
+         *
+         *     Attributes:
+         *         name: 稳定登记名。
+         *         next_run_at: 按本机时区算出的下一次按点 UTC 时刻，浏览器仅负责本地显示。
+         *         last_job_id: 最近提交的作业编号文本，从未提交 None。
+         *         last_submitted_at: 最近提交的 UTC 时刻，从未提交 None。
+         *         last_state: 最近作业六态之一，未提交 None。
+         *         last_outcome: 仅最近作业 completed 时非空，不把取消/中断伪装失败结果。
+         */
+        ScheduleResponse: {
+            /** Last Job Id */
+            last_job_id: string | null;
+            last_outcome: components["schemas"]["JobOutcome"] | null;
+            last_state: components["schemas"]["JobState"] | null;
+            /** Last Submitted At */
+            last_submitted_at: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Next Run At
+             * Format: date-time
+             */
+            next_run_at: string;
+        };
+        /**
+         * SchedulingResponse
+         * @description 一个只读调度快照；无修改配置或分配资源的 HTTP 接口。
+         *
+         *     Attributes:
+         *         types: 按类型键升序的配置与数量。
+         *         gpus: 按物理编号升序的占用。
+         *         navigation_job_id: 持锁作业编号文本，无人持锁 None。
+         *         schedules: 按登记名字升序的定时计划。
+         *         checked_at: 服务端本请求 UTC 时刻。
+         *         worker_online: 同一快照按心跳判断；False 时展示注明是最后已保存状态。
+         */
+        SchedulingResponse: {
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+            /** Gpus */
+            gpus: components["schemas"]["GpuUsageResponse"][];
+            /** Navigation Job Id */
+            navigation_job_id: string | null;
+            /** Schedules */
+            schedules: components["schemas"]["ScheduleResponse"][];
+            /** Types */
+            types: components["schemas"]["TypeUsageResponse"][];
+            /** Worker Online */
+            worker_online: boolean;
+        };
+        /**
          * StatusRequest
          * @description 启停修改请求。
          *
@@ -1867,6 +2115,29 @@ export interface components {
             /** Type Name */
             type_name: string;
         };
+        /**
+         * TypeUsageResponse
+         * @description 一类作业的生效上限与数据库运行数。
+         *
+         *     Attributes:
+         *         type_name: 稳定英文键。
+         *         display_name: 中文显示名。
+         *         concurrency: 生效上限，1 至 MAX_JOB_CONCURRENCY。
+         *         requires_gpu: 是否需要一张 GPU。
+         *         running_count: running/cancelling 数量，非负，恢复时可大于新配置上限。
+         */
+        TypeUsageResponse: {
+            /** Concurrency */
+            concurrency: number;
+            /** Display Name */
+            display_name: string;
+            /** Requires Gpu */
+            requires_gpu: boolean;
+            /** Running Count */
+            running_count: number;
+            /** Type Name */
+            type_name: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -1880,6 +2151,12 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * WaitReason
+         * @description 资源等待不增加作业状态；无等待用 None，终态必须清空。
+         * @enum {string}
+         */
+        WaitReason: "gpu" | "navigation_lock";
         /**
          * WorkerStatusResponse
          * @description 在线状态和最近心跳，所有已登录账号可查看；空心跳不伪造 PID。
@@ -3922,6 +4199,216 @@ export interface operations {
             };
         };
     };
+    submit_gpu_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GpuExampleParameters"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    submit_navigation_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NavigationExampleParameters"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
     get_job: {
         parameters: {
             query?: never;
@@ -4297,6 +4784,107 @@ export interface operations {
                 };
             };
             /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_scheduling: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulingResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;

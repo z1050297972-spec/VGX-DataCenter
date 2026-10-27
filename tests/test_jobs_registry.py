@@ -8,6 +8,7 @@ from typing import cast
 import pytest
 from jobs_execution_support import execution_case
 from jobs_progress_support import saved_record
+from jobs_scheduling_support import resources_fixture
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -376,7 +377,11 @@ def _incompatible_queue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, miss
         with session_scope(engine) as session:
             session.add_all([first, job_row(JobState.QUEUED, job_id=72)])
         dependencies = ExecutorDependencies(
-            engine, production_registry(), paths, JobClock(lambda: NOW, time.monotonic)
+            engine,
+            production_registry(),
+            paths,
+            JobClock(lambda: NOW, time.monotonic),
+            resources=resources_fixture(production_registry()),
         )
 
         def done() -> bool:

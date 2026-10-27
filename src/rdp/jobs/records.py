@@ -55,7 +55,7 @@ class NewJob:
     Attributes:
         definition: 当前登记定义，参数按其模型通过验证。
         parameters: JSON 对象，至多 JOB_PARAMETERS_MAX_BYTES；重新提交保留原参数值。
-        actor: 事务内重读得到的账号编号和显示名；不接受 account_id=None。
+        actor: 事务内重验的账号或 SYSTEM_ACTOR；空编号只允许名字为“系统”，有编号账号可同名，不接受 OPS_ACTOR。
         now: 入口提供的 aware 时刻，统一 UTC 微秒。
         resubmitted_from: 终态原作业正编号，普通提交 None。
     """
@@ -90,6 +90,7 @@ def insert_job(session: Session, command: NewJob) -> JobRecord:
     Time Semantics:
         使用 command.now，不另读时钟；写锁已经取得，不增加等待或重试。
     """
+    # 待实现：接受账号或 SYSTEM_ACTOR，运维和其他空编号身份仍拒绝。
     _validate_new_job(command)
     with _storage.operation(session, write=True):
         # 写事务已经持有排他写锁；先区分序列耗尽与真正的磁盘满，不能将所有SQLITE_FULL改为冲突。
@@ -148,6 +149,8 @@ def transition_job(session: Session, job_id: int, change: StateChange) -> JobRec
     Side Effects:
         所有状态写入集中于此，比较更新后 flush，不 commit，不记操作日志或运行日志。
         状态、时间、结果和摘要在一个事务中改变；调用者负责整个事务回滚，不跳过失败。
+        进入任一终态必须同事务清 wait_reason/holds_navigation_lock，gpu_index 保留历史；
+        不能让周期副本更新重新写回终态占用。
         排队取消先提交时worker的旧queued候选领取冲突且不执行；worker先提交时取消服务在
         BEGIN IMMEDIATE内读到running，以该当前状态为expected转cancelling并记日志，不凭旧快照返回冲突。
 
@@ -155,6 +158,7 @@ def transition_job(session: Session, job_id: int, change: StateChange) -> JobRec
         UTC 墙钟允许回拨，不修改首次开始时间；耗时取已经保存的 monotonic 片段。
         由外层普通 session_scope 提供 BUSY_TIMEOUT_MS 预算，不自动重试或重新读取后换边。
     """
+    # 待实现：终态转换同事务清空等待及持锁展示，保留历史 GPU。
     job_id = _storage.identifier(job_id, internal=True)
     _validate_change(change)
     now = _storage.moment(change.now)
@@ -224,7 +228,7 @@ def next_queued_job(session: Session) -> JobRecord | None:
         session: 受管只读 Session，选择后立即退出事务，不能在此升级写事务。
 
     Returns:
-        按job_id ASC的第一条queued快照，队列为空返回 None；
+        按 job_id ASC 的第一条 queued；队列为空返回 None；
         未登记类型或过时参数也返回，交执行器失败收尾，不能堵住后续队列。
 
     Raises:
@@ -251,7 +255,9 @@ def next_queued_job(session: Session) -> JobRecord | None:
         return None if row is None else _views.record(row)
 
 
-def claim_job(session: Session, job_id: int, *, now: datetime, paths: StatePaths) -> JobRecord:
+def claim_job(
+    session: Session, job_id: int, *, now: datetime, paths: StatePaths, gpu_index: int | None
+) -> JobRecord:
     """通过唯一状态转换领取已选择的排队候选。
 
     Args:
@@ -259,6 +265,7 @@ def claim_job(session: Session, job_id: int, *, now: datetime, paths: StatePaths
         job_id: 刚由next_queued_job读出的正编号，不能在失败时悄悄换候选。
         now: aware当前时刻，统一UTC微秒，非法时钟归DefectError。
         paths: 可信状态布局；仅检查logs下候选文件是否已存在，不在领取事务创建文件。
+        gpu_index: 必填关键字，本实例已预留的非负物理卡号；无卡必须显式传 None，不能用历史副本代替凭据。
 
     Returns:
         queued→running后含started_at及非空log_path的快照；两者和状态同事务提交，之后才启动执行线程。
@@ -275,11 +282,13 @@ def claim_job(session: Session, job_id: int, *, now: datetime, paths: StatePaths
         logs/<显示名>/2026-10-22_143015_123.log；与已登记路径或既有文件冲突时用_<job_id>后缀，
         后缀也冲突为DefectError，不覆盖。路径由UNIQUE(log_path)约束防止两个同毫秒作业同时预留同名。
         将路径传给transition_job(expected=queued,target=running)，至多改变一行，状态写入仍只有该函数。
+        同事务保存 gpu_index 并清 wait_reason/holds_navigation_lock；失败由调用方归还内存凭据。
         不创建文件、不提交、不启动线程；领取提交后即使尚未写日志开头就崩溃，恢复也能从记录找到路径。
 
     Time Semantics:
-        同一轮至多领取WORKER_CONCURRENCY个；竞争失败等下一轮，不在事务里休眠或自动重试。
+        按类型容量与空闲卡逐条领取；主循环使用短锁事务，入场忙下轮再试，不在事务里休眠。
     """
+    # 待实现：领取同事务保存分配卡号及清空等待副本。
     job_id = _storage.identifier(job_id, internal=True)
     now = _storage.moment(now)
     with _storage.operation(session, write=True):
@@ -541,7 +550,8 @@ def _path_exists(path: Path) -> bool:
 
 
 def _validate_new_job(command: NewJob) -> None:
-    """写入前防止内部命令绕过模型或携带秘密字段；只验证有界参数，不执行作业或补写默认值。"""
+    """验证账号或 SYSTEM_ACTOR，拒绝运维和空编号假身份；参数有界且无秘密。"""
+    # 待实现：放开 SYSTEM_ACTOR 的空编号，账号身份维持正整数检查。
     if not isinstance(cast(object, command), NewJob) or not isinstance(
         cast(object, command.actor), ActorRef
     ):
@@ -565,3 +575,55 @@ def _validate_new_job(command: NewJob) -> None:
         command.definition.parameters_model.model_validate(command.parameters)
     except Exception:
         raise DefectError() from None
+
+
+def assign_recovery_gpu(session: Session, job_id: int, gpu_index: int | None) -> JobRecord:
+    """为已经取得恢复资格的 running 作业保存本实例重新领到的卡。
+
+    Args:
+        session: 受管写 Session，调用方已在内存池预留名额。
+        job_id: 当前恢复候选的正编号；不改变首次 started_at 和恢复次数。
+        gpu_index: 新领非负卡号；无 GPU 或空配置为 None。
+
+    Returns:
+        保存新卡号、清等待/持锁标记后的 running 快照。
+
+    Raises:
+        JobNotFoundError: 原作业不存在。
+        ConflictError: 已被 Web 请求取消、状态变化或更新冲突；调用方归还本次凭据再处理取消。
+        InputError: 数据库损坏。
+        ExternalError: 写入 I/O 失败。
+        DefectError: 非法编号/卡号、Session 或映射错误。
+
+    Side Effects:
+        只更新资源列，不新增状态边，不重置进度、日志路径或首次开始时间；外层失败整体回滚。
+
+    Time Semantics:
+        取得名额后、启动恢复线程前调用，短锁入场失败留到下轮，不能在事务里等待卡。
+    """
+    raise NotImplementedError
+
+
+def queued_type_heads(session: Session) -> tuple[JobRecord, ...]:
+    """用一次分组查询读取每种类型最早的排队作业。
+
+    Args:
+        session: 受管只读 Session，选择后关闭再开领取事务，不升级同一读事务。
+
+    Returns:
+        每个 type_name 恰好最小 queued job_id 的快照，整体按 job_id ASC；队列为空返回空元组。
+        行数只随类型数量增长，不加载同类后续作业；已删除类型同样返回给执行器失败收尾。
+
+    Raises:
+        InputError: 数据库或队首 JSON 损坏。
+        ConflictError: 读取锁冲突。
+        ExternalError: 查询 I/O 失败。
+        DefectError: 非受管只读 Session 或 SQL 映射缺陷。
+
+    Side Effects:
+        无；一条 SQL 以 type_name 分组 MIN(job_id) 再关联完整行，不持写锁、不预留卡，不维护游标。
+
+    Time Semantics:
+        每轮重新取得队首，墙钟不影响顺序；快照可能被 Web 取消，领取时必须再次条件更新。
+    """
+    raise NotImplementedError

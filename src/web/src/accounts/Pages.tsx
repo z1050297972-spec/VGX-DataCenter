@@ -473,12 +473,13 @@ export function AccountsPage(): ReactElement {
 /**
  * 在右上角显示当前显示名、角色、改口令入口和登出；管理员额外显示账号管理、操作日志和登录日志入口，成员不显示。
  *
- * @returns 使用 antd 的表单、状态或诊断视图；仅身份明确且权限满足时显示受保护内容。
+ * @returns 含所有登录账号可见的“调度”入口；使用 antd 的表单、状态或诊断视图；仅身份明确且权限满足时显示受保护内容。
  * @throws 无。请求错误经 toFailureView/DiagnosticCard 呈现，不展示原始异常或执行服务端 HTML。
  * @sideEffects 订阅共享的内存身份查询，设置 refetchOnWindowFocus: true、staleTime: 0；切回窗口重新查 /api/auth/me，401 统一清缓存并跳登录；登出成功或 401 才清缓存去登录页，网络失败显示 DiagnosticCard，不假装退出。
  * @timeSemantics 请求上限 ACCOUNT_TIMEOUT_MS；切页/卸载取消请求和倒计时，忽略迟到结果，无自动重试。
  */
 export function AccountMenu(): ReactElement {
+  // 待实现：对所有登录账号增加“调度”菜单入口 /scheduling。
   const identity = useCurrentAccount();
   const client = useAccountClient();
   const queryClient = useQueryClient();
