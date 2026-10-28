@@ -1054,6 +1054,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/storage-roots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Storage Roots
+         * @description 现场返回每个登记根的挂载状态摘要。
+         *
+         *     Args:
+         *         inspector: 已认证且完成依赖装配的请求检查器，没有根目录访问回调。
+         *
+         *     Returns:
+         *         配置顺序的名字、路径、写许可、在线标志、原因和 UTC 时刻；空配置 items 为空。
+         *         一次请求调用一次 inspect；不暴露挂载表原文、UUID 或 NFS 来源，不返回 timeout。
+         *
+         *     Raises:
+         *         ExternalError: 系统表/UUID 元数据读取或解析失败，统一 502 与结构化诊断。
+         *         DefectError: 注入时钟、依赖或结果不合法，统一 500，不吞成离线。
+         *
+         *     Side Effects:
+         *         无（只读挂载表和设备节点元数据）；不 stat 存储根，不记操作日志，不缓存响应。
+         *
+         *     Time Semantics:
+         *         每次请求现场检查，未发生根目录访问，不能据此承诺 NAS 响应正常；浏览器显示本地时间。
+         */
+        get: operations["list_storage_roots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/worker/scheduling": {
         parameters: {
             query?: never;
@@ -1865,6 +1902,12 @@ export interface components {
             object_id: string | null;
         };
         /**
+         * OfflineReason
+         * @description 存储根离线的三种业务原因；读取基础设施失败不伪装成其中任一种。
+         * @enum {string}
+         */
+        OfflineReason: "not_mounted" | "source_mismatch" | "timeout";
+        /**
          * OperationDetails
          * @description v1 JSON 格式为 {version: 1, before: {...}, after: {...}}，不存执行命令。
          *
@@ -2098,6 +2141,45 @@ export interface components {
          */
         StatusRequest: {
             status: components["schemas"]["AccountStatus"];
+        };
+        /**
+         * StorageRootResponse
+         * @description 页面上的单根状态，时间由服务器提供。
+         *
+         *     Attributes:
+         *         name: 配置里的稳定名字。
+         *         path: 登记绝对路径的文本，不表示 Web 已访问目录。
+         *         writable: 平台许可，True 显示可写，False 显示只读。
+         *         online: 此次挂载身份核对是否通过。
+         *         reason: 在线为 None，离线为三种 OfflineReason 之一；本 GET 不产生 timeout。
+         *         checked_at: aware UTC 检查结束时刻，浏览器仅在展示时转本地时间。
+         */
+        StorageRootResponse: {
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+            /** Name */
+            name: string;
+            /** Online */
+            online: boolean;
+            /** Path */
+            path: string;
+            reason: components["schemas"]["OfflineReason"] | null;
+            /** Writable */
+            writable: boolean;
+        };
+        /**
+         * StorageRootsResponse
+         * @description 按配置顺序返回全部存储根，不分页、不缓存。
+         *
+         *     Attributes:
+         *         items: 每个登记根一条，配置为空时为空元组；不包含表外挂载点。
+         */
+        StorageRootsResponse: {
+            /** Items */
+            items: components["schemas"]["StorageRootResponse"][];
         };
         /**
          * SubmitJobPayload
@@ -4784,6 +4866,107 @@ export interface operations {
                 };
             };
             /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    list_storage_roots: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageRootsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;

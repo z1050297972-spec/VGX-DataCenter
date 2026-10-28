@@ -30,6 +30,7 @@ from rdp.infra.diagnostics import (
 from rdp.infra.exception_report import format_exception_report
 from rdp.infra.logging import log_context
 from rdp.infra.state import StatePaths
+from rdp.infra.storage import StorageAccessChecker
 from rdp.jobs import _diagnostics, _storage, policy
 from rdp.jobs.errors import JobCancelledError, WorkerStoppingError
 from rdp.jobs.gpu import verify_gpu
@@ -183,6 +184,8 @@ class ExecutorDependencies:
         paths: 已初始化的状态布局，只写此布局下作业日志。
         clock: 注入时钟，墙钟持久化，monotonic 计时。
         resources: 必填关键字，本实例资源对象；仅入口装配前或无资源的直接执行调用可显式 None，调度前必须装配完成。
+        storage: 必填关键字，worker 的只读存储检查器；仅全部类型不声明根时允许显式 None，
+            非空需求缺失检查器属于 DefectError，不默认读取系统路径。
     """
 
     engine: Engine
@@ -190,6 +193,7 @@ class ExecutorDependencies:
     paths: StatePaths
     clock: JobClock
     resources: WorkerResources | None = field(kw_only=True)
+    storage: StorageAccessChecker | None = field(kw_only=True)
 
 
 def execute_job(
@@ -227,8 +231,12 @@ def execute_job(
         构造reporter后在monitor锁内发布供主循环取消警告使用；每个daemon输出读线程独立copy_context。
         执行开始前普通日志打开/写头失败也先作为本条失败尝试提交终态，只有终态无法提交或资源不可回收才传播退出实例；
         恢复准备阶段的日志故障则已由recover_job隔离，不能混成整实例失败。
-        先查当前类型并校验参数，未登记/模型过时也作为已领取作业失败结束，诊断指出 job_id/type/原因，
-        worker 继续其他作业。类型函数异常只在此记一次 ERROR，作业记录保留统一诊断与有界样例；
+        先查当前类型并校验参数，未登记/模型过时也作为已领取作业失败结束，诊断指出 job_id/type/原因。
+        类型调用前在事务和导航层写锁之外调用 check_storage_before_job；
+        无存储声明不查挂载表，有声明时只读违规/离线/检查 I/O 失败均以外部失败收尾，
+        类型 execute 一次也不调用，存储根不产生新文件；新执行、续跑、重跑都适用。
+        存储检查前后均到达取消/停止检查点，终态取消优先规则不变。
+        单条作业失败后 worker 继续其他作业。类型函数异常只在此记一次 ERROR，作业记录保留统一诊断与有界样例；
         程序缺陷完整报告经 infra.db.records.write_error 以作业编号保存，报告失败不掩盖原失败。
         最终事务保存内存最新进度、计数、产物、耗时和诊断，再 transition_job；提交后以同一摘要写结尾。
         终态写失败只在此ERROR，向run_loop传播使其立即停止领取/心跳并返回失败，不留下持续心跳的半活实例；

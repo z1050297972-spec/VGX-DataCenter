@@ -502,6 +502,7 @@ export function AccountMenu(): ReactElement {
       <Link to="/change-password">修改口令</Link>
       <Link to="/jobs">作业</Link>
       <Link to="/scheduling">调度</Link>
+      <Link to="/storage-roots">存储根</Link>
       {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
       {identity.data.role === "administrator" && (
         <>

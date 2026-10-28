@@ -11,9 +11,9 @@ import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Literal, cast
+from typing import Annotated, Literal, Self, cast
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from rdp.infra.ids import JOB_TYPE_KEY_PATTERN
 
@@ -29,6 +29,73 @@ _DEFAULT_STATE_DIR_RELATIVE = Path(".local/share/rdp")
 _DEFAULT_CONFIG_FILE_RELATIVE = Path(".config/rdp/config.toml")
 # Python 3.12 的 tomllib 只在异常文本尾部给出位置；限定匹配范围以避免回显文档内容。
 _TOML_ERROR_POSITION = re.compile(r"\(at (line [0-9]+, column [0-9]+|end of document)\)$")
+
+# 10 号票唯一内置导航层位置；存储根没有机器相关默认值，必须由运维登记。
+DEFAULT_NAV_ROOT = Path("/mnt/datasets")
+# L2 默认十秒；0.1 秒允许本地快速失败，60 秒上限避免误配造成作业长期等待。
+DEFAULT_STORAGE_ACCESS_TIMEOUT_S = 10.0
+MIN_STORAGE_ACCESS_TIMEOUT_S = 0.1
+MAX_STORAGE_ACCESS_TIMEOUT_S = 60.0
+
+
+class StorageRootConfig(BaseModel):
+    """不可变存储根登记（10、ADR 0006），校验配置形状，不探测设备或数据目录。
+
+    Attributes:
+        name: 复用 JOB_TYPE_KEY_PATTERN，1-64 个 ASCII 小写字母、数字或下划线，首字符为字母。
+        path: 绝对 Path，不含 NUL、..，不展开 home、不解析软链接、不要求存在。
+        uuid: ext4 的小写标准连字符 UUID 文本；与 nfs_export 恰好填一项。
+        nfs_export: NFS 来源，服务器:绝对导出路径，服务器非空，IPv6 用方括号；
+            不含空白/NUL、不做 DNS、别名或末尾斜杠归一化，与挂载表逐字比较。
+        writable: 严格 bool，默认 False；表示平台写入许可，不等于内核挂载选项。
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True, hide_input_in_errors=True)
+    name: str = Field(pattern=JOB_TYPE_KEY_PATTERN)
+    path: Path
+    uuid: str | None = None
+    nfs_export: str | None = None
+    writable: bool = False
+
+    @model_validator(mode="after")
+    def validate_registration(self) -> Self:
+        """校验单个登记的路径与互斥挂载来源。
+
+        Args:
+            无。
+
+        Returns:
+            当前不可变登记；UUID 形状由标准库 uuid.UUID 核验，不尝试找设备。
+
+        Raises:
+            ValueError: 路径不是绝对路径或含 NUL/..，两种来源同填或都不填，
+                UUID 不是小写标准连字符形式，或 NFS 来源形状不合法；模型包装为 ValidationError。
+
+        Side Effects:
+            无；不 stat 路径，也不读取挂载表。
+
+        Time Semantics:
+            仅配置解析期校验，无等待或重试。
+        """
+        raise NotImplementedError
+
+
+class StorageConfig(BaseModel):
+    """存储访问预算；Web 挂载查询不执行数据目录访问（L2、ADR 0006）。
+
+    Attributes:
+        access_timeout_s: 单根完整 worker 检查的秒数，有限实数，
+            MIN_STORAGE_ACCESS_TIMEOUT_S 至 MAX_STORAGE_ACCESS_TIMEOUT_S，含端点，默认十秒；
+            允许整数秒，拒绝 bool、字符串、NaN 和无穷值。
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True, hide_input_in_errors=True)
+    access_timeout_s: float = Field(
+        default=DEFAULT_STORAGE_ACCESS_TIMEOUT_S,
+        ge=MIN_STORAGE_ACCESS_TIMEOUT_S,
+        le=MAX_STORAGE_ACCESS_TIMEOUT_S,
+        allow_inf_nan=False,
+    )
 
 
 class WebConfig(BaseModel):
@@ -125,6 +192,10 @@ class PlatformConfig(BaseModel):
             文件中允许绝对路径或 ~/ 前缀（也允许单独 ~），后者用注入 home 展开；
             不接受相对路径、~其他用户或环境变量展开，不解析软链接、不要求已存在。
         jobs: JobsConfig，默认两张卡、没有并发覆盖；只允许 gpus/concurrency。
+        nav_root: 导航层绝对 Path，默认 DEFAULT_NAV_ROOT；文件输入的 home 展开规则同 state_dir。
+        storage_roots: 按配置顺序的不可变登记元组，默认空；名字唯一，路径不得相等或互相包含。
+            路径只按分量做词法比较，不访问软链接；运维须登记真实挂载点路径。
+        storage: 访问预算，默认 StorageConfig()，未知项拒绝。
         web: WebConfig，无单位；默认 WebConfig()，只允许 host/port。
         log: LogConfig，无单位；默认 LogConfig()，只允许 level/retention_days。
         errors: ErrorRetentionConfig，无单位、不可空；默认 ErrorRetentionConfig()，
@@ -137,6 +208,56 @@ class PlatformConfig(BaseModel):
     log: LogConfig = Field(default_factory=LogConfig)
     errors: ErrorRetentionConfig = Field(default_factory=ErrorRetentionConfig)
     jobs: JobsConfig = Field(default_factory=JobsConfig)
+    nav_root: Path = DEFAULT_NAV_ROOT
+    storage_roots: tuple[StorageRootConfig, ...] = ()
+    storage: StorageConfig = Field(default_factory=StorageConfig)
+
+    @field_validator("nav_root")
+    @classmethod
+    def validate_nav_root(cls, value: Path) -> Path:
+        """校验已由显式 home 展开的导航层位置。
+
+        Args:
+            value: 绝对 Path，不含 NUL 或 ..；不要求存在。
+
+        Returns:
+            原路径，不解析软链接；与 state_dir 共用路径合法性规则。
+
+        Raises:
+            ValueError: 路径相对、含 NUL 或 ..；模型包装为 ValidationError。
+
+        Side Effects:
+            无；不会探测导航层。
+
+        Time Semantics:
+            启动配置快照校验，不监控目录变化。
+        """
+        raise NotImplementedError
+
+    @field_validator("storage_roots")
+    @classmethod
+    def validate_storage_roots(
+        cls, value: tuple[StorageRootConfig, ...]
+    ) -> tuple[StorageRootConfig, ...]:
+        """拒绝无法唯一归属名字或路径的存储根集合。
+
+        Args:
+            value: 已完成单根校验的不可变元组，允许空；保持 TOML 登记顺序。
+
+        Returns:
+            原元组，名字唯一、路径按分量不相等且互不包含；同前缀兄弟目录合法。
+
+        Raises:
+            ValueError: 重复名字或路径相等/嵌套，每种独立错误可形成一个配置诊断；
+                pydantic 包装后由 load_config 补来源和点分项名，不读取真实目录求值。
+
+        Side Effects:
+            无；不创建存储根、不解析软链接。
+
+        Time Semantics:
+            同步启动校验，无 I/O 等待。
+        """
+        raise NotImplementedError
 
     @field_validator("state_dir")
     @classmethod
@@ -193,6 +314,8 @@ def load_config(*, environ: Mapping[str, str], home: Path) -> LoadedConfig:
         仅后者不存在时 used_defaults=True，所有项取默认值（C1）；
         文件存在时用 tomllib 读取 UTF-8 TOML，缺项补默认值，再由 pydantic 严格校验。
         state_dir 字符串先按上述规则展开成 Path；空表、空文件也合法。
+        nav_root 同样由注入 home 展开；storage_roots 的 TOML 数组转不可变元组，
+        每项 path 字符串转 Path 但不展开 ~；全部未知字段仍拒绝。
         不转换字符串端口、不把 bool 当整数、不忽略任意层级的未知项。
 
     Raises:
@@ -204,6 +327,8 @@ def load_config(*, environ: Mapping[str, str], home: Path) -> LoadedConfig:
             构建逐项中文消息，再 raise ValueError(...) from error；不直接 str(error)。
             只回显本票五个已知叶子字段的标量实际值；未知项或容器用 <已隐藏>，
             后续敏感字段不加入回显白名单，避免异常链显示口令（模型隐藏输入）。
+            存储根重复名字、相等/嵌套路径、非绝对路径分别指出 storage_roots 的位置和原因；
+            nav_root、storage.* 的错误同样使用来源、项名、实际值和期望，不回显整个登记表。
         FileNotFoundError: 非空 RDP_CONFIG 指定的文件不存在；含文件名，绝不回退默认值。
         OSError: 文件是目录、无读取权限或其他读取失败；保留原异常及路径，不吞掉。
 

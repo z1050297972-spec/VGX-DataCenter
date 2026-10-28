@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, cast, get_args
 from pydantic import AliasChoices, AliasPath, BaseModel, SecretBytes, SecretStr
 
 from rdp.infra.actors import is_display_name
-from rdp.infra.config import MAX_JOB_CONCURRENCY
+from rdp.infra.config import MAX_JOB_CONCURRENCY, StorageRootConfig
 from rdp.infra.diagnostics import DefectError
 from rdp.infra.ids import JOB_TYPE_KEY_PATTERN
 from rdp.jobs.policy import JOB_DISPLAY_NAME_MAX_CHARS
@@ -38,6 +38,19 @@ MAINTENANCE_JOB_TYPES = frozenset({PURGE_ERRORS_TYPE, PURGE_AUDIT_LOGS_TYPE})
 
 
 @dataclass(frozen=True)
+class StorageUse:
+    """类型作者声明的一项存储需求，不接受提交参数覆盖。
+
+    Attributes:
+        name: 配置里的存储根名字，匹配 JOB_TYPE_KEY_PATTERN。
+        write: 严格 bool，默认 False；True 只请求新建权限，不允许修改已入库数据。
+    """
+
+    name: str
+    write: bool = False
+
+
+@dataclass(frozen=True)
 class JobDefinition:
     """一个当前可执行类型，参数模型和执行函数成对登记。
 
@@ -48,6 +61,8 @@ class JobDefinition:
         recovery_mode: resume/restart/interrupt 三选一，不由提交人覆盖。
         concurrency: 默认 1，严格整数 1 至 MAX_JOB_CONCURRENCY；配置可按类型覆盖。
         requires_gpu: 默认 False，严格布尔；True 时领取必须同时申请 GPU，空配置在执行时失败。
+        storage: 按检查顺序排列的 StorageUse 元组，默认空，同一个根不可重复声明；
+            名字须在启动配置中登记，用户不能用作业参数扩大该声明。
         execute: 仅接收 ExecutionContext 的同步函数，成功返回 None；每一步至多 JOB_CHECKPOINT_MAX_S
             到达检查点，所有等待经上下文；异常由执行器外层收口，不自行写作业状态或结果。
     """
@@ -59,6 +74,7 @@ class JobDefinition:
     execute: Callable[[ExecutionContext], None]
     concurrency: int = 1
     requires_gpu: bool = False
+    storage: tuple[StorageUse, ...] = ()
 
 
 class JobRegistry:
@@ -97,6 +113,7 @@ class JobRegistry:
             DefectError: 重复键/显示名、路径分量不合法、长度越界、非 Pydantic 模型、
                 非 callable、恢复方式非法、concurrency 不是 1-MAX_JOB_CONCURRENCY 的严格整数、
                 requires_gpu 不是 bool，或模型显式声明秘密字段/SecretStr/SecretBytes。
+                storage 不是元组、成员不是 StorageUse、名字非法或重复、write 非 bool。
 
         Side Effects:
             原子增加一项；失败保持原表。不创建日志目录、不执行模型或作业。
@@ -132,6 +149,27 @@ class JobRegistry:
         ):
             raise DefectError()
         self._definitions[definition.type_name] = definition
+
+    def validate_storage_roots(self, *, roots: tuple[StorageRootConfig, ...]) -> None:
+        """完成登记时核对全部作业的根名，阻止带未知根的实例启动。
+
+        Args:
+            roots: 最终配置的不可变根元组，必填关键字；空配置必须显式传空元组。
+
+        Returns:
+            无；所有声明均能在 roots 中找到，空声明不要求有存储根。
+
+        Raises:
+            ValueError: 任一声明的名字未配置，含 type_name、storage_root、实际与期望及拒绝启动说明。
+            DefectError: roots 不是已校验配置元组或登记内容违反 StorageUse 形状约束。
+
+        Side Effects:
+            无；只查内存，不检查在线、不更改登记、不拒绝声明写只读根的类型，后者在执行时失败。
+
+        Time Semantics:
+            Web/worker 在全部 register 完成后、接受提交或领取前调用一次；随后不再登记类型。
+        """
+        raise NotImplementedError
 
     def lookup(self, type_name: str) -> JobDefinition | None:
         """查找当前安装的类型，允许历史类型已经被移除。

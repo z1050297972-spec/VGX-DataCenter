@@ -1446,6 +1446,16 @@
         "title": "ObjectResponse",
         "type": "object"
       },
+      "OfflineReason": {
+        "description": "存储根离线的三种业务原因；读取基础设施失败不伪装成其中任一种。",
+        "enum": [
+          "not_mounted",
+          "source_mismatch",
+          "timeout"
+        ],
+        "title": "OfflineReason",
+        "type": "string"
+      },
       "OperationDetails": {
         "additionalProperties": false,
         "description": "v1 JSON 格式为 {version: 1, before: {...}, after: {...}}，不存执行命令。\n\nAttributes:\n    model_config: frozen/extra=forbid/hide_input_in_errors，固定配置。\n    version: 当前仅接受整数 1，无单位，默认 DETAILS_VERSION；bool 非法。\n    before: 改动前已确认的白名单值，必填；新建为空对象。\n    after: 成功提交的白名单值，必填；删除或失败为空对象，不能暗示失败改动已生效。",
@@ -1872,6 +1882,71 @@
           "status"
         ],
         "title": "StatusRequest",
+        "type": "object"
+      },
+      "StorageRootResponse": {
+        "additionalProperties": false,
+        "description": "页面上的单根状态，时间由服务器提供。\n\nAttributes:\n    name: 配置里的稳定名字。\n    path: 登记绝对路径的文本，不表示 Web 已访问目录。\n    writable: 平台许可，True 显示可写，False 显示只读。\n    online: 此次挂载身份核对是否通过。\n    reason: 在线为 None，离线为三种 OfflineReason 之一；本 GET 不产生 timeout。\n    checked_at: aware UTC 检查结束时刻，浏览器仅在展示时转本地时间。",
+        "properties": {
+          "checked_at": {
+            "format": "date-time",
+            "title": "Checked At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "online": {
+            "title": "Online",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfflineReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "writable": {
+            "title": "Writable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "writable",
+          "online",
+          "reason",
+          "checked_at"
+        ],
+        "title": "StorageRootResponse",
+        "type": "object"
+      },
+      "StorageRootsResponse": {
+        "additionalProperties": false,
+        "description": "按配置顺序返回全部存储根，不分页、不缓存。\n\nAttributes:\n    items: 每个登记根一条，配置为空时为空元组；不包含表外挂载点。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StorageRootResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "StorageRootsResponse",
         "type": "object"
       },
       "SubmitJobPayload": {
@@ -5590,6 +5665,123 @@
         "summary": "Resubmit Job",
         "tags": [
           "jobs"
+        ]
+      }
+    },
+    "/api/storage-roots": {
+      "get": {
+        "description": "现场返回每个登记根的挂载状态摘要。\n\nArgs:\n    inspector: 已认证且完成依赖装配的请求检查器，没有根目录访问回调。\n\nReturns:\n    配置顺序的名字、路径、写许可、在线标志、原因和 UTC 时刻；空配置 items 为空。\n    一次请求调用一次 inspect；不暴露挂载表原文、UUID 或 NFS 来源，不返回 timeout。\n\nRaises:\n    ExternalError: 系统表/UUID 元数据读取或解析失败，统一 502 与结构化诊断。\n    DefectError: 注入时钟、依赖或结果不合法，统一 500，不吞成离线。\n\nSide Effects:\n    无（只读挂载表和设备节点元数据）；不 stat 存储根，不记操作日志，不缓存响应。\n\nTime Semantics:\n    每次请求现场检查，未发生根目录访问，不能据此承诺 NAS 响应正常；浏览器显示本地时间。",
+        "operationId": "list_storage_roots",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageRootsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "List Storage Roots",
+        "tags": [
+          "storage"
         ]
       }
     },

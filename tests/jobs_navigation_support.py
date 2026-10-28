@@ -72,6 +72,7 @@ def navigation_jobs(root: Path) -> Generator[ExecutorDependencies]:
             paths,
             JobClock(lambda: NOW, time.monotonic),
             resources=resources_fixture(registry),
+            storage=None,
         )
         try:
             yield dependencies

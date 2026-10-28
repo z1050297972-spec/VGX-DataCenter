@@ -55,7 +55,12 @@ def scheduled_case(
     clock = MutableClock(wall=now)
     with job_database(root) as (engine, paths):
         dependencies = ExecutorDependencies(
-            engine, registry, paths, JobClock(clock.now, clock.monotonic), resources=resources
+            engine,
+            registry,
+            paths,
+            JobClock(clock.now, clock.monotonic),
+            resources=resources,
+            storage=None,
         )
         yield ScheduleCase(
             dependencies,

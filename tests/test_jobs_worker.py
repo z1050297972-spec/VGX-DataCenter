@@ -346,6 +346,7 @@ def test_lock_error_codes(tmp_path: Path) -> None:
         paths,
         JobClock(lambda: NOW, time.monotonic),
         resources=resources_fixture(production_registry()),
+        storage=None,
     )
     settings = LoggingSettings("worker", paths.logs)
     first = worker_lock(paths)

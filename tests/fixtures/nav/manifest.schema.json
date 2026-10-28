@@ -1,0 +1,259 @@
+{
+  "$defs": {
+    "DatasetSelection": {
+      "additionalProperties": false,
+      "description": "三份 JSON 与两个视图共用的截取身份清单。\n\nAttributes:\n    dataset_id: 原始稳定编号。\n    source_ids: 同一数据集两个视图保留的 source_id，顺序与规范副本相同，不重算。\n    task_keys: 保留的 task_key；相关 shared_source_roots、task_metadata 一并裁剪。\n    retained_missing_paths: 原件本就缺失、刻意不创建的占位符路径，保留 M1 异常检查输入。\n    explanation: 非空中文，说明选择记录的理由、跨盘和难处理字符的覆盖、计数更新及历史差异。",
+      "properties": {
+        "dataset_id": {
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "source_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "task_keys": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Task Keys",
+          "type": "array"
+        },
+        "retained_missing_paths": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Retained Missing Paths",
+          "type": "array"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dataset_id",
+        "source_ids",
+        "task_keys",
+        "retained_missing_paths",
+        "explanation"
+      ],
+      "title": "DatasetSelection",
+      "type": "object"
+    },
+    "FixtureEntry": {
+      "additionalProperties": false,
+      "description": "一个视图入口，JSON 的安装位置由 samples.destination 唯一指定。\n\nAttributes:\n    dataset_id: 原件数据集编号，不重算。\n    path: 相对 nav_root 的入口路径，必须在按任务或按格式内。\n    links: 按 layout.txt 顺序的链接元组，允许跨盘、按子目录分别链接。",
+      "properties": {
+        "dataset_id": {
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/FixtureLink"
+          },
+          "title": "Links",
+          "type": "array"
+        }
+      },
+      "required": [
+        "dataset_id",
+        "path",
+        "links"
+      ],
+      "title": "FixtureEntry",
+      "type": "object"
+    },
+    "FixtureLink": {
+      "additionalProperties": false,
+      "description": "入口内一条真实软链接，所有目标均落在临时根内。\n\nAttributes:\n    name: 入口下单个名字，不含分隔符、NUL、. 或 ..，保留中文和特殊字符。\n    target: 以根占位符开头的目标目录，必须在 directories 中声明，不允许导航层循环。",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "target"
+      ],
+      "title": "FixtureLink",
+      "type": "object"
+    },
+    "FixtureRoot": {
+      "additionalProperties": false,
+      "description": "临时根的登记，不使用本机 UUID。\n\nAttributes:\n    name: dataset1 或 dataset2，展开为 tmp_path/roots/name；不接受任意目录。\n    uuid: 合成的有效小写 UUID，仅供替换挂载表使用，不查询系统 UUID 目录。\n    writable: 默认 False；夹具本身造数据不代表平台获得写许可。",
+      "properties": {
+        "name": {
+          "enum": [
+            "dataset1",
+            "dataset2"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "uuid": {
+          "title": "Uuid",
+          "type": "string"
+        },
+        "writable": {
+          "default": false,
+          "title": "Writable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "uuid"
+      ],
+      "title": "FixtureRoot",
+      "type": "object"
+    },
+    "PlaceholderFile": {
+      "additionalProperties": false,
+      "description": "用于表现目录形态的微型文本文件，不冒充视频、MCAP 或可解压压缩包。\n\nAttributes:\n    destination: 根或导航层占位符开头的目标路径，不得覆盖样本 JSON 或链接。\n    text: UTF-8 占位文本，最多 MAX_PLACEHOLDER_BYTES 字节，允许空文本。",
+      "properties": {
+        "destination": {
+          "title": "Destination",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "destination",
+        "text"
+      ],
+      "title": "PlaceholderFile",
+      "type": "object"
+    },
+    "SampleFile": {
+      "additionalProperties": false,
+      "description": "一份截取 JSON 的来源与输出位置，原件哈希不等于截取后文件哈希。\n\nAttributes:\n    sample_file: 相对 fixtures/nav 的普通 JSON 文件位置，不含 .. 或软链接跳出。\n    destination: 以 {nav_root}、{dataset1} 或 {dataset2} 开头的输出位置。\n    asset_path: 原件在 samples/ 下的相对路径，与 sources.tsv 第一列一致。\n    source_path_parts: sources.tsv 第二列绝对来源路径的分量，省略开头根分隔符；\n        拼接一个根分隔符即可无损恢复原路径，仅用于追溯，禁止用于 I/O。\n    original_sha256: sources.tsv 的 64 位小写十六进制摘要，不重新计算原件身份。\n    original_size_bytes: 原件字节数，正整数，来自 sources.tsv。\n    truncation: 非空中文说明，逐项说明删了什么、为何删、如何维护引用；未截短明确写未截短。",
+      "properties": {
+        "sample_file": {
+          "title": "Sample File",
+          "type": "string"
+        },
+        "destination": {
+          "title": "Destination",
+          "type": "string"
+        },
+        "asset_path": {
+          "title": "Asset Path",
+          "type": "string"
+        },
+        "source_path_parts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Path Parts",
+          "type": "array"
+        },
+        "original_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Original Sha256",
+          "type": "string"
+        },
+        "original_size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Original Size Bytes",
+          "type": "integer"
+        },
+        "truncation": {
+          "minLength": 1,
+          "title": "Truncation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sample_file",
+        "destination",
+        "asset_path",
+        "source_path_parts",
+        "original_sha256",
+        "original_size_bytes",
+        "truncation"
+      ],
+      "title": "SampleFile",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "tests/fixtures/nav/manifest.json 的唯一格式定义。\n\nAttributes:\n    schema_version: 固定 1，不猜测未来版本。\n    roots: 两个合成根，名字唯一。\n    entries: 两个视图各五个入口，共十个，保留 layout.txt 的十八条链接。\n    directories: 占位符开头的全部目标目录、空格式目录和非数据集目录骨架；父目录可隐式创建。\n    files: 小占位文件，含文档第一层的文件名；与 samples 目标互斥。\n    samples: 三十份入口 JSON 加两份 meta/info.json，逐份记来源、哈希和截短说明。\n    selections: 五个数据集的裁剪选择；保留中文标点、空格、括号、撇号。",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "roots": {
+      "items": {
+        "$ref": "#/$defs/FixtureRoot"
+      },
+      "title": "Roots",
+      "type": "array"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/FixtureEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "directories": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Directories",
+      "type": "array"
+    },
+    "files": {
+      "items": {
+        "$ref": "#/$defs/PlaceholderFile"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "samples": {
+      "items": {
+        "$ref": "#/$defs/SampleFile"
+      },
+      "title": "Samples",
+      "type": "array"
+    },
+    "selections": {
+      "items": {
+        "$ref": "#/$defs/DatasetSelection"
+      },
+      "title": "Selections",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "roots",
+    "entries",
+    "directories",
+    "files",
+    "samples",
+    "selections"
+  ],
+  "title": "NavManifest",
+  "type": "object"
+}

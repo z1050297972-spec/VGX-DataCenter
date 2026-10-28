@@ -46,6 +46,7 @@ def execution_case(
             paths,
             JobClock(lambda: NOW, time.monotonic),
             resources=resources_fixture(registry),
+            storage=None,
         )
         try:
             yield (

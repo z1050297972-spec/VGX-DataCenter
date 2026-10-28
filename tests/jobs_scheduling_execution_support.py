@@ -88,7 +88,12 @@ def scheduling_case(
             NavigationWriter(),
         )
         dependencies = ExecutorDependencies(
-            engine, registry, paths, JobClock(lambda: NOW, time.monotonic), resources=resources
+            engine,
+            registry,
+            paths,
+            JobClock(lambda: NOW, time.monotonic),
+            resources=resources,
+            storage=None,
         )
         yield SchedulingCase(
             dependencies, resources, Scheduler(dependencies, resources, recovered=())
