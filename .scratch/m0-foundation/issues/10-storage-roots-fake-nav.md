@@ -1,6 +1,6 @@
 # 存储根与假导航层
 
-Status: in-review
+Status: done
 
 ## 依据
 
@@ -105,3 +105,5 @@ Status: in-review
 - 2026-10-27 r2 复核（执行线），快照 `refs/rdp/m0-10/B-r2-done` 9574fea：make check 全绿（pytest 1811、Vitest 243，0 skipped），审计 0 行。挂载根第 4 列按原文保存，只有 `/` 代表整个文件系统；解析只拒绝结构性错误，报错指明列；本机脱敏挂载表 58 行作回归数据（`tests/fixtures/` 副本只改两行挂载点）。变异"挂载根须为绝对路径"被真实形状测试抓住（`mutation_probe-r2.txt`）。验收 2 真机核对重跑通过（`realcheck-run.txt`）；验收 9 浏览器演示重跑通过（两块盘在线；UUID 改错一位 → 挂错了盘；未登录 401；`demo10-*.png`、`demo10-run.log`）。实现提交 `ee2d9e7 实现：存储根与假导航层`（钩子全绿）。Status 改成 `in-review`，等负责人说"合并"。
   - 后续（不阻塞）：生产入口要装配 `configure_storage`、`StorageAccessChecker`、`JobRegistry.validate_storage_roots`（第 11 张）；NFS 来源格式在「NAS 接入事实」后复核；`//` 开头的登记路径恒为没挂载；线程启动失败抛原始 RuntimeError；`MountInspector` 相关私有函数可改成方法；`_absolute_path` 命名；`ext4`/`nfs` 字面量；页面无轮询（按设计）；文件头"（10）"标签与 CODING_STANDARDS 4.1 关于标注工单的写法需统一口径。
   - 合并时要补：运维手册"存储根"一节（登记新存储根、判断离线原因）；导航层手册"存储根"说法对齐；配置示例补 `nav_root`、`[[storage_roots]]`、`[storage]`。
+- 2026-10-28 负责人："合并，然后开始第 11 张"。按 3.7 合并。
+- 2026-10-28 合并 `363a8f7 合并：存储根与假导航层`（按 3.7，钩子 make check 全绿）。手册：运维手册加"存储根"一节（登记、挂载源二选一、查 UUID、校验错误、只读是平台规则、三种离线原因的排查表、页面整页报错的含义、NAS 卡住的线程限制），配置示例补 `nav_root`（放在表之前）、`[storage]`、`[[storage_roots]]`，并用平台 `load_config` 验证示例可加载；导航层手册第 6 节补"登记在哪"和在线的精确定义。Status 改成 `done`。
