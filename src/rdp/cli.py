@@ -6,17 +6,23 @@
 
 import os
 import shutil
+import signal
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Generator, Sequence
+from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
 from getpass import getpass
 from importlib.metadata import version
 from pathlib import Path
-from typing import Unpack
+from threading import current_thread, main_thread
+from types import FrameType
+from typing import Unpack, override
 
 import uvicorn
 from fastapi import FastAPI
+from uvicorn.config import STARTUP_FAILURE
+from uvicorn.server import HANDLED_SIGNALS
 
 import rdp
 from rdp.api.production import UvicornOptions, UvicornRunner, WebRuntime, start_web
@@ -77,7 +83,7 @@ def run_web(runtime: ServiceRuntime, *, inputs: RuntimeInputs, runner: UvicornRu
     Args:
         runtime: prepare_service 返回的 web 资源，包含真实引擎和完整调度/存储登记。
         inputs: 显式部署布局及 UTC 时钟，不从当前目录查找前端。
-        runner: uvicorn.run 或测试替身，沿用 UvicornRunner 的日志和单进程约束。
+        runner: 生产 uvicorn 适配器或测试替身，沿用 UvicornRunner 的日志和单进程约束。
 
     Returns:
         api.production.start_web 的原样退出码，正常 0、运行或清理失败 1。
@@ -88,6 +94,8 @@ def run_web(runtime: ServiceRuntime, *, inputs: RuntimeInputs, runner: UvicornRu
     Side Effects:
         构造 WebRuntime 并交接 engine 所有权；实际监听、报错线程等待和释放由 start_web 负责。
         不二次配置日志、检查数据库或 dispose，不将 worker 的存储内容读取能力传给 Web。
+        生产适配器让已处理的 SIGTERM/SIGINT 正常返回，不在 uvicorn 关闭后再次终止进程，
+        从而使 start_web 能排空报错写入、释放引擎并记录结束。
 
     Time Semantics:
         同步调用到服务停止；使用 inputs.clock.now，版本使用 runtime 启动快照。
@@ -107,5 +115,35 @@ def run_web(runtime: ServiceRuntime, *, inputs: RuntimeInputs, runner: UvicornRu
 
 
 def _run_uvicorn(app: FastAPI, **options: Unpack[UvicornOptions]) -> None:
-    """用窄协议展开uvicorn的具名选项，避免把框架全部参数暴露给生产装配。"""
-    uvicorn.run(app, **options)
+    """运行单进程Server并把优雅停止交还Web生命周期，保留uvicorn的启动失败语义。"""
+    server = _ManagedServer(uvicorn.Config(app, **options))
+    # 沿用uvicorn.run对事件循环外Ctrl+C的处理；尚未启动仍算启动失败。
+    with suppress(KeyboardInterrupt):
+        server.run()
+    if not server.started:
+        raise SystemExit(STARTUP_FAILURE)
+
+
+class _ManagedServer(uvicorn.Server):
+    """由平台拥有进程退出的uvicorn适配器，不更改连接、ASGI或优雅关闭实现。"""
+
+    @contextmanager
+    @override
+    def capture_signals(self) -> Generator[None]:
+        """保留handle_exit及原处理器恢复，只取消已处理信号的关闭后重抛。"""
+        # uvicorn 0.54的默认上下文在serve结束后raise_signal，SIGTERM会直接杀死进程，
+        # 绕过start_web的报错线程排空和引擎释放。平台必须在它返回后决定退出码。
+        # 仍由uvicorn.handle_exit处理退出请求及第二次SIGINT的强制停止；升级uvicorn时
+        # 需复核此公开上下文钩子，并运行真实CLI信号测试，不能只靠注入运行器的测试。
+        if current_thread() is not main_thread():
+            yield
+            return
+        previous: dict[int, Callable[[int, FrameType | None], object] | int | None] = {}
+        try:
+            for number in HANDLED_SIGNALS:
+                previous[number] = signal.signal(number, self.handle_exit)
+            yield
+        finally:
+            # 安装中途失败也恢复已接管的信号；不修改uvicorn包或全局raise_signal。
+            for number, handler in previous.items():
+                signal.signal(number, handler)
