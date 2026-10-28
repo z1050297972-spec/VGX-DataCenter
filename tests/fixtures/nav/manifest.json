@@ -1,0 +1,825 @@
+{
+  "schema_version": 1,
+  "roots": [
+    {
+      "name": "dataset1",
+      "uuid": "11111111-1111-1111-1111-111111111111",
+      "writable": false
+    },
+    {
+      "name": "dataset2",
+      "uuid": "22222222-2222-2222-2222-222222222222",
+      "writable": false
+    }
+  ],
+  "entries": [
+    {
+      "dataset_id": "dataset-14",
+      "path": "按任务/libero_10",
+      "links": [
+        {
+          "name": "原始数据",
+          "target": "{dataset1}/libero_v3/libero_10"
+        }
+      ]
+    },
+    {
+      "dataset_id": "dataset-35",
+      "path": "按任务/R1_lite_table_withdrawing_mcap",
+      "links": [
+        {
+          "name": "原始数据",
+          "target": "{dataset2}/R1_lite_table_withdrawing_mcap"
+        }
+      ]
+    },
+    {
+      "dataset_id": "dataset-32",
+      "path": "按任务/EgoProStandard",
+      "links": [
+        {
+          "name": "原始数据__dataset1",
+          "target": "{dataset1}/EgoProStandard"
+        },
+        {
+          "name": "原始数据__dataset2",
+          "target": "{dataset2}/EgoProStandard"
+        }
+      ]
+    },
+    {
+      "dataset_id": "dataset-33",
+      "path": "按任务/EgoProDemo",
+      "links": [
+        {
+          "name": "原始数据",
+          "target": "{dataset2}/EgoProDemo"
+        }
+      ]
+    },
+    {
+      "dataset_id": "dataset-31",
+      "path": "按任务/agibot_world_alpha",
+      "links": [
+        {
+          "name": "observations",
+          "target": "{dataset2}/agibot_world_alpha/observations"
+        },
+        {
+          "name": "parameters",
+          "target": "{dataset2}/agibot_world_alpha/parameters"
+        },
+        {
+          "name": "proprio_stats",
+          "target": "{dataset2}/agibot_world_alpha/proprio_stats"
+        },
+        {
+          "name": "task_info",
+          "target": "{dataset2}/agibot_world_alpha/task_info"
+        }
+      ]
+    },
+    {
+      "dataset_id": "dataset-35",
+      "path": "按格式/mcap/R1_lite_table_withdrawing_mcap",
+      "links": [
+        {
+          "name": "原始数据",
+          "target": "{dataset2}/R1_lite_table_withdrawing_mcap"
+        }
+      ]
+    },
+    {
+      "dataset_id": "dataset-32",
+      "path": "按格式/mcap/EgoProStandard",
+      "links": [
+        {
+          "name": "原始数据__dataset1",
+          "target": "{dataset1}/EgoProStandard/mcap"
+        },
+        {
+          "name": "原始数据__dataset2",
+          "target": "{dataset2}/EgoProStandard/mcap"
+        }
+      ]
+    },
+    {
+      "dataset_id": "dataset-31",
+      "path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha",
+      "links": [
+        {
+          "name": "observations",
+          "target": "{dataset2}/agibot_world_alpha/observations"
+        },
+        {
+          "name": "parameters",
+          "target": "{dataset2}/agibot_world_alpha/parameters"
+        },
+        {
+          "name": "proprio_stats",
+          "target": "{dataset2}/agibot_world_alpha/proprio_stats"
+        },
+        {
+          "name": "task_info",
+          "target": "{dataset2}/agibot_world_alpha/task_info"
+        }
+      ]
+    },
+    {
+      "dataset_id": "dataset-14",
+      "path": "按格式/lerobot/3.0/libero_10",
+      "links": [
+        {
+          "name": "原始数据",
+          "target": "{dataset1}/libero_v3/libero_10"
+        }
+      ]
+    },
+    {
+      "dataset_id": "dataset-33",
+      "path": "按格式/lerobot/3.0/EgoProDemo",
+      "links": [
+        {
+          "name": "原始数据",
+          "target": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot"
+        }
+      ]
+    }
+  ],
+  "directories": [
+    "{dataset1}/EgoProStandard",
+    "{dataset1}/EgoProStandard/mcap",
+    "{dataset1}/EgoProStandard/mcap/Adjust Seal Sticker",
+    "{dataset1}/libero_v3/libero_10",
+    "{dataset1}/libero_v3/libero_10/Untitled",
+    "{dataset1}/libero_v3/libero_10/data",
+    "{dataset1}/libero_v3/libero_10/meta",
+    "{dataset1}/libero_v3/libero_10/meta/episodes",
+    "{dataset1}/libero_v3/libero_10/videos",
+    "{dataset2}/EgoProDemo",
+    "{dataset2}/EgoProDemo/.cache",
+    "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot",
+    "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d",
+    "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/11deec69-bf40-4a5a-a8c7-7a397b3df648",
+    "{dataset2}/EgoProStandard",
+    "{dataset2}/EgoProStandard/mcap",
+    "{dataset2}/EgoProStandard/mcap/Adjust Shelf Labels",
+    "{dataset2}/EgoProStandard/mcap/Affix Shipping Label (on Package Surface)",
+    "{dataset2}/EgoProStandard/mcap/Secure the biscuit tin's latch lid_plum",
+    "{dataset2}/R1_lite_table_withdrawing_mcap",
+    "{dataset2}/R1_lite_table_withdrawing_mcap/20261009_table_withdrawing",
+    "{dataset2}/R1_lite_table_withdrawing_mcap/20261010_table_withdrawing",
+    "{dataset2}/R1_lite_table_withdrawing_mcap/20261011_table_withdrawing",
+    "{dataset2}/agibot_world_alpha/observations",
+    "{dataset2}/agibot_world_alpha/observations/327",
+    "{dataset2}/agibot_world_alpha/parameters",
+    "{dataset2}/agibot_world_alpha/proprio_stats",
+    "{dataset2}/agibot_world_alpha/proprio_stats/327",
+    "{dataset2}/agibot_world_alpha/task_info",
+    "{nav_root}/VGX_video",
+    "{nav_root}/VGX_video/photo_particles_edit",
+    "{nav_root}/VGX_video/photo_particles_fullframe",
+    "{nav_root}/工具",
+    "{nav_root}/工具/mcap2lerobot",
+    "{nav_root}/按格式/lerobot/2.0",
+    "{nav_root}/按格式/lerobot/2.1",
+    "{nav_root}/文档",
+    "{nav_root}/索引",
+    "{nav_root}/解压样本",
+    "{nav_root}/解压样本/agibot_world_2026_simulation_scoop_popcorn_lite",
+    "{nav_root}/解压样本/agitbot_world_2026_richinteraction_4439_458713"
+  ],
+  "files": [
+    {
+      "destination": "{dataset2}/agibot_world_alpha/parameters/648533-663816.tar",
+      "text": "仅文件名占位\n"
+    },
+    {
+      "destination": "{dataset2}/agibot_world_alpha/proprio_stats/648533-923022.tar",
+      "text": "仅文件名占位\n"
+    },
+    {
+      "destination": "{dataset2}/agibot_world_alpha/task_info/task_327.json",
+      "text": "[]\n"
+    },
+    {
+      "destination": "{nav_root}/文档/AgiBotWorld2026_免解压查看指南.md",
+      "text": "测试目录形态占位；不包含原文。\n"
+    },
+    {
+      "destination": "{nav_root}/文档/AgiBotWorld2026_官方格式核对.md",
+      "text": "测试目录形态占位；不包含原文。\n"
+    },
+    {
+      "destination": "{nav_root}/文档/LeRobot格式数据占比统计.md",
+      "text": "测试目录形态占位；不包含原文。\n"
+    }
+  ],
+  "samples": [
+    {
+      "sample_file": "samples/nav/按任务/libero_10/原始路径.json",
+      "destination": "{nav_root}/按任务/libero_10/原始路径.json",
+      "asset_path": "nav/按任务/libero_10/原始路径.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "libero_10",
+        "原始路径.json"
+      ],
+      "original_sha256": "2174990d03b2f66d15d6144248ec487a0e364acbf18f502f9d095a4af4c70265",
+      "original_size_bytes": 847,
+      "truncation": "libero_10 原始路径.json：本视图sources由1条保留1条，保留路径为{dataset1}/libero_v3/libero_10。links的1条全部保留，source_id不重算。libero_10：两个视图均保留全部1条数据块（libero_v3/libero_10）和全部10个任务，体积小，无需裁剪记录。保留英文任务名的空格和原文中文标点。历史失效仅为summary_path指向的汇总文档；meta/episodes目录应存在。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/libero_10/数据集信息.json",
+      "destination": "{nav_root}/按任务/libero_10/数据集信息.json",
+      "asset_path": "nav/按任务/libero_10/数据集信息.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "libero_10",
+        "数据集信息.json"
+      ],
+      "original_sha256": "81b7aec9034e4700f85211566497255b6e6fa5826aba85cf9c8be15b056567d7",
+      "original_size_bytes": 4578,
+      "truncation": "libero_10 数据集信息.json：全部14项快照说明未截短，两个视图保持相同文字；只替换路径前缀，不把原快照大小和轨迹数改写成夹具统计值。summary_path指向的历史失效汇总文档仍登记为失效。libero_10：两个视图均保留全部1条数据块（libero_v3/libero_10）和全部10个任务，体积小，无需裁剪记录。保留英文任务名的空格和原文中文标点。历史失效仅为summary_path指向的汇总文档；meta/episodes目录应存在。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/libero_10/子任务.json",
+      "destination": "{nav_root}/按任务/libero_10/子任务.json",
+      "asset_path": "nav/按任务/libero_10/子任务.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "libero_10",
+        "子任务.json"
+      ],
+      "original_sha256": "8ed3b39213a0493f528799b0282a1cf22c56d96237406418caeffbe209022b49",
+      "original_size_bytes": 23199,
+      "truncation": "libero_10 子任务.json：tasks由10个保留10个，保留任务为put both moka pots on the stove；pick up the book and place it in the back compartment of the caddy；put the white mug on the plate and put the chocolate pudding to the right of the plate；put both the alphabet soup and the cream cheese box in the basket；turn on the stove and put the moka pot on it；put both the alphabet soup and the tomato sauce in the basket；put the white mug on the left plate and put the yellow and white mug on the right plate；put the yellow and white mug in the microwave and close it；put both the cream cheese box and the butter in the basket；put the black bowl in the bottom drawer of the cabinet and close it。task_count同步为保留数；sources引用仅保留同一选择中的source_id，共10项。保留任务内的evidence、episode_indices等其余字段原样，不切实际轨迹。libero_10：两个视图均保留全部1条数据块（libero_v3/libero_10）和全部10个任务，体积小，无需裁剪记录。保留英文任务名的空格和原文中文标点。历史失效仅为summary_path指向的汇总文档；meta/episodes目录应存在。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/R1_lite_table_withdrawing_mcap/原始路径.json",
+      "destination": "{nav_root}/按任务/R1_lite_table_withdrawing_mcap/原始路径.json",
+      "asset_path": "nav/按任务/R1_lite_table_withdrawing_mcap/原始路径.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "R1_lite_table_withdrawing_mcap",
+        "原始路径.json"
+      ],
+      "original_sha256": "5a538ac7aa77d69988cb18e7dbd0a0f4dd95763d8c089e3188b3ca54d6ece83f",
+      "original_size_bytes": 1963,
+      "truncation": "R1_lite_table_withdrawing_mcap 原始路径.json：本视图sources由3条保留3条，保留路径为{dataset2}/R1_lite_table_withdrawing_mcap/20261009_table_withdrawing；{dataset2}/R1_lite_table_withdrawing_mcap/20261010_table_withdrawing；{dataset2}/R1_lite_table_withdrawing_mcap/20261011_table_withdrawing。links的1条全部保留，source_id不重算。R1_lite_table_withdrawing_mcap：两个视图均保留全部3个录制批次（20261009_table_withdrawing、20261010_table_withdrawing、20261011_table_withdrawing）和唯一任务table withdrawing（原生录制），用于验证同一任务关联多个批次。保留任务名中的空格及中文括号；历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/R1_lite_table_withdrawing_mcap/数据集信息.json",
+      "destination": "{nav_root}/按任务/R1_lite_table_withdrawing_mcap/数据集信息.json",
+      "asset_path": "nav/按任务/R1_lite_table_withdrawing_mcap/数据集信息.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "R1_lite_table_withdrawing_mcap",
+        "数据集信息.json"
+      ],
+      "original_sha256": "b3c2d76a6e8d56383b38f473ce287e7dbff9bfea525301b45905293373e3d249",
+      "original_size_bytes": 4573,
+      "truncation": "R1_lite_table_withdrawing_mcap 数据集信息.json：全部14项快照说明未截短，两个视图保持相同文字；只替换路径前缀，不把原快照大小和轨迹数改写成夹具统计值。summary_path指向的历史失效汇总文档仍登记为失效。R1_lite_table_withdrawing_mcap：两个视图均保留全部3个录制批次（20261009_table_withdrawing、20261010_table_withdrawing、20261011_table_withdrawing）和唯一任务table withdrawing（原生录制），用于验证同一任务关联多个批次。保留任务名中的空格及中文括号；历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/R1_lite_table_withdrawing_mcap/子任务.json",
+      "destination": "{nav_root}/按任务/R1_lite_table_withdrawing_mcap/子任务.json",
+      "asset_path": "nav/按任务/R1_lite_table_withdrawing_mcap/子任务.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "R1_lite_table_withdrawing_mcap",
+        "子任务.json"
+      ],
+      "original_sha256": "67cca0ffc6b9cfd87b4a7123d9095463a8c0380e7012cbd4887d8b063a984a1a",
+      "original_size_bytes": 3703,
+      "truncation": "R1_lite_table_withdrawing_mcap 子任务.json：tasks由1个保留1个，保留任务为table withdrawing（原生录制）。task_count同步为保留数；sources引用仅保留同一选择中的source_id，共3项。保留任务内的evidence、episode_indices等其余字段原样，不切实际轨迹。R1_lite_table_withdrawing_mcap：两个视图均保留全部3个录制批次（20261009_table_withdrawing、20261010_table_withdrawing、20261011_table_withdrawing）和唯一任务table withdrawing（原生录制），用于验证同一任务关联多个批次。保留任务名中的空格及中文括号；历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/EgoProStandard/原始路径.json",
+      "destination": "{nav_root}/按任务/EgoProStandard/原始路径.json",
+      "asset_path": "nav/按任务/EgoProStandard/原始路径.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "EgoProStandard",
+        "原始路径.json"
+      ],
+      "original_sha256": "cd271c60c4e3083f80cb92815dcd3c0759d77e4c09c69a0b03f1f5b00a021b07",
+      "original_size_bytes": 337389,
+      "truncation": "EgoProStandard 原始路径.json：本视图sources由734条保留4条，保留路径为{dataset1}/EgoProStandard/mcap/Adjust Seal Sticker；{dataset2}/EgoProStandard/mcap/Adjust Shelf Labels；{dataset2}/EgoProStandard/mcap/Affix Shipping Label (on Package Surface)；{dataset2}/EgoProStandard/mcap/Secure the biscuit tin's latch lid_plum。links的2条全部保留，source_id不重算。EgoProStandard：两个视图均从734条数据块保留4条、从723个任务保留4个。保留Adjust Seal Sticker（dataset1）、Adjust Shelf Labels、Affix Shipping Label (on Package Surface)、Secure the biscuit tin's latch lid_plum（后三项在dataset2），用于覆盖跨盘链接、空格、括号和撇号。删除其余数据块与任务及相应引用以限制夹具体积；两个视图保留相同稳定编号，历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/EgoProStandard/数据集信息.json",
+      "destination": "{nav_root}/按任务/EgoProStandard/数据集信息.json",
+      "asset_path": "nav/按任务/EgoProStandard/数据集信息.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "EgoProStandard",
+        "数据集信息.json"
+      ],
+      "original_sha256": "e612a057e3270cd92888125c42cd8b556fd983b0d11ed336c570aa87a3b7412d",
+      "original_size_bytes": 4992,
+      "truncation": "EgoProStandard 数据集信息.json：全部14项快照说明未截短，两个视图保持相同文字；只替换路径前缀，不把原快照大小和轨迹数改写成夹具统计值。summary_path指向的历史失效汇总文档仍登记为失效。EgoProStandard：两个视图均从734条数据块保留4条、从723个任务保留4个。保留Adjust Seal Sticker（dataset1）、Adjust Shelf Labels、Affix Shipping Label (on Package Surface)、Secure the biscuit tin's latch lid_plum（后三项在dataset2），用于覆盖跨盘链接、空格、括号和撇号。删除其余数据块与任务及相应引用以限制夹具体积；两个视图保留相同稳定编号，历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/EgoProStandard/子任务.json",
+      "destination": "{nav_root}/按任务/EgoProStandard/子任务.json",
+      "asset_path": "nav/按任务/EgoProStandard/子任务.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "EgoProStandard",
+        "子任务.json"
+      ],
+      "original_sha256": "095b2eeefcf48f0a85a818f7a38089e1f40df9c0de215aefb0088ef525a43a1a",
+      "original_size_bytes": 1000483,
+      "truncation": "EgoProStandard 子任务.json：tasks由723个保留4个，保留任务为Adjust Seal Sticker；Affix Shipping Label (on Package Surface)；Secure the biscuit tin's latch lid_plum；Adjust Shelf Labels。task_count同步为保留数；sources引用仅保留同一选择中的source_id，共4项。保留任务内的evidence、episode_indices等其余字段原样，不切实际轨迹。EgoProStandard：两个视图均从734条数据块保留4条、从723个任务保留4个。保留Adjust Seal Sticker（dataset1）、Adjust Shelf Labels、Affix Shipping Label (on Package Surface)、Secure the biscuit tin's latch lid_plum（后三项在dataset2），用于覆盖跨盘链接、空格、括号和撇号。删除其余数据块与任务及相应引用以限制夹具体积；两个视图保留相同稳定编号，历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/EgoProDemo/原始路径.json",
+      "destination": "{nav_root}/按任务/EgoProDemo/原始路径.json",
+      "asset_path": "nav/按任务/EgoProDemo/原始路径.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "EgoProDemo",
+        "原始路径.json"
+      ],
+      "original_sha256": "af9451e78039f656d0ed32b700acf04bd7a47aec46d0d049fade1a7b62bafb49",
+      "original_size_bytes": 148015,
+      "truncation": "EgoProDemo 原始路径.json：本视图sources由234条保留2条，保留路径为{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d；{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/11deec69-bf40-4a5a-a8c7-7a397b3df648。links的1条全部保留，source_id不重算。EgoProDemo：按任务原有234条数据块和94个任务，按格式原有233条数据块和93个任务；两边均保留2条数据块和2个任务。保留Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d及Affix Shipping Label (on Package Surface)的首条数据块，覆盖每任务每条LeRobot目录、空格及括号。删除其他轨迹引用以保持小样本；保留前一条的真实meta/info.json（robot_type=null、fps=30.0、codebase_version=v3.0）。历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/EgoProDemo/数据集信息.json",
+      "destination": "{nav_root}/按任务/EgoProDemo/数据集信息.json",
+      "asset_path": "nav/按任务/EgoProDemo/数据集信息.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "EgoProDemo",
+        "数据集信息.json"
+      ],
+      "original_sha256": "0e1f08671a9e26e166b5b7a7fa4a281d3337bf87b5a6b79869cba0586fe13780",
+      "original_size_bytes": 4733,
+      "truncation": "EgoProDemo 数据集信息.json：全部14项快照说明未截短，两个视图保持相同文字；只替换路径前缀，不把原快照大小和轨迹数改写成夹具统计值。summary_path指向的历史失效汇总文档仍登记为失效。EgoProDemo：按任务原有234条数据块和94个任务，按格式原有233条数据块和93个任务；两边均保留2条数据块和2个任务。保留Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d及Affix Shipping Label (on Package Surface)的首条数据块，覆盖每任务每条LeRobot目录、空格及括号。删除其他轨迹引用以保持小样本；保留前一条的真实meta/info.json（robot_type=null、fps=30.0、codebase_version=v3.0）。历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/EgoProDemo/子任务.json",
+      "destination": "{nav_root}/按任务/EgoProDemo/子任务.json",
+      "asset_path": "nav/按任务/EgoProDemo/子任务.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "EgoProDemo",
+        "子任务.json"
+      ],
+      "original_sha256": "f01202c6d3ddb2feb32c2ff7e3e0e561a2a48f99082ca1962bd6337c3ece5560",
+      "original_size_bytes": 260066,
+      "truncation": "EgoProDemo 子任务.json：tasks由94个保留2个，保留任务为Affix Shipping Label (on Package Surface)；Adjust Shelf Labels。task_count同步为保留数；sources引用仅保留同一选择中的source_id，共2项。保留任务内的evidence、episode_indices等其余字段原样，不切实际轨迹。EgoProDemo：按任务原有234条数据块和94个任务，按格式原有233条数据块和93个任务；两边均保留2条数据块和2个任务。保留Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d及Affix Shipping Label (on Package Surface)的首条数据块，覆盖每任务每条LeRobot目录、空格及括号。删除其他轨迹引用以保持小样本；保留前一条的真实meta/info.json（robot_type=null、fps=30.0、codebase_version=v3.0）。历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/agibot_world_alpha/原始路径.json",
+      "destination": "{nav_root}/按任务/agibot_world_alpha/原始路径.json",
+      "asset_path": "nav/按任务/agibot_world_alpha/原始路径.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "agibot_world_alpha",
+        "原始路径.json"
+      ],
+      "original_sha256": "67128a19ff37249dc739d9f9750937fe43392591b0d3282a1e26d3c0602ac3d5",
+      "original_size_bytes": 127105,
+      "truncation": "agibot_world_alpha 原始路径.json：本视图sources由215条保留4条，保留路径为{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327；{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21；{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old；{dataset2}/agibot_world_alpha/observations/327。links的4条全部保留，source_id不重算。task_metadata由36条保留1条。agibot_world_alpha：两个视图均从215条数据块保留4条、从36个任务保留task327（超市取货放入购物车）1个，task_metadata从36条保留1条。四块为原生observations/327和pickup_items_in_the_supermarket__task_327、同名_v21、同名_v21_old三个已删除转换副本；保留后者及其meta引用的失效状态，不创建假目录掩盖删除。保留四组件逐目录链接、中文任务名和格式目录的中文标点；另保留汇总文档失效。其他任务及其引用删除以缩小样本。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/agibot_world_alpha/数据集信息.json",
+      "destination": "{nav_root}/按任务/agibot_world_alpha/数据集信息.json",
+      "asset_path": "nav/按任务/agibot_world_alpha/数据集信息.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "agibot_world_alpha",
+        "数据集信息.json"
+      ],
+      "original_sha256": "d467a9e099ebf6a6254b2ae2a706f2af4999bd914ab8892a74c77db965db2392",
+      "original_size_bytes": 5348,
+      "truncation": "agibot_world_alpha 数据集信息.json：全部14项快照说明未截短，两个视图保持相同文字；只替换路径前缀，不把原快照大小和轨迹数改写成夹具统计值。summary_path指向的历史失效汇总文档仍登记为失效。agibot_world_alpha：两个视图均从215条数据块保留4条、从36个任务保留task327（超市取货放入购物车）1个，task_metadata从36条保留1条。四块为原生observations/327和pickup_items_in_the_supermarket__task_327、同名_v21、同名_v21_old三个已删除转换副本；保留后者及其meta引用的失效状态，不创建假目录掩盖删除。保留四组件逐目录链接、中文任务名和格式目录的中文标点；另保留汇总文档失效。其他任务及其引用删除以缩小样本。"
+    },
+    {
+      "sample_file": "samples/nav/按任务/agibot_world_alpha/子任务.json",
+      "destination": "{nav_root}/按任务/agibot_world_alpha/子任务.json",
+      "asset_path": "nav/按任务/agibot_world_alpha/子任务.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按任务",
+        "agibot_world_alpha",
+        "子任务.json"
+      ],
+      "original_sha256": "c787c3407970a8a2129b3fc9e7d5ca091ab7b2c1aac59be2a37e1de9b4de15d6",
+      "original_size_bytes": 328945,
+      "truncation": "agibot_world_alpha 子任务.json：tasks由36个保留1个，保留任务为超市取货放入购物车。task_count同步为保留数；sources引用仅保留同一选择中的source_id，共4项。保留任务内的evidence、episode_indices等其余字段原样，不切实际轨迹。agibot_world_alpha：两个视图均从215条数据块保留4条、从36个任务保留task327（超市取货放入购物车）1个，task_metadata从36条保留1条。四块为原生observations/327和pickup_items_in_the_supermarket__task_327、同名_v21、同名_v21_old三个已删除转换副本；保留后者及其meta引用的失效状态，不创建假目录掩盖删除。保留四组件逐目录链接、中文任务名和格式目录的中文标点；另保留汇总文档失效。其他任务及其引用删除以缩小样本。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/mcap/R1_lite_table_withdrawing_mcap/原始路径.json",
+      "destination": "{nav_root}/按格式/mcap/R1_lite_table_withdrawing_mcap/原始路径.json",
+      "asset_path": "nav/按格式/mcap/R1_lite_table_withdrawing_mcap/原始路径.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "mcap",
+        "R1_lite_table_withdrawing_mcap",
+        "原始路径.json"
+      ],
+      "original_sha256": "b0e64719b6d8f252a3a9c2919d5c852c62362871abadf3384b5e12187adfa4a4",
+      "original_size_bytes": 1987,
+      "truncation": "R1_lite_table_withdrawing_mcap 原始路径.json：本视图sources由3条保留3条，保留路径为{dataset2}/R1_lite_table_withdrawing_mcap/20261009_table_withdrawing；{dataset2}/R1_lite_table_withdrawing_mcap/20261010_table_withdrawing；{dataset2}/R1_lite_table_withdrawing_mcap/20261011_table_withdrawing。links的1条全部保留，source_id不重算。R1_lite_table_withdrawing_mcap：两个视图均保留全部3个录制批次（20261009_table_withdrawing、20261010_table_withdrawing、20261011_table_withdrawing）和唯一任务table withdrawing（原生录制），用于验证同一任务关联多个批次。保留任务名中的空格及中文括号；历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/mcap/R1_lite_table_withdrawing_mcap/数据集信息.json",
+      "destination": "{nav_root}/按格式/mcap/R1_lite_table_withdrawing_mcap/数据集信息.json",
+      "asset_path": "nav/按格式/mcap/R1_lite_table_withdrawing_mcap/数据集信息.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "mcap",
+        "R1_lite_table_withdrawing_mcap",
+        "数据集信息.json"
+      ],
+      "original_sha256": "b3c2d76a6e8d56383b38f473ce287e7dbff9bfea525301b45905293373e3d249",
+      "original_size_bytes": 4573,
+      "truncation": "R1_lite_table_withdrawing_mcap 数据集信息.json：全部14项快照说明未截短，两个视图保持相同文字；只替换路径前缀，不把原快照大小和轨迹数改写成夹具统计值。summary_path指向的历史失效汇总文档仍登记为失效。R1_lite_table_withdrawing_mcap：两个视图均保留全部3个录制批次（20261009_table_withdrawing、20261010_table_withdrawing、20261011_table_withdrawing）和唯一任务table withdrawing（原生录制），用于验证同一任务关联多个批次。保留任务名中的空格及中文括号；历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/mcap/R1_lite_table_withdrawing_mcap/子任务.json",
+      "destination": "{nav_root}/按格式/mcap/R1_lite_table_withdrawing_mcap/子任务.json",
+      "asset_path": "nav/按格式/mcap/R1_lite_table_withdrawing_mcap/子任务.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "mcap",
+        "R1_lite_table_withdrawing_mcap",
+        "子任务.json"
+      ],
+      "original_sha256": "7a5becfb91d5ca3e2574449421211a53741eaa83c493e554aad0b6d2ee9a0f4e",
+      "original_size_bytes": 3707,
+      "truncation": "R1_lite_table_withdrawing_mcap 子任务.json：tasks由1个保留1个，保留任务为table withdrawing（原生录制）。task_count同步为保留数；sources引用仅保留同一选择中的source_id，共3项。保留任务内的evidence、episode_indices等其余字段原样，不切实际轨迹。R1_lite_table_withdrawing_mcap：两个视图均保留全部3个录制批次（20261009_table_withdrawing、20261010_table_withdrawing、20261011_table_withdrawing）和唯一任务table withdrawing（原生录制），用于验证同一任务关联多个批次。保留任务名中的空格及中文括号；历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/mcap/EgoProStandard/原始路径.json",
+      "destination": "{nav_root}/按格式/mcap/EgoProStandard/原始路径.json",
+      "asset_path": "nav/按格式/mcap/EgoProStandard/原始路径.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "mcap",
+        "EgoProStandard",
+        "原始路径.json"
+      ],
+      "original_sha256": "d48818a511efd789ce8b8642da56206dd36a908b0948d27feff0b362e74beef5",
+      "original_size_bytes": 337413,
+      "truncation": "EgoProStandard 原始路径.json：本视图sources由734条保留4条，保留路径为{dataset1}/EgoProStandard/mcap/Adjust Seal Sticker；{dataset2}/EgoProStandard/mcap/Adjust Shelf Labels；{dataset2}/EgoProStandard/mcap/Affix Shipping Label (on Package Surface)；{dataset2}/EgoProStandard/mcap/Secure the biscuit tin's latch lid_plum。links的2条全部保留，source_id不重算。EgoProStandard：两个视图均从734条数据块保留4条、从723个任务保留4个。保留Adjust Seal Sticker（dataset1）、Adjust Shelf Labels、Affix Shipping Label (on Package Surface)、Secure the biscuit tin's latch lid_plum（后三项在dataset2），用于覆盖跨盘链接、空格、括号和撇号。删除其余数据块与任务及相应引用以限制夹具体积；两个视图保留相同稳定编号，历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/mcap/EgoProStandard/数据集信息.json",
+      "destination": "{nav_root}/按格式/mcap/EgoProStandard/数据集信息.json",
+      "asset_path": "nav/按格式/mcap/EgoProStandard/数据集信息.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "mcap",
+        "EgoProStandard",
+        "数据集信息.json"
+      ],
+      "original_sha256": "e612a057e3270cd92888125c42cd8b556fd983b0d11ed336c570aa87a3b7412d",
+      "original_size_bytes": 4992,
+      "truncation": "EgoProStandard 数据集信息.json：全部14项快照说明未截短，两个视图保持相同文字；只替换路径前缀，不把原快照大小和轨迹数改写成夹具统计值。summary_path指向的历史失效汇总文档仍登记为失效。EgoProStandard：两个视图均从734条数据块保留4条、从723个任务保留4个。保留Adjust Seal Sticker（dataset1）、Adjust Shelf Labels、Affix Shipping Label (on Package Surface)、Secure the biscuit tin's latch lid_plum（后三项在dataset2），用于覆盖跨盘链接、空格、括号和撇号。删除其余数据块与任务及相应引用以限制夹具体积；两个视图保留相同稳定编号，历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/mcap/EgoProStandard/子任务.json",
+      "destination": "{nav_root}/按格式/mcap/EgoProStandard/子任务.json",
+      "asset_path": "nav/按格式/mcap/EgoProStandard/子任务.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "mcap",
+        "EgoProStandard",
+        "子任务.json"
+      ],
+      "original_sha256": "ba8aa2ef0ec750a37b4646cfbf65c93978ee3e7d9fcf9fbca6e07f8d9261e2c9",
+      "original_size_bytes": 1000487,
+      "truncation": "EgoProStandard 子任务.json：tasks由723个保留4个，保留任务为Adjust Seal Sticker；Affix Shipping Label (on Package Surface)；Secure the biscuit tin's latch lid_plum；Adjust Shelf Labels。task_count同步为保留数；sources引用仅保留同一选择中的source_id，共4项。保留任务内的evidence、episode_indices等其余字段原样，不切实际轨迹。EgoProStandard：两个视图均从734条数据块保留4条、从723个任务保留4个。保留Adjust Seal Sticker（dataset1）、Adjust Shelf Labels、Affix Shipping Label (on Package Surface)、Secure the biscuit tin's latch lid_plum（后三项在dataset2），用于覆盖跨盘链接、空格、括号和撇号。删除其余数据块与任务及相应引用以限制夹具体积；两个视图保留相同稳定编号，历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/tar、tar.gz（含分卷）/agibot_world_alpha/原始路径.json",
+      "destination": "{nav_root}/按格式/tar、tar.gz（含分卷）/agibot_world_alpha/原始路径.json",
+      "asset_path": "nav/按格式/tar、tar.gz（含分卷）/agibot_world_alpha/原始路径.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "tar、tar.gz（含分卷）",
+        "agibot_world_alpha",
+        "原始路径.json"
+      ],
+      "original_sha256": "e765f30af2264e5b73c624af1d6aedb65d17645b9700bf9be539b86d29387095",
+      "original_size_bytes": 134169,
+      "truncation": "agibot_world_alpha 原始路径.json：本视图sources由215条保留4条，保留路径为{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327；{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21；{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old；{dataset2}/agibot_world_alpha/observations/327。links的4条全部保留，source_id不重算。task_metadata由36条保留1条。agibot_world_alpha：两个视图均从215条数据块保留4条、从36个任务保留task327（超市取货放入购物车）1个，task_metadata从36条保留1条。四块为原生observations/327和pickup_items_in_the_supermarket__task_327、同名_v21、同名_v21_old三个已删除转换副本；保留后者及其meta引用的失效状态，不创建假目录掩盖删除。保留四组件逐目录链接、中文任务名和格式目录的中文标点；另保留汇总文档失效。其他任务及其引用删除以缩小样本。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/tar、tar.gz（含分卷）/agibot_world_alpha/数据集信息.json",
+      "destination": "{nav_root}/按格式/tar、tar.gz（含分卷）/agibot_world_alpha/数据集信息.json",
+      "asset_path": "nav/按格式/tar、tar.gz（含分卷）/agibot_world_alpha/数据集信息.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "tar、tar.gz（含分卷）",
+        "agibot_world_alpha",
+        "数据集信息.json"
+      ],
+      "original_sha256": "d467a9e099ebf6a6254b2ae2a706f2af4999bd914ab8892a74c77db965db2392",
+      "original_size_bytes": 5348,
+      "truncation": "agibot_world_alpha 数据集信息.json：全部14项快照说明未截短，两个视图保持相同文字；只替换路径前缀，不把原快照大小和轨迹数改写成夹具统计值。summary_path指向的历史失效汇总文档仍登记为失效。agibot_world_alpha：两个视图均从215条数据块保留4条、从36个任务保留task327（超市取货放入购物车）1个，task_metadata从36条保留1条。四块为原生observations/327和pickup_items_in_the_supermarket__task_327、同名_v21、同名_v21_old三个已删除转换副本；保留后者及其meta引用的失效状态，不创建假目录掩盖删除。保留四组件逐目录链接、中文任务名和格式目录的中文标点；另保留汇总文档失效。其他任务及其引用删除以缩小样本。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/tar、tar.gz（含分卷）/agibot_world_alpha/子任务.json",
+      "destination": "{nav_root}/按格式/tar、tar.gz（含分卷）/agibot_world_alpha/子任务.json",
+      "asset_path": "nav/按格式/tar、tar.gz（含分卷）/agibot_world_alpha/子任务.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "tar、tar.gz（含分卷）",
+        "agibot_world_alpha",
+        "子任务.json"
+      ],
+      "original_sha256": "739dec80c21c730e78b0d484be87ca9c08ecf16074500297c0194f2f0d6bade8",
+      "original_size_bytes": 328953,
+      "truncation": "agibot_world_alpha 子任务.json：tasks由36个保留1个，保留任务为超市取货放入购物车。task_count同步为保留数；sources引用仅保留同一选择中的source_id，共4项。保留任务内的evidence、episode_indices等其余字段原样，不切实际轨迹。agibot_world_alpha：两个视图均从215条数据块保留4条、从36个任务保留task327（超市取货放入购物车）1个，task_metadata从36条保留1条。四块为原生observations/327和pickup_items_in_the_supermarket__task_327、同名_v21、同名_v21_old三个已删除转换副本；保留后者及其meta引用的失效状态，不创建假目录掩盖删除。保留四组件逐目录链接、中文任务名和格式目录的中文标点；另保留汇总文档失效。其他任务及其引用删除以缩小样本。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/lerobot/3.0/libero_10/原始路径.json",
+      "destination": "{nav_root}/按格式/lerobot/3.0/libero_10/原始路径.json",
+      "asset_path": "nav/按格式/lerobot/3.0/libero_10/原始路径.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "lerobot",
+        "3.0",
+        "libero_10",
+        "原始路径.json"
+      ],
+      "original_sha256": "bae20af6294b477d16937e923fe667a31dafb53c14c6877434c6b55ea656b70e",
+      "original_size_bytes": 879,
+      "truncation": "libero_10 原始路径.json：本视图sources由1条保留1条，保留路径为{dataset1}/libero_v3/libero_10。links的1条全部保留，source_id不重算。libero_10：两个视图均保留全部1条数据块（libero_v3/libero_10）和全部10个任务，体积小，无需裁剪记录。保留英文任务名的空格和原文中文标点。历史失效仅为summary_path指向的汇总文档；meta/episodes目录应存在。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/lerobot/3.0/libero_10/数据集信息.json",
+      "destination": "{nav_root}/按格式/lerobot/3.0/libero_10/数据集信息.json",
+      "asset_path": "nav/按格式/lerobot/3.0/libero_10/数据集信息.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "lerobot",
+        "3.0",
+        "libero_10",
+        "数据集信息.json"
+      ],
+      "original_sha256": "81b7aec9034e4700f85211566497255b6e6fa5826aba85cf9c8be15b056567d7",
+      "original_size_bytes": 4578,
+      "truncation": "libero_10 数据集信息.json：全部14项快照说明未截短，两个视图保持相同文字；只替换路径前缀，不把原快照大小和轨迹数改写成夹具统计值。summary_path指向的历史失效汇总文档仍登记为失效。libero_10：两个视图均保留全部1条数据块（libero_v3/libero_10）和全部10个任务，体积小，无需裁剪记录。保留英文任务名的空格和原文中文标点。历史失效仅为summary_path指向的汇总文档；meta/episodes目录应存在。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/lerobot/3.0/libero_10/子任务.json",
+      "destination": "{nav_root}/按格式/lerobot/3.0/libero_10/子任务.json",
+      "asset_path": "nav/按格式/lerobot/3.0/libero_10/子任务.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "lerobot",
+        "3.0",
+        "libero_10",
+        "子任务.json"
+      ],
+      "original_sha256": "0ac3a526461b8a01691ff8d4fa7073d46a3331ca174f3b1c5e9315898df79c4a",
+      "original_size_bytes": 23207,
+      "truncation": "libero_10 子任务.json：tasks由10个保留10个，保留任务为put both moka pots on the stove；pick up the book and place it in the back compartment of the caddy；put the white mug on the plate and put the chocolate pudding to the right of the plate；put both the alphabet soup and the cream cheese box in the basket；turn on the stove and put the moka pot on it；put both the alphabet soup and the tomato sauce in the basket；put the white mug on the left plate and put the yellow and white mug on the right plate；put the yellow and white mug in the microwave and close it；put both the cream cheese box and the butter in the basket；put the black bowl in the bottom drawer of the cabinet and close it。task_count同步为保留数；sources引用仅保留同一选择中的source_id，共10项。保留任务内的evidence、episode_indices等其余字段原样，不切实际轨迹。libero_10：两个视图均保留全部1条数据块（libero_v3/libero_10）和全部10个任务，体积小，无需裁剪记录。保留英文任务名的空格和原文中文标点。历史失效仅为summary_path指向的汇总文档；meta/episodes目录应存在。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/lerobot/3.0/EgoProDemo/原始路径.json",
+      "destination": "{nav_root}/按格式/lerobot/3.0/EgoProDemo/原始路径.json",
+      "asset_path": "nav/按格式/lerobot/3.0/EgoProDemo/原始路径.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "lerobot",
+        "3.0",
+        "EgoProDemo",
+        "原始路径.json"
+      ],
+      "original_sha256": "5f6cd622b441df08355c8a6b5a3b769c0ce7649f0d1520935360f5a5188284d5",
+      "original_size_bytes": 143743,
+      "truncation": "EgoProDemo 原始路径.json：本视图sources由233条保留2条，保留路径为{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d；{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/11deec69-bf40-4a5a-a8c7-7a397b3df648。links的1条全部保留，source_id不重算。EgoProDemo：按任务原有234条数据块和94个任务，按格式原有233条数据块和93个任务；两边均保留2条数据块和2个任务。保留Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d及Affix Shipping Label (on Package Surface)的首条数据块，覆盖每任务每条LeRobot目录、空格及括号。删除其他轨迹引用以保持小样本；保留前一条的真实meta/info.json（robot_type=null、fps=30.0、codebase_version=v3.0）。历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/lerobot/3.0/EgoProDemo/数据集信息.json",
+      "destination": "{nav_root}/按格式/lerobot/3.0/EgoProDemo/数据集信息.json",
+      "asset_path": "nav/按格式/lerobot/3.0/EgoProDemo/数据集信息.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "lerobot",
+        "3.0",
+        "EgoProDemo",
+        "数据集信息.json"
+      ],
+      "original_sha256": "0e1f08671a9e26e166b5b7a7fa4a281d3337bf87b5a6b79869cba0586fe13780",
+      "original_size_bytes": 4733,
+      "truncation": "EgoProDemo 数据集信息.json：全部14项快照说明未截短，两个视图保持相同文字；只替换路径前缀，不把原快照大小和轨迹数改写成夹具统计值。summary_path指向的历史失效汇总文档仍登记为失效。EgoProDemo：按任务原有234条数据块和94个任务，按格式原有233条数据块和93个任务；两边均保留2条数据块和2个任务。保留Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d及Affix Shipping Label (on Package Surface)的首条数据块，覆盖每任务每条LeRobot目录、空格及括号。删除其他轨迹引用以保持小样本；保留前一条的真实meta/info.json（robot_type=null、fps=30.0、codebase_version=v3.0）。历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/nav/按格式/lerobot/3.0/EgoProDemo/子任务.json",
+      "destination": "{nav_root}/按格式/lerobot/3.0/EgoProDemo/子任务.json",
+      "asset_path": "nav/按格式/lerobot/3.0/EgoProDemo/子任务.json",
+      "source_path_parts": [
+        "mnt",
+        "datasets",
+        "按格式",
+        "lerobot",
+        "3.0",
+        "EgoProDemo",
+        "子任务.json"
+      ],
+      "original_sha256": "1ba6582424570e506d96f42374a66db43c7b4db881cbf77862da033bc764aa93",
+      "original_size_bytes": 258814,
+      "truncation": "EgoProDemo 子任务.json：tasks由93个保留2个，保留任务为Affix Shipping Label (on Package Surface)；Adjust Shelf Labels。task_count同步为保留数；sources引用仅保留同一选择中的source_id，共2项。保留任务内的evidence、episode_indices等其余字段原样，不切实际轨迹。EgoProDemo：按任务原有234条数据块和94个任务，按格式原有233条数据块和93个任务；两边均保留2条数据块和2个任务。保留Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d及Affix Shipping Label (on Package Surface)的首条数据块，覆盖每任务每条LeRobot目录、空格及括号。删除其他轨迹引用以保持小样本；保留前一条的真实meta/info.json（robot_type=null、fps=30.0、codebase_version=v3.0）。历史失效仅为汇总文档。"
+    },
+    {
+      "sample_file": "samples/roots/dataset1/libero_v3/libero_10/meta/info.json",
+      "destination": "{dataset1}/libero_v3/libero_10/meta/info.json",
+      "asset_path": "roots/dataset1/libero_v3/libero_10/meta/info.json",
+      "source_path_parts": [
+        "mnt",
+        "dataset1",
+        "libero_v3",
+        "libero_10",
+        "meta",
+        "info.json"
+      ],
+      "original_sha256": "ba10b105378537846d33f826a5080216ab0e04b82827f7a70b4862ddb1a77168",
+      "original_size_bytes": 3513,
+      "truncation": "libero_10 meta/info.json：未截短，保留全部字段及数据/视频路径模板；robot_type、fps、codebase_version分别为franka、20、v3.0。样本只含元信息，不复制实际数据载荷。"
+    },
+    {
+      "sample_file": "samples/roots/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d/meta/info.json",
+      "destination": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d/meta/info.json",
+      "asset_path": "roots/dataset2/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d/meta/info.json",
+      "source_path_parts": [
+        "mnt",
+        "dataset2",
+        "EgoProDemo",
+        "EgoProStandard-body",
+        "lerobot",
+        "Adjust Shelf Labels",
+        "5800ed0b-0fd7-438d-89a8-ef23de66723d",
+        "meta",
+        "info.json"
+      ],
+      "original_sha256": "76593eccbc71e70397927d0180718988560763426f25ac0cca23d305df10acbb",
+      "original_size_bytes": 12178,
+      "truncation": "EgoProDemo meta/info.json：未截短，保留全部字段及数据/视频路径模板；robot_type、fps、codebase_version分别为null、30.0、v3.0。样本只含元信息，不复制实际数据载荷。"
+    }
+  ],
+  "selections": [
+    {
+      "dataset_id": "dataset-14",
+      "source_ids": [
+        "src_0b33c900c7fa"
+      ],
+      "task_keys": [
+        "libero_v3_28f14f4b739c",
+        "libero_v3_2a3da0cbc71b",
+        "libero_v3_2bfccbeaf894",
+        "libero_v3_39b87baed0d4",
+        "libero_v3_4332cffe7bc0",
+        "libero_v3_8405398832a6",
+        "libero_v3_8e287134a296",
+        "libero_v3_9f1272e843cc",
+        "libero_v3_c0d6cce5a78a",
+        "libero_v3_fb511f1ad744"
+      ],
+      "retained_missing_paths": [
+        "{nav_root}/文档/两块数据盘数据集信息汇总_14项标准_2026-10-12.md"
+      ],
+      "explanation": "libero_10：两个视图均保留全部1条数据块（libero_v3/libero_10）和全部10个任务，体积小，无需裁剪记录。保留英文任务名的空格和原文中文标点。历史失效仅为summary_path指向的汇总文档；meta/episodes目录应存在。"
+    },
+    {
+      "dataset_id": "dataset-35",
+      "source_ids": [
+        "src_01e0bc7e9cc8",
+        "src_d5edab567d18",
+        "src_04a13d43b1b0"
+      ],
+      "task_keys": [
+        "R1_lite_table_withdrawing_3057251c9fdb"
+      ],
+      "retained_missing_paths": [
+        "{nav_root}/文档/两块数据盘数据集信息汇总_14项标准_2026-10-12.md"
+      ],
+      "explanation": "R1_lite_table_withdrawing_mcap：两个视图均保留全部3个录制批次（20261009_table_withdrawing、20261010_table_withdrawing、20261011_table_withdrawing）和唯一任务table withdrawing（原生录制），用于验证同一任务关联多个批次。保留任务名中的空格及中文括号；历史失效仅为汇总文档。"
+    },
+    {
+      "dataset_id": "dataset-32",
+      "source_ids": [
+        "src_8cdfc98b8129",
+        "src_420822ffb4fb",
+        "src_46fe62a20e01",
+        "src_9a3a7eeb5b20"
+      ],
+      "task_keys": [
+        "EgoProStandard_9bab4dc20149",
+        "EgoProStandard_a0ae305248f3",
+        "EgoProStandard_a7881632fea2",
+        "EgoProStandard_e68424c35ad8"
+      ],
+      "retained_missing_paths": [
+        "{nav_root}/文档/两块数据盘数据集信息汇总_14项标准_2026-10-12.md"
+      ],
+      "explanation": "EgoProStandard：两个视图均从734条数据块保留4条、从723个任务保留4个。保留Adjust Seal Sticker（dataset1）、Adjust Shelf Labels、Affix Shipping Label (on Package Surface)、Secure the biscuit tin's latch lid_plum（后三项在dataset2），用于覆盖跨盘链接、空格、括号和撇号。删除其余数据块与任务及相应引用以限制夹具体积；两个视图保留相同稳定编号，历史失效仅为汇总文档。"
+    },
+    {
+      "dataset_id": "dataset-33",
+      "source_ids": [
+        "src_accf48ec594b",
+        "src_4d589639da3c"
+      ],
+      "task_keys": [
+        "EgoProDemo_a0ae305248f3",
+        "EgoProDemo_e68424c35ad8"
+      ],
+      "retained_missing_paths": [
+        "{nav_root}/文档/两块数据盘数据集信息汇总_14项标准_2026-10-12.md"
+      ],
+      "explanation": "EgoProDemo：按任务原有234条数据块和94个任务，按格式原有233条数据块和93个任务；两边均保留2条数据块和2个任务。保留Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d及Affix Shipping Label (on Package Surface)的首条数据块，覆盖每任务每条LeRobot目录、空格及括号。删除其他轨迹引用以保持小样本；保留前一条的真实meta/info.json（robot_type=null、fps=30.0、codebase_version=v3.0）。历史失效仅为汇总文档。"
+    },
+    {
+      "dataset_id": "dataset-31",
+      "source_ids": [
+        "src_0ce579c7bddf",
+        "src_2a2c94e25231",
+        "src_489eb4dc26b6",
+        "src_73acac5cbe70"
+      ],
+      "task_keys": [
+        "agibot_alpha_task327"
+      ],
+      "retained_missing_paths": [
+        "{dataset2}/agibot_world_alpha/lerobot_v2_output",
+        "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327",
+        "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327/meta/info.json",
+        "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327/meta/tasks.jsonl",
+        "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21",
+        "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21/meta/info.json",
+        "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21/meta/tasks.parquet",
+        "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old",
+        "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old/meta/info.json",
+        "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old/meta/tasks.jsonl",
+        "{nav_root}/文档/两块数据盘数据集信息汇总_14项标准_2026-10-12.md"
+      ],
+      "explanation": "agibot_world_alpha：两个视图均从215条数据块保留4条、从36个任务保留task327（超市取货放入购物车）1个，task_metadata从36条保留1条。四块为原生observations/327和pickup_items_in_the_supermarket__task_327、同名_v21、同名_v21_old三个已删除转换副本；保留后者及其meta引用的失效状态，不创建假目录掩盖删除。保留四组件逐目录链接、中文任务名和格式目录的中文标点；另保留汇总文档失效。其他任务及其引用删除以缩小样本。"
+    }
+  ]
+}

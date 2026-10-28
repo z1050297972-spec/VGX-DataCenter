@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-31",
+  "dataset_name": "agibot_world_alpha",
+  "dataset_roots": [
+    "{dataset2}/agibot_world_alpha"
+  ],
+  "view": "format",
+  "format": "archives",
+  "version": null,
+  "links": [
+    {
+      "name": "observations",
+      "source_path": "{dataset2}/agibot_world_alpha/observations",
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations",
+      "source_type": "directory"
+    },
+    {
+      "name": "parameters",
+      "source_path": "{dataset2}/agibot_world_alpha/parameters",
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/parameters",
+      "source_type": "directory"
+    },
+    {
+      "name": "proprio_stats",
+      "source_path": "{dataset2}/agibot_world_alpha/proprio_stats",
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/proprio_stats",
+      "source_type": "directory"
+    },
+    {
+      "name": "task_info",
+      "source_path": "{dataset2}/agibot_world_alpha/task_info",
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info",
+      "source_type": "directory"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "src_0ce579c7bddf",
+      "original_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327",
+      "direct_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327",
+      "format": "lerobot",
+      "version": "2.0",
+      "entry_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass",
+      "entry_type": "original_source_path"
+    },
+    {
+      "source_id": "src_2a2c94e25231",
+      "original_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21",
+      "direct_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21",
+      "source_role": "data",
+      "validation_status": "attention_required",
+      "entry_type": "original_source_path"
+    },
+    {
+      "source_id": "src_489eb4dc26b6",
+      "original_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old",
+      "direct_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old",
+      "format": "lerobot",
+      "version": "2.1",
+      "entry_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass",
+      "entry_type": "original_source_path"
+    },
+    {
+      "source_id": "src_73acac5cbe70",
+      "original_path": "{dataset2}/agibot_world_alpha/observations/327",
+      "direct_path": "{dataset2}/agibot_world_alpha/observations/327",
+      "format": "agibot_native",
+      "version": null,
+      "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/observations/327",
+      "source_role": "data",
+      "validation_status": "path_exists_only",
+      "entry_type": "through_direct_dataset_symlink"
+    }
+  ],
+  "notes": [
+    "按用户要求，两种视图均只链接四个原始组件目录，目录名沿用原盘。",
+    "observations对应观测数据，proprio_stats对应本体状态统计；原始目录内的归档、展开数据和元数据共同可见。",
+    "LeRobot转换副本保留原始路径记录，不再建立单独的软链接或格式入口。"
+  ],
+  "source_files_modified": false,
+  "task_metadata": [
+    {
+      "task_key": "agibot_alpha_task327",
+      "task_info": {
+        "source_path": "{dataset2}/agibot_world_alpha/task_info/task_327.json",
+        "entry_path": "按格式/tar、tar.gz（含分卷）/agibot_world_alpha/task_info/task_327.json",
+        "record_count": 209,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "34965d77a86b26e8fa1c37c19b2475fbd47171445c495514b344f7e4d9fe7d53"
+      }
+    }
+  ],
+  "navigation_scope": "original_component_or_category_directories",
+  "excluded_from_navigation": [
+    "{dataset2}/agibot_world_alpha/lerobot_v2_output"
+  ]
+}

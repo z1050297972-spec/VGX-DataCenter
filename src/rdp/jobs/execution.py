@@ -46,6 +46,7 @@ from rdp.jobs.registry import (
     JobRegistry,
 )
 from rdp.jobs.resources import save_resource_display
+from rdp.jobs.storage import check_storage_before_job
 from rdp.jobs.types import (
     ExecutionMode,
     ExecutionSnapshot,
@@ -235,7 +236,7 @@ def execute_job(
         类型调用前在事务和导航层写锁之外调用 check_storage_before_job；
         无存储声明不查挂载表，有声明时只读违规/离线/检查 I/O 失败均以外部失败收尾，
         类型 execute 一次也不调用，存储根不产生新文件；新执行、续跑、重跑都适用。
-        存储检查前后均到达取消/停止检查点，终态取消优先规则不变。
+        存储检查前后及等待中均到达取消/停止检查点，终态取消优先规则不变。
         单条作业失败后 worker 继续其他作业。类型函数异常只在此记一次 ERROR，作业记录保留统一诊断与有界样例；
         程序缺陷完整报告经 infra.db.records.write_error 以作业编号保存，报告失败不掩盖原失败。
         最终事务保存内存最新进度、计数、产物、耗时和诊断，再 transition_job；提交后以同一摘要写结尾。
@@ -421,6 +422,12 @@ class _ExecutionRun:
             navigation_example_path=dependencies.paths.navigation_example
             if record.type_name == EXAMPLE_NAVIGATION_TYPE
             else None,
+        )
+        self.reporter.check_cancelled()
+        check_storage_before_job(
+            definition.storage,
+            checker=dependencies.storage,
+            checkpoint=self.reporter.check_cancelled,
         )
         self.reporter.check_cancelled()
         definition.execute(context)

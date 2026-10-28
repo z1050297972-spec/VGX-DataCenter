@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-32",
+  "dataset_name": "EgoProStandard",
+  "dataset_roots": [
+    "{dataset1}/EgoProStandard",
+    "{dataset2}/EgoProStandard"
+  ],
+  "view": "task",
+  "format": null,
+  "version": null,
+  "links": [
+    {
+      "name": "原始数据__dataset1",
+      "source_path": "{dataset1}/EgoProStandard",
+      "entry_path": "按任务/EgoProStandard/原始数据__dataset1",
+      "source_type": "directory"
+    },
+    {
+      "name": "原始数据__dataset2",
+      "source_path": "{dataset2}/EgoProStandard",
+      "entry_path": "按任务/EgoProStandard/原始数据__dataset2",
+      "source_type": "directory"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "src_8cdfc98b8129",
+      "original_path": "{dataset1}/EgoProStandard/mcap/Adjust Seal Sticker",
+      "direct_path": "{dataset1}/EgoProStandard/mcap/Adjust Seal Sticker",
+      "format": "mcap",
+      "version": null,
+      "entry_path": "按任务/EgoProStandard/原始数据__dataset1/mcap/Adjust Seal Sticker",
+      "source_role": "data",
+      "validation_status": "path_exists_only"
+    },
+    {
+      "source_id": "src_420822ffb4fb",
+      "original_path": "{dataset2}/EgoProStandard/mcap/Adjust Shelf Labels",
+      "direct_path": "{dataset2}/EgoProStandard/mcap/Adjust Shelf Labels",
+      "format": "mcap",
+      "version": null,
+      "entry_path": "按任务/EgoProStandard/原始数据__dataset2/mcap/Adjust Shelf Labels",
+      "source_role": "data",
+      "validation_status": "path_exists_only"
+    },
+    {
+      "source_id": "src_46fe62a20e01",
+      "original_path": "{dataset2}/EgoProStandard/mcap/Affix Shipping Label (on Package Surface)",
+      "direct_path": "{dataset2}/EgoProStandard/mcap/Affix Shipping Label (on Package Surface)",
+      "format": "mcap",
+      "version": null,
+      "entry_path": "按任务/EgoProStandard/原始数据__dataset2/mcap/Affix Shipping Label (on Package Surface)",
+      "source_role": "data",
+      "validation_status": "path_exists_only"
+    },
+    {
+      "source_id": "src_9a3a7eeb5b20",
+      "original_path": "{dataset2}/EgoProStandard/mcap/Secure the biscuit tin's latch lid_plum",
+      "direct_path": "{dataset2}/EgoProStandard/mcap/Secure the biscuit tin's latch lid_plum",
+      "format": "mcap",
+      "version": null,
+      "entry_path": "按任务/EgoProStandard/原始数据__dataset2/mcap/Secure the biscuit tin's latch lid_plum",
+      "source_role": "data",
+      "validation_status": "path_exists_only"
+    }
+  ],
+  "notes": [],
+  "source_files_modified": false
+}

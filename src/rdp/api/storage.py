@@ -9,8 +9,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, FastAPI, Request
 
 from rdp.api.account_auth import AccountRequestContext, get_authenticated_context
-from rdp.api.storage_schemas import StorageRootsResponse
-from rdp.infra.storage import MountInspector
+from rdp.api.storage_schemas import StorageRootResponse, StorageRootsResponse
+from rdp.infra.diagnostics import (
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    ExternalError,
+)
+from rdp.infra.storage import MountInspector, validate_mount_inspector
 
 router = APIRouter(prefix="/api/storage-roots", tags=["storage"])
 AuthenticatedContext = Annotated[AccountRequestContext, Depends(get_authenticated_context)]
@@ -35,7 +42,10 @@ def configure_storage(app: FastAPI, *, inspector: MountInspector) -> None:
     Time Semantics:
         接收请求之前一次性调用，不取时钟、不等待外部资源。
     """
-    raise NotImplementedError
+    if app.middleware_stack is not None or hasattr(app.state, "storage_inspector"):
+        raise DefectError()
+    validate_mount_inspector(inspector)
+    app.state.storage_inspector = inspector
 
 
 def get_storage_inspector(request: Request, account: AuthenticatedContext) -> MountInspector:
@@ -60,7 +70,27 @@ def get_storage_inspector(request: Request, account: AuthenticatedContext) -> Mo
     Time Semantics:
         身份时刻沿用请求上下文；检查时刻由随后 inspector 的时钟独立取得。
     """
-    raise NotImplementedError
+    inspector = getattr(request.app.state, "storage_inspector", None)
+    if inspector is None:
+        raise ExternalError(
+            (
+                Diagnostic(
+                    level=DiagnosticLevel.ERROR,
+                    category=DiagnosticCategory.EXTERNAL,
+                    stage="存储查询",
+                    source="平台",
+                    objects=(),
+                    rule="storage.configuration",
+                    actual="应用没有装配存储依赖",
+                    expected="启动时显式装配挂载检查器",
+                    consequence="无法查询存储根状态",
+                    next_step="检查服务启动配置并重启",
+                ),
+            )
+        )
+    if not isinstance(inspector, MountInspector):
+        raise DefectError()
+    return inspector
 
 
 StorageInspector = Annotated[MountInspector, Depends(get_storage_inspector)]
@@ -87,4 +117,16 @@ def list_storage_roots(inspector: StorageInspector) -> StorageRootsResponse:
     Time Semantics:
         每次请求现场检查，未发生根目录访问，不能据此承诺 NAS 响应正常；浏览器显示本地时间。
     """
-    raise NotImplementedError
+    return StorageRootsResponse(
+        items=tuple(
+            StorageRootResponse(
+                name=item.name,
+                path=str(item.path),
+                writable=item.writable,
+                online=item.online,
+                reason=item.reason,
+                checked_at=item.checked_at,
+            )
+            for item in inspector.inspect()
+        )
+    )

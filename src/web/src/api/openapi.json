@@ -1913,7 +1913,12 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "x-display-labels": {
+              "not_mounted": "没挂载",
+              "source_mismatch": "挂错了盘",
+              "timeout": "超时"
+            }
           },
           "writable": {
             "title": "Writable",

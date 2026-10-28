@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-32",
+  "dataset_name": "EgoProStandard",
+  "view": "format",
+  "format": "mcap",
+  "version": null,
+  "task_count": 4,
+  "data_unit": "original_dataset",
+  "semantics": {
+    "task_labels": "记录源任务标签和已有子任务说明；同源多标签不自动认定为同一长任务的顺序步骤。",
+    "source_sequences": "多个子任务可以共享同一数据集、轨迹或视频；本目录只链接原始数据，不按语义标签复制、裁剪视频。",
+    "scope": "whole_root为源根；episodes为已有完整轨迹编号；archive为整包。范围字段按原标注保存。",
+    "video_mapping": "episode编号不是视频文件编号；未提供的时间边界或视频映射不作推断。"
+  },
+  "tasks": [
+    {
+      "task_key": "EgoProStandard_9bab4dc20149",
+      "family": "EgoProStandard",
+      "display_name": "Adjust Seal Sticker",
+      "description": "Adjust Seal Sticker.",
+      "label_status": "verified_source_name",
+      "notes": [
+        "保留源目录的原语言任务名；链接包括该目录全部MCAP录制，未转换或分段。"
+      ],
+      "sources": [
+        {
+          "root": "{dataset1}/EgoProStandard/mcap/Adjust Seal Sticker",
+          "scope": "native_files",
+          "evidence": [
+            {
+              "path": "{dataset1}/EgoProStandard/mcap",
+              "field": "directory_name",
+              "text": "Adjust Seal Sticker"
+            }
+          ],
+          "format": "mcap",
+          "source_id": "src_8cdfc98b8129",
+          "validation_status": "path_exists_only",
+          "entry_path": "{dataset1}/EgoProStandard/mcap/Adjust Seal Sticker",
+          "component": "mcap",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/EgoProStandard",
+      "dataset_ids": [
+        "dataset-32"
+      ],
+      "entry_paths": [
+        "按任务/EgoProStandard"
+      ],
+      "subtask_json_paths": [
+        "按任务/EgoProStandard/子任务.json"
+      ]
+    },
+    {
+      "task_key": "EgoProStandard_a0ae305248f3",
+      "family": "EgoProStandard",
+      "display_name": "Affix Shipping Label (on Package Surface)",
+      "description": "Affix Shipping Label (on Package Surface).",
+      "label_status": "verified_source_name",
+      "notes": [
+        "保留源目录的原语言任务名；链接包括该目录全部MCAP录制，未转换或分段。"
+      ],
+      "sources": [
+        {
+          "root": "{dataset2}/EgoProStandard/mcap/Affix Shipping Label (on Package Surface)",
+          "scope": "native_files",
+          "evidence": [
+            {
+              "path": "{dataset2}/EgoProStandard/mcap",
+              "field": "directory_name",
+              "text": "Affix Shipping Label (on Package Surface)"
+            }
+          ],
+          "format": "mcap",
+          "source_id": "src_46fe62a20e01",
+          "validation_status": "path_exists_only",
+          "entry_path": "{dataset2}/EgoProStandard/mcap/Affix Shipping Label (on Package Surface)",
+          "component": "mcap",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/EgoProStandard",
+      "dataset_ids": [
+        "dataset-32"
+      ],
+      "entry_paths": [
+        "按任务/EgoProStandard"
+      ],
+      "subtask_json_paths": [
+        "按任务/EgoProStandard/子任务.json"
+      ]
+    },
+    {
+      "task_key": "EgoProStandard_a7881632fea2",
+      "family": "EgoProStandard",
+      "display_name": "Secure the biscuit tin's latch lid_plum",
+      "description": "Secure the biscuit tin's latch lid.",
+      "label_status": "verified_source_name",
+      "notes": [
+        "保留源目录的原语言任务名；链接包括该目录全部MCAP录制，未转换或分段。"
+      ],
+      "sources": [
+        {
+          "root": "{dataset2}/EgoProStandard/mcap/Secure the biscuit tin's latch lid_plum",
+          "scope": "native_files",
+          "evidence": [
+            {
+              "path": "{dataset2}/EgoProStandard/mcap",
+              "field": "directory_name",
+              "text": "Secure the biscuit tin's latch lid_plum"
+            }
+          ],
+          "format": "mcap",
+          "source_id": "src_9a3a7eeb5b20",
+          "validation_status": "path_exists_only",
+          "entry_path": "{dataset2}/EgoProStandard/mcap/Secure the biscuit tin's latch lid_plum",
+          "component": "mcap",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/EgoProStandard",
+      "dataset_ids": [
+        "dataset-32"
+      ],
+      "entry_paths": [
+        "按任务/EgoProStandard"
+      ],
+      "subtask_json_paths": [
+        "按任务/EgoProStandard/子任务.json"
+      ]
+    },
+    {
+      "task_key": "EgoProStandard_e68424c35ad8",
+      "family": "EgoProStandard",
+      "display_name": "Adjust Shelf Labels",
+      "description": "Adjust Shelf Labels.",
+      "label_status": "verified_source_name",
+      "notes": [
+        "保留源目录的原语言任务名；链接包括该目录全部MCAP录制，未转换或分段。"
+      ],
+      "sources": [
+        {
+          "root": "{dataset2}/EgoProStandard/mcap/Adjust Shelf Labels",
+          "scope": "native_files",
+          "evidence": [
+            {
+              "path": "{dataset2}/EgoProStandard/mcap",
+              "field": "directory_name",
+              "text": "Adjust Shelf Labels"
+            }
+          ],
+          "format": "mcap",
+          "source_id": "src_420822ffb4fb",
+          "validation_status": "path_exists_only",
+          "entry_path": "{dataset2}/EgoProStandard/mcap/Adjust Shelf Labels",
+          "component": "mcap",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/EgoProStandard",
+      "dataset_ids": [
+        "dataset-32"
+      ],
+      "entry_paths": [
+        "按任务/EgoProStandard"
+      ],
+      "subtask_json_paths": [
+        "按任务/EgoProStandard/子任务.json"
+      ]
+    }
+  ],
+  "shared_source_roots": []
+}

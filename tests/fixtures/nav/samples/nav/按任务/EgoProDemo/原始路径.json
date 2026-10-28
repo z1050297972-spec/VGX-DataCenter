@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-33",
+  "dataset_name": "EgoProDemo",
+  "dataset_roots": [
+    "{dataset2}/EgoProDemo"
+  ],
+  "view": "task",
+  "format": null,
+  "version": null,
+  "links": [
+    {
+      "name": "原始数据",
+      "source_path": "{dataset2}/EgoProDemo",
+      "entry_path": "按任务/EgoProDemo/原始数据",
+      "source_type": "directory"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "src_accf48ec594b",
+      "original_path": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d",
+      "direct_path": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    },
+    {
+      "source_id": "src_4d589639da3c",
+      "original_path": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/11deec69-bf40-4a5a-a8c7-7a397b3df648",
+      "direct_path": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/11deec69-bf40-4a5a-a8c7-7a397b3df648",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/EgoProDemo/原始数据/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/11deec69-bf40-4a5a-a8c7-7a397b3df648",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    }
+  ],
+  "notes": [],
+  "source_files_modified": false
+}

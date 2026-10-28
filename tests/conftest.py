@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from nav_manifest import FakeNavigation
+from nav_manifest import FakeNavigation, expand_fake_nav
 
 from rdp.infra import logging as runtime_logging
 
@@ -31,7 +31,7 @@ def fake_nav(tmp_path: Path) -> FakeNavigation:
     Time Semantics:
         function scope，不缓存跨测试状态，不读取真实挂载表。
     """
-    raise NotImplementedError
+    return expand_fake_nav(tmp_path, fixture_dir=Path(__file__).parent / "fixtures" / "nav")
 
 
 @pytest.fixture(autouse=True)

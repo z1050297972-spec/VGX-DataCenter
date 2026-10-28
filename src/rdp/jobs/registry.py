@@ -18,6 +18,7 @@ from rdp.infra.actors import is_display_name
 from rdp.infra.config import MAX_JOB_CONCURRENCY, StorageRootConfig
 from rdp.infra.diagnostics import DefectError
 from rdp.infra.ids import JOB_TYPE_KEY_PATTERN
+from rdp.jobs._storage_requirements import validate_storage_uses
 from rdp.jobs.policy import JOB_DISPLAY_NAME_MAX_CHARS
 from rdp.jobs.types import RecoveryMode
 
@@ -125,6 +126,7 @@ class JobRegistry:
             definition.type_name
         ):
             raise DefectError()
+        validate_storage_uses(definition.storage)
         if (
             type(definition.concurrency) is not int
             or not 1 <= definition.concurrency <= MAX_JOB_CONCURRENCY
@@ -169,7 +171,18 @@ class JobRegistry:
         Time Semantics:
             Web/worker 在全部 register 完成后、接受提交或领取前调用一次；随后不再登记类型。
         """
-        raise NotImplementedError
+        if type(roots) is not tuple or any(
+            not isinstance(cast(object, root), StorageRootConfig) for root in roots
+        ):
+            raise DefectError()
+        names = {root.name for root in roots}
+        for definition in self.definitions():
+            validate_storage_uses(definition.storage)
+            for use in definition.storage:
+                if use.name not in names:
+                    raise ValueError(
+                        f"type_name={definition.type_name} storage_root={use.name}：实际未登记；期望配置中存在该存储根；拒绝启动"
+                    )
 
     def lookup(self, type_name: str) -> JobDefinition | None:
         """查找当前安装的类型，允许历史类型已经被移除。

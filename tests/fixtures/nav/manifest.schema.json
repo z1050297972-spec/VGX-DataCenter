@@ -195,7 +195,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "tests/fixtures/nav/manifest.json 的唯一格式定义。\n\nAttributes:\n    schema_version: 固定 1，不猜测未来版本。\n    roots: 两个合成根，名字唯一。\n    entries: 两个视图各五个入口，共十个，保留 layout.txt 的十八条链接。\n    directories: 占位符开头的全部目标目录、空格式目录和非数据集目录骨架；父目录可隐式创建。\n    files: 小占位文件，含文档第一层的文件名；与 samples 目标互斥。\n    samples: 三十份入口 JSON 加两份 meta/info.json，逐份记来源、哈希和截短说明。\n    selections: 五个数据集的裁剪选择；保留中文标点、空格、括号、撇号。",
+  "description": "tests/fixtures/nav/manifest.json 的唯一格式定义。\n\nAttributes:\n    schema_version: 固定 1，不猜测未来版本。\n    roots: 两个合成根，名字唯一。\n    entries: 两个视图各五个入口，共十个，保留 layout.txt 的十八条链接。\n    directories: 占位符开头的全部目标目录、空格式目录和非数据集目录结构；父目录可隐式创建。\n    files: 小占位文件，含文档第一层的文件名；与 samples 目标互斥。\n    samples: 三十份入口 JSON 加两份 meta/info.json，逐份记来源、哈希和截短说明。\n    selections: 五个数据集的裁剪选择；保留中文标点、空格、括号、撇号。",
   "properties": {
     "schema_version": {
       "const": 1,

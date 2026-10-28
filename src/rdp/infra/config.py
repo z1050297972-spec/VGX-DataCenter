@@ -10,8 +10,10 @@ import re
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
+from itertools import combinations
 from pathlib import Path
 from typing import Annotated, Literal, Self, cast
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
@@ -30,12 +32,14 @@ _DEFAULT_CONFIG_FILE_RELATIVE = Path(".config/rdp/config.toml")
 # Python 3.12 的 tomllib 只在异常文本尾部给出位置；限定匹配范围以避免回显文档内容。
 _TOML_ERROR_POSITION = re.compile(r"\(at (line [0-9]+, column [0-9]+|end of document)\)$")
 
-# 10 号票唯一内置导航层位置；存储根没有机器相关默认值，必须由运维登记。
+# 第 10 张规定的唯一内置导航层位置；存储根没有机器相关默认值，必须由运维登记。
 DEFAULT_NAV_ROOT = Path("/mnt/datasets")
 # L2 默认十秒；0.1 秒允许本地快速失败，60 秒上限避免误配造成作业长期等待。
 DEFAULT_STORAGE_ACCESS_TIMEOUT_S = 10.0
 MIN_STORAGE_ACCESS_TIMEOUT_S = 0.1
 MAX_STORAGE_ACCESS_TIMEOUT_S = 60.0
+# 登记来源必须能无歧义分出主机与绝对导出；IPv6 的冒号只能位于方括号内。
+_NFS_EXPORT_PATTERN = re.compile(r"(?:\[[^\[\]\s/\x00]+\]|[^:\[\]\s/\x00]+):/[^\s\x00]*")
 
 
 class StorageRootConfig(BaseModel):
@@ -51,7 +55,8 @@ class StorageRootConfig(BaseModel):
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True, hide_input_in_errors=True)
-    name: str = Field(pattern=JOB_TYPE_KEY_PATTERN)
+    # Pydantic 的 pattern 是搜索语义，必须加锚点才能沿用类型键的整串匹配契约。
+    name: str = Field(pattern=f"^{JOB_TYPE_KEY_PATTERN}$")
     path: Path
     uuid: str | None = None
     nfs_export: str | None = None
@@ -77,7 +82,14 @@ class StorageRootConfig(BaseModel):
         Time Semantics:
             仅配置解析期校验，无等待或重试。
         """
-        raise NotImplementedError
+        PlatformConfig.validate_state_dir(self.path)
+        if (self.uuid is None) == (self.nfs_export is None):
+            raise ValueError("uuid 与 nfs_export 必须恰好填一项")
+        if self.uuid is not None and str(UUID(self.uuid)) != self.uuid:
+            raise ValueError("UUID 须为小写标准连字符形式")
+        if self.nfs_export is not None and _NFS_EXPORT_PATTERN.fullmatch(self.nfs_export) is None:
+            raise ValueError("NFS 来源须为服务器:绝对导出路径，不含空白或NUL，IPv6须用方括号")
+        return self
 
 
 class StorageConfig(BaseModel):
@@ -232,7 +244,7 @@ class PlatformConfig(BaseModel):
         Time Semantics:
             启动配置快照校验，不监控目录变化。
         """
-        raise NotImplementedError
+        return cls.validate_state_dir(value)
 
     @field_validator("storage_roots")
     @classmethod
@@ -257,7 +269,12 @@ class PlatformConfig(BaseModel):
         Time Semantics:
             同步启动校验，无 I/O 等待。
         """
-        raise NotImplementedError
+        if len({root.name for root in value}) != len(value):
+            raise ValueError("存储根名字不得重复")
+        for left, right in combinations(value, 2):
+            if left.path.is_relative_to(right.path) or right.path.is_relative_to(left.path):
+                raise ValueError("存储根路径不得相等或互相包含")
+        return value
 
     @field_validator("state_dir")
     @classmethod
@@ -366,10 +383,17 @@ def load_config(*, environ: Mapping[str, str], home: Path) -> LoadedConfig:
             PlatformConfig(state_dir=home / _DEFAULT_STATE_DIR_RELATIVE), source, True
         )
     original = dict(data)
+    nav_value = data.get("nav_root")
+    if isinstance(nav_value, str):
+        data["nav_root"] = _expand_path(nav_value, home)
     state_value = data.get("state_dir", home / _DEFAULT_STATE_DIR_RELATIVE)
     data["state_dir"] = (
         _expand_path(state_value, home) if isinstance(state_value, str) else state_value
     )
+    if isinstance(data.get("storage_roots"), list):
+        # TOML数组转不可变集合；只转换已知路径叶子，其他坏值交模型提供来源诊断。
+        data["storage_roots"] = tuple(_root_path(item) for item in data["storage_roots"])
+
     try:
         config = PlatformConfig.model_validate(data)
     except ValidationError as error:
@@ -423,3 +447,12 @@ def _validate_location(value: Path, source: str, item: str) -> None:
         raise ValueError(
             f"配置文件 {source}，项 {item}：实际 {str(value)!r}；期望不含 NUL 或 .. 的绝对路径；拒绝启动，请修正配置"
         ) from error
+
+
+def _root_path(value: object) -> object:
+    """只转换TOML根登记的已知路径字段，坏形状保留给模型提供诊断。"""
+    if not isinstance(value, dict):
+        return value
+    entry = cast(dict[str, object], value)
+    path = entry.get("path")
+    return {**entry, "path": Path(path)} if isinstance(path, str) else entry
