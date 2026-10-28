@@ -1,4 +1,5 @@
 // 登录后布局底部的版本显示（11 M2），复用版本查询；不暴露本机路径，不自行推断 git 信息。
+import { usePlatformVersion } from "./usePlatformVersion";
 import type { ReactElement } from "react";
 import type { HealthClient } from "./api/client";
 
@@ -16,7 +17,9 @@ export interface VersionFooterProps {
  * @sideEffects 通过 usePlatformVersion 发起只读请求；不记录日志、不修改导航状态。
  * @timeSemantics 沿用查询缓存和取消语义；登录、强制改密页面不挂载，避免为版本查询制造认证错误。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 仅抛异常的契约函数保留调用参数；函数使用参数后删除。
 export function VersionFooter(_props: VersionFooterProps): ReactElement {
-  throw new Error("NotImplementedError");
+  const query = usePlatformVersion(_props.client);
+  return (
+    <footer>{query.isPending ? "版本加载中" : query.isError ? "版本暂不可用" : query.data}</footer>
+  );
 }

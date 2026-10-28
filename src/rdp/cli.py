@@ -4,9 +4,28 @@
 使用标准库 argparse/sys 及已批准的 uvicorn，不引入 CLI 或依赖注入框架。
 """
 
+import os
+import shutil
+import sys
+import time
 from collections.abc import Sequence
+from datetime import UTC, datetime
+from getpass import getpass
+from importlib.metadata import version
+from pathlib import Path
+from typing import Unpack
 
-from rdp.api.production import UvicornRunner
+import uvicorn
+from fastapi import FastAPI
+
+import rdp
+from rdp.api.production import UvicornOptions, UvicornRunner, WebRuntime, start_web
+from rdp.infra.logging import LogTime
+from rdp.infra.storage import LinuxMountSource
+from rdp.infra.version import deployment_layout
+from rdp.jobs.types import JobClock
+from rdp.ops.cli import Console, run_cli
+from rdp.ops.lifecycle import stop_signals
 from rdp.ops.runtime import RuntimeInputs, ServiceRuntime
 
 
@@ -32,7 +51,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     Time Semantics:
         系统依赖在调用时绑定；入口只运行一次，返回后由 console script 或 python -m 包装退出。
     """
-    raise NotImplementedError
+    inputs = RuntimeInputs(
+        dict(os.environ),
+        Path.home(),
+        deployment_layout(Path(rdp.__file__)),
+        JobClock(lambda: datetime.now(UTC), time.monotonic),
+        LogTime(),
+        Path("/etc/localtime"),
+        LinuxMountSource(),
+        shutil.which,
+        version,
+    )
+    return run_cli(
+        list(sys.argv[1:] if argv is None else argv),
+        inputs=inputs,
+        console=Console(sys.stdout, sys.stderr, getpass),
+        web=lambda runtime: run_web(runtime, inputs=inputs, runner=_run_uvicorn),
+        signals=stop_signals,
+    )
 
 
 def run_web(runtime: ServiceRuntime, *, inputs: RuntimeInputs, runner: UvicornRunner) -> int:
@@ -56,4 +92,20 @@ def run_web(runtime: ServiceRuntime, *, inputs: RuntimeInputs, runner: UvicornRu
     Time Semantics:
         同步调用到服务停止；使用 inputs.clock.now，版本使用 runtime 启动快照。
     """
-    raise NotImplementedError
+    web_runtime = WebRuntime(
+        inputs.layout.web_dist,
+        runtime.loaded.config.web,
+        runtime.engine,
+        runtime.paths,
+        runtime.registry,
+        runtime.scheduling,
+        runtime.inspector,
+        inputs.clock.now,
+        runtime.version,
+    )
+    return start_web(web_runtime, runner=runner)
+
+
+def _run_uvicorn(app: FastAPI, **options: Unpack[UvicornOptions]) -> None:
+    """用窄协议展开uvicorn的具名选项，避免把框架全部参数暴露给生产装配。"""
+    uvicorn.run(app, **options)

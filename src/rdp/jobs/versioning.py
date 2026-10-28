@@ -3,7 +3,15 @@
 版本随领取事务写入，复用 SQLAlchemy Session 和已有状态校验；不另开提交事务。
 """
 
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
+
+from rdp.infra.diagnostics import ConflictError, DefectError, DiagnosticCategory
+from rdp.infra.version import PLATFORM_VERSION_TEXT
+from rdp.jobs import _storage
+from rdp.jobs.models import JobRow
+from rdp.jobs.records import find_job
+from rdp.jobs.types import JobState
 
 
 def record_execution_version(session: Session, job_id: int, *, version: str) -> None:
@@ -33,4 +41,22 @@ def record_execution_version(session: Session, job_id: int, *, version: str) -> 
         在领取状态/资源更新之后、事务提交和执行线程启动之前调用；
         排队期间升级取新 worker 的版本，运行期间文件变化不改变快照。
     """
-    raise NotImplementedError
+    job_id = _storage.identifier(job_id, internal=True)
+    try:
+        PLATFORM_VERSION_TEXT.validate_python(version)
+    except ValidationError as error:
+        raise DefectError from error
+    with _storage.operation(session, write=True):
+        record = find_job(session, job_id)
+        if record.state is not JobState.RUNNING:
+            raise ConflictError(
+                (
+                    _storage.diagnostic(
+                        job_id, "只有运行中作业可记录执行版本", DiagnosticCategory.CONFLICT
+                    ),
+                )
+            )
+        row = session.get(JobRow, job_id)
+        if row is not None:
+            row.platform_version = version
+            session.flush()

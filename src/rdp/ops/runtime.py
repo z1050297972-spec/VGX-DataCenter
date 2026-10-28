@@ -4,21 +4,44 @@
 不自建依赖容器；下列不可变对象只表示一次服务启动所需的明确输入和资源。
 """
 
+import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 from sqlalchemy import Engine
 
-from rdp.infra.config import LoadedConfig
-from rdp.infra.logging import LoggingSettings, LogTime
-from rdp.infra.state import StatePaths
+from rdp.infra.config import LoadedConfig, load_config
+from rdp.infra.db.connection import create_database_engine
+from rdp.infra.db.migration import check_database_version
+from rdp.infra.diagnostics import (
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    DiagnosticObject,
+    ExternalError,
+    InputError,
+)
+from rdp.infra.logging import (
+    LoggingSettings,
+    LogTime,
+    configure_logging,
+    log_config_source,
+    log_state_warnings,
+)
+from rdp.infra.state import StatePaths, initialize_state, state_paths
 from rdp.infra.storage import LinuxMountSource, MountInspector
-from rdp.infra.version import DeploymentLayout
-from rdp.jobs.registry import JobRegistry
+from rdp.infra.version import DeploymentLayout, read_platform_version
+from rdp.jobs._clock import ClockReader
+from rdp.jobs.registry import JobRegistry, production_registry
+from rdp.jobs.schedules import local_timezone, production_schedules
+from rdp.jobs.scheduling import resolve_scheduling
 from rdp.jobs.scheduling_types import SchedulingCatalog
 from rdp.jobs.types import JobClock
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -108,7 +131,52 @@ def prepare_service(
         必须在接收请求或领取作业前完成；SQLite 版本读取锁预算沿用约 5 秒。
         版本、配置和调度时区每次启动取一次；不轮询、不自动重试。
     """
-    raise NotImplementedError
+    try:
+        ClockReader(inputs.clock).read()
+    except Exception as error:
+        raise DefectError from error
+    loaded = load_config(environ=inputs.environ, home=inputs.home)
+    config = loaded.config
+    paths = state_paths(config, ())
+    warnings = initialize_state(paths)
+    settings = LoggingSettings(process, paths.logs, not no_stderr, config.log)
+    configure_logging(settings, time_source=inputs.log_time)
+    log_config_source(loaded)
+    if not loaded.used_defaults:
+        logger.info("读取配置", extra={"fields": {"config_file": str(loaded.source)}})
+    log_state_warnings(warnings)
+    engine = create_database_engine(paths.database)
+    try:
+        check_database_version(paths.database)
+        registry = production_registry()
+        try:
+            registry.validate_storage_roots(roots=config.storage_roots)
+        except ValueError as error:
+            problem = _input_error("storage_roots", str(error), "配置全部作业声明的根名字")
+            raise problem from error
+        paths = state_paths(config, tuple(item.display_name for item in registry.definitions()))
+        reported = {item.path for item in warnings}
+        log_state_warnings(
+            tuple(item for item in initialize_state(paths) if item.path not in reported)
+        )
+        scheduling = SchedulingCatalog(
+            resolve_scheduling(config.jobs, registry),
+            production_schedules(registry),
+            local_timezone(inputs.localtime),
+        )
+        inspector = MountInspector(
+            config.storage_roots,
+            inputs.mounts.read_mountinfo,
+            inputs.mounts.resolve_uuid_device,
+            inputs.clock.now,
+        )
+        version = read_platform_version(inputs.layout, package_version=inputs.package_version)
+        return ServiceRuntime(
+            loaded, paths, settings, engine, registry, scheduling, inspector, version
+        )
+    except BaseException:
+        engine.dispose()
+        raise
 
 
 def resolve_nvidia_smi(inputs: RuntimeInputs, *, gpus: tuple[int, ...]) -> Path | None:
@@ -132,4 +200,43 @@ def resolve_nvidia_smi(inputs: RuntimeInputs, *, gpus: tuple[int, ...]) -> Path 
     Time Semantics:
         worker 启动一次；逐卡的 5 秒硬件验证仍由 run_worker 负责。
     """
-    raise NotImplementedError
+    if not gpus:
+        return None
+    try:
+        path = inputs.which("nvidia-smi")
+    except Exception as error:
+        raise DefectError from error
+    if path is not None and not isinstance(cast(object, path), str):
+        raise DefectError
+    if path is None or not Path(path).is_absolute():
+        problem = _input_error("nvidia-smi", "找不到绝对命令路径", "PATH 内有可执行的 nvidia-smi")
+        raise problem
+    try:
+        return Path(path).resolve()
+    except OSError as error:
+        diagnostic = _input_error("nvidia-smi", "命令路径无法解析", "可访问的绝对路径").diagnostics[
+            0
+        ]
+        raise ExternalError(
+            (diagnostic.model_copy(update={"category": DiagnosticCategory.EXTERNAL}),)
+        ) from error
+
+
+def _input_error(field: str, actual: str, expected: str) -> InputError:
+    """入口装配的安全上下文形成诊断，不回显配置全文。"""
+    return InputError(
+        (
+            Diagnostic(
+                level=DiagnosticLevel.ERROR,
+                category=DiagnosticCategory.INPUT,
+                stage="服务装配",
+                source="平台",
+                objects=(DiagnosticObject(key="field", value=field),),
+                rule="服务依赖必须完整且可用",
+                actual=actual,
+                expected=expected,
+                consequence="拒绝启动服务",
+                next_step="修正配置或安装工具后重试；无GPU时设置 gpus=[]",
+            ),
+        )
+    )

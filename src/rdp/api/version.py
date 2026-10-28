@@ -1,7 +1,10 @@
 """只读版本接口（11 M2），仅返回入口注入的快照，不在请求中调用 git 或读取部署文件。"""
 
 from fastapi import FastAPI, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
+
+from rdp.infra.diagnostics import DefectError
+from rdp.infra.version import PLATFORM_VERSION_TEXT
 
 
 class VersionResponse(BaseModel):
@@ -34,7 +37,20 @@ def configure_version(app: FastAPI, *, version: str) -> None:
     Time Semantics:
         一次装配；整个进程期间版本固定，升级重启后才变化。
     """
-    raise NotImplementedError
+    if app.middleware_stack is not None or hasattr(app.state, "platform_version"):
+        raise DefectError
+    _validate_version(version)
+    app.state.platform_version = version
+    app.add_api_route(
+        "/api/version",
+        get_version,
+        methods=["GET"],
+        response_model=VersionResponse,
+        openapi_extra={"security": [{"SessionCookie": []}]},
+    )
+    # configure_version 也允许在工厂返回后装配，必须越过已经登记的兜底和静态挂载。
+    app.router.routes.insert(0, app.router.routes.pop())
+    app.openapi_schema = None
 
 
 def get_version(request: Request) -> VersionResponse:
@@ -55,4 +71,13 @@ def get_version(request: Request) -> VersionResponse:
     Time Semantics:
         同步立即读取启动快照，不检查磁盘变化、不缓存请求时刻。
     """
-    raise NotImplementedError
+    version = _validate_version(getattr(request.app.state, "platform_version", None))
+    return VersionResponse(version=version)
+
+
+def _validate_version(version: object) -> str:
+    """把装配缺陷与不可信构建文件的输入问题区分开，复用同一文字约束。"""
+    try:
+        return PLATFORM_VERSION_TEXT.validate_python(version)
+    except ValidationError as error:
+        raise DefectError from error

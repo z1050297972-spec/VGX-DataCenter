@@ -4,6 +4,7 @@
 包顶层组合入口将公共运行资源转换为此类型，避免 api 与 ops 相互 import。
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -13,11 +14,17 @@ from typing import Literal, Protocol, TypedDict, Unpack
 from fastapi import FastAPI
 from sqlalchemy import Engine
 
+from rdp.api import create_app
+from rdp.api.jobs import configure_jobs
+from rdp.api.shutdown import drain_error_reports
+from rdp.api.storage import configure_storage
 from rdp.infra.config import WebConfig
 from rdp.infra.state import StatePaths
 from rdp.infra.storage import MountInspector
 from rdp.jobs.registry import JobRegistry
 from rdp.jobs.scheduling_types import SchedulingCatalog
+
+logger = logging.getLogger(__name__)
 
 # 给已接收请求 30 秒完成；外部报错线程另有独立预算，不让长请求阻止 systemd 正常停机。
 WEB_REQUEST_STOP_TIMEOUT_S = 30
@@ -96,7 +103,7 @@ class UvicornRunner(Protocol):
             持续运行到服务停止；已有请求最多宽限 WEB_REQUEST_STOP_TIMEOUT_S，
             使用 uvicorn 既有信号与异步运行器收尾，不重新安装 worker 信号。
         """
-        raise NotImplementedError
+        ...
 
 
 def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
@@ -120,9 +127,54 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
         不访问存储根内容。失败在本边界写一次诊断；数据库版本不匹配明确提示 rdp migrate。
         runner 结束/异常后调用 drain_error_reports；仅返回 True 才 dispose engine。
         超时保留引擎至进程退出，记录失败，不声称迟到线程已回收，不在同进程重启。
+        调用运行器前以INFO记录平台版本；清理结束后另记退出码，正常为INFO、失败为ERROR，
+        生命周期结束记录不重复原异常诊断或堆栈。
 
     Time Semantics:
         先停止接收请求，后等报错线程，最后关引擎；drain 最多 ERROR_REPORT_DRAIN_TIMEOUT_S 秒。
         uvicorn 的事件循环收尾由其运行器负责；永久磁盘阻塞最终由 systemd 停止期限结束进程。
     """
-    raise NotImplementedError
+    app: FastAPI | None = None
+    code = 1
+    try:
+        app = create_app(
+            runtime.dist,
+            database=runtime.engine,
+            clock=runtime.clock,
+            platform_version=runtime.version,
+        )
+        configure_jobs(app, runtime.paths, runtime.registry, scheduling=runtime.scheduling)
+        configure_storage(app, inspector=runtime.inspector)
+        logger.info("Web开始运行", extra={"fields": {"platform_version": runtime.version}})
+        runner(
+            app,
+            host=runtime.settings.host,
+            port=runtime.settings.port,
+            log_config=None,
+            access_log=False,
+            workers=1,
+            timeout_graceful_shutdown=WEB_REQUEST_STOP_TIMEOUT_S,
+        )
+        code = 0
+    except (Exception, SystemExit):
+        logger.error("Web运行失败；数据库版本不匹配时请运行 rdp migrate", exc_info=True)
+        code = 1
+    finally:
+        try:
+            if app is None or drain_error_reports(app, timeout_s=ERROR_REPORT_DRAIN_TIMEOUT_S):
+                runtime.engine.dispose()
+            else:
+                logger.error("Web报错线程尚未结束，保留数据库引擎至进程退出")
+                code = 1
+        except BaseException:
+            # 清理异常仍按原路径传播，但不能把本次入口结束误记为成功。
+            code = 1
+            raise
+        finally:
+            logger.log(
+                logging.INFO if code == 0 else logging.ERROR,
+                "Web结束运行：%s",
+                "正常停止" if code == 0 else "失败退出",
+                extra={"fields": {"exit_code": code}},
+            )
+    return code

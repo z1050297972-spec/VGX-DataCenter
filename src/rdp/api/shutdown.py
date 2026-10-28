@@ -4,9 +4,13 @@
 状态按 app 隔离，不能使用跨应用的全局线程列表。
 """
 
+import math
 from collections.abc import Callable
+from threading import Condition, Lock
 
 from fastapi import FastAPI
+
+from rdp.infra.diagnostics import DefectError
 
 
 class TrackedReport:
@@ -32,7 +36,15 @@ class TrackedReport:
         Time Semantics:
             登记先于 to_thread 调度；不等待，不在构造时执行回调。
         """
-        raise NotImplementedError
+        if not callable(write):
+            raise DefectError
+        self._registry = _registry(app)
+        self._write = write
+        self._status = "pending"
+        with self._registry.condition:
+            if self._registry.closed:
+                raise DefectError
+            self._registry.pending.add(self)
 
     def run(self) -> None:
         """在线程内执行报错写入，并在实际结束时解除生命周期登记。
@@ -54,7 +66,19 @@ class TrackedReport:
         Time Semantics:
             同步线程工作，沿用写入约 5 秒锁预算；磁盘永久阻塞不承诺可强制中止。
         """
-        raise NotImplementedError
+        with self._registry.condition:
+            if self._status == "cancelled":
+                return
+            if self._status != "pending":
+                raise DefectError
+            self._status = "running"
+        try:
+            self._write()
+        finally:
+            with self._registry.condition:
+                self._status = "done"
+                self._registry.pending.remove(self)
+                self._registry.condition.notify_all()
 
     def cancel_if_pending(self) -> None:
         """回收尚未开始的登记，保持已经运行的写入可被关闭流程观察。
@@ -75,7 +99,11 @@ class TrackedReport:
         Time Semantics:
             调用方在等待结束的 finally 执行；不等待运行中的线程，不延长请求原六秒预算。
         """
-        raise NotImplementedError
+        with self._registry.condition:
+            if self._status == "pending":
+                self._status = "cancelled"
+                self._registry.pending.remove(self)
+                self._registry.condition.notify_all()
 
 
 def drain_error_reports(app: FastAPI, *, timeout_s: float) -> bool:
@@ -100,4 +128,35 @@ def drain_error_reports(app: FastAPI, *, timeout_s: float) -> bool:
         使用单调时间的一个总截止点，不给每个任务重置预算；不能在事件循环线程里阻塞调用。
         永久磁盘阻塞返回 False，进程最终由 systemd 停止期限处理。
     """
-    raise NotImplementedError
+    if type(timeout_s) not in (int, float) or not math.isfinite(timeout_s) or timeout_s < 0:
+        raise DefectError
+    registry = _registry(app)
+    with registry.condition:
+        registry.closed = True
+        return registry.condition.wait_for(lambda: not registry.pending, timeout=timeout_s)
+
+
+class _Reports:
+    """每个应用的任务集合和关闭闸门，同一个Condition保护全部状态转换。"""
+
+    def __init__(self) -> None:
+        """不创建线程，仅持有本应用的同步原语。"""
+        self.condition = Condition()
+        self.pending: set[TrackedReport] = set()
+        self.closed = False
+
+
+# 仅保护首次附加应用状态，任务集合始终按app隔离，不使用全局线程池或任务列表。
+_REGISTRY_LOCK = Lock()
+
+
+def _registry(app: FastAPI) -> _Reports:
+    """原子建立应用私有登记表，错误类型拒绝覆盖。"""
+    with _REGISTRY_LOCK:
+        state = getattr(app.state, "error_reports", None)
+        if state is None:
+            state = _Reports()
+            app.state.error_reports = state
+        if not isinstance(state, _Reports):
+            raise DefectError
+        return state

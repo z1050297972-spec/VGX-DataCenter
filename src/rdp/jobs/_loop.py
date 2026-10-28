@@ -200,6 +200,15 @@ class Loop:
                 return_unstarted_job(
                     session, work.record, mode=work.mode, now=self.dependencies.clock.now()
                 )
+                # 主循环逐次领取后立即启动或退回，不会在此间领取另一个作业。
+                # 与领取字段同一事务恢复旧版本；已经启动的线程绝不进入此分支。
+                if self.scheduler is None:
+                    raise DefectError()
+                row = session.get(JobRow, work.record.job_id)
+                if row is None:
+                    raise DefectError()
+                row.platform_version = self.scheduler.previous_version
+                session.flush()
         except BaseException as error:
             error.add_note(f"未启动领取退回失败 job_id={work.record.job_id}")
             raise

@@ -49,6 +49,7 @@ from rdp.accounts.errors import LoginWaitError
 from rdp.api._asgi import ASGIApp, ASGIMessage, Receive, Send
 from rdp.api.account_auth import clear_session_cookie
 from rdp.api.audit import report_audit_append_failure
+from rdp.api.shutdown import TrackedReport
 from rdp.infra.db.connection import BUSY_TIMEOUT_MS, session_scope
 from rdp.infra.db.records import ErrorRecord, write_error
 from rdp.infra.db.validation import invalid_field
@@ -499,9 +500,12 @@ async def report_error_with_database(
             report=report,
             source_kind="request",
         )
-        await asyncio.wait_for(
-            asyncio.to_thread(_persist_report, engine, record), timeout=ERROR_PERSIST_TIMEOUT_S
-        )
+        tracked = TrackedReport(request.app, lambda: _persist_report(engine, record))
+        try:
+            await asyncio.wait_for(asyncio.to_thread(tracked.run), timeout=ERROR_PERSIST_TIMEOUT_S)
+        finally:
+            # 只撤销未启动登记；超时后仍在运行的写入由Web关闭流程继续等待。
+            tracked.cancel_if_pending()
     except Exception as persistence_error:
         # 报错表本身不可用时只追加安全摘要，不递归保存，也不替换原来的 500。
         logger.error(

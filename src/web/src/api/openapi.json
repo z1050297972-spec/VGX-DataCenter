@@ -2070,6 +2070,22 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VersionResponse": {
+        "description": "供网页底部展示的服务端版本契约。\n\nAttributes:\n    version: 与 rdp --version 相同的文字，1-128 个码点；提交缺失显示“未知”。",
+        "properties": {
+          "version": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "VersionResponse",
+        "type": "object"
+      },
       "WaitReason": {
         "description": "资源等待不增加作业状态；无等待用 None，终态必须清空。",
         "enum": [
@@ -5801,6 +5817,120 @@
         "tags": [
           "storage"
         ]
+      }
+    },
+    "/api/version": {
+      "get": {
+        "description": "返回当前服务实例的版本快照。\n\nArgs:\n    request: 已完成身份检查的当前请求；app 已 configure_version。\n\nReturns:\n    仅含 version 的响应；不包含文件路径、环境变量或运行时 git 信息。\n\nRaises:\n    DefectError: 应用未配置版本或快照被破坏；由统一边界生成错误编号。\n\nSide Effects:\n    无（只读应用内存，不写操作日志或运行日志）。\n\nTime Semantics:\n    同步立即读取启动快照，不检查磁盘变化、不缓存请求时刻。",
+        "operationId": "get_version_api_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Version"
       }
     },
     "/api/worker/scheduling": {

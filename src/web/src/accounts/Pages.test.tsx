@@ -37,11 +37,13 @@ function mount(path: string, fetchImpl: FetchImplementation) {
   caches.push(queryClient);
   const router = createAppRouter({
     queryClient,
-    // 作业横幅是新的独立查询；账号场景的通配失败替身只作用于账号请求。
+    // 横幅和页脚是独立查询；账号场景的通配失败替身只作用于账号请求。
     fetchImpl: (...args) =>
       new URL(args[0].url).pathname === "/api/worker/status"
         ? Promise.resolve(Response.json(onlineWorker))
-        : fetchImpl(...args),
+        : new URL(args[0].url).pathname === "/api/version"
+          ? Promise.resolve(Response.json({ version: "测试 (aaaaaaa)" }))
+          : fetchImpl(...args),
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   const view = render(

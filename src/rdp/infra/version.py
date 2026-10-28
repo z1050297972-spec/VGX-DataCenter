@@ -6,7 +6,21 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
+from typing import Annotated, cast
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter, ValidationError
+
+from rdp.infra.diagnostics import (
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    DiagnosticObject,
+    ExternalError,
+    InputError,
+)
 
 
 @dataclass(frozen=True)
@@ -43,7 +57,18 @@ def deployment_layout(package_file: Path) -> DeploymentLayout:
     Time Semantics:
         每次入口启动确定一次布局；运行期间不随 cwd 改动。
     """
-    raise NotImplementedError
+    if not package_file.is_absolute() or package_file.parts[-3:] != ("src", "rdp", "__init__.py"):
+        raise InputError((_diagnostic("package_file", "使用安装脚本的 src/rdp 源码部署布局"),))
+    try:
+        package_file = package_file.resolve()
+    except OSError as error:
+        raise ExternalError(
+            (_diagnostic("package_file", "可解析的包路径", DiagnosticCategory.EXTERNAL),)
+        ) from error
+    if package_file.parts[-3:] != ("src", "rdp", "__init__.py"):
+        raise InputError((_diagnostic("package_file", "使用安装脚本的 src/rdp 源码部署布局"),))
+    root = package_file.parents[2]
+    return DeploymentLayout(root, root / "src/web/dist", root / "rdp-build.json")
 
 
 def read_platform_version(
@@ -71,4 +96,77 @@ def read_platform_version(
     Time Semantics:
         每个服务启动读取一次并保存快照；作业领取使用该进程快照，运行中不重新读取部署文件。
     """
-    raise NotImplementedError
+    try:
+        with layout.build_info.open("rb") as stream:
+            content = stream.read(_BUILD_INFO_MAX_BYTES + 1)
+        if len(content) > _BUILD_INFO_MAX_BYTES:
+            raise InputError((_diagnostic("build_info", "最多 4096 字节的 UTF-8 JSON"),))
+        try:
+            commit = _BuildInfo.model_validate_json(content.decode("utf-8")).commit[:7]
+        except (ValidationError, UnicodeError) as error:
+            raise InputError(
+                (_diagnostic("build_info", "仅含 40 或 64 位小写十六进制 commit 的 JSON 对象"),)
+            ) from error
+    except FileNotFoundError:
+        commit = "未知"
+    except OSError as error:
+        raise ExternalError(
+            (_diagnostic("build_info", "可读取的构建文件", DiagnosticCategory.EXTERNAL),)
+        ) from error
+    try:
+        version = package_version("rdp")
+    except PackageNotFoundError:
+        version = "未知"
+    except Exception as error:
+        raise DefectError from error
+    if not isinstance(cast(object, version), str):
+        raise DefectError
+    result = f"{version} ({commit})"
+    try:
+        PLATFORM_VERSION_TEXT.validate_python(result)
+    except ValidationError as error:
+        raise InputError((_diagnostic("version", "1-128 个码点且无控制字符"),)) from error
+    return result
+
+
+def _diagnostic(
+    field: str, expected: str, category: DiagnosticCategory = DiagnosticCategory.INPUT
+) -> Diagnostic:
+    """构建版本边界诊断，不回显构建文件或元数据中的不可信内容。"""
+    return Diagnostic(
+        level=DiagnosticLevel.ERROR,
+        category=category,
+        stage="读取部署版本",
+        source="平台",
+        objects=(DiagnosticObject(key="field", value=field),),
+        rule="部署信息必须符合版本契约",
+        actual="路径、内容或访问条件不符合要求",
+        expected=expected,
+        consequence="拒绝启动或显示不可信版本",
+        next_step="检查部署文件与权限，使用安装脚本重新构建",
+    )
+
+
+# 构建信息仅含提交号；4096 字节为公开读取上限，多读一个字节用于判断超限。
+_BUILD_INFO_MAX_BYTES = 4096
+
+
+class _BuildInfo(BaseModel):
+    """严格校验部署文件，不接受额外字段或隐式类型转换。"""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    commit: str = Field(pattern=r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+
+
+# CLI、API 与领取事务共用同一文字规则，防止各边界接受不同的执行版本。
+PLATFORM_VERSION_TEXT = TypeAdapter(
+    Annotated[
+        str,
+        StringConstraints(
+            strict=True,
+            min_length=1,
+            max_length=128,
+            pattern=r"^[^\x00-\x1f\x7f-\x9f\u2028\u2029]+$",
+        ),
+    ]
+)

@@ -79,7 +79,9 @@ def run_worker(
         依赖/配置非法拒绝启动，不伪装成硬件故障。
         注入定时登记及维护服务，不在启动时清理上个实例的孤儿外部进程。
         创建本实例 uuid4/pid/UTC 启动时刻，调用 run_loop。入口只记录未被作业边界报告的故障，
-        同一异常不重复ERROR；锁冲突只说明无法启动。run_loop返回后调用WorkerLock.finish，
+        同一异常的详细诊断不重复ERROR；锁冲突说明无法启动。日志配置后以INFO记录版本、PID和实例号，
+        每个返回结果另记退出码及中文含义，正常为INFO、非零为ERROR；结束记录沿用同一实例号，
+        不重复异常堆栈。run_loop返回后调用WorkerLock.finish，
         所有框架线程均死才关闭原始fd；只要执行线程或读线程还活着就保留fd到进程退出，
         不使用with/finally无条件解锁，也不注册GC/atexit自动关闭。线程均daemon，故不阻止调用方退出。
         失败返回后不写心跳、不重新运行worker；第11张命令必须sys.exit(result.code)，由systemd重启。
@@ -100,39 +102,70 @@ def run_worker(
         raise DefectError()
     _validate_scheduling(scheduling)
     ClockReader(dependencies.clock).read()
+    instance_id = uuid4().hex
     try:
-        configure_logging(logging_settings)
+        if log_time is None:
+            configure_logging(logging_settings)
+        else:
+            configure_logging(logging_settings, time_source=log_time)
+        logger.info(
+            "worker开始运行",
+            extra={
+                "fields": {
+                    "platform_version": dependencies.platform_version,
+                    "pid": os.getpid(),
+                    "instance_id": instance_id,
+                }
+            },
+        )
         check_database_version(dependencies.paths.database)
     except Exception:
         logger.error("worker启动检查失败", exc_info=True)
-        return WorkerExit(WORKER_EXIT_FAILURE, "worker启动检查失败", False)
+        return _worker_exit(
+            WorkerExit(WORKER_EXIT_FAILURE, "worker启动检查失败", False), instance_id
+        )
     try:
         lock = worker_lock(dependencies.paths)
     except ConflictError:
         message = f"另一个 worker 正在运行，锁文件：{dependencies.paths.worker_lock}"
         logger.warning(message)
-        return WorkerExit(WORKER_EXIT_ALREADY_RUNNING, message, False)
+        return _worker_exit(WorkerExit(WORKER_EXIT_ALREADY_RUNNING, message, False), instance_id)
     except Exception:
         logger.error("worker实例锁无法取得", exc_info=True)
-        return WorkerExit(WORKER_EXIT_FAILURE, "worker实例锁无法取得", False)
+        return _worker_exit(
+            WorkerExit(WORKER_EXIT_FAILURE, "worker实例锁无法取得", False), instance_id
+        )
     now = dependencies.clock.now()
-    heartbeat = WorkerHeartbeat(uuid4().hex, os.getpid(), now, now)
+    heartbeat = WorkerHeartbeat(instance_id, os.getpid(), now, now)
     try:
         with session_scope(dependencies.engine) as session:
             reset_resources_on_startup(session)
         resources = _start_resources(dependencies, scheduling, stop, heartbeat.instance_id)
         if resources is None:
             lock.finish(())
-            return WorkerExit(WORKER_EXIT_OK, "worker已停止", False)
+            return _worker_exit(WorkerExit(WORKER_EXIT_OK, "worker已停止", False), instance_id)
         dependencies = replace(dependencies, resources=resources)
     except Exception:
         logger.error("worker资源副本初始化失败，未开始恢复或领取", exc_info=True)
         lock.finish(())
-        return WorkerExit(WORKER_EXIT_FAILURE, "worker资源副本初始化失败", False)
+        return _worker_exit(
+            WorkerExit(WORKER_EXIT_FAILURE, "worker资源副本初始化失败", False), instance_id
+        )
     result = run_loop(dependencies, stop, heartbeat)
     retained = lock.finish(result.unreaped_threads)
     message = "worker已停止" if result.code == WORKER_EXIT_OK else "worker失败退出，需要重启"
-    return WorkerExit(result.code, message, retained)
+    return _worker_exit(WorkerExit(result.code, message, retained), instance_id)
+
+
+def _worker_exit(result: WorkerExit, instance_id: str) -> WorkerExit:
+    """统一记录所有返回分支的退出原因，保持退出码和锁保留决定原样交接。"""
+    logger.log(
+        logging.INFO if result.code == WORKER_EXIT_OK else logging.ERROR,
+        "worker结束运行：%s",
+        result.message,
+        extra={"fields": {"exit_code": result.code, "instance_id": instance_id}},
+    )
+    return result
 
 
 def _start_resources(

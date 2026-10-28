@@ -3,11 +3,18 @@
 信号复用 signal 与 threading.Event；恢复原处理器，测试使用注入上下文而不影响测试进程。
 """
 
-from collections.abc import Callable
-from contextlib import AbstractContextManager
-from threading import Event
+import signal
+from collections.abc import Callable, Generator
+from contextlib import AbstractContextManager, contextmanager
+from threading import Event, current_thread, main_thread
+from types import FrameType
 
-from rdp.ops.runtime import RuntimeInputs, ServiceRuntime
+from rdp.infra.diagnostics import DefectError
+from rdp.infra.storage import StorageAccessChecker, read_storage_root
+from rdp.jobs.execution import ExecutorDependencies
+from rdp.jobs.scheduling import WorkerScheduling
+from rdp.ops.runtime import RuntimeInputs, ServiceRuntime, resolve_nvidia_smi
+from rdp.ops.worker import run_worker
 
 
 def stop_signals(stop: Event) -> AbstractContextManager[None]:
@@ -29,7 +36,7 @@ def stop_signals(stop: Event) -> AbstractContextManager[None]:
     Time Semantics:
         在 run_worker 前安装，重复信号幂等；具体退出期限由 worker 和 systemd 负责。
     """
-    raise NotImplementedError
+    return _signal_context(stop)
 
 
 def start_worker(
@@ -65,4 +72,62 @@ def start_worker(
         配置完成后才安装信号并执行；停止总预算沿用 30 秒，外部工具宽限沿用 10 秒。
         不额外等待遗留执行线程，不绕过 worker 的锁保留语义。
     """
-    raise NotImplementedError
+    retained = False
+    try:
+        config = runtime.loaded.config
+        scheduling = WorkerScheduling(
+            runtime.scheduling,
+            resolve_nvidia_smi(inputs, gpus=config.jobs.gpus),
+            config.errors.retention_days,
+        )
+        storage = StorageAccessChecker(runtime.inspector, config.storage, read_storage_root)
+        dependencies = ExecutorDependencies(
+            runtime.engine,
+            runtime.registry,
+            runtime.paths,
+            inputs.clock,
+            resources=None,
+            storage=storage,
+            platform_version=runtime.version,
+        )
+        stop = Event()
+        with signals(stop):
+            result = run_worker(
+                dependencies, stop, runtime.logging, scheduling=scheduling, log_time=inputs.log_time
+            )
+            # 即使信号恢复抛错，也不能dispose仍有线程使用的引擎。
+            retained = result.lock_retained
+        return result.code
+    finally:
+        if not retained:
+            runtime.engine.dispose()
+
+
+@contextmanager
+def _signal_context(stop: Event) -> Generator[None]:
+    """只在主线程接管信号；部分安装失败也逐项恢复已经替换的处理器。"""
+    if current_thread() is not main_thread():
+        raise DefectError
+    previous: list[tuple[int, Callable[[int, FrameType | None], object] | int | None]] = []
+
+    def requested(_number: int, _frame: FrameType | None) -> None:
+        stop.set()
+
+    try:
+        try:
+            for number in (signal.SIGTERM, signal.SIGINT):
+                old = signal.getsignal(number)
+                signal.signal(number, requested)
+                previous.append((number, old))
+        except Exception as error:
+            raise DefectError from error
+        yield
+    finally:
+        failure: Exception | None = None
+        for number, old in reversed(previous):
+            try:
+                signal.signal(number, old)
+            except Exception as error:
+                failure = error
+        if failure is not None:
+            raise DefectError from failure

@@ -4,11 +4,28 @@
 探测只回答此刻的状态，不替代执行导航修改时必须持续持有的排他锁。
 """
 
+import errno
+import fcntl
+import os
+import socket
+import sqlite3
+import stat
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 
 from rdp.infra.config import WebConfig
-from rdp.infra.diagnostics import Diagnostic
+from rdp.infra.db.connection import BUSY_TIMEOUT_MS, translate_database_error
+from rdp.infra.db.migration import check_database_version
+from rdp.infra.diagnostics import (
+    ConflictError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    DiagnosticObject,
+    ExternalError,
+    InputError,
+)
 
 
 @dataclass(frozen=True)
@@ -45,7 +62,41 @@ def check_worker_stopped(lock_path: Path) -> WorkerAvailability:
     Time Semantics:
         不等待、不轮询；返回后 worker 可能立即启动，M1 实际写入须重新取得并保持锁。
     """
-    raise NotImplementedError
+    if not lock_path.is_absolute():
+        raise InputError(
+            (_diagnostic(str(lock_path), "锁路径不是绝对路径", DiagnosticCategory.INPUT),)
+        )
+    try:
+        return _probe_lock(lock_path)
+    except FileNotFoundError:
+        return WorkerAvailability(True, ())
+    except OSError as error:
+        if error.errno == errno.ELOOP:
+            raise InputError(
+                (_diagnostic(str(lock_path), "锁路径是软链接", DiagnosticCategory.INPUT),)
+            ) from error
+        raise ExternalError(
+            (_diagnostic(str(lock_path), "无法可靠检查锁状态", DiagnosticCategory.EXTERNAL),)
+        ) from error
+
+
+def _probe_lock(path: Path) -> WorkerAvailability:
+    """O_NOFOLLOW与fstat核验实际打开的对象，消除路径检查与打开之间的软链接竞争。"""
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise InputError((_diagnostic(str(path), "锁不是普通文件", DiagnosticCategory.INPUT),))
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return WorkerAvailability(
+                False,
+                (_diagnostic(str(path), "worker仍持有单实例锁", DiagnosticCategory.CONFLICT),),
+            )
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        return WorkerAvailability(True, ())
+    finally:
+        os.close(descriptor)
 
 
 def has_active_jobs(database: Path) -> bool:
@@ -71,7 +122,23 @@ def has_active_jobs(database: Path) -> bool:
     Time Semantics:
         单次锁等待沿用数据库 5 秒上限；结果是当次快照，升级停服务后必须再查一次以封闭竞态。
     """
-    raise NotImplementedError
+    check_database_version(database)
+    try:
+        with closing(
+            sqlite3.connect(
+                database.as_uri() + "?mode=ro", uri=True, timeout=BUSY_TIMEOUT_MS / 1000
+            )
+        ) as connection:
+            connection.execute("PRAGMA query_only=ON")
+            return (
+                connection.execute(
+                    "SELECT 1 FROM jobs WHERE state IN ('running','cancelling') LIMIT 1"
+                ).fetchone()
+                is not None
+            )
+    except sqlite3.Error as error:
+        problem = translate_database_error(error, database=database, operation="检查活跃作业")
+        raise problem from error
 
 
 def check_web_port(settings: WebConfig) -> None:
@@ -95,4 +162,35 @@ def check_web_port(settings: WebConfig) -> None:
         socket 操作超时 1 秒，无自动重试；本机名称解析沿用系统解析器，不承诺 DNS 可中止。
         检查与实际启动之间可能被其他进程占用，最终绑定错误仍由服务入口报告。
     """
-    raise NotImplementedError
+    try:
+        addresses = socket.getaddrinfo(settings.host, settings.port, type=socket.SOCK_STREAM)
+        for family, kind, protocol, _name, address in addresses:
+            with socket.socket(family, kind, protocol) as candidate:
+                candidate.settimeout(1.0)
+                candidate.bind(address)
+    except OSError as error:
+        category = (
+            DiagnosticCategory.CONFLICT
+            if error.errno == errno.EADDRINUSE
+            else DiagnosticCategory.EXTERNAL
+        )
+        diagnostic = _diagnostic(f"{settings.host}:{settings.port}", "监听地址不可用", category)
+        if category is DiagnosticCategory.CONFLICT:
+            raise ConflictError((diagnostic,)) from error
+        raise ExternalError((diagnostic,)) from error
+
+
+def _diagnostic(target: str, actual: str, category: DiagnosticCategory) -> Diagnostic:
+    """只读运维预检的统一诊断，拒绝状态明确给出后果及下一步。"""
+    return Diagnostic(
+        level=DiagnosticLevel.ERROR,
+        category=category,
+        stage="运维预检",
+        source="平台",
+        objects=(DiagnosticObject(key="target", value=target),),
+        rule="维护前状态必须可确认",
+        actual=actual,
+        expected="worker已停止且监听端口可用",
+        consequence="拒绝本次维护或启动",
+        next_step="停止worker后重试；端口冲突时修改配置 web.port",
+    )

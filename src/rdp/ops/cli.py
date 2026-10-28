@@ -4,13 +4,36 @@
 口令只经已有 accounts 交互函数读取，不支持命令行口令或环境变量口令。
 """
 
+import argparse
+import logging
+import sys
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from threading import Event
-from typing import Literal, TextIO
+from typing import Literal, TextIO, override
 
-from rdp.ops.runtime import RuntimeInputs, ServiceRuntime
+from rdp.accounts.security import PasswordCodec
+from rdp.accounts.service import AccountService
+from rdp.infra.config import load_config
+from rdp.infra.db.connection import create_database_engine
+from rdp.infra.db.migration import check_database_version, migrate
+from rdp.infra.diagnostics import (
+    ConflictError,
+    DefectError,
+    ExternalError,
+    InputError,
+    render_diagnostic,
+)
+from rdp.infra.state import initialize_state, state_paths
+from rdp.infra.timeutil import ensure_utc
+from rdp.infra.version import read_platform_version
+from rdp.ops.accounts import create_first_admin, reset_account_password
+from rdp.ops.lifecycle import start_worker
+from rdp.ops.runtime import RuntimeInputs, ServiceRuntime, prepare_service
+from rdp.ops.status import check_web_port, check_worker_stopped, has_active_jobs
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -70,7 +93,21 @@ def parse_command(argv: Sequence[str], *, console: Console) -> Command:
     Time Semantics:
         同步解析，无时钟、交互等待或重试。
     """
-    raise NotImplementedError
+    parser = _parser(console)
+    arguments = parser.parse_args(argv)
+    if arguments.version:
+        if arguments.command is not None:
+            parser.error("--version 不与子命令合用")
+        return Command("version")
+    if arguments.command is None:
+        parser.error("必须指定子命令")
+    return Command(
+        arguments.command,
+        getattr(arguments, "no_stderr", False),
+        getattr(arguments, "login_name", None),
+        getattr(arguments, "display_name", None),
+        getattr(arguments, "status_check", None),
+    )
 
 
 def run_cli(
@@ -111,7 +148,33 @@ def run_cli(
         帮助先于配置读取；服务持续到停止，worker 停止预算沿用 WORKER_STOP_TIMEOUT_S。
         维护命令的事务/口令等待分别沿用 migrate 与 accounts 的契约，无额外重试。
     """
-    raise NotImplementedError
+    previous_handlers = logging.getLogger().handlers
+    try:
+        command = parse_command(argv, console=console)
+        if command.name == "version":
+            console.stdout.write(
+                read_platform_version(inputs.layout, package_version=inputs.package_version) + "\n"
+            )
+            return 0
+        if command.name in ("web", "worker"):
+            runtime = prepare_service(command.name, no_stderr=command.no_stderr, inputs=inputs)
+            if command.name == "web":
+                return web(runtime)
+            return start_worker(runtime, inputs=inputs, signals=signals)
+        if command.name == "status":
+            return _status(command, inputs)
+        return run_maintenance(command, inputs=inputs, console=console)
+    except SystemExit as error:
+        return error.code if isinstance(error.code, int) else 1
+    except (EOFError, KeyboardInterrupt):
+        return 130
+    except Exception as error:
+        message = _failure_text(error)
+        if logging.getLogger().handlers is not previous_handlers:
+            logger.error("运维命令失败：%s", message)
+        else:
+            console.stderr.write("运维命令失败：" + message + "\n")
+        return 1
 
 
 def run_maintenance(command: Command, *, inputs: RuntimeInputs, console: Console) -> int:
@@ -144,4 +207,132 @@ def run_maintenance(command: Command, *, inputs: RuntimeInputs, console: Console
         migrate 要求操作者已停止 Web 和 worker；入口不会强制停止别的进程。
         UTC 时刻每次维护动作取一次；口令交互不持事务，锁和备份预算复用已有入口。
     """
-    raise NotImplementedError
+    if command.name not in ("migrate", "create-admin", "reset-password"):
+        raise DefectError
+    try:
+        now = ensure_utc(inputs.clock.now())
+    except Exception as error:
+        raise DefectError from error
+    config = load_config(environ=inputs.environ, home=inputs.home).config
+    paths = state_paths(config, ())
+    if command.name == "migrate":
+        initialize_state(paths)
+        result = migrate(paths, now=now)
+        console.stdout.write(
+            f"数据库版本：{result.current_revision}；备份：{result.backup or '无'}\n"
+        )
+        return 0
+    check_database_version(paths.database)
+    if command.login_name is None or (
+        command.name == "create-admin" and command.display_name is None
+    ):
+        raise DefectError
+    engine = create_database_engine(paths.database)
+    try:
+        service = AccountService(engine, PasswordCodec())
+        if command.name == "create-admin" and command.display_name is not None:
+            account = create_first_admin(
+                service,
+                command.login_name,
+                command.display_name,
+                now=now,
+                read_password=console.read_password,
+            )
+        else:
+            account = reset_account_password(
+                service, command.login_name, now=now, read_password=console.read_password
+            )
+        console.stdout.write(f"账号操作成功：{account.login_name}\n")
+        return 0
+    finally:
+        engine.dispose()
+
+
+class _Parser(argparse.ArgumentParser):
+    """保留argparse标准帮助与退出码，只把输出路由到显式终端流。"""
+
+    console: Console
+
+    @override
+    def _print_message(self, message: str, file: object = None) -> None:
+        """帮助走stdout，参数错误走stderr，不替换进程全局标准流。"""
+        if message:
+            target = self.console.stderr if file is sys.stderr else self.console.stdout
+            target.write(message)
+
+
+def _parser(console: Console) -> _Parser:
+    """在一处声明运维参数，不允许缩写、不接受口令字段。"""
+    parser = _Parser(prog="rdp", description="机器人数据平台运维入口", allow_abbrev=False)
+    parser.console = console
+    parser.add_argument("--version", action="store_true", help="显示包版本与构建提交")
+    subcommands = parser.add_subparsers(dest="command", parser_class=_Parser)
+    descriptions = {
+        "web": "启动 Web 服务",
+        "worker": "启动后台作业 worker",
+        "migrate": "升级数据库到当前版本",
+        "create-admin": "创建首个管理员",
+        "reset-password": "重置账号口令并撤销旧会话",
+        "status": "只读检查作业、worker 锁或监听端口",
+    }
+    for name, description in descriptions.items():
+        child = subcommands.add_parser(
+            name, help=description, description=description, allow_abbrev=False
+        )
+        child.console = console
+        if name in ("web", "worker"):
+            child.add_argument("--no-stderr", action="store_true", help="只写日志文件")
+        if name in ("create-admin", "reset-password"):
+            child.add_argument("login_name", help="登录名")
+        if name == "create-admin":
+            child.add_argument("display_name", help="显示名")
+        if name == "status":
+            child.epilog = "退出码 1：检查失败；2：参数错误。检查失败不能当作可安全维护。"
+            group = child.add_mutually_exclusive_group(required=True)
+            for option, value, help_text in (
+                (
+                    "--active-jobs",
+                    "active-jobs",
+                    "检查运行中或正在取消的作业；0：无活跃作业；3：有活跃作业",
+                ),
+                (
+                    "--check-port",
+                    "port",
+                    "检查配置的监听地址和端口；0：端口可用；1：占用或检查失败",
+                ),
+                (
+                    "--worker-stopped",
+                    "worker-stopped",
+                    "检查 worker 单实例锁；0：锁未被持有；3：锁被占用",
+                ),
+            ):
+                group.add_argument(
+                    option, dest="status_check", action="store_const", const=value, help=help_text
+                )
+    return parser
+
+
+def _failure_text(error: Exception) -> str:
+    """公开诊断逐条呈现；未知异常只给安全类别，不回显口令或异常载荷。"""
+    if isinstance(error, (InputError, ConflictError, ExternalError)):
+        return (
+            "\n".join(render_diagnostic(item) for item in error.diagnostics)
+            + "；数据库版本问题请运行 rdp migrate"
+        )
+    if isinstance(error, (ValueError, OSError)):
+        return str(error)
+    return f"程序缺陷（{type(error).__name__}），请检查配置与运行日志"
+
+
+def _status(command: Command, inputs: RuntimeInputs) -> int:
+    """状态命令只解析配置与路径，不初始化目录、日志或迁移数据库。"""
+    config = load_config(environ=inputs.environ, home=inputs.home).config
+    paths = state_paths(config, ())
+    if command.status_check == "active-jobs":
+        return 3 if has_active_jobs(paths.database) else 0
+    if command.status_check == "worker-stopped":
+        return 0 if check_worker_stopped(paths.worker_lock).allowed else 3
+    if command.status_check == "port":
+        check_web_port(config.web)
+        return 0
+    raise DefectError

@@ -31,6 +31,7 @@ from rdp.api.health import HealthResponse, get_health
 from rdp.api.jobs import router as jobs_router
 from rdp.api.jobs import worker_router
 from rdp.api.storage import router as storage_router
+from rdp.api.version import configure_version
 from rdp.infra.db.records import ErrorRecord
 from rdp.infra.logging import log_context
 
@@ -225,6 +226,9 @@ def create_app(
     app.include_router(jobs_router)
     app.include_router(storage_router)
     app.include_router(worker_router)
+    configure_version(
+        app, version=platform_version if platform_version is not None else "未知 (未知)"
+    )
     # 已知接口优先；兜底必须在静态挂载之前，不能让构建目录里的 api/ 文件遮蔽接口。
     for path in ("/api", "/api/{unknown:path}"):
         app.add_api_route(

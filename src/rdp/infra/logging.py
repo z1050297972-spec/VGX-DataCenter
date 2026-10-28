@@ -40,7 +40,7 @@ _SAFE_FIELD_STRING_PATTERN = re.compile(r"[A-Za-z0-9_./:@+-]+")
 # 仅持有本模块安装的输出，重配时不关闭 pytest/宿主应用拥有的 handler。
 _installed_handlers: tuple[logging.Handler, ...] = ()
 
-# 09 号票要求自动关联当前作业/请求；None 表示未绑定，不输出该 key。
+# 第 9 张要求自动关联当前作业/请求；None 表示未绑定，不输出该 key。
 job_id_context: ContextVar[int | None] = ContextVar("rdp_job_id", default=None)
 request_id_context: ContextVar[str | None] = ContextVar("rdp_request_id", default=None)
 
@@ -214,6 +214,7 @@ class _DailyFileHandler(TimedRotatingFileHandler):
         self.rolloverAt = _next_midnight(moment)
         self.backupCount = settings.log.retention_days
         self._startup_cleanup = True
+        _archive_before_open(settings.log_dir / f"{settings.process}.log", moment)
         # TimedRotatingFileHandler.__init__ 硬读 time.time/mtime，无法实例级注入。
         # 直接初始化其文件基类，仍复用 BaseRotatingHandler.emit、Handler 锁与文件流。
         logging.FileHandler.__init__(
@@ -558,3 +559,22 @@ def log_state_warnings(warnings: tuple[DirectoryPermissionWarning, ...]) -> None
             extra={"fields": {"path": str(warning.path), "mode": f"{warning.mode:04o}"}},
         )
         logger.handle(record)
+
+
+def _archive_before_open(active: Path, moment: datetime) -> None:
+    """先归档停机前的活动文件，避免新文件打开后mtime掩盖真正的日志日期。"""
+    try:
+        modified = active.stat().st_mtime
+    except FileNotFoundError:
+        return
+    day = datetime.fromtimestamp(modified, tz=moment.tzinfo).date()
+    if day >= moment.date():
+        return
+    destination = active.with_name(f"{active.name}.{day.isoformat()}")
+    if destination.exists():
+        # 与运行中切分一样保留既有归档；复制失败时保留源文件供人工核实。
+        with active.open("rb") as source, destination.open("ab") as target:
+            shutil.copyfileobj(source, target)
+        active.unlink()
+    else:
+        active.rename(destination)

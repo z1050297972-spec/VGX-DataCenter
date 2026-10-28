@@ -5,7 +5,7 @@ import math
 from copy import deepcopy
 from typing import cast
 
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from rdp.infra.actors import ActorRef
 from rdp.infra.diagnostics import (
@@ -15,6 +15,7 @@ from rdp.infra.diagnostics import (
     DiagnosticGroup,
     InputError,
 )
+from rdp.infra.version import PLATFORM_VERSION_TEXT
 from rdp.jobs import _storage
 from rdp.jobs.models import JobRow
 from rdp.jobs.policy import (
@@ -44,6 +45,13 @@ _GROUPS = TypeAdapter(tuple[DiagnosticGroup, ...])
 def record(row: JobRow) -> JobRecord:
     """冻结行内容，参数深拷贝避免调用者改动会话中的同一个字典。"""
     _validate_parameters(row)
+    if row.platform_version is not None:
+        try:
+            PLATFORM_VERSION_TEXT.validate_python(row.platform_version)
+        except ValidationError as error:
+            raise InputError(
+                (_storage.diagnostic(row.job_id, "执行版本损坏", DiagnosticCategory.INPUT),)
+            ) from error
     try:
         state, mode = JobState(row.state), RecoveryMode(row.recovery_mode)
         waiting = None if row.wait_reason is None else WaitReason(row.wait_reason)
@@ -74,6 +82,7 @@ def record(row: JobRow) -> JobRecord:
         gpu_index=row.gpu_index,
         wait_reason=waiting,
         holds_navigation_lock=row.holds_navigation_lock,
+        platform_version=row.platform_version,
     )
 
     _validate_record(row, result)

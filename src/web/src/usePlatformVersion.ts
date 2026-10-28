@@ -1,9 +1,15 @@
 // 页面查询层（11 M2）：缓存由 TanStack Query 管理，客户端身份隔离，不直接调用 fetch。
+import { useQuery } from "@tanstack/react-query";
+import { fetchPlatformVersion } from "./api/version";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { HealthClient } from "./api/client";
 
 /** 版本每次进程启动才变化；缓存 60000 毫秒，避免页面间跳转重复查询。 */
 export const VERSION_STALE_TIME_MS = 60000;
+
+// 查询键必须按客户端身份隔离；JSON哈希会忽略客户端的函数，使用弱引用避免留住应用。
+const clients = new WeakMap<HealthClient, number>();
+let nextClient = 0;
 
 /**
  * 提供服务端版本文字的加载、成功及失败状态。
@@ -13,7 +19,18 @@ export const VERSION_STALE_TIME_MS = 60000;
  * @sideEffects 调用 fetchPlatformVersion 并更新当前应用内存缓存，不写浏览器持久存储。
  * @timeSemantics 缓存 VERSION_STALE_TIME_MS 毫秒；不轮询、不自动重试；窗口聚焦且缓存过期时重新查询以发现部署升级。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 仅抛异常的契约函数保留客户端依赖；函数使用参数后删除。
 export function usePlatformVersion(_client: HealthClient): UseQueryResult<string> {
-  throw new Error("NotImplementedError");
+  let key = clients.get(_client);
+  if (key === undefined) {
+    key = nextClient++;
+    clients.set(_client, key);
+  }
+  return useQuery({
+    queryKey: ["platform-version", key],
+    queryFn: ({ signal }) => fetchPlatformVersion(_client, signal),
+    staleTime: VERSION_STALE_TIME_MS,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: true,
+  });
 }
