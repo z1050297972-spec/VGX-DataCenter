@@ -139,6 +139,7 @@ def initialize_state(paths: StatePaths) -> tuple[DirectoryPermissionWarning, ...
 
     Time Semantics:
         启动阶段同步执行，无重试；先检查已有目标，再逐层创建。
+        并发初始化时，若其他进程抢先创建目录，则重新核验后按既有目录处理，不修改其权限。
         权限检查只代表调用时刻，不承诺抵御并发恶意路径替换。
     """
     directories = (paths.root, paths.logs, *(path for _, path in paths.job_logs))
@@ -162,7 +163,17 @@ def _create_directory(path: Path) -> None:
     if _directory_stat(path) is not None:
         return
     _create_directory(path.parent)
-    path.mkdir(mode=STATE_DIRECTORY_MODE)
+    try:
+        path.mkdir(mode=STATE_DIRECTORY_MODE)
+    except FileExistsError as error:
+        # 检查后另一入口可能已创建同一目录；不能用exist_ok=True后继续chmod，
+        # 否则会把竞争方的目录当作本次新建并改掉其权限。祖先递归也走同一核验。
+        if path.is_symlink():
+            raise ValueError(f"状态目录不得是软链接：{path}") from error
+        if _directory_stat(path) is None:
+            # 路径又消失不属于正常的并发创建；保留原异常，不无限重试或伪报成功。
+            raise
+        return
     path.chmod(STATE_DIRECTORY_MODE)
 
 
