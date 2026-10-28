@@ -209,6 +209,7 @@ def test_cancel_running(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
             paths,
             JobClock(lambda: NOW, time.monotonic),
             resources=resources_fixture(registry),
+            storage=None,
         )
 
         def first_step() -> bool:
@@ -732,6 +733,7 @@ def test_cancel_vs_completion_orders(tmp_path: Path) -> None:
             paths,
             JobClock(lambda: NOW, time.monotonic),
             resources=resources_fixture(registry),
+            storage=None,
         )
         for cancel_first in (True, False):
             record = jobs.submit(request, "example_count", {"steps": 3, "interval_ms": 0})

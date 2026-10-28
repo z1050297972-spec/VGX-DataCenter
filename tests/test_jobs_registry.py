@@ -382,6 +382,7 @@ def _incompatible_queue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, miss
             paths,
             JobClock(lambda: NOW, time.monotonic),
             resources=resources_fixture(production_registry()),
+            storage=None,
         )
 
         def done() -> bool:

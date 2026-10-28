@@ -299,6 +299,7 @@ def worker_main(root: Path, mode: str) -> None:
                 paths,
                 JobClock(lambda: datetime.now(UTC), time.monotonic),
                 resources=resources_fixture(registry),
+                storage=None,
             ),
             stop,
             LoggingSettings("worker", paths.logs),

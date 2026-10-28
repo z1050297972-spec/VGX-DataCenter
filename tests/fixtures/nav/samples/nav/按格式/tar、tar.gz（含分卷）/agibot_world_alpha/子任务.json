@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-31",
+  "dataset_name": "agibot_world_alpha",
+  "view": "format",
+  "format": "archives",
+  "version": null,
+  "task_count": 1,
+  "data_unit": "original_dataset",
+  "semantics": {
+    "task_labels": "记录源任务标签和已有子任务说明；同源多标签不自动认定为同一长任务的顺序步骤。",
+    "source_sequences": "多个子任务可以共享同一数据集、轨迹或视频；本目录只链接原始数据，不按语义标签复制、裁剪视频。",
+    "scope": "whole_root为源根；episodes为已有完整轨迹编号；archive为整包。范围字段按原标注保存。",
+    "video_mapping": "episode编号不是视频文件编号；未提供的时间边界或视频映射不作推断。"
+  },
+  "tasks": [
+    {
+      "task_key": "agibot_alpha_task327",
+      "family": "agibot_world_alpha",
+      "display_name": "超市取货放入购物车",
+      "description": "在超市抓取指定商品，并将商品放入购物车。",
+      "label_status": "verified_metadata",
+      "notes": [
+        "original_task_id=327",
+        "同名任务保留原 task ID，不据名称推断跨目录重复或可合并。",
+        "LeRobot 转换仅为同两条轨迹的三个表示，不能代表原生任务数据已全部转换。"
+      ],
+      "sources": [
+        {
+          "root": "{dataset2}/agibot_world_alpha/observations/327",
+          "scope": "native_files",
+          "evidence": [
+            {
+              "path": "{dataset2}/agibot_world_alpha/task_info/task_327.json",
+              "field": "[].task_name",
+              "text": "Pickup items in the supermarket"
+            }
+          ],
+          "notes": [
+            "task_info 有 209 条记录；当前一级目录有 88 个数字轨迹目录、0 个归档文件。未遍历每条轨迹全部文件，未宣称数据齐全。",
+            "observations 是观测数据入口；完整原生样本可能还需 parameters 等配套文件。"
+          ],
+          "observed_episode_directory_ids": [
+            648642,
+            648649,
+            648709,
+            648718,
+            648748,
+            648756,
+            648766,
+            648780,
+            648790,
+            648814,
+            649734,
+            649743,
+            649755,
+            649765,
+            649782,
+            649806,
+            649826,
+            649845,
+            649855,
+            649869,
+            649880,
+            649892,
+            649911,
+            649930,
+            650003,
+            650027,
+            650087,
+            650403,
+            650410,
+            650417,
+            650426,
+            650435,
+            650893,
+            650911,
+            650952,
+            650966,
+            650979,
+            651052,
+            651074,
+            651102,
+            651111,
+            651128,
+            651139,
+            651151,
+            651166,
+            651177,
+            651191,
+            651210,
+            651223,
+            651237,
+            651248,
+            651260,
+            651272,
+            651297,
+            651306,
+            651315,
+            651328,
+            651338,
+            651348,
+            651370,
+            682363,
+            682384,
+            682407,
+            682433,
+            682444,
+            682453,
+            682470,
+            682490,
+            682505,
+            682520,
+            682542,
+            682590,
+            682599,
+            682643,
+            682661,
+            682676,
+            682691,
+            682698,
+            682707,
+            682719,
+            682730,
+            682741,
+            682755,
+            682783,
+            682792,
+            682813,
+            685046,
+            685076
+          ],
+          "observed_archives": [],
+          "source_id": "src_73acac5cbe70",
+          "format": "agibot_native",
+          "validation_status": "path_exists_only",
+          "entry_path": "{dataset2}/agibot_world_alpha/observations/327",
+          "component": "observations",
+          "entry_type": "original_source_path"
+        },
+        {
+          "root": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old",
+          "scope": "whole_root",
+          "evidence": [
+            {
+              "path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old/meta/info.json",
+              "field": "total_episodes",
+              "text": "2；与task_327关联由本地任务表和目录名核实。"
+            },
+            {
+              "path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old/meta/tasks.jsonl",
+              "field": "task",
+              "text": "['Pickup items in the supermarket.The robot is positioned in front of the fruit stand in the supermarket environment.']"
+            }
+          ],
+          "total_episodes": 2,
+          "codebase_version": "v2.1",
+          "notes": [
+            "同两条样例的格式表示，不重复计采集轨迹。",
+            "目录名带 _old，旧副本保留。"
+          ],
+          "source_id": "src_489eb4dc26b6",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "2.1",
+          "entry_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21_old",
+          "entry_type": "original_source_path"
+        },
+        {
+          "root": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327",
+          "scope": "whole_root",
+          "evidence": [
+            {
+              "path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327/meta/info.json",
+              "field": "total_episodes",
+              "text": "2；与task_327关联由本地任务表和目录名核实。"
+            },
+            {
+              "path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327/meta/tasks.jsonl",
+              "field": "task",
+              "text": "['Pickup items in the supermarket.The robot is positioned in front of the fruit stand in the supermarket environment.']"
+            }
+          ],
+          "total_episodes": 2,
+          "codebase_version": "v2.0",
+          "notes": [
+            "同两条样例的格式表示，不重复计采集轨迹。"
+          ],
+          "source_id": "src_0ce579c7bddf",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "2.0",
+          "entry_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327",
+          "entry_type": "original_source_path"
+        },
+        {
+          "root": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21",
+          "scope": "whole_root",
+          "evidence": [
+            {
+              "path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21/meta/info.json",
+              "field": "total_episodes",
+              "text": "2；与task_327关联由本地任务表和目录名核实。"
+            },
+            {
+              "path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21/meta/tasks.parquet",
+              "field": "task",
+              "text": "['Pickup items in the supermarket.The robot is positioned in front of the fruit stand in the supermarket environment.']"
+            }
+          ],
+          "total_episodes": 2,
+          "codebase_version": "v3.0",
+          "notes": [
+            "同两条样例的格式表示，不重复计采集轨迹。"
+          ],
+          "source_id": "src_2a2c94e25231",
+          "format": "lerobot",
+          "validation_status": "attention_required",
+          "version": "3.0",
+          "entry_path": "{dataset2}/agibot_world_alpha/lerobot_v2_output/agibotworld/agibotworld/pickup_items_in_the_supermarket__task_327_v21",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/agibot_world_alpha",
+      "task_info": {
+        "source_path": "{dataset2}/agibot_world_alpha/task_info/task_327.json",
+        "entry_path": "{dataset2}/agibot_world_alpha/task_info/task_327.json",
+        "record_count": 209,
+        "record_count_note": "任务标注记录数，不代表当前已展开或完整可用的轨迹数。",
+        "source_sha256": "34965d77a86b26e8fa1c37c19b2475fbd47171445c495514b344f7e4d9fe7d53"
+      },
+      "dataset_ids": [
+        "dataset-31"
+      ],
+      "entry_paths": [
+        "按任务/agibot_world_alpha"
+      ],
+      "subtask_json_paths": [
+        "按任务/agibot_world_alpha/子任务.json"
+      ]
+    }
+  ],
+  "shared_source_roots": []
+}

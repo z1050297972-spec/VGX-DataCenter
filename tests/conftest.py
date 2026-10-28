@@ -2,11 +2,36 @@
 
 import logging
 from collections.abc import Iterator
+from pathlib import Path
 from typing import cast
 
 import pytest
+from nav_manifest import FakeNavigation, expand_fake_nav
 
 from rdp.infra import logging as runtime_logging
+
+
+@pytest.fixture
+def fake_nav(tmp_path: Path) -> FakeNavigation:
+    """给单个测试提供仅在临时目录内可变的导航层。
+
+    Args:
+        tmp_path: pytest 创建的私有绝对路径，不传真实存储根或真实 home。
+
+    Returns:
+        expand_fake_nav 的结果，样本位置固定为本仓库 tests/fixtures/nav；每次独立展开。
+
+    Raises:
+        ValueError: 清单或样本不满足 expand_fake_nav 的安全、引用和形态契约。
+        OSError: 仓库夹具读取或临时文件创建失败。
+
+    Side Effects:
+        只读仓库夹具并写 tmp_path；不读 .scratch，测试结束由 pytest 清理成功现场。
+
+    Time Semantics:
+        function scope，不缓存跨测试状态，不读取真实挂载表。
+    """
+    return expand_fake_nav(tmp_path, fixture_dir=Path(__file__).parent / "fixtures" / "nav")
 
 
 @pytest.fixture(autouse=True)

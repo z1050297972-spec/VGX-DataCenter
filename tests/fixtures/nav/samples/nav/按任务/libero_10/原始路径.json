@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-14",
+  "dataset_name": "libero_10",
+  "dataset_roots": [
+    "{dataset1}/libero_v3/libero_10"
+  ],
+  "view": "task",
+  "format": null,
+  "version": null,
+  "links": [
+    {
+      "name": "原始数据",
+      "source_path": "{dataset1}/libero_v3/libero_10",
+      "entry_path": "按任务/libero_10/原始数据",
+      "source_type": "directory"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "src_0b33c900c7fa",
+      "original_path": "{dataset1}/libero_v3/libero_10",
+      "direct_path": "{dataset1}/libero_v3/libero_10",
+      "format": "lerobot",
+      "version": "3.0",
+      "entry_path": "按任务/libero_10/原始数据",
+      "source_role": "data",
+      "validation_status": "metadata_and_references_pass"
+    }
+  ],
+  "notes": [],
+  "source_files_modified": false
+}

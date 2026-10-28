@@ -30,6 +30,7 @@ from rdp.api.errors import ErrorBoundary, install_error_handlers
 from rdp.api.health import HealthResponse, get_health
 from rdp.api.jobs import router as jobs_router
 from rdp.api.jobs import worker_router
+from rdp.api.storage import router as storage_router
 from rdp.infra.db.records import ErrorRecord
 from rdp.infra.logging import log_context
 
@@ -165,6 +166,7 @@ def create_app(
         应用工厂只登记日志 schema 和权限分类，不负责激活 0003 或日志模型。
         第 8 张登记 /api/jobs 与 /api/worker/status，全部使用 get_authenticated_context；
         显式状态目录和作业登记表由 Web 启动入口调用 configure_jobs 注入，不发现默认 home。
+        第 10 张登记 GET /api/storage-roots，所有登录账号可看；configure_storage 单独装配挂载检查。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -213,6 +215,7 @@ def create_app(
     app.include_router(audit_router)
     # 08 作业和心跳均允许全部登录账号，复用全局鉴权和同源写请求边界。
     app.include_router(jobs_router)
+    app.include_router(storage_router)
     app.include_router(worker_router)
     # 已知接口优先；兜底必须在静态挂载之前，不能让构建目录里的 api/ 文件遮蔽接口。
     for path in ("/api", "/api/{unknown:path}"):

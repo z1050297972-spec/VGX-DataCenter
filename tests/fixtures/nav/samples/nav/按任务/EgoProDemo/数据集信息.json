@@ -1,0 +1,82 @@
+{
+  "dataset_id": "dataset-33",
+  "title": "33. EgoProDemo / EgoProStandard-body",
+  "fields": [
+    {
+      "number": 1,
+      "name": "数据集标识",
+      "value_markdown": "EgoProDemo 下实际数据子目录 EgoProStandard-body；机器人类型为 null，不应改写成某种机器人硬件"
+    },
+    {
+      "number": 2,
+      "name": "地址",
+      "value_markdown": "本地：[{dataset2}/EgoProDemo](<{dataset2}/EgoProDemo>)；盘内未提供明确下载地址，.cache 文件不是独立数据集"
+    },
+    {
+      "number": 3,
+      "name": "类型与组成",
+      "value_markdown": "人体第一视角全身/双手动作观测；233 个单 episode LeRobot 目录，另有 1 个 MCAP 示例及下载缓存"
+    },
+    {
+      "number": 4,
+      "name": "数据大小",
+      "value_markdown": "0.119643 TB / 0.108815 TiB（119,642,823,842 B；119.643 GB）；包含缓存和 8 个 .incomplete 文件，不能全部视为有效数据载荷"
+    },
+    {
+      "number": 5,
+      "name": "采集机器人型号",
+      "value_markdown": "人体穿戴采集；全身 22 个关节变换、双手各 21 个关节变换；robot_type=null"
+    },
+    {
+      "number": 6,
+      "name": "任务与场景",
+      "value_markdown": "本地任务表去重后 92 个任务文本；含检查损坏、折毛巾、清洁相框、扫码入库、理线、烧水等。完整本地条目见附录"
+    },
+    {
+      "number": 7,
+      "name": "数据格式",
+      "value_markdown": "LeRobot v3.0；数据分片 Parquet、每条视频 MP4、tasks/episodes 元数据；MCAP 为 Protobuf。3 个目录存在数据或视频缺失，详见附录"
+    },
+    {
+      "number": 8,
+      "name": "FPS",
+      "value_markdown": "233 个 info.json 的 FPS 范围 24.999–36.018；近 30 FPS 为主，另有近 25、36 FPS。这里保留实际元数据值，不统一改为 30；逐条值见附录，未用名义 FPS 外推全量帧数"
+    },
+    {
+      "number": 9,
+      "name": "相机配置",
+      "value_markdown": "4 路图像字段（不等同于物理相机数量）；`observation.images.head_left`：1920×1456，彩色/三通道，video，编码 h264；`observation.images.head_right`：1920×1456，彩色/三通道，video，编码 h264；`observation.images.left_wrist`：1920×1536，彩色/三通道，video，编码 h264；`observation.images.right_wrist`：1920×1536，彩色/三通道，video，编码 h264"
+    },
+    {
+      "number": 10,
+      "name": "状态维度",
+      "value_markdown": "12 个 observation.state.* 张量，按 shape 元素数相加为 469 个标量（推算值，非机器人 469 DoF）：左右手各 21×3 位置 + 21×4 旋转；body 22×3 + 22×4；head 1×3 + 1×4；左右头部相机各 3 位置 + 4 旋转。原生没有单一 observation.state 向量"
+    },
+    {
+      "number": 11,
+      "name": "动作维度",
+      "value_markdown": "所有 233 个 info.json 均没有 action 或 action.* 字段"
+    },
+    {
+      "number": 12,
+      "name": "动作控制方式及单位",
+      "value_markdown": "不适用机器人控制命令；字段明确使用 world 坐标标识，旋转 names=[qw,qx,qy,qz]（wxyz）；位置单位未在 info.json 中给出。不能把人体观测直接当作机器人目标关节"
+    },
+    {
+      "number": 13,
+      "name": "轨迹／帧数",
+      "value_markdown": "元数据声明 233 条、777,626 帧；实际 232 个数据 Parquet 共 777,206 行，缺少 420 帧对应的数据分片。230 个目录具备所声明的数据行、轨迹行及全部 4 路视频文件；另 2 个目录有数据但缺视频、1 个只有元数据。此处“具备”仅为结构检查，不代表逐帧视频完整性"
+    },
+    {
+      "number": 14,
+      "name": "信息来源与核验日期",
+      "value_markdown": "[{dataset2}/EgoProDemo/EgoProStandard-body/lerobot](<{dataset2}/EgoProDemo/EgoProStandard-body/lerobot>) 下 233 份 info.json/任务表/轨迹表/Parquet 页脚；[{dataset2}/EgoProDemo/EgoProStandard-body/mcap/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d.mcap](<{dataset2}/EgoProDemo/EgoProStandard-body/mcap/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d.mcap>) 的样本 schema 与 metadata。核验：2026-10-12T20:55:45-06:00"
+    }
+  ],
+  "summary_path": "{nav_root}/文档/两块数据盘数据集信息汇总_14项标准_2026-10-12.md",
+  "summary_sha256": "f2ff6d8f00a28efa2bbc5e280cc175440cad999c4bc605af03117c7fa4a5b1f6",
+  "summary_anchor": "dataset-33",
+  "snapshot_date": "2026-10-12",
+  "extracted_at": "2026-10-16T07:53:13-06:00",
+  "information_scope": "原汇总中该数据集的14项原文与快照日期；不是本格式视图重新统计的大小或轨迹数。"
+}

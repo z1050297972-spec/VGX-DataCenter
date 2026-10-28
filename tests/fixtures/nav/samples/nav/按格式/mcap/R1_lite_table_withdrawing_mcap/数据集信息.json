@@ -1,0 +1,82 @@
+{
+  "dataset_id": "dataset-35",
+  "title": "35. R1 Lite table_withdrawing 原始 MCAP",
+  "fields": [
+    {
+      "number": 1,
+      "name": "数据集标识",
+      "value_markdown": "R1_lite_table_withdrawing_mcap；本地原始录制；与 R1_lite_table_withdrawing_lerobot 另列，二者可能重叠不相加"
+    },
+    {
+      "number": 2,
+      "name": "地址",
+      "value_markdown": "本地：[{dataset2}/R1_lite_table_withdrawing_mcap](<{dataset2}/R1_lite_table_withdrawing_mcap>)；本地采集无公开下载地址记录"
+    },
+    {
+      "number": 3,
+      "name": "类型与组成",
+      "value_markdown": "VR 遥操作原始机器人录制（有效 JSON 中 operation_info.teleoperation_type=VR）；ROS 2 多 topic 异步数据"
+    },
+    {
+      "number": 4,
+      "name": "数据大小",
+      "value_markdown": "0.130811 TB / 0.118972 TiB（130,810,718,336 B；130.811 GB）；100 个 MCAP、100 个 JSON、100 个 YAML，其中 1 个 JSON 和配套 YAML 为空"
+    },
+    {
+      "number": 5,
+      "name": "采集机器人型号",
+      "value_markdown": "目录标识 R1 Lite；样本具有双臂各 6 个位置目标、左右夹爪、躯干、底盘、IMU 及多路相机；实际机器人类型需与采集配置对应"
+    },
+    {
+      "number": 6,
+      "name": "任务与场景",
+      "value_markdown": "2026-10-09、2026-10-10、2026-10-11 三个采集日期目录；table_withdrawing。JSON 的 task_name 为 xxx 占位值，不能作为更详细任务标签"
+    },
+    {
+      "number": 7,
+      "name": "数据格式",
+      "value_markdown": "MCAP / ROS 2 CDR 消息，配套 metadata.yaml 和采集 JSON；100 个 MCAP 的 summary 均可读，含空 JSON/YAML 那个文件的 summary 也可读"
+    },
+    {
+      "number": 8,
+      "name": "FPS",
+      "value_markdown": "异步多频率，不能给所有 topic 一个统一 FPS。头部/双腕 RGB 的总消息数除累计时长约 29.5–30.1 Hz（粗平均，含起止间隔影响）；关节与控制 topic 频率另异"
+    },
+    {
+      "number": 9,
+      "name": "相机配置",
+      "value_markdown": "实际计数有 4 路 RGB 压缩图像：头部左右、腕部左右。metadata.yaml 声明的双腕 depth topic 计数为 0，MCAP summary 无有效深度消息，不能算作有深度数据。相机分辨率见抽查 CameraInfo 表"
+    },
+    {
+      "number": 10,
+      "name": "状态维度",
+      "value_markdown": "无统一 observation.state；原始包含 JointState、末端 PoseStamped、底盘/躯干 IMU、力传感等 topic。不能直接将所有消息字段相加称为同步状态维度；转换版选取 14 项双臂/夹爪位置"
+    },
+    {
+      "number": 11,
+      "name": "动作维度",
+      "value_markdown": "无统一 action；原始包含 target_joint_state_arm_left/right、target_position_gripper_left/right、target_joint_state_torso、target_speed_chassis 等，以及底层 MotorControl；转换版仅选取 14 项"
+    },
+    {
+      "number": 12,
+      "name": "动作控制方式及单位",
+      "value_markdown": "ROS JointState schema 明确旋转关节位置 rad、平移关节 m、速度 rad/s 或 m/s、effort Nm 或 N；MotorControl 有 p_des、v_des、kp、kd、t_ff、mode。话题同时含位置目标与速度目标，必须按 topic 区分；具体夹爪标定、控制 mode 含义和坐标系待设备配置核验"
+    },
+    {
+      "number": 13,
+      "name": "轨迹／帧数",
+      "value_markdown": "100 个录制文件，summary 累计时长 8250.050 s（约 2.292 h），共 41,975,161 条各 topic 消息。头左 247,742、头右 248,070、左腕 244,368、右腕 243,169 条图像消息；这些不是已同步训练帧数，也不能把 100 个录制数与转换后的 545 episode 相加"
+    },
+    {
+      "number": 14,
+      "name": "信息来源与核验日期",
+      "value_markdown": "[{dataset2}/R1_lite_table_withdrawing_mcap](<{dataset2}/R1_lite_table_withdrawing_mcap>) 下全部 100 个 MCAP summary、99 个有效 metadata.yaml/JSON；抽查内嵌 ROS 消息定义及 CameraInfo。核验：2026-10-12T20:55:45-06:00"
+    }
+  ],
+  "summary_path": "{nav_root}/文档/两块数据盘数据集信息汇总_14项标准_2026-10-12.md",
+  "summary_sha256": "f2ff6d8f00a28efa2bbc5e280cc175440cad999c4bc605af03117c7fa4a5b1f6",
+  "summary_anchor": "dataset-35",
+  "snapshot_date": "2026-10-12",
+  "extracted_at": "2026-10-16T07:53:13-06:00",
+  "information_scope": "原汇总中该数据集的14项原文与快照日期；不是本格式视图重新统计的大小或轨迹数。"
+}

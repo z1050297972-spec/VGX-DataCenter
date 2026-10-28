@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "dataset_id": "dataset-33",
+  "dataset_name": "EgoProDemo",
+  "view": "format",
+  "format": "lerobot",
+  "version": "3.0",
+  "task_count": 2,
+  "data_unit": "original_dataset",
+  "semantics": {
+    "task_labels": "记录源任务标签和已有子任务说明；同源多标签不自动认定为同一长任务的顺序步骤。",
+    "source_sequences": "多个子任务可以共享同一数据集、轨迹或视频；本目录只链接原始数据，不按语义标签复制、裁剪视频。",
+    "scope": "whole_root为源根；episodes为已有完整轨迹编号；archive为整包。范围字段按原标注保存。",
+    "video_mapping": "episode编号不是视频文件编号；未提供的时间边界或视频映射不作推断。"
+  },
+  "tasks": [
+    {
+      "task_key": "EgoProDemo_a0ae305248f3",
+      "family": "EgoProDemo",
+      "display_name": "Affix Shipping Label (on Package Surface)",
+      "description": "Affix Shipping Label (on Package Surface).",
+      "label_status": "verified_source_name",
+      "notes": [
+        "保留原语言任务名；人体数据的状态与机器人动作数据有别；文件完整性另见来源记录。"
+      ],
+      "sources": [
+        {
+          "root": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/11deec69-bf40-4a5a-a8c7-7a397b3df648",
+          "scope": "whole_root",
+          "evidence": [
+            {
+              "path": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)",
+              "field": "directory_name",
+              "text": "Affix Shipping Label (on Package Surface)"
+            }
+          ],
+          "source_id": "src_4d589639da3c",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Affix Shipping Label (on Package Surface)/11deec69-bf40-4a5a-a8c7-7a397b3df648",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/EgoProDemo",
+      "dataset_ids": [
+        "dataset-33"
+      ],
+      "entry_paths": [
+        "按任务/EgoProDemo"
+      ],
+      "subtask_json_paths": [
+        "按任务/EgoProDemo/子任务.json"
+      ]
+    },
+    {
+      "task_key": "EgoProDemo_e68424c35ad8",
+      "family": "EgoProDemo",
+      "display_name": "Adjust Shelf Labels",
+      "description": "Adjust Shelf Labels.",
+      "label_status": "verified_source_name",
+      "notes": [
+        "保留原语言任务名；人体数据的状态与机器人动作数据有别；文件完整性另见来源记录。"
+      ],
+      "sources": [
+        {
+          "root": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d",
+          "scope": "whole_root",
+          "evidence": [
+            {
+              "path": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels",
+              "field": "directory_name",
+              "text": "Adjust Shelf Labels"
+            }
+          ],
+          "source_id": "src_accf48ec594b",
+          "format": "lerobot",
+          "validation_status": "metadata_and_references_pass",
+          "version": "3.0",
+          "entry_path": "{dataset2}/EgoProDemo/EgoProStandard-body/lerobot/Adjust Shelf Labels/5800ed0b-0fd7-438d-89a8-ef23de66723d",
+          "entry_type": "original_source_path"
+        }
+      ],
+      "checked_at": "2026-10-16T07:53:13-06:00",
+      "entry_path": "按任务/EgoProDemo",
+      "dataset_ids": [
+        "dataset-33"
+      ],
+      "entry_paths": [
+        "按任务/EgoProDemo"
+      ],
+      "subtask_json_paths": [
+        "按任务/EgoProDemo/子任务.json"
+      ]
+    }
+  ],
+  "shared_source_roots": []
+}
