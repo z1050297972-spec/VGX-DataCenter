@@ -1675,6 +1675,7 @@ export interface components {
          *         gpu_index: 物理卡号，未领过 None，终态保留历史。
          *         wait_reason: gpu/navigation_lock/None，不新增 state；终态及恢复清空。
          *         holds_navigation_lock: worker 保存的持锁展示副本，终态 False。
+         *         platform_version: 最近实际领取的平台版本文字，1-128 个码点；历史未知或尚未领取为 None。
          */
         JobResponse: {
             /** Diagnostics */
@@ -1700,6 +1701,8 @@ export interface components {
             parameters: {
                 [key: string]: components["schemas"]["JsonValue"];
             };
+            /** Platform Version */
+            platform_version?: string | null;
             progress: components["schemas"]["JobProgress"] | null;
             /** Progress At */
             progress_at: string | null;

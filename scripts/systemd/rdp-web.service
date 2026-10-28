@@ -1,0 +1,18 @@
+# 用户服务模板；安装脚本替换并转义 @DEPLOY_DIR@，不写死用户名、home 或系统时区。
+[Unit]
+Description=RDP Web
+
+[Service]
+Type=simple
+# 安装时若显式指定 RDP_CONFIG，在此增加转义后的 Environment 指令，与迁移使用同一配置。
+# 从固定部署目录读取包/构建产物；日志进入 web.log，uvicorn 不另开访问日志。
+WorkingDirectory="@DEPLOY_DIR@"
+ExecStart="@DEPLOY_DIR@/.venv/bin/rdp" web --no-stderr
+Restart=on-failure
+RestartSec=5
+# 请求宽限 30 秒 + Python 3.12 执行器收尾 300 秒 + 报错排空 10 秒，另留 20 秒余量。
+KillMode=control-group
+TimeoutStopSec=360
+
+[Install]
+WantedBy=default.target

@@ -23,11 +23,16 @@ from rdp.jobs.scheduling_models import ScheduleSubmissionRow, WorkerGpuCheckRow
 
 
 def test_isolated() -> None:
-    """激活契约：0005是唯一head、pending已删除，新表及资源列注册到同一MetaData。"""
+    """激活契约：0005是唯一head且没有残留0005草稿；其他待交付迁移不进入活动图，资源列共享MetaData。"""
     config = migration_config()
     assert ScriptDirectory.from_config(config).get_current_head() == "0005_job_scheduling"
     location = config.get_main_option("script_location")
-    assert location is not None and not (Path(location) / "pending").exists()
+    assert location is not None
+    # 11 号票明确要求把 0006 放在 pending；只禁止本票已激活的 0005 仍残留第二份。
+    assert not (Path(location) / "pending" / "v0005_job_scheduling.py").exists()
+    assert "0006_platform_version" not in {
+        revision.revision for revision in ScriptDirectory.from_config(config).walk_revisions()
+    }
     assert JobRow.__table__.c.submitter_id.nullable
     assert {"gpu_index", "wait_reason", "holds_navigation_lock"} <= set(JobRow.__table__.c.keys())
     for model in (ScheduleSubmissionRow, WorkerGpuCheckRow):

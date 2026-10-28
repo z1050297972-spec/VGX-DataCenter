@@ -11,7 +11,7 @@ from uuid import uuid4
 from rdp.infra.db.connection import session_scope
 from rdp.infra.db.migration import check_database_version
 from rdp.infra.diagnostics import ConflictError, DefectError, ExternalError
-from rdp.infra.logging import LoggingSettings, configure_logging
+from rdp.infra.logging import LoggingSettings, LogTime, configure_logging
 from rdp.jobs._clock import ClockReader
 from rdp.jobs.execution import ExecutorDependencies
 from rdp.jobs.gpu import verify_gpu
@@ -47,6 +47,7 @@ def run_worker(
     logging_settings: LoggingSettings,
     *,
     scheduling: WorkerScheduling,
+    log_time: LogTime | None = None,
 ) -> WorkerExit:
     """运行一个可在进程内停止的独立 worker 实例。
 
@@ -55,6 +56,8 @@ def run_worker(
         stop: 必填可注入停止 Event；不在函数内安装全局 signal handler。
         logging_settings: process 必须为 worker、log_dir 为 paths.logs；systemd 下 stderr=False。
         scheduling: 必填关键字，显式资源/定时配置；nvidia_smi 仅在配置卡列表为空时允许 None。
+        log_time: configure_logging 使用的时钟和本地日历依赖；None 沿用其系统默认值。
+            生产入口与 prepare_service 共用同一对象，测试传固定时钟，不改全局 TZ。
 
     Returns:
         正常协作停止为 WORKER_EXIT_OK；非阻塞锁冲突为 WORKER_EXIT_ALREADY_RUNNING，

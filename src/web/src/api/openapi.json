@@ -884,7 +884,7 @@
       },
       "JobResponse": {
         "additionalProperties": false,
-        "description": "详情及列表中的永久记录，字段单位与 JobRecord 相同；时刻统一 UTC 微秒。\n\nAttributes:\n    job_id: 1 至 2^63-1 规范十进制文本。\n    type_name: 稳定类型键，1-64 字符。\n    display_name: 提交时显示名快照，1-40 码点。\n    parameters: 无秘密参数 JSON；历史原值，不按新版本静默改写。\n    submitted_by: 历史身份和 deleted 标记；系统的 account_id=None、name=“系统”、deleted=False。\n    submitted_at: UTC 提交时刻。\n    resubmitted_from: 原作业编号文本或 None。\n    state: 六种状态之一。\n    started_at: 首次开始 UTC 时刻或 None。\n    ended_at: 终态结束 UTC 时刻或 None。\n    progress: 最后进度或 None，未知 total 返回 null。\n    progress_at: 最后进度 UTC 时刻或 None。\n    elapsed_s: 有限非负秒数，存储的已运行时长；页面可据本地单调样本增量显示。\n    log_path: 状态目录相对路径或 None，浏览器不据此直接访问文件。\n    summary: 终态冻结摘要或 None，只有 completed 内 outcome 非空。\n    diagnostics: 有界诊断组，真实总数与前 N 样例分别展示。\n    recovery_mode: 提交时恢复方式快照，只作记录及interrupt保护。\n    recovery_count: 自动恢复资格累计次数，0至JOB_RECOVERY_LIMIT；不随重跑清零。\n    gpu_index: 物理卡号，未领过 None，终态保留历史。\n    wait_reason: gpu/navigation_lock/None，不新增 state；终态及恢复清空。\n    holds_navigation_lock: worker 保存的持锁展示副本，终态 False。",
+        "description": "详情及列表中的永久记录，字段单位与 JobRecord 相同；时刻统一 UTC 微秒。\n\nAttributes:\n    job_id: 1 至 2^63-1 规范十进制文本。\n    type_name: 稳定类型键，1-64 字符。\n    display_name: 提交时显示名快照，1-40 码点。\n    parameters: 无秘密参数 JSON；历史原值，不按新版本静默改写。\n    submitted_by: 历史身份和 deleted 标记；系统的 account_id=None、name=“系统”、deleted=False。\n    submitted_at: UTC 提交时刻。\n    resubmitted_from: 原作业编号文本或 None。\n    state: 六种状态之一。\n    started_at: 首次开始 UTC 时刻或 None。\n    ended_at: 终态结束 UTC 时刻或 None。\n    progress: 最后进度或 None，未知 total 返回 null。\n    progress_at: 最后进度 UTC 时刻或 None。\n    elapsed_s: 有限非负秒数，存储的已运行时长；页面可据本地单调样本增量显示。\n    log_path: 状态目录相对路径或 None，浏览器不据此直接访问文件。\n    summary: 终态冻结摘要或 None，只有 completed 内 outcome 非空。\n    diagnostics: 有界诊断组，真实总数与前 N 样例分别展示。\n    recovery_mode: 提交时恢复方式快照，只作记录及interrupt保护。\n    recovery_count: 自动恢复资格累计次数，0至JOB_RECOVERY_LIMIT；不随重跑清零。\n    gpu_index: 物理卡号，未领过 None，终态保留历史。\n    wait_reason: gpu/navigation_lock/None，不新增 state；终态及恢复清空。\n    holds_navigation_lock: worker 保存的持锁展示副本，终态 False。\n    platform_version: 最近实际领取的平台版本文字，1-128 个码点；历史未知或尚未领取为 None。",
         "properties": {
           "diagnostics": {
             "items": {
@@ -956,6 +956,19 @@
             },
             "title": "Parameters",
             "type": "object"
+          },
+          "platform_version": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform Version"
           },
           "progress": {
             "anyOf": [

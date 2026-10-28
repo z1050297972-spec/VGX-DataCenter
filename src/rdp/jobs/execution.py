@@ -187,6 +187,8 @@ class ExecutorDependencies:
         resources: 必填关键字，本实例资源对象；仅入口装配前或无资源的直接执行调用可显式 None，调度前必须装配完成。
         storage: 必填关键字，worker 的只读存储检查器；仅全部类型不声明根时允许显式 None，
             非空需求缺失检查器属于 DefectError，不默认读取系统路径。
+        platform_version: 本 worker 启动时的版本文字，1-128 个码点；生产入口必须提供。
+            None 仅表示没有部署信息的独立领域调用；不在领域层读取包元数据或 git。
     """
 
     engine: Engine
@@ -195,6 +197,7 @@ class ExecutorDependencies:
     clock: JobClock
     resources: WorkerResources | None = field(kw_only=True)
     storage: StorageAccessChecker | None = field(kw_only=True)
+    platform_version: str | None = field(default=None, kw_only=True)
 
 
 def execute_job(

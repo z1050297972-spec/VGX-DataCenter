@@ -127,7 +127,11 @@ def _unknown_api() -> Response:
 
 
 def create_app(
-    web_dist: Path | None, *, database: Engine | None, clock: Callable[[], datetime] | None = None
+    web_dist: Path | None,
+    *,
+    database: Engine | None,
+    clock: Callable[[], datetime] | None = None,
+    platform_version: str | None = None,
 ) -> FastAPI:
     """创建健康接口及可选的前端静态托管应用，不启动服务器。
 
@@ -140,6 +144,8 @@ def create_app(
             调用者拥有生命周期，应用停止并完成报告后由调用者 dispose，工厂不接管。
         clock: 请求时钟，无单位；None 为 UTC 墙钟，测试可注入固定 aware datetime 回调；
             账号请求只取一次，不接受客户端时刻；非法返回值或回调失败由入口归 DefectError。
+        platform_version: 生产入口传入的版本快照，1-128 个码点，无控制字符；
+            None 仅用于离线导出/独立测试，版本接口返回“未知 (未知)”，不在工厂发现部署。
 
     Returns:
         独立的 FastAPI 应用；GET /api/health 返回 200 和 {"status": "ok"}，
@@ -167,6 +173,8 @@ def create_app(
         第 8 张登记 /api/jobs 与 /api/worker/status，全部使用 get_authenticated_context；
         显式状态目录和作业登记表由 Web 启动入口调用 configure_jobs 注入，不发现默认 home。
         第 10 张登记 GET /api/storage-roots，所有登录账号可看；configure_storage 单独装配挂载检查。
+        第 11 张通过 configure_version 登记 GET /api/version，版本 schema 同样出现在离线 OpenAPI；
+        路径先于 API 兜底和静态挂载，沿用已登录且完成改密的认证边界，不改变健康响应。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -176,7 +184,7 @@ def create_app(
         InputError: 数据库缺失/无版本/落后/领先/未知，拒绝创建并提示先运行 migrate。
         ConflictError: 数据库版本检查锁冲突。
         ExternalError: 数据库权限或 I/O 失败。
-        DefectError: 引擎或迁移图配置错误。
+        DefectError: 引擎或迁移图配置错误，或 platform_version 非空但不符合版本文字约束。
 
     Side Effects:
         只读构建目录及入口文件状态，注册内存路由；有数据库时初始化默认 Argon2 编码器及假哈希，

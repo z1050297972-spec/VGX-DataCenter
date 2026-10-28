@@ -15,6 +15,9 @@ dependencies = [
     "uvicorn>=0.54.0",
 ]
 
+[project.scripts]
+rdp = "rdp.cli:main"
+
 [build-system]
 # 工单 D1 已批准 uv_build：与 uv 同源，仅用于构建，支持本包的 editable 安装。
 # 按派工指定的 uv 0.13.5 设置下限；上限将构建后端限定在 0.13 系列。

@@ -73,6 +73,7 @@ class JobResponse(JobPayload):
         gpu_index: 物理卡号，未领过 None，终态保留历史。
         wait_reason: gpu/navigation_lock/None，不新增 state；终态及恢复清空。
         holds_navigation_lock: worker 保存的持锁展示副本，终态 False。
+        platform_version: 最近实际领取的平台版本文字，1-128 个码点；历史未知或尚未领取为 None。
     """
 
     job_id: AccountId
@@ -96,6 +97,7 @@ class JobResponse(JobPayload):
     gpu_index: int | None = Field(default=None, strict=True, ge=0)
     wait_reason: WaitReason | None = None
     holds_navigation_lock: bool = False
+    platform_version: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class JobListResponse(JobPayload):

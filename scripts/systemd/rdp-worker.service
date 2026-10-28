@@ -1,0 +1,18 @@
+# ADR 0005：独立用户服务，只有 worker 执行作业和受控存储写入。
+[Unit]
+Description=RDP Worker
+
+[Service]
+Type=simple
+# 安装时若显式指定 RDP_CONFIG，在此增加转义后的 Environment 指令，与 Web/迁移保持一致。
+WorkingDirectory="@DEPLOY_DIR@"
+ExecStart="@DEPLOY_DIR@/.venv/bin/rdp" worker --no-stderr
+Restart=on-failure
+RestartSec=5
+# 外部工具使用独立进程组；必须清理整个 control-group，覆盖 worker 被 SIGKILL 后的孤儿。
+KillMode=control-group
+# 第 8 张正常停止预算 30 秒，已含工具 SIGTERM 后 10 秒宽限；额外 15 秒留给收尾和调度。
+TimeoutStopSec=45
+
+[Install]
+WantedBy=default.target
