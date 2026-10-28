@@ -1,0 +1,3 @@
+R1 改回splitlines: KILLED rc=1 ['FAILED tests/test_storage.py::test_non_lf_characters_do_not_split_mount_records[\\r]', '1 failed, 1714 passed, 1 warning in 124.41s (0:02:04)']
+R2 不核对挂载根: KILLED rc=1 ['FAILED tests/test_storage.py::test_subdirectory_bind_is_source_mismatch[ext4]', '1 failed, 1718 passed, 1 warning in 122.63s (0:02:02)']
+R3 等待中不查停止取消: KILLED rc=1 ['FAILED tests/test_jobs_storage.py::test_waiting_storage_check_obeys_control_signal[stop]', '1 failed, 1527 passed, 1 warning in 111.69s (0:01:51)']

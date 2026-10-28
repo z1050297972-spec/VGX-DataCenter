@@ -1,0 +1,1 @@
+S1 挂载根须为绝对路径: KILLED rc=1 ['FAILED tests/test_mountinfo_sample.py::test_real_mountinfo_sample_preserves_nsfs_and_online_disks', '1 failed, 1654 passed, 1 warning in 118.68s (0:01:58)']

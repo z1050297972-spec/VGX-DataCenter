@@ -1,0 +1,16 @@
+== 登记正确
+  web   dataset1  /mnt/dataset1 online=True reason=None writable=False
+  web   dataset2  /mnt/dataset2 online=True reason=None writable=False
+  job   dataset1  online=True reason=None
+  job   dataset2  online=True reason=None
+== dataset2 的 UUID 改错一位
+  web   dataset1  /mnt/dataset1 online=True reason=None writable=False
+  web   dataset2  /mnt/dataset2 online=False reason=source_mismatch writable=False
+  job   dataset1  online=True reason=None
+  job   dataset2  online=False reason=source_mismatch
+== dataset1 登记成 dataset2 的 UUID（挂的是别的盘）
+  web   dataset1  /mnt/dataset1 online=False reason=source_mismatch writable=False
+  job   dataset1  online=False reason=source_mismatch
+== 没挂载的路径
+  web   nas       /mnt/nas_not_here online=False reason=not_mounted writable=False
+  job   nas       online=False reason=not_mounted

@@ -1,6 +1,6 @@
 # 存储根与假导航层
 
-Status: ready-for-agent
+Status: in-review
 
 ## 依据
 
@@ -89,3 +89,19 @@ Status: ready-for-agent
   - 补记：两块数据盘在系统层面是 `rw` 挂载（2026-10-23 `findmnt`），"只读"是平台按登记执行的规则。
   - Status 改成 `ready-for-agent`。等第 9 张合并以后再开票。
 - 2026-10-27，派工前样本采集（执行线，只读，未写 /mnt）：5 个必选数据集在两个视图的三份 JSON（30 份）+ 2 份 `meta/info.json`（libero_10；EgoProDemo 是每任务每条一份，取 `Adjust Shelf Labels/5800ed0b-…/meta/info.json` 为代表）复制到 `assets/10-storage-roots-fake-nav/samples/`，来源路径、sha256、字节数在 `sources.tsv`（32 行）。导航层顶层、`按格式` 目录（含空的 `lerobot/2.0`、`lerobot/2.1`）、18 条样本链接及目标、目标下第一层、非数据集目录（索引/文档/工具/解压样本/VGX_video）第一层、挂载事实在 `layout.txt`。注意导航层顶层比盘点多一个 `VGX_video/`（非数据集目录）。等第 9 张合并后开票。
+- 2026-10-27 开票（执行线）：第 9 张已合并（fd645ae）。Status 改为 `in-progress`。工作目录 `~/桌面/robot-data-platform.wt/m0-10-storage-roots-fake-nav`，分支 `t/m0-10-storage-roots-fake-nav`，基点 0d3c470；uv/pnpm 安装后基线 make check 全绿（pytest 1681、Vitest 228）。派工 A（新会话），提示 `assets/10-storage-roots-fake-nav/prompt-A.md`，快照 `refs/rdp/m0-10/A`，运行日志在执行线临时目录 `m0-10/ev-A.jsonl`。
+  - 派工 A 会话编号 `01a17fcc-919d-71d1-91ca-49d49093288a`。
+- 2026-10-27 负责人："我同意，请开始吧"；执行线确认是否预先通过骨架关卡，负责人答 "yes"。即：骨架评审无阻塞、无需负责人拍板时，执行线直接做契约提交并进入派工 B；有需要负责人决定的事项仍停下。合并仍需负责人说"合并"。
+- 2026-10-27 骨架关卡（执行线复核，负责人已预先通过）：快照 `refs/rdp/m0-10/A-done` 4e3f8b2；make check 全绿（pytest 1681/83 skipped，Vitest 228/15 skipped）；审计 0 行；文件归属干净；代码里 `/mnt` 只出现在 `DEFAULT_NAV_ROOT` 常量。契约要点：挂载表+UUID 设备号核对，三种离线原因，挂载表读取失败为 ExternalError（API 502），Web 只读挂载表、作业另做有总预算的线程访问；`JobDefinition.storage`、`ExecutorDependencies.storage` 必填关键字；清单记 sha256 与截短说明。Codex 的四点（超时 0.1–60 秒、读取失败 502、启动统一核对根名、`source_path_parts`）照收，无需负责人拍板。契约提交 `47aed75 契约：存储根与假导航层`（钩子全绿）。派工 B（续接 `01a17fcc-919d-71d1-91ca-49d49093288a`，`prompt-B.md`，快照 `refs/rdp/m0-10/B`）。
+- 2026-10-27 派工 B 在最终检查时被会话中断（无最终回复），快照 `refs/rdp/m0-10/B-cut` a31fb68。实现评审（执行线）：
+  - make check 复跑全绿（pytest 1781、Vitest 243，0 skipped）；审计 0 行；文件归属干净；公开签名对 47aed75 无变化；tests/ 与 fixtures 无 `/mnt` 文本。
+  - 验收 6：清单 32 份样本 sha256/字节数/来源路径与 `sources.tsv` 全部一致。
+  - 验收 2 真机核对（`realcheck.py`，输出 `realcheck-run.txt`）：dataset1、dataset2 Web 与作业检查均在线；dataset2 UUID 改错一位 → 挂错了盘；dataset1 登记成 dataset2 的 UUID → 挂错了盘；未挂载路径 → 没挂载。未卸载任何盘、未写 /mnt。
+  - 验收 9 浏览器演示（`demo10.py`/`demo10.mjs`，截图 `demo10-ok.png`、`demo10-wrong.png`，日志 `demo10-run.log`）：菜单有"存储根"；两块盘在线；UUID 改错一位重启后 dataset2 显示"挂错了盘"；"重新检查"刷新检查时间；未登录 401。
+  - 三路评审：规格 1 条阻塞（libero_10 `meta/episodes` 缺失，`retained_missing_paths` 无人读取）；并发/安全 1 条阻塞（`splitlines` 遇 \r/\x0c/\x85/U+2028 整表失败，已实测）；规范 1 条（queries.ts 缓存时间字面量）。执行线另升为阻塞：开跑前检查等待期间不响应停止/取消（可超 30 秒停止预算）、挂载根字段未核对（子目录 bind 被报在线）、截短说明套话、诊断用英文枚举。
+  - 变异抽查 10 个全部被抓住（叠层、包含、设备号、NFS 来源、只读写入、离线、超时警告、在线访问、转义、执行器跳过检查），`mutation_probe-B.txt`。打回第 1 轮（`prompt-B-r1.md`，6 条缺陷、4 条规范）。
+- 2026-10-27 r1 复核（执行线），快照 `refs/rdp/m0-10/B-r1-done` 3887745：make check 全绿（pytest 1793、Vitest 243，0 skipped），审计 0 行，10 条逐条改到（LF 分行、可放弃的等待 checkpoint、挂载根字段、episodes 目录与 retained_missing_paths 测试、按数据集截短说明、诊断中文、缓存常量、死代码、共用 `validate_mount_inspector`、静态检查加强）。但重跑浏览器演示时页面整页外部失败：新加的挂载根校验要求第 4 列为绝对路径，本机 snapd nsfs 行第 4 列是 `mnt:[...]`，整表解析失败（已逐行复现）。打回第 2 轮（`prompt-B-r2.md`），附脱敏的本机挂载表 `mountinfo-sample.txt` 作回归数据。
+  - r1 新修复的变异 3 个全部被抓住（改回 splitlines、不核对挂载根、等待中不查停止取消），`mutation_probe-r1.txt`。
+- 2026-10-27 r2 复核（执行线），快照 `refs/rdp/m0-10/B-r2-done` 9574fea：make check 全绿（pytest 1811、Vitest 243，0 skipped），审计 0 行。挂载根第 4 列按原文保存，只有 `/` 代表整个文件系统；解析只拒绝结构性错误，报错指明列；本机脱敏挂载表 58 行作回归数据（`tests/fixtures/` 副本只改两行挂载点）。变异"挂载根须为绝对路径"被真实形状测试抓住（`mutation_probe-r2.txt`）。验收 2 真机核对重跑通过（`realcheck-run.txt`）；验收 9 浏览器演示重跑通过（两块盘在线；UUID 改错一位 → 挂错了盘；未登录 401；`demo10-*.png`、`demo10-run.log`）。实现提交 `ee2d9e7 实现：存储根与假导航层`（钩子全绿）。Status 改成 `in-review`，等负责人说"合并"。
+  - 后续（不阻塞）：生产入口要装配 `configure_storage`、`StorageAccessChecker`、`JobRegistry.validate_storage_roots`（第 11 张）；NFS 来源格式在「NAS 接入事实」后复核；`//` 开头的登记路径恒为没挂载；线程启动失败抛原始 RuntimeError；`MountInspector` 相关私有函数可改成方法；`_absolute_path` 命名；`ext4`/`nfs` 字面量；页面无轮询（按设计）；文件头"（10）"标签与 CODING_STANDARDS 4.1 关于标注工单的写法需统一口径。
+  - 合并时要补：运维手册"存储根"一节（登记新存储根、判断离线原因）；导航层手册"存储根"说法对齐；配置示例补 `nav_root`、`[[storage_roots]]`、`[storage]`。
