@@ -32,7 +32,12 @@ from rdp.infra.logging import (
     log_state_warnings,
 )
 from rdp.infra.state import StatePaths, initialize_state, state_paths
-from rdp.infra.storage import LinuxMountSource, MountInspector
+from rdp.infra.storage import (
+    LinuxMountSource,
+    MountInspector,
+    StorageAccessChecker,
+    read_storage_root,
+)
 from rdp.infra.version import DeploymentLayout, read_platform_version
 from rdp.jobs._clock import ClockReader
 from rdp.jobs.datasets.rescan import RescanDependencies
@@ -149,8 +154,19 @@ def prepare_service(
     engine = create_database_engine(paths.database)
     try:
         check_database_version(paths.database)
+        inspector = MountInspector(
+            config.storage_roots,
+            inputs.mounts.read_mountinfo,
+            inputs.mounts.resolve_uuid_device,
+            inputs.clock.now,
+        )
         registry = production_registry(
-            RescanDependencies(engine, config.nav_root, config.storage_roots, None)
+            RescanDependencies(
+                engine,
+                config.nav_root,
+                config.storage_roots,
+                StorageAccessChecker(inspector, config.storage, read_storage_root),
+            )
             if process == "worker"
             else None
         )
@@ -168,12 +184,6 @@ def prepare_service(
             resolve_scheduling(config.jobs, registry),
             production_schedules(registry),
             local_timezone(inputs.localtime),
-        )
-        inspector = MountInspector(
-            config.storage_roots,
-            inputs.mounts.read_mountinfo,
-            inputs.mounts.resolve_uuid_device,
-            inputs.clock.now,
         )
         version = read_platform_version(inputs.layout, package_version=inputs.package_version)
         return ServiceRuntime(

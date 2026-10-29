@@ -34,8 +34,8 @@ def test_assembly_order(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     try:
         assert observed
         assert runtime.logging.stderr is False
-        assert len(runtime.registry.definitions()) == 6
-        assert len(runtime.scheduling.schedules.definitions()) == 2
+        assert len(runtime.registry.definitions()) == 7
+        assert len(runtime.scheduling.schedules.definitions()) == 3
         assert all(path.is_dir() for _, path in runtime.paths.job_logs)
         assert runtime.version == "0.1.0 (aaaaaaa)"
     finally:
@@ -109,7 +109,7 @@ def test_scheduling_catalog(tmp_path: Path) -> None:
                 )
                 == 3
             )
-            assert len(runtime.scheduling.schedules.definitions()) == 2
+            assert len(runtime.scheduling.schedules.definitions()) == 3
         finally:
             runtime.engine.dispose()
     config.write_text(config.read_text().replace("example_count = 3", "unknown_type = 3"))

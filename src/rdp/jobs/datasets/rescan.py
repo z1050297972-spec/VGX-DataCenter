@@ -5,6 +5,7 @@
 """
 
 import logging
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,13 +19,15 @@ from rdp.infra.db.connection import session_scope
 from rdp.infra.diagnostics import DefectError
 from rdp.infra.storage import StorageAccessChecker
 from rdp.jobs import _storage
-from rdp.jobs.datasets import _fingerprints, _stage
+from rdp.jobs.datasets import _fingerprints, _stage, _storage_scan
 from rdp.jobs.datasets.catalog import RESCAN_NAME, RESCAN_TYPE
 from rdp.jobs.datasets.index import plan_index_replacement, read_index_baseline, replace_index
 from rdp.jobs.datasets.scan_types import NavigationScan, ScanPublication, StorageScan, StorageStage
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.registry import JobDefinition
 from rdp.jobs.types import ExecutionMode, JobProgress, RecoveryMode
+
+logger = logging.getLogger(__name__)
 
 
 class RescanParameters(BaseModel):
@@ -49,7 +52,7 @@ class RescanDependencies:
         engine: 已迁移且受管的SQLite引擎，每次调用独立Session。
         nav_root: 配置给出的绝对普通目录，不使用全局默认路径。
         roots: 已校验存储根配置元组，可空，只保存登记事实。
-        storage: 第02张只读访问检查器；本票明确传None，不构造真实检查器。
+        storage: worker注入只读超时访问检查器；None表示仅运行第一段，第二段明确NOT_RUN。
     """
 
     engine: Engine
@@ -126,7 +129,9 @@ class RescanExecutor:
             JobProgress(
                 stage_index=2,
                 stage_count=3,
-                stage_name="存储检查未执行",
+                stage_name="检查存储根"
+                if storage.stage is StorageStage.COMPLETED
+                else "存储检查未执行",
                 done=1,
                 total=1,
                 unit="阶段",
@@ -149,7 +154,7 @@ class RescanExecutor:
                 warning_count=publication.warning_count,
             )
         )
-        logging.getLogger(__name__).info(
+        logger.info(
             "重新扫描发布完成",
             extra={
                 "fields": {
@@ -268,34 +273,59 @@ def scan_storage(
     *,
     checkpoint: Callable[[], None],
 ) -> StorageScan:
-    """返回明确的存储检查未执行结果，保持第二段交接形状。
+    """在导航锁外检查存储根、链接、数据块与元信息，返回③④组发现。
 
     Args:
-        navigation: 第一段完整快照，不允许把它变成存储遍历请求。
-        dependencies: 显式扫描依赖，本函数不调用storage检查器或读取root.path。
-        checkpoint: 必填控制检查点，进入时调用一次，取消后不产生结果。
+        navigation: 第一段完整快照，第二段只检查其中路径，不递归统计大小。
+        dependencies: 显式扫描依赖；storage为None时保留仅导航扫描模式并返回NOT_RUN。
+        checkpoint: 必填控制检查点，在调用线程进入及等待各根期间调用，控制异常原样传播。
 
     Returns:
-        StorageScan(stage=NOT_RUN)，roots/links/sources/findings为空，warning_count=0。
-        未执行本身不是存储根离线，不能清掉旧大小或把链接标为可用。
+        有检查器时返回COMPLETED，含每根状态、链接/数据块观察及按归属聚合的③④组发现。
+        离线或超时的根只报顶部问题，链接和数据块标为离线；warning_count为离线根数。
+        没有检查器返回NOT_RUN和空集合、零警告；不冒充在线，不修改已有大小。
 
     Raises:
         JobCancelledError: 检查点收到取消。
         WorkerStoppingError: 检查点收到停止。
-        DefectError: 第一段快照或依赖形状非法。
+        ExternalError: 挂载表、路径元数据或目录枚举I/O失败；元信息不可读则字段归未知。
+        DefectError: 第一段快照、检查器根配置或时钟非法。
 
     Side Effects:
-        无；不读存储根或挂载表、不获取导航锁、不修改第一段值，不提交数据库。
+        只读挂载表、根内路径及meta/info.json，不获取导航锁、不修改导航或存储根，不提交数据库。
+        每根使用M0超时线程；超时丢弃该根部分结果，迟到线程不发布结果。
 
     Time Semantics:
-        只在第一段放锁后的阶段边界调用，无等待、无重试、不产生虚构检查时间。
+        第一段放锁后调用；每批根内读取受access_timeout_s预算限制，无重试。
+        跨根软链接在目标根重新核对身份并使用独立预算，解析最多40跳。
+        UTC检查时刻来自检查器时钟，耗时用单调秒；超时不能强行结束内核读取（M0限制）。
     """
     checkpoint()
     if not isinstance(cast(object, navigation), NavigationScan) or not isinstance(
         cast(object, dependencies), RescanDependencies
     ):
         raise DefectError()
-    return StorageScan(StorageStage.NOT_RUN, (), (), (), (), 0)
+    if dependencies.storage is None:
+        return StorageScan(StorageStage.NOT_RUN, (), (), (), (), 0)
+    if (
+        navigation.registered_roots != dependencies.roots
+        or dependencies.storage.mounts.roots != dependencies.roots
+    ):
+        raise DefectError()
+    started = time.monotonic()
+    result = _storage_scan.scan(navigation, dependencies.storage, checkpoint)
+    logger.info(
+        "存储扫描完成",
+        extra={
+            "fields": {
+                "elapsed_s": time.monotonic() - started,
+                "offline_roots": result.warning_count,
+                "link_count": len(result.links),
+                "source_count": len(result.sources),
+            }
+        },
+    )
+    return result
 
 
 def publish_scan(

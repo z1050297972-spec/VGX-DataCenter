@@ -38,6 +38,9 @@ PROVENANCE_DOCUMENT: Final = "来源.json"
 RESCAN_INTERVAL_S: Final = 600
 RESCAN_TYPE: Final = "dataset_rescan"
 RESCAN_NAME: Final = "重新扫描数据集"
+# M1-02与第03张提交接口共用的永久类型键。
+SIZING_TYPE: Final = "dataset_sizing"
+SIZING_NAME: Final = "统计数据集大小"
 # 0010 最大单文件约14 MB、全导航JSON约38 MB；留余量并限制恶意/意外输入占用。
 MAX_DOCUMENT_BYTES: Final = 32 * 1024 * 1024
 MAX_SCAN_BYTES: Final = 128 * 1024 * 1024

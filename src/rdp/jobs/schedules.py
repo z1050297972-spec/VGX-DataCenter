@@ -23,6 +23,7 @@ from rdp.infra.diagnostics import (
 from rdp.infra.timeutil import ensure_utc
 from rdp.jobs import _storage
 from rdp.jobs._parameters import validate as validate_parameters
+from rdp.jobs.datasets.catalog import SIZING_NAME, SIZING_TYPE
 from rdp.jobs.errors import JobInputError
 from rdp.jobs.policy import SCHEDULE_CATCH_UP_AFTER_S, SCHEDULE_LIMIT, SCHEDULE_LOOKAHEAD_DAYS
 from rdp.jobs.registry import (
@@ -98,12 +99,11 @@ def production_schedules(jobs: JobRegistry) -> ScheduleRegistry:
     """登记每天 03:00 的报错清除与两种日志联合清除。
 
     Args:
-        jobs: 包含 purge_errors 和 purge_audit_logs 的生产类型登记表。
+        jobs: 包含两个清除类型及dataset_sizing的生产类型登记表。
 
     Returns:
-        两条规则：名字“清除过期报错”（type_name=purge_errors）、名字“清除过期日志”
-        （type_name=purge_audit_logs），参数均为空。
-        不登记 M1 统计或第 12 张备份，两个类型都按 restart 恢复。
+        三条规则：两个清除类型参数为空；统计数据集大小的dataset_id为None，表示全量。
+        三类都按RESTART恢复；统计类型与手动入口共用永久键dataset_sizing。
 
     Raises:
         DefectError: 缺清除类型、参数模型/恢复声明不一致。
@@ -118,6 +118,7 @@ def production_schedules(jobs: JobRegistry) -> ScheduleRegistry:
         (
             ScheduledJob(PURGE_ERRORS_NAME, PURGE_ERRORS_TYPE, {}),
             ScheduledJob(PURGE_AUDIT_LOGS_NAME, PURGE_AUDIT_LOGS_TYPE, {}),
+            ScheduledJob(SIZING_NAME, SIZING_TYPE, {"dataset_id": None}),
         ),
         jobs,
     )
