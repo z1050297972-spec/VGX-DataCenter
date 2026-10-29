@@ -1,0 +1,32 @@
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 1661 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/assets/json.worker-DuNK66Bi.js         0.30 kB
+dist/index.html                             1.56 kB │ gzip:  0.49 kB
+dist/assets/Pages-CzGtOmtV.css              0.72 kB │ gzip:  0.36 kB
+dist/assets/ui-DB0hHKMi.js                  0.36 kB │ gzip:  0.23 kB
+dist/assets/rolldown-runtime-WkwZ5CU-.js    0.59 kB │ gzip:  0.36 kB
+dist/assets/Pages-D3gI1jTg.js               1.77 kB │ gzip:  1.08 kB
+dist/assets/_actions-_6rKmJdr.js            2.44 kB │ gzip:  0.92 kB
+dist/assets/progress-DmebvKdY.js            3.63 kB │ gzip:  1.60 kB
+dist/assets/ui-CGkvth1S.js                  4.50 kB │ gzip:  2.11 kB
+dist/assets/Pages-CxybW27h.js               6.04 kB │ gzip:  2.40 kB
+dist/assets/Pages-BCpT2rkx.js               7.13 kB │ gzip:  2.54 kB
+dist/assets/Pages-qSkvgZcy.js               7.71 kB │ gzip:  3.03 kB
+dist/assets/ui-DA5kbqvE.js                  9.49 kB │ gzip:  4.13 kB
+dist/assets/Pages-DwUEa7X2.js              13.14 kB │ gzip:  4.28 kB
+dist/assets/ui-Bso498V8.js                 13.74 kB │ gzip:  4.45 kB
+dist/assets/ui-C0WULXf6.js                 16.83 kB │ gzip:  6.56 kB
+dist/assets/index-CWiVFo-4.js              50.51 kB │ gzip: 16.83 kB
+dist/assets/link-DSTjoneF.js               65.31 kB │ gzip: 23.08 kB
+dist/assets/ui-ehLTvIuL.js                 65.75 kB │ gzip: 21.80 kB
+dist/assets/ui-Btq1zqpx.js                104.79 kB │ gzip: 35.76 kB
+dist/assets/ui-D8ageqqZ.js                144.48 kB │ gzip: 45.42 kB
+dist/assets/ui-DqVOVf3k.js                157.75 kB │ gzip: 53.75 kB
+dist/assets/react-runtime-AyOTluXZ.js     218.75 kB │ gzip: 68.26 kB
+dist/assets/DiagnosticCard-QZwLuCeg.js    228.26 kB │ gzip: 50.54 kB
+dist/assets/ui-Y2OFMLSs.js                251.48 kB │ gzip: 73.25 kB
+
+✓ built in 287ms

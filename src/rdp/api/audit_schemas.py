@@ -94,13 +94,13 @@ class ObjectResponse(AuditPayload):
     """对象的历史名字，保留给未来撤回功能定位。
 
     Attributes:
-        kind: account/audit_settings/job，必填；job 不表示账号。
-        object_id: 账号/作业编号十进制文本或设置键 retention；失败新建尚无编号时 None。
+        kind: account/audit_settings/job/dataset_index，必填；job 不表示账号。
+        object_id: 账号/作业编号十进制文本或设置键 retention、索引键 all；失败新建尚无编号时 None。
         name: 当时显示名、固定设置名或“作业显示名 #编号”，1-64 码点，必填。
         deleted: 账号编号已不存在为 True；设置、作业或未分配编号为 False。
     """
 
-    kind: Literal["account", "audit_settings", "job"]
+    kind: Literal["account", "audit_settings", "job", "dataset_index"]
     object_id: str | None = Field(max_length=64)
     name: DisplayName
     deleted: bool

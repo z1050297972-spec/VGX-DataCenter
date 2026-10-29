@@ -199,7 +199,7 @@ def test_migrate_dispatch(tmp_path: Path) -> None:
     assert run_maintenance(Command("migrate"), inputs=inputs, console=console) == 0
     paths = state_paths(load_config(environ=inputs.environ, home=inputs.home).config, ())
     check_database_version(paths.database)
-    assert "0008_dataset_layout" in cast(io.StringIO, console.stdout).getvalue()
+    assert "0009_rebuild_index_audit" in cast(io.StringIO, console.stdout).getvalue()
 
 
 def test_accounts_require_current_database(tmp_path: Path) -> None:

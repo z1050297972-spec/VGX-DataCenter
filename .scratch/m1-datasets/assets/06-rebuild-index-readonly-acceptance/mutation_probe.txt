@@ -1,0 +1,2 @@
+worker 运行时不拒绝 | SURVIVED | ['2288 passed, 8 warnings in 91.44s (0:01:31)']
+操作日志类型写错 | KILLED | ['9 failed, 2279 passed, 8 warnings in 82.44s (0:01:22)']

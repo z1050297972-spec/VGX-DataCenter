@@ -38,6 +38,7 @@ class OperationType(StrEnum):
     SET_RETENTION = "set_retention"
     SUBMIT_JOB = "submit_job"
     CANCEL_JOB = "cancel_job"
+    REBUILD_INDEX = "rebuild_index"
 
 
 class OperationResult(StrEnum):
@@ -134,6 +135,7 @@ OPERATION_DETAIL_FIELDS: dict[OperationType, frozenset[str]] = {
     OperationType.SET_RETENTION: frozenset({"retention_days"}),
     OperationType.SUBMIT_JOB: frozenset({"job_id", "job_type", "job_state", "resubmitted_from"}),
     OperationType.CANCEL_JOB: frozenset({"job_id", "job_type", "job_state"}),
+    OperationType.REBUILD_INDEX: frozenset(),
 }
 
 
@@ -163,12 +165,12 @@ class ObjectRef:
     """操作对象的独立快照，不建立会随账号删除而消失的外键。
 
     Attributes:
-        kind: account、audit_settings 或 job；旧值含义不变（08 批准扩展）。
-        object_id: account/job 为 1 至 2^63-1 的十进制文本；失败新建尚未分配编号为 None；设置固定 retention。
-        name: 已确认显示名或固定“日志保留期”，1-64 码点；job 为“显示名 #编号”，最多 61 码点；失败新建account固定“新账号”，job尚无编号固定“新作业”，不抄输入。
+        kind: account、audit_settings、job 或 dataset_index；旧值含义不变。
+        object_id: account/job 为 1 至 2^63-1 的十进制文本；失败新建尚未分配编号为 None；设置固定 retention；数据集索引固定 all。
+        name: 已确认显示名或固定“日志保留期”，1-64 码点；job 为“显示名 #编号”，最多 61 码点；失败新建account固定“新账号”，job尚无编号固定“新作业”；dataset_index固定“数据集索引”，不抄输入。
     """
 
-    kind: Literal["account", "audit_settings", "job"]
+    kind: Literal["account", "audit_settings", "job", "dataset_index"]
     object_id: str | None
     name: str
 
