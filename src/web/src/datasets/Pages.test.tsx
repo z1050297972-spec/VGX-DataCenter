@@ -91,7 +91,7 @@ describe("数据集布局 A", () => {
       expect(await screen.findByRole("heading", { name: "libero_10" })).toBeTruthy();
       expect(await screen.findByText("dataset-14")).toBeTruthy();
       expect(screen.getByText("统计大小：未统计")).toBeTruthy();
-      expect(screen.getByText("10-12 记录：2,048 B")).toBeTruthy();
+      expect(screen.getByText("10-12 记录：2.0 KiB")).toBeTruthy();
       expect(
         requests.filter((request) => new URL(request.url).pathname === "/api/datasets/subtasks"),
       ).toHaveLength(0);
@@ -163,6 +163,40 @@ describe("数据集布局 A", () => {
       const submissions = requests.filter((request) => request.method === "POST");
       expect(submissions).toHaveLength(1);
       expect(new URL(submissions[0]?.url ?? "").pathname).toBe("/api/datasets/dataset-14/rescan");
+    } finally {
+      page.close();
+    }
+  });
+  // 契约：树节点名字单行显示，放不下用省略号，悬停给全名；大小是人读单位，悬停给精确字节，保留出处标记。
+  it("树节点名字带省略号 class 和全名提示，大小换算并带精确字节提示", async () => {
+    const page = mountPage("/datasets", datasetFetch());
+    try {
+      expect(await screen.findByText("共 2 个数据集")).toBeTruthy();
+      const root = document.querySelector<HTMLElement>('.dataset-tree-name[title="按格式"]');
+      expect(root).not.toBeNull();
+      expect(root?.textContent).toBe("按格式");
+      const meta = root?.parentElement?.querySelector<HTMLElement>(".dataset-tree-meta");
+      expect(meta?.textContent).toBe("1 个 · 2.0 KiB · 含 10-12 记录");
+      expect(meta?.getAttribute("title")).toBe("2,048 B");
+      expect(document.body.textContent).not.toMatch(/2,048 B(?! )/);
+    } finally {
+      page.close();
+    }
+  });
+  // 契约：详情页里所有表格在自己的容器里横向滚动，不撑宽整页。
+  it("详情页每张表格都带横向滚动容器", async () => {
+    const page = mountPage("/datasets", datasetFetch());
+    try {
+      fireEvent.click(await screen.findByRole("button", { name: "打开 libero_10" }));
+      expect(await screen.findByRole("heading", { name: "libero_10" })).toBeTruthy();
+      await screen.findByRole("region", { name: "链接状态" });
+      const main = document.querySelector("main") as HTMLElement;
+      const tables = main.querySelectorAll(".ant-table");
+      expect(tables.length).toBeGreaterThanOrEqual(2);
+      tables.forEach((table) => {
+        const scroller = table.querySelector<HTMLElement>(".ant-table-content");
+        expect(scroller?.style.overflowX).toBe("auto");
+      });
     } finally {
       page.close();
     }

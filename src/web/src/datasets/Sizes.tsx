@@ -2,6 +2,7 @@
 import type { ReactElement } from "react";
 import { Card } from "antd";
 import type { DatasetDetail } from "../api/datasets";
+import { exactBytes, formatBytes } from "./formatBytes";
 interface Props {
   /** 按任务入口的数据集大小快照，单位字节。 */ size: DatasetDetail["dataset_size"];
 }
@@ -17,18 +18,16 @@ export function DatasetSizeSummary(props: Props): ReactElement {
   const size = props.size;
   return (
     <Card title="数据集大小（按任务入口）">
-      <p>
-        统计大小：{size.size_bytes === null ? "未统计" : `${size.size_bytes.toLocaleString()} B`}
+      <p title={exactBytes(size.size_bytes)}>
+        统计大小：{size.size_bytes === null ? "未统计" : formatBytes(size.size_bytes)}
       </p>
       <p>
         统计时间：
         {size.size_checked_at ? new Date(size.size_checked_at).toLocaleString() : "未统计"}
       </p>
-      <p>
+      <p title={exactBytes(size.recorded_size_bytes)}>
         10-12 记录：
-        {size.recorded_size_bytes === null
-          ? "未知"
-          : `${size.recorded_size_bytes.toLocaleString()} B`}
+        {formatBytes(size.recorded_size_bytes)}
       </p>
     </Card>
   );

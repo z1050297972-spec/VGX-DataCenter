@@ -4,6 +4,7 @@ import { Button, Table, Tree } from "antd";
 import type { TreeDataNode } from "antd";
 import type { components } from "../api/schema";
 import type { DatasetList, DatasetTrees } from "../api/datasets";
+import { exactBytes, formatBytes } from "./formatBytes";
 
 type Size = components["schemas"]["DatasetSize"];
 
@@ -22,13 +23,17 @@ export function DatasetSizeLabel(props: {
   return (
     <span
       title={
-        props.size.size_checked_at
-          ? new Date(props.size.size_checked_at).toLocaleString()
-          : undefined
+        [
+          exactBytes(props.size.display_bytes),
+          props.size.size_checked_at
+            ? new Date(props.size.size_checked_at).toLocaleString()
+            : undefined,
+        ]
+          .filter((part) => part !== undefined)
+          .join(" · ") || undefined
       }
     >
-      {props.size.display_bytes?.toLocaleString() ?? "未知"}
-      {props.size.display_bytes !== null ? " B" : ""} ·{" "}
+      {formatBytes(props.size.display_bytes)} ·{" "}
       {props.size.display_source === "recorded"
         ? "10-12 记录"
         : props.size.display_source === "measured"
@@ -60,11 +65,15 @@ export function DatasetTree(props: TreeProps): ReactElement {
       .map((node) => ({
         key: node.path,
         title: (
-          <span>
-            {node.name} · {node.dataset_count} 个 ·{" "}
-            {node.size.total_bytes?.toLocaleString() ?? "大小部分未知"}
-            {node.size.total_bytes !== null ? " B" : ""}
-            {node.size.recorded_entry_count > 0 ? " · 含 10-12 记录" : ""}
+          <span className="dataset-tree-node">
+            <span className="dataset-tree-name" title={node.name}>
+              {node.name}
+            </span>
+            <span className="dataset-tree-meta" title={exactBytes(node.size.total_bytes)}>
+              {node.dataset_count} 个 ·{" "}
+              {node.size.total_bytes === null ? "大小部分未知" : formatBytes(node.size.total_bytes)}
+              {node.size.recorded_entry_count > 0 ? " · 含 10-12 记录" : ""}
+            </span>
           </span>
         ),
         children: children(node.path),
@@ -103,6 +112,7 @@ export function DatasetListTable(props: ListProps): ReactElement {
     <section aria-label="数据集列表">
       <p>共 {props.data.total} 个数据集</p>
       <Table
+        scroll={{ x: "max-content" }}
         size="small"
         rowKey={(item) => item.dataset_id ?? item.entries[0]?.entry_path ?? item.name}
         dataSource={props.data.items}

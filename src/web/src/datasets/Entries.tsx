@@ -30,6 +30,7 @@ export function DatasetLinks(props: LinksProps): ReactElement {
       <Table
         size="small"
         rowKey="ordinal"
+        scroll={{ x: "max-content" }}
         dataSource={props.links}
         pagination={{ pageSize: 20, showSizeChanger: false }}
         columns={[
@@ -82,7 +83,7 @@ export function DatasetSources(props: SourcesProps): ReactElement {
         rowKey="ordinal"
         dataSource={props.sources}
         pagination={{ pageSize: 20, showSizeChanger: false }}
-        scroll={{ x: 900 }}
+        scroll={{ x: "max-content" }}
         columns={[
           { title: "数据块编号", dataIndex: "source_id" },
           { title: "首次登记路径", dataIndex: "original_path" },

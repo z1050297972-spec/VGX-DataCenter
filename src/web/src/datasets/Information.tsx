@@ -30,6 +30,7 @@ export function DatasetInformation(props: Props): ReactElement {
         <>
           <p>来自按任务入口规范副本 · 10-12 记录</p>
           <Table
+            scroll={{ x: "max-content" }}
             size="small"
             rowKey="number"
             pagination={false}

@@ -86,7 +86,7 @@ describe("数据集后半段验收", () => {
       const links = await screen.findByRole("region", { name: "链接状态" });
       expect(within(links).getByText("存储根离线")).toBeTruthy();
       expect(within(links).queryByText("断链")).toBeNull();
-      expect(screen.getByText("统计大小：4,096 B")).toBeTruthy();
+      expect(screen.getByText("统计大小：4.0 KiB")).toBeTruthy();
       expect(
         screen.getByText(`统计时间：${new Date("2026-10-28T12:00:00Z").toLocaleString()}`),
       ).toBeTruthy();
@@ -223,7 +223,10 @@ describe("数据集后半段验收", () => {
         });
       });
       fireEvent.click(screen.getByRole("tab", { name: "按任务" }));
-      fireEvent.click(await screen.findByText(/^按任务 ·/));
+      await waitFor(() => {
+        expect(document.querySelector('.dataset-tree-name[title="按任务"]')).not.toBeNull();
+      });
+      fireEvent.click(document.querySelector('.dataset-tree-name[title="按任务"]') as Element);
       await waitFor(() => {
         expect(
           requests.some((request) => {
