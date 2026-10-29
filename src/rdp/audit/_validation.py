@@ -71,10 +71,18 @@ def actor(value: object) -> None:
 
 def target(value: object) -> None:
     """限定对象类型及规范账号/作业编号文本，不把设置对象的键当作账号。"""
-    if not isinstance(value, ObjectRef) or value.kind not in {"account", "audit_settings", "job"}:
+    if not isinstance(value, ObjectRef) or value.kind not in {
+        "account",
+        "audit_settings",
+        "job",
+        "dataset_index",
+    }:
         raise invalid("target")
     name(value.name)
-    if value.kind == "audit_settings":
+    if value.kind == "dataset_index":
+        if value.object_id != "all" or value.name != "数据集索引":
+            raise invalid("target")
+    elif value.kind == "audit_settings":
         if value.object_id != "retention" or value.name != "日志保留期":
             raise invalid("target")
     elif value.object_id is not None:
@@ -139,6 +147,14 @@ def operation_shape(value: OperationEvent, checked: OperationDetails) -> None:
         OperationType.CANCEL_JOB,
     }:
         validate_job_operation(value, checked)
+        return
+    if value.operation is OperationType.REBUILD_INDEX or value.target.kind == "dataset_index":
+        if (
+            value.operation is not OperationType.REBUILD_INDEX
+            or value.target.kind != "dataset_index"
+            or value.actor != OPS_ACTOR
+        ):
+            raise invalid("target")
         return
     creating = value.operation in {OperationType.CREATE_ACCOUNT, OperationType.CREATE_FIRST_ADMIN}
     if creating and checked.before.model_dump(exclude_none=True):

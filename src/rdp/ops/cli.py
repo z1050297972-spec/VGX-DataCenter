@@ -30,6 +30,7 @@ from rdp.infra.timeutil import ensure_utc
 from rdp.infra.version import read_platform_version
 from rdp.ops.accounts import create_first_admin, reset_account_password
 from rdp.ops.lifecycle import start_worker
+from rdp.ops.rebuild import rebuild_index
 from rdp.ops.runtime import RuntimeInputs, ServiceRuntime, prepare_service
 from rdp.ops.status import check_web_port, check_worker_stopped, has_active_jobs
 
@@ -41,14 +42,23 @@ class Command:
     """解析后的运维动作；不持有原始口令或 argparse Namespace。
 
     Attributes:
-        name: web、worker、migrate、create-admin、reset-password、status 或 version。
+        name: web、worker、migrate、create-admin、reset-password、status、rebuild-index 或 version。
         no_stderr: 只适用于 web/worker；其他命令必须为 False。
         login_name: 账号命令的登录名；其他命令为 None，领域函数负责账号字段校验。
         display_name: create-admin 的显示名，其他命令为 None。
         status_check: status 必须选择 active-jobs、port 或 worker-stopped；其他命令为 None。
     """
 
-    name: Literal["web", "worker", "migrate", "create-admin", "reset-password", "status", "version"]
+    name: Literal[
+        "web",
+        "worker",
+        "migrate",
+        "create-admin",
+        "reset-password",
+        "status",
+        "version",
+        "rebuild-index",
+    ]
     no_stderr: bool = False
     login_name: str | None = None
     display_name: str | None = None
@@ -141,6 +151,7 @@ def run_cli(
         服务走 prepare_service；worker 传 StorageAccessChecker、版本和完整 WorkerScheduling，
         Web 必须传入真实引擎。启动失败只在此边界记录一次诊断，版本闸门明确提示 rdp migrate。
         账号命令读取两次口令再调用现有领域事务；本层不另补成功操作日志。
+        rebuild-index同步独占worker锁清空并重建索引，成功日志与发布同事务；不统计大小。
         --no-stderr 下已配置日志的服务失败只进文件；日志初始化之前失败仍可输出终端诊断。
         不吞 worker 非零码，不在同进程重启；lock_retained=True 时不 dispose 仍被线程使用的引擎。
 
@@ -163,6 +174,8 @@ def run_cli(
             return start_worker(runtime, inputs=inputs, signals=signals)
         if command.name == "status":
             return _status(command, inputs)
+        if command.name == "rebuild-index":
+            return rebuild_index(inputs, stdout=console.stdout)
         return run_maintenance(command, inputs=inputs, console=console)
     except SystemExit as error:
         return error.code if isinstance(error.code, int) else 1
@@ -274,6 +287,7 @@ def _parser(console: Console) -> _Parser:
         "create-admin": "创建首个管理员",
         "reset-password": "重置账号口令并撤销旧会话",
         "status": "只读检查作业、worker 锁或监听端口",
+        "rebuild-index": "停止 worker 后清空并重建数据集索引",
     }
     for name, description in descriptions.items():
         child = subcommands.add_parser(
