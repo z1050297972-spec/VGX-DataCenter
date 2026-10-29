@@ -24,7 +24,7 @@ class OperationLogRow(Base):
         actor_id: 操作人编号，正整数；运维/系统 NULL，不建外键。
         actor_name: 当时显示名，1-64 码点，必填；空编号固定“运维”或“系统”。
         operation: OperationType 文本，1-64 字符，必填。
-        object_kind: account/audit_settings/job，必填；job不是账号。
+        object_kind: account/audit_settings/job/dataset_index，必填；job不是账号。
         object_id: 1-64 字符；新建执行失败尚无编号时 NULL，不建外键。
         object_name: 当时对象名字，1-64 码点，必填。
         result: success/failure，必填。
@@ -41,7 +41,9 @@ class OperationLogRow(Base):
         CheckConstraint("length(actor_name) BETWEEN 1 AND 64", name="actor_name"),
         CheckConstraint("actor_id IS NOT NULL OR actor_name IN ('运维','系统')", name="ops_actor"),
         CheckConstraint("length(operation) BETWEEN 1 AND 64", name="operation_length"),
-        CheckConstraint("object_kind IN ('account','audit_settings','job')", name="object_kind"),
+        CheckConstraint(
+            "object_kind IN ('account','audit_settings','job','dataset_index')", name="object_kind"
+        ),
         CheckConstraint(
             "object_id IS NULL OR length(object_id) BETWEEN 1 AND 64", name="object_id"
         ),

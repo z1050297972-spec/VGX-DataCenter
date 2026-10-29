@@ -54,6 +54,7 @@ export const OPERATION_LABELS = {
   set_retention: "修改保留期",
   submit_job: "提交作业",
   cancel_job: "取消作业",
+  rebuild_index: "重建索引",
 } satisfies Record<NonNullable<OperationSearch["operation"]>, string>;
 /** 操作结果筛选和展示使用同一字典。 */
 export const OPERATION_RESULTS = { success: "成功", failure: "失败" };
