@@ -1,0 +1,6 @@
+# B2 变异抽查（refs/rdp/m1-01/B2-out，全量 tests/，-n 8）
+已移除 不在登记表 | KILLED | ['1 failed, 2189 passed, 8 warnings in 64.57s (0:01:04)']
+dataset_id 不一致不报 | KILLED | ['1 failed, 2189 passed, 8 warnings in 73.36s (0:01:13)']
+名字和目录不符不报 | KILLED | ['3 failed, 2187 passed, 8 warnings in 77.15s (0:01:17)']
+600 秒边界 | KILLED | ['4 failed, 2186 passed, 8 warnings in 74.53s (0:01:14)']
+定时提交人不是系统 | NOT-FOUND 2

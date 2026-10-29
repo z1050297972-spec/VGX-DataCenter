@@ -1,0 +1,5 @@
+缺 schema_version 不当 1 | KILLED | ['5 failed, 48 passed, 5 skipped in 1.64s']
+记录值不认千分位 | KILLED | ['1 failed, 52 passed, 5 skipped in 1.66s']
+指纹不含链接目标 | KILLED | ['2 failed, 51 passed, 5 skipped in 1.58s']
+指纹不含 JSON 摘要 | KILLED | ['16 failed, 37 passed, 5 skipped in 1.51s']
+提交复核不比较指纹 | KILLED | ['3 failed, 50 passed, 5 skipped in 1.64s']
