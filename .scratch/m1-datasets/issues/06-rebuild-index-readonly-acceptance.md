@@ -1,6 +1,6 @@
 # 运维命令"重建索引"与只读段验收
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：直做。理由：在已有的运维入口里加一个子命令，"worker 运行时拒绝"的检查函数 M0 第 11 张已经做好；扫描本身用的是第 01、02 张已经过了关卡的作业（3.0 第 1 条）。
 
@@ -77,3 +77,4 @@ Status: ready-for-agent
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。Status 定为 `ready-for-agent`：第 01、02 张合并后才能开票，可以和第 04 或 05 张并行。
+- 2026-10-29 08:57 开票（执行线，负责人授权）。第 01、02 张已合并。Status 改为 in-progress。直做，分两段交。派工 B（fast，新会话 `01a18829-a662-72f0-9ca8-e313bfb180f2`，提示 `assets/06-rebuild-index-readonly-acceptance/prompt-B.md`）。和第 04 张并行。验收 2 要停真实的 systemd 服务，等负责人在场再做。

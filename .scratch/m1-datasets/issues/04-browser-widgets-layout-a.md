@@ -1,6 +1,6 @@
 # 浏览前端：共用部件与布局 A
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：直做。理由：这是页面，规则和布局已经由「数据集浏览界面」（16）和原型定好；接口契约在第 03 张过了骨架关卡（3.0 第 1 条"页面"）。
 
@@ -83,3 +83,4 @@ Status: ready-for-agent
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。Status 定为 `ready-for-agent`：第 03 张的契约提交以后才能开票；合并要等第 03 张合并。
+- 2026-10-29 08:57 开票（执行线，负责人授权）。第 03 张已合并（6ab55ae）。Status 改为 in-progress。直做，分两段交。派工 B（fast，新会话 `01a18829-a662-7780-9527-208fa1650869`，提示 `assets/04-browser-widgets-layout-a/prompt-B.md`）。和第 06 张并行。
