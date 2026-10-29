@@ -61,7 +61,10 @@ def test_limit_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
                     assert entered.empty()
                     release[number].set()
                 wait_for(
-                    lambda: all(case.get(number).state is JobState.COMPLETED for number in release)
+                    lambda: (
+                        all(case.get(number).state is JobState.COMPLETED for number in release)
+                        and case.resources.pool.claims() == ()
+                    )
                 )
                 assert case.resources.pool.claims() == ()
             finally:
@@ -102,8 +105,10 @@ def test_limit_two(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
                 release.set()
                 assert entered.get(timeout=1) == 73
                 wait_for(
-                    lambda: all(
-                        case.get(number).state is JobState.COMPLETED for number in (71, 72, 73)
+                    lambda: (
+                        all(case.get(number).state is JobState.COMPLETED for number in (71, 72, 73))
+                        # 终态先提交，执行器finally随后归还资源；两者之间允许调度测试线程。
+                        and case.resources.pool.claims() == ()
                     )
                 )
                 assert counts["maximum"] == 2 and counts["active"] == 0

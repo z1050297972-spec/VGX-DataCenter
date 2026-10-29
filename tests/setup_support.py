@@ -446,9 +446,17 @@ if command == "ip" and args == ["-j", "address", "show"]:
     if os.environ.get("FAKE_IP_FAIL"): sys.exit(7)
     print(os.environ.get("FAKE_IP", '[{"ifname":"eth0","addr_info":[{"family":"inet","local":"192.0.2.55","scope":"global"}]}]')); sys.exit(0)
 if command == "rdp" and args in (["web", "--no-stderr"], ["worker", "--no-stderr"]):
-    import signal, threading
+    import signal, threading, time
     name = args[0]
-    if os.environ.get("FAKE_CHILD_FAIL") == name: sys.exit(19)
+    if os.environ.get("FAKE_CHILD_FAIL") == name:
+        # 该故障场景验证另一已启动服务被正常回收；等其安装信号处理器，不能依赖进程启动快慢。
+        # 32个pytest worker并行时，立即失败可能在另一解释器导入期间触发TERM，来不及写stopped。
+        peer = "web" if name == "worker" else "worker"
+        deadline = time.monotonic() + 3
+        while not (root / (peer + ".pid")).exists():
+            if time.monotonic() >= deadline: sys.exit(98)
+            time.sleep(0.005)
+        sys.exit(19)
     stopped = threading.Event()
     def stop(signum, frame):
         if os.environ.get("FAKE_IGNORE_TERM") != name: stopped.set()

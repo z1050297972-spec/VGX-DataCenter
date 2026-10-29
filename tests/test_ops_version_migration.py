@@ -21,12 +21,15 @@ from rdp.jobs.models import JobRow
 
 
 def test_active_head() -> None:
-    """验证0006是唯一活动head、没有pending目录，版本列与活动jobs表一同登记。"""
+    """验证0007成为唯一活动head且没有pending目录。"""
     config = migration_config()
-    assert ScriptDirectory.from_config(config).get_current_head() == "0006_platform_version"
+    assert ScriptDirectory.from_config(config).get_current_head() == "0007_dataset_index"
     location = config.get_main_option("script_location")
     assert location is not None
     assert not (Path(location) / "pending").exists()
+    assert "0007_dataset_index" in {
+        revision.revision for revision in ScriptDirectory.from_config(config).walk_revisions()
+    }
     assert JobRow.__table__.c.platform_version.nullable
 
 
@@ -40,7 +43,7 @@ def test_upgrade_empty_and_history(tmp_path: Path) -> None:
                 before = connection.execute(text("SELECT * FROM jobs")).mappings().all()
             result = migrate(paths, now=NOW)
             assert result.previous_revision == "0005_job_scheduling"
-            assert result.current_revision == "0006_platform_version"
+            assert result.current_revision == "0007_dataset_index"
             assert result.backup is not None and result.backup.is_file()
             with engine.connect() as connection:
                 after = connection.execute(text("SELECT * FROM jobs")).mappings().all()
@@ -48,11 +51,11 @@ def test_upgrade_empty_and_history(tmp_path: Path) -> None:
 
 
 def test_fresh_latest(tmp_path: Path) -> None:
-    """验证契约：空库迁移至0006具有完整账号、日志、作业、调度结构，版本闸门接受最新head。"""
+    """验证契约：空库迁移至0007具有完整账号、日志、作业、调度和数据集索引结构，版本闸门接受最新head。"""
     paths = state_paths(PlatformConfig(state_dir=tmp_path), ())
     initialize_state(paths)
     result = migrate(paths, now=NOW)
-    assert result.current_revision == "0006_platform_version"
+    assert result.current_revision == "0007_dataset_index"
     check_database_version(paths.database)
     engine = create_database_engine(paths.database)
     try:
@@ -97,13 +100,14 @@ def test_constraints(tmp_path: Path) -> None:
 def test_sequence_preserved(tmp_path: Path) -> None:
     """验证契约：升级/降级保留sqlite_sequence高水位，覆盖已有行及删除全部历史后空表，编号不复用。"""
     for empty in (False, True):
-        with _version_five(tmp_path / str(empty)) as (engine, paths):
+        with _version_five(tmp_path / str(empty)) as (engine, _paths):
             with engine.begin() as connection:
                 connection.execute(text(JOB_SQL), {"id": 9000})
                 connection.execute(
                     text("DELETE FROM jobs" if empty else "DELETE FROM jobs WHERE job_id=9000")
                 )
-            migrate(paths, now=NOW)
+            with engine.begin() as connection:
+                command.upgrade(migration_config(connection), "0006_platform_version")
             with engine.begin() as connection:
                 assert connection.execute(text(JOB_SQL), {"id": None}).lastrowid == 9001
                 command.downgrade(migration_config(connection), "0005_job_scheduling")
@@ -112,8 +116,9 @@ def test_sequence_preserved(tmp_path: Path) -> None:
 
 def test_downgrade_refuses_data_loss(tmp_path: Path) -> None:
     """验证契约：任意非NULL版本先拒绝降级，数据、schema和revision全不变；全NULL时可恢复0005。"""
-    with _version_five(tmp_path) as (engine, paths):
-        migrate(paths, now=NOW)
+    with _version_five(tmp_path) as (engine, _paths):
+        with engine.begin() as connection:
+            command.upgrade(migration_config(connection), "0006_platform_version")
         with engine.begin() as connection:
             connection.execute(text("UPDATE jobs SET platform_version='old (1234567)'"))
             before = schema_objects(connection)

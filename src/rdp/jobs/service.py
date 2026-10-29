@@ -192,6 +192,60 @@ class JobService:
             _audit.failed(self.engine, attempted, error)
             raise
 
+    def submit_system(
+        self, type_name: str, parameters: dict[str, object], *, now: datetime
+    ) -> JobRecord:
+        """以固定系统身份提交非每日的内部作业，并原子记录提交审计。
+
+        Args:
+            type_name: 当前登记的稳定类型键，调用方必须是worker内部触发器，不暴露HTTP。
+            parameters: 类型模型校验的无秘密JSON对象，遵循JOB_PARAMETERS_MAX_BYTES。
+            now: 必填注入aware时刻，作业及操作日志共用同一UTC时刻。
+
+        Returns:
+            已提交queued记录，提交人固定SYSTEM_ACTOR（空账号编号、名字“系统”）。
+            本方法每次成功调用创建一项；启动和间隔去重由当前worker触发器负责。
+
+        Raises:
+            JobInputError: 未登记类型、参数非法或编码超长，不回显载荷。
+            InputError: 数据库损坏。
+            ConflictError: PROGRESS_LOCK_TIMEOUT_MS短锁入场超时或约束竞争。
+            ExternalError: 作业/审计写入或提交失败，二者整体回滚。
+            DefectError: 注入时刻、定义或内部系统身份非法。
+
+        Side Effects:
+            事务外复用参数校验；事务内insert_job和既有提交操作日志一并提交。
+            AuditContext明确为无请求编号/无IP；不伪造账号会话、不写每日日期去重行。
+            执行写入后失败沿用短锁失败审计补记，失败补记不能掩盖原异常；不启动作业线程。
+
+        Time Semantics:
+            每次调用只尝试一次短事务，不等待下次触发点；锁忙交worker下一轮重试。
+            不改变submit_scheduled的每日唯一及补跑契约。
+        """
+        now = _storage.moment(now)
+        definition, checked = _parameters(self.registry, type_name, parameters)
+        attempted: OperationEvent | None = None
+        try:
+            with session_scope_with_lock_timeout(
+                self.engine, busy_timeout_ms=policy.PROGRESS_LOCK_TIMEOUT_MS
+            ) as session:
+                attempted = OperationEvent(
+                    now,
+                    SYSTEM_ACTOR,
+                    OperationType.SUBMIT_JOB,
+                    _audit.target(None),
+                    OperationResult.SUCCESS,
+                    None,
+                    AuditContext(None, None),
+                    OperationDetails(before=AuditValues(), after=AuditValues()),
+                )
+                record = insert_job(session, NewJob(definition, checked, SYSTEM_ACTOR, now, None))
+                _audit.finish(session, attempted, record)
+            return record
+        except Exception as error:
+            _audit.failed(self.engine, attempted, error)
+            raise
+
     def cancel(self, request: JobRequest, job_id: int) -> JobRecord:
         """请求取消任意账号提交的作业，取消身份记为当前账号。
 

@@ -11,8 +11,10 @@ from types import FrameType
 
 from rdp.infra.diagnostics import DefectError
 from rdp.infra.storage import StorageAccessChecker, read_storage_root
+from rdp.jobs.datasets.triggers import RescanTrigger
 from rdp.jobs.execution import ExecutorDependencies
 from rdp.jobs.scheduling import WorkerScheduling
+from rdp.jobs.service import JobService
 from rdp.ops.runtime import RuntimeInputs, ServiceRuntime, resolve_nvidia_smi
 from rdp.ops.worker import run_worker
 
@@ -62,7 +64,8 @@ def start_worker(
 
     Side Effects:
         构造 StorageAccessChecker(runtime.inspector, config.storage, read_storage_root)，
-        注入 ExecutorDependencies(storage=..., platform_version=runtime.version)。
+        注入 ExecutorDependencies(storage=..., platform_version=runtime.version)，
+        poll_submissions绑定本worker私有RescanTrigger.poll，构造时不提交，恢复准备后由主循环调用。
         WorkerScheduling 使用公共 catalog、resolve_nvidia_smi 结果及 config.errors.retention_days。
         用注入日志时钟调用 run_worker；SIGTERM/SIGINT 只设置独立 Event。
         result.lock_retained=False 或启动前失败时释放引擎；True 时保留引擎和锁到进程退出，
@@ -89,6 +92,9 @@ def start_worker(
             resources=None,
             storage=storage,
             platform_version=runtime.version,
+            poll_submissions=RescanTrigger(
+                JobService(runtime.engine, runtime.registry), inputs.clock
+            ).poll,
         )
         stop = Event()
         with signals(stop):

@@ -35,6 +35,7 @@ from rdp.infra.state import StatePaths, initialize_state, state_paths
 from rdp.infra.storage import LinuxMountSource, MountInspector
 from rdp.infra.version import DeploymentLayout, read_platform_version
 from rdp.jobs._clock import ClockReader
+from rdp.jobs.datasets.rescan import RescanDependencies
 from rdp.jobs.registry import JobRegistry, production_registry
 from rdp.jobs.schedules import local_timezone, production_schedules
 from rdp.jobs.scheduling import resolve_scheduling
@@ -148,7 +149,11 @@ def prepare_service(
     engine = create_database_engine(paths.database)
     try:
         check_database_version(paths.database)
-        registry = production_registry()
+        registry = production_registry(
+            RescanDependencies(engine, config.nav_root, config.storage_roots, None)
+            if process == "worker"
+            else None
+        )
         try:
             registry.validate_storage_roots(roots=config.storage_roots)
         except ValueError as error:

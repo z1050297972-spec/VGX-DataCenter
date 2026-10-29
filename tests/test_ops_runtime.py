@@ -34,7 +34,7 @@ def test_assembly_order(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     try:
         assert observed
         assert runtime.logging.stderr is False
-        assert len(runtime.registry.definitions()) == 5
+        assert len(runtime.registry.definitions()) == 6
         assert len(runtime.scheduling.schedules.definitions()) == 2
         assert all(path.is_dir() for _, path in runtime.paths.job_logs)
         assert runtime.version == "0.1.0 (aaaaaaa)"
@@ -84,7 +84,11 @@ def test_registry_storage_validation(tmp_path: Path, monkeypatch: pytest.MonkeyP
     registry = JobRegistry()
     for definition in production_registry().definitions():
         registry.register(replace(definition, storage=(StorageUse("missing", False),)))
-    monkeypatch.setattr(runtime_module, "production_registry", lambda: registry)
+
+    def configured_registry(_dependencies: object = None) -> JobRegistry:
+        return registry
+
+    monkeypatch.setattr(runtime_module, "production_registry", configured_registry)
     with pytest.raises(InputError):
         prepare_service("web", no_stderr=True, inputs=inputs)
 

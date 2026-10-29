@@ -23,6 +23,7 @@ from rdp.jobs.policy import JOB_DISPLAY_NAME_MAX_CHARS
 from rdp.jobs.types import RecoveryMode
 
 if TYPE_CHECKING:
+    from rdp.jobs.datasets.rescan import RescanDependencies
     from rdp.jobs.execution import ExecutionContext
 
 
@@ -227,14 +228,14 @@ class JobRegistry:
         return tuple(self._definitions[key] for key in sorted(self._definitions))
 
 
-def production_registry() -> JobRegistry:
+def production_registry(rescan_dependencies: RescanDependencies | None = None) -> JobRegistry:
     """构造示例与维护作业的生产登记表。
 
     Args:
-        无。
+        rescan_dependencies: worker的显式扫描依赖；Web或只提交调用传None，不获得文件访问能力。
 
     Returns:
-        新 JobRegistry：example_count、example_gpu、example_navigation、purge_errors、purge_audit_logs。
+        新 JobRegistry：示例、维护及dataset_rescan；扫描为restart，执行能力由入口显式注入。
         三个示例为 interrupt，两个清除为 restart；只有 example_gpu 需要 GPU，各类默认并发 1。
 
     Raises:
@@ -247,6 +248,7 @@ def production_registry() -> JobRegistry:
         Web 和 worker 启动时各调用一次并注入；无时钟、等待和自动发现。
     """
     # 延迟导入避免登记定义和执行上下文的模块环；每次构造都返回独立对象。
+    from rdp.jobs.datasets.rescan import build_rescan_definition
     from rdp.jobs.example import CountParameters, execute_count
     from rdp.jobs.maintenance import PurgeParameters, execute_purge_errors, execute_purge_logs
     from rdp.jobs.resource_examples import (
@@ -294,6 +296,7 @@ def production_registry() -> JobRegistry:
         ),
     ):
         registry.register(definition)
+    registry.register(build_rescan_definition(rescan_dependencies))
     return registry
 
 

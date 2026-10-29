@@ -189,6 +189,9 @@ class ExecutorDependencies:
             非空需求缺失检查器属于 DefectError，不默认读取系统路径。
         platform_version: 本 worker 启动时的版本文字，1-128 个码点；生产入口必须提供。
             None 仅表示没有部署信息的独立领域调用；不在领域层读取包元数据或 git。
+        poll_submissions: worker每轮恢复准备完成后、领取前调用的内部提交回调；默认None表示没有额外触发。
+            返回本轮已提交作业编号元组，M1用RescanTrigger.poll；不访问导航或存储根，不启动线程。
+            停止后不再调用，回调只能有界等待数据库短锁，不改变现有每日调度语义。
     """
 
     engine: Engine
@@ -198,6 +201,7 @@ class ExecutorDependencies:
     resources: WorkerResources | None = field(kw_only=True)
     storage: StorageAccessChecker | None = field(kw_only=True)
     platform_version: str | None = field(default=None, kw_only=True)
+    poll_submissions: Callable[[], tuple[int, ...]] | None = field(default=None, kw_only=True)
 
 
 def execute_job(
