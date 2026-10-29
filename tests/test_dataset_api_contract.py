@@ -1,183 +1,1267 @@
 """M1-03验收2至7的契约测试清单；只用临时导航层/数据库，不读真实部署或存储路径。"""
 
+from pathlib import Path
+
 import pytest
-
-
-def test_storage_import_boundary() -> None:
-    """验收2：临时源码中让路由或服务import存储访问、rescan或第02张新模块，import-linter必须失败。"""
-    pytest.skip("契约骨架：实现关卡验证依赖边界，试验补丁仅在临时副本")
-
-
-def test_all_endpoints_with_unreadable_storage_roots() -> None:
-    """验收2：假根拒绝全部访问，树/列表/筛选/面板/详情/子任务/提交/布局仍按契约返回且零存储调用。"""
-    pytest.skip("契约骨架：实现关卡使用假存储访问探针")
-
-
-def test_navigation_symlink_replacement_cannot_reach_storage() -> None:
-    """验收2/4：入口父目录或JSON被换成指向假根的软链接及FIFO，O_NOFOLLOW拒绝且不读目标。"""
-    pytest.skip("契约骨架：实现关卡验证描述符打开及换链窗口")
-
-
-def test_robot_type_matches_exact_label() -> None:
-    """验收3：标签保持原始大小写精确匹配，多标签数据集任一命中，Markdown同名文字不参与。"""
-    pytest.skip("契约骨架：实现关卡验证标签来源及匹配")
-
-
-def test_fps_half_up_and_unknown() -> None:
-    """验收3：29.97→30、30.5→31、29.49→29，使用fps_rounded索引，未知独立且负数422。"""
-    pytest.skip("契约骨架：实现关卡用区分半入和银行家舍入的样例")
-
-
-def test_data_origin_unknown_and_invalid_value() -> None:
-    """验收3：M1全部unknown，已知来源筛选为空，未知选项独立；非法来源422而非回退全量。"""
-    pytest.skip("契约骨架：实现关卡验证来源筛选")
-
-
-def test_unknown_metadata_including_mixed_sources() -> None:
-    """验收3：unknown/null/无块/非LeRobot/未检查归未知，混合已知未知的数据集两项均能命中。"""
-    pytest.skip("契约骨架：实现关卡验证缺失与多值语义")
-
-
-def test_empty_robot_catalog_falls_back_to_labels() -> None:
-    """验收3：型号空目录时registered=false、默认robot_type、具体型号空集，不能猜标签映射。"""
-    pytest.skip("契约骨架：实现关卡注入空目录读取器")
-
-
-def test_registered_robot_model_maps_multiple_labels() -> None:
-    """验收3：R1 Lite映射r1lite/galaxea_r1lite，匹配任一；r1pro不命中且属于未知型号。"""
-    pytest.skip("契约骨架：实现关卡注入一条型号映射")
-
-
-def test_model_catalog_refresh_and_duplicate_rejection() -> None:
-    """验收3：型号新增后下次请求默认robot_model；标签归属重复是DefectError，不任取一个型号。"""
-    pytest.skip("契约骨架：实现关卡验证目录刷新和装配错误")
-
-
-def test_filters_intersect_and_paginate_stably() -> None:
-    """验收3：维度AND、维度内任一块；名称/编号/路径稳定排序，total去重，越末尾为空页。"""
-    pytest.skip("契约骨架：实现关卡验证列表与树共用筛选")
-
-
-def test_invalid_query_returns_five_part_problem() -> None:
-    """验收3/7：负分页、limit101、version无format、task带format及穿越路径422，五段诊断不回显原值。"""
-    pytest.skip("契约骨架：实现关卡经真实应用验证参数错误")
-
-
-def test_tree_counts_and_size_provenance() -> None:
-    """验收2/3：两树数量区分数据集和入口；统计优先/记录回退/未知各占一项，部分未知不报完整总和。"""
-    pytest.skip("契约骨架：实现关卡验证可区分的手算聚合")
-
-
-def test_list_preserves_damaged_and_format_only_entries() -> None:
-    """验收2/4：损坏入口dataset_id=null仍列出；仅格式入口不丢失、不伪造规范副本或数据集大小。"""
-    pytest.skip("契约骨架：实现关卡验证损坏占位和跨视图跳转")
-
-
-def test_index_only_reads_never_open_navigation() -> None:
-    """验收2：关闭全部文件读取后树/列表/筛选/面板仍读索引成功，未扫描为空且时间null。"""
-    pytest.skip("契约骨架：实现关卡验证只读索引边界")
-
-
-def test_panel_grouping_bounded_examples_and_offline_banner() -> None:
-    """验收2：四组两级同类合并，总数完整、样例受既有上限；离线和未检查不同且保留旧checked_at。"""
-    pytest.skip("契约骨架：实现关卡验证索引发现投影")
-
-
-def test_detail_raw_unknown_fields_and_canonical_information() -> None:
-    """验收4：两份JSON原文/未知字段/空白保留，格式副本与规范信息分别返回，14项优先规范副本。"""
-    pytest.skip("契约骨架：实现关卡用两个视图不同内容验证")
-
-
-def test_detail_fingerprint_detects_changed_json() -> None:
-    """验收4：改假导航一份JSON（含仅改空白且mtime相同）后index_stale=true；无变化为false。"""
-    pytest.skip("契约骨架：实现关卡验证内容指纹而非mtime")
-
-
-def test_detail_fingerprint_covers_new_entries_and_unverifiable_state() -> None:
-    """验收4：新增/删除格式入口、来源JSON变化及不可验证指纹均标过期；不得改写索引以消除提示。"""
-    pytest.skip("契约骨架：实现关卡复用L12完整范围")
-
-
-def test_detail_partial_file_failure_is_visible() -> None:
-    """验收4：坏JSON、未知schema及依赖字段缺失仍返回原文和诊断；缺文件content=null，不拿索引补正文。"""
-    pytest.skip("契约骨架：实现关卡验证局部降级与五段诊断对象")
-
-
-def test_source_derived_paths_and_validation_labels() -> None:
-    """验收4：推导字段独立于原文；五个历史validation_status映射中文，缺失未知，陌生原值保留。"""
-    pytest.skip("契约骨架：实现关卡验证手册第5节标签")
-
-
-def test_subtasks_not_embedded_and_fourteen_megabytes_exact() -> None:
-    """验收4：合成14MiB子任务不进入详情正文；独立接口逐字节相同、text/plain及准确Content-Length。"""
-    pytest.skip("契约骨架：实现关卡仅在tmp_path合成大文件")
-
-
-def test_subtasks_headers_and_changed_during_read() -> None:
-    """验收4：摘要对应发送字节，过期头true/false、UTC时间、no-store/nosniff；读取中变化409且无部分正文。"""
-    pytest.skip("契约骨架：实现关卡验证响应前完成读取")
-
-
-def test_subtasks_missing_oversize_and_io_failure() -> None:
-    """验收4：缺失/非UTF-8/非普通/上限加1字节400，权限I/O失败502；32MiB边界允许，不泄漏原异常。"""
-    pytest.skip("契约骨架：实现关卡覆盖文件边界及诊断")
-
-
-def test_unknown_entry_and_dataset_return_404() -> None:
-    """验收4/5：查无索引入口、面板编号或提交范围404，与已入索引但文件缺失400/局部诊断区分。"""
-    pytest.skip("契约骨架：实现关卡经真实应用验证不存在对象")
-
-
-def test_rescan_submits_current_actor_and_never_executes() -> None:
-    """验收5：重新检查201，dataset_rescan仅单dataset_id，当前账号提交，queued与审计同行事务且执行器零调用。"""
-    pytest.skip("契约骨架：实现关卡复用M0队列查询验证")
-
-
-def test_sizing_submits_all_or_one_without_worker_import() -> None:
-    """验收5：dataset_sizing范围为null或编号，当前账号而非系统；类型未登记422，不在Web注册/执行作业。"""
-    pytest.skip("契约骨架：实现关卡用独立假类型登记")
-
-
-def test_submission_failure_rolls_back_job_and_audit() -> None:
-    """验收5：注入提交或审计失败后无半条作业；M0短事务补记语义保留，worker离线不妨碍正常排队。"""
-    pytest.skip("契约骨架：实现关卡验证失败与排队的区别")
-
-
-def test_layout_persists_across_sessions_and_isolates_accounts() -> None:
-    """验收6：账号甲存B，另一会话读B；乙保持默认A/null；请求不能指定其他account_id。"""
-    pytest.skip("契约骨架：实现关卡使用两个账号和三个会话")
-
-
-def test_layout_default_idempotence_and_clock_rollback() -> None:
-    """验收6：GET默认A不建行；首次保存A建行，同值无重复日志，回拨不降低updated_at，最后提交者胜出。"""
-    pytest.skip("契约骨架：实现关卡用固定UTC时钟验证")
-
-
-def test_layout_atomic_audit_and_deleted_account() -> None:
-    """验收6：偏好与SET_DATASET_LAYOUT原子提交，失败保留旧值；删账号级联清偏好，索引重建不清偏好。"""
-    pytest.skip("契约骨架：实现关卡验证布局生命周期")
-
-
-def test_layout_migration_matches_model_and_preserves_existing_data() -> None:
-    """验收6：临时激活pending迁移后DDL与ORM一致，A/B/C和正账号外键约束有效，原账号/索引/作业完整。"""
-    pytest.skip("契约骨架：实现关卡只在临时迁移包和临时库验证")
-
-
-def test_layout_invalid_value_and_database_failure() -> None:
-    """验收6：非A/B/C或多余字段422，表缺失/I/O失败502，数据库锁竞争409，均不伪装默认布局。"""
-    pytest.skip("契约骨架：实现关卡验证布局错误路径")
-
-
-def test_security_precedes_body_and_route_validation() -> None:
-    """验收6/7：全部路由匿名401；写请求先Origin403，强制改密403先于坏参数422；普通成员可访问。"""
-    pytest.skip("契约骨架：实现关卡经真实create_app测试全局顺序")
-
-
-def test_identity_revalidated_inside_business_transaction() -> None:
-    """验收5/6：全局认证后撤销会话/停用账号/强制改密，领域事务拒绝401/403且不写偏好或作业。"""
-    pytest.skip("契约骨架：实现关卡验证认证与写入之间变化")
+from dataset_api_support import ENTRY, FORMAT_ENTRY, browser_case, set_meta
+from nav_manifest import FakeNavigation
+
+
+def test_storage_import_boundary(tmp_path: Path) -> None:
+    """验收2：真实禁入配置允许reading/fingerprint，直接及经辅助模块的存储访问导入均被工具拒绝。"""
+    import os
+    import shutil
+    import subprocess
+    import tomllib
+
+    root = Path(__file__).parents[1]
+    config_text = (root / "pyproject.toml").read_text()
+    contract = tomllib.loads(config_text)["tool"]["importlinter"]["contracts"][-1]
+    assert contract["source_modules"] == [
+        "rdp.jobs.dataset_browser.queries",
+        "rdp.jobs.dataset_browser.schemas",
+    ]
+    assert contract["allow_indirect_imports"] is False
+    assert "ignore_imports" not in contract
+    shutil.copytree(
+        root / "src/rdp", tmp_path / "rdp", ignore=shutil.ignore_patterns("__pycache__")
+    )
+    config = tmp_path / "pyproject.toml"
+    config.write_text(config_text)
+    queries = tmp_path / "rdp/jobs/dataset_browser/queries.py"
+    original = queries.read_text()
+    environment = os.environ | {"PYTHONPATH": str(tmp_path), "PYTHONDONTWRITEBYTECODE": "1"}
+
+    def check() -> subprocess.CompletedProcess[str]:
+        # 固定已安装检查器和临时源码，不通过shell，也不加载平台配置。
+        return subprocess.run(  # noqa: S603  # 理由：只执行固定已安装检查器与临时配置。
+            [
+                str(root / ".venv/bin/lint-imports"),
+                "--config",
+                str(config),
+                "--no-cache",
+                "--no-logo",
+            ],
+            cwd=tmp_path,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+
+    assert check().returncode == 0
+    for forbidden in contract["forbidden_modules"]:
+        queries.write_text(original + "\nimport " + forbidden + "\n")
+        result = check()
+        assert result.returncode != 0
+        assert "数据集接口不得依赖存储根访问 BROKEN" in result.stdout
+    (queries.parent / "probe.py").write_text("import rdp.infra.storage\n")
+    queries.write_text(original + "\nfrom rdp.jobs.dataset_browser import probe\n")
+    assert check().returncode != 0
+
+
+def test_all_endpoints_with_unreadable_storage_roots(
+    tmp_path: Path, fake_nav: FakeNavigation, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """验收2：全部数据集接口在假根chmod000且操作系统探针拒绝根访问时仍返回200。"""
+    import os
+
+    from dataset_api_support import submission_registry
+
+    with browser_case(tmp_path / "state", fake_nav, registry=submission_registry()) as case:
+        roots = tuple(root.path for root in fake_nav.storage_roots)
+        opened = os.open
+        modes = {root: root.stat().st_mode for root in roots}
+        for root in roots:
+            root.chmod(0)
+
+        def guarded(
+            file: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+            flags: int,
+            mode: int = 0o777,
+            *,
+            dir_fd: int | None = None,
+        ) -> int:
+            if isinstance(file, (str, Path)):
+                path = Path(file)
+                assert not any(path.is_relative_to(root) for root in roots), "Web尝试打开存储根"
+            return opened(file, flags, mode, dir_fd=dir_fd)
+
+        monkeypatch.setattr(os, "open", guarded)
+        try:
+            for suffix, query in (
+                ("", {}),
+                ("/trees", {}),
+                ("/filters", {}),
+                ("/panel", {}),
+                ("/layout", {}),
+                ("/detail", {"entry_path": ENTRY}),
+                ("/subtasks", {"entry_path": ENTRY}),
+            ):
+                response = case.client.get("/api/datasets" + suffix, params=query)
+                assert response.status_code == 200, response.text[:300]
+            for method, suffix, payload, status in (
+                ("POST", "/dataset-14/rescan", None, 201),
+                ("POST", "/sizing", {"dataset_id": None}, 201),
+                ("PUT", "/layout", {"layout": "B"}, 200),
+            ):
+                response = case.client.request(method, "/api/datasets" + suffix, json=payload)
+                assert response.status_code == status, response.text
+        finally:
+            for root, mode in modes.items():
+                root.chmod(mode)
+
+
+def test_navigation_symlink_replacement_cannot_reach_storage(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收2/4：JSON软链接和入口目录换链都不跟随目标；子任务拒绝非普通项，不暴露目标正文。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        secret = tmp_path / "storage-secret.json"
+        secret.write_text('{"SECRET_MARKER": true}')
+        path = fake_nav.nav_root / ENTRY / "子任务.json"
+        path.unlink()
+        path.symlink_to(secret)
+        response = case.client.get("/api/datasets/subtasks", params={"entry_path": ENTRY})
+        assert response.status_code == 400
+        assert "SECRET_MARKER" not in response.text
+        entry = fake_nav.nav_root / ENTRY
+        moved = entry.with_name("moved-entry")
+        entry.rename(moved)
+        entry.symlink_to(moved, target_is_directory=True)
+        try:
+            response = case.client.get("/api/datasets/detail", params={"entry_path": ENTRY})
+            assert response.status_code == 200, response.text
+            assert response.json()["original_paths"]["content"] is None
+            assert response.json()["index_stale"] is True
+        finally:
+            entry.unlink()
+            moved.rename(entry)
+
+
+def test_robot_type_matches_exact_label(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收3：原标签精确区分大小写，不从Markdown提取筛选值。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        set_meta(case, ENTRY, "franka")
+        response = case.client.get("/api/datasets", params={"robot_type": "franka"})
+        assert response.status_code == 200, response.text
+        assert [item["dataset_id"] for item in response.json()["items"]] == ["dataset-14"]
+        assert (
+            case.client.get("/api/datasets", params={"robot_type": "Franka"}).json()["total"] == 0
+        )
+
+
+def test_fps_half_up_and_unknown(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收3：按第02张发布的半入整数筛选29.97/30.5/29.49，未知独立且负数422。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        for raw, rounded in ((29.97, 30), (30.5, 31), (29.49, 29)):
+            set_meta(case, ENTRY, "franka", raw, rounded)
+            response = case.client.get("/api/datasets", params={"fps": rounded})
+            assert response.status_code == 200
+            assert [row["dataset_id"] for row in response.json()["items"]] == ["dataset-14"]
+        assert case.client.get("/api/datasets", params={"fps": "unknown"}).json()["total"] == 4
+        assert case.client.get("/api/datasets", params={"fps": -1}).status_code == 422
+
+
+def test_data_origin_unknown_and_invalid_value(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收3：M1全部unknown，已知来源为空，非法来源422，候选unknown独立。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        assert (
+            case.client.get("/api/datasets", params={"data_origin": "unknown"}).json()["total"] == 5
+        )
+        assert case.client.get("/api/datasets", params={"data_origin": "real"}).json()["total"] == 0
+        assert (
+            case.client.get("/api/datasets", params={"data_origin": "invalid"}).status_code == 422
+        )
+        options = case.client.get("/api/datasets/filters").json()["data_origins"]
+        assert options[-1] == {"value": "unknown", "label": "未知", "count": 5}
+
+
+def test_unknown_metadata_including_mixed_sources(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收3：未检查及非LeRobot归未知；同数据集已知与未知块分别可筛中。"""
+    from rdp.infra.db.connection import session_scope
+    from rdp.jobs.datasets.models import SourceRow
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        set_meta(case, ENTRY, "franka", 29.97, 30)
+        with session_scope(case.engine) as session:
+            session.add(
+                SourceRow(
+                    entry_path=ENTRY,
+                    ordinal=999,
+                    source_id="mixed",
+                    original_path="/fake/mixed",
+                    direct_path="/fake/mixed",
+                    derived_entry_path="mixed",
+                    format="mcap",
+                    status="unchecked",
+                )
+            )
+        for query in ({"robot_type": "franka"}, {"robot_type": "unknown"}, {"fps": "unknown"}):
+            response = case.client.get("/api/datasets", params=query)
+            assert response.status_code == 200, response.text
+            assert "dataset-14" in [row["dataset_id"] for row in response.json()["items"]]
+
+
+def test_empty_robot_catalog_falls_back_to_labels(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收3：型号空目录明确降级到标签筛选，每个未知选项独立保留。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        response = case.client.get("/api/datasets/filters")
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["robot_models_registered"] is False
+        assert data["default_robot_filter"] == "robot_type"
+        assert data["robot_models"] == []
+        assert data["robot_types"] == [{"value": "unknown", "label": "未知", "count": 5}]
+        assert data["robot_model_options"] == [{"value": "unknown", "label": "未知", "count": 5}]
+
+
+def test_registered_robot_model_maps_multiple_labels(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收3：型号通过标签并集匹配，未映射的r1pro只属于未知型号，不冒充型号。"""
+    from rdp.jobs.dataset_browser.schemas import RobotModelOption
+
+    models = [
+        RobotModelOption(model_id="1", name="R1 Lite", robot_types=("r1lite", "galaxea_r1lite"))
+    ]
+    with browser_case(tmp_path / "state", fake_nav, models) as case:
+        for label in ("r1lite", "galaxea_r1lite"):
+            set_meta(case, ENTRY, label)
+            result = case.client.get("/api/datasets", params={"robot_model_id": "1"}).json()
+            assert [row["dataset_id"] for row in result["items"]] == ["dataset-14"]
+        set_meta(case, ENTRY, "r1pro")
+        assert case.client.get("/api/datasets", params={"robot_model_id": "1"}).json()["total"] == 0
+        assert (
+            case.client.get("/api/datasets", params={"robot_model_id": "unknown"}).json()["total"]
+            == 5
+        )
+
+
+def test_model_catalog_refresh_and_duplicate_rejection(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收3：型号登记后下一请求切换默认筛选；重复标签归属返回500，不任取一条。"""
+    from rdp.jobs.dataset_browser.schemas import RobotModelOption
+
+    models: list[RobotModelOption] = []
+    with browser_case(tmp_path / "state", fake_nav, models) as case:
+        assert (
+            case.client.get("/api/datasets/filters").json()["default_robot_filter"] == "robot_type"
+        )
+        models.append(RobotModelOption(model_id="1", name="型号1", robot_types=("franka",)))
+        assert (
+            case.client.get("/api/datasets/filters").json()["default_robot_filter"] == "robot_model"
+        )
+        models.append(RobotModelOption(model_id="2", name="型号2", robot_types=("franka",)))
+        assert case.client.get("/api/datasets/filters").status_code == 500
+
+
+def test_filters_intersect_and_paginate_stably(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收3：多维交集、稳定分页、越末尾空页；树筛视图不丢列表跨视图位置。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        set_meta(case, ENTRY, "franka", 29.97, 30)
+        filtered = case.client.get(
+            "/api/datasets", params={"robot_type": "franka", "fps": 30, "view": "format"}
+        ).json()
+        assert filtered["total"] == 1
+        assert len(filtered["items"][0]["entries"]) == 2
+        assert (
+            case.client.get("/api/datasets", params={"robot_type": "franka", "fps": 31}).json()[
+                "total"
+            ]
+            == 0
+        )
+        page1 = case.client.get("/api/datasets", params={"limit": 2}).json()
+        page2 = case.client.get("/api/datasets", params={"offset": 2, "limit": 3}).json()
+        names = [row["name"] for row in page1["items"] + page2["items"]]
+        assert names == [
+            "EgoProDemo",
+            "EgoProStandard",
+            "R1_lite_table_withdrawing_mcap",
+            "agibot_world_alpha",
+            "libero_10",
+        ]
+        assert case.client.get("/api/datasets", params={"offset": 100}).json()["items"] == []
+        nodes = case.client.get(
+            "/api/datasets/trees", params={"robot_type": "franka", "view": "format"}
+        ).json()["nodes"]
+        assert [row["entry_path"] for row in nodes if row["kind"] == "entry"] == [FORMAT_ENTRY]
+
+
+def test_invalid_query_returns_five_part_problem(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收3：分页、跨字段和穿越参数422，五段诊断不回显不可信原值。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        for query in (
+            {"offset": -1},
+            {"limit": 101},
+            {"version": "3.0"},
+            {"view": "task", "format": "lerobot"},
+            {"entry_path": "../private-value"},
+        ):
+            response = case.client.get("/api/datasets", params=query)
+            assert response.status_code == 422, response.text
+            assert response.headers["content-type"].startswith("application/problem+json")
+            assert response.json()["diagnostics"]
+            assert "private-value" not in response.text
+
+
+def test_tree_counts_and_size_provenance(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收2/3：树按入口聚合，100统计+20记录+1未知得到小计120、总量null，时间保持原统计时刻。"""
+    from accounts_support import NOW
+    from sqlalchemy import update
+
+    from rdp.infra.db.connection import session_scope
+    from rdp.jobs.datasets.models import EntryRow
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        with session_scope(case.engine) as session:
+            session.execute(update(EntryRow).values(recorded_size_bytes=None))
+            session.execute(
+                update(EntryRow)
+                .where(EntryRow.path == ENTRY)
+                .values(size_bytes=100, size_checked_at=NOW, aria2_count=0, incomplete_count=0)
+            )
+            session.execute(
+                update(EntryRow)
+                .where(EntryRow.path == "按任务/EgoProDemo")
+                .values(recorded_size_bytes=20)
+            )
+        response = case.client.get("/api/datasets/trees")
+        assert response.status_code == 200, response.text
+        nodes = {row["path"]: row for row in response.json()["nodes"]}
+        root = nodes["按任务"]
+        assert (root["dataset_count"], root["entry_count"]) == (5, 5)
+        assert root["size"]["known_bytes"] == 120
+        assert root["size"]["total_bytes"] is None
+        assert root["size"]["measured_entry_count"] == 1
+        assert root["size"]["recorded_entry_count"] == 1
+        assert root["size"]["unknown_entry_count"] == 3
+        assert root["size"]["oldest_size_checked_at"] == "2026-10-25T12:30:10.123456Z"
+        assert nodes[FORMAT_ENTRY]["dataset_id"] == "dataset-14"
+
+
+def test_list_preserves_damaged_and_format_only_entries(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收2/4：损坏入口按位置保留、仅格式入口仍列出且无规范副本，详情不伪造身份。"""
+    import shutil
+
+    damaged = "按任务/R1_lite_table_withdrawing_mcap"
+    for name in ("原始路径.json", "数据集信息.json", "子任务.json"):
+        (fake_nav.nav_root / damaged / name).write_text("{broken")
+    shutil.rmtree(fake_nav.nav_root / "按任务/EgoProDemo")
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        response = case.client.get("/api/datasets")
+        assert response.status_code == 200, response.text
+        rows = response.json()["items"]
+        unknown = next(row for row in rows if row["dataset_id"] is None)
+        assert unknown["entries"][0]["entry_path"] == damaged
+        format_only = next(row for row in rows if row["name"] == "EgoProDemo")
+        assert format_only["canonical_entry_path"] is None
+        assert format_only["size"]["display_bytes"] is None
+        detail = case.client.get("/api/datasets/detail", params={"entry_path": damaged})
+        assert detail.status_code == 200, detail.text
+        assert detail.json()["canonical_information"] is None
+
+
+def test_index_only_reads_never_open_navigation(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收2：移走整个假导航后树/列表/筛选仍返回原索引；面板边界留第二段。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        hidden = fake_nav.nav_root.with_name("hidden-nav")
+        fake_nav.nav_root.rename(hidden)
+        try:
+            assert case.client.get("/api/datasets").json()["total"] == 5
+            assert case.client.get("/api/datasets/trees").status_code == 200
+            assert case.client.get("/api/datasets/filters").status_code == 200
+        finally:
+            hidden.rename(fake_nav.nav_root)
+
+
+def test_panel_grouping_bounded_examples_and_offline_banner(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收2：四组两级按规则合并，108个发现仅10个样例；单数据集保留101总数，顶部离线保留旧时间。"""
+    from datetime import timedelta
+
+    from accounts_support import NOW
+    from sqlalchemy import delete, select, update
+
+    from rdp.infra.db.connection import session_scope
+    from rdp.infra.diagnostics import (
+        Diagnostic,
+        DiagnosticCategory,
+        DiagnosticLevel,
+        DiagnosticObject,
+    )
+    from rdp.jobs.datasets.models import DatasetScanRow, FindingRow, ScanRootRow
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        with session_scope(case.engine) as session:
+            scan_id = session.scalar(
+                select(DatasetScanRow.scan_id).where(DatasetScanRow.is_current.is_(True))
+            )
+            assert scan_id is not None
+            session.execute(delete(FindingRow))
+            for group in ("json", "views", "disk", "storage"):
+                for severity in ("action_required", "notice"):
+                    for identity, total, prefix in (
+                        ("dataset-14", 101, "a"),
+                        ("dataset-33", 7, "b"),
+                    ):
+                        samples = [
+                            Diagnostic(
+                                level=DiagnosticLevel.ERROR
+                                if severity == "action_required"
+                                else DiagnosticLevel.WARNING,
+                                category=DiagnosticCategory.INPUT,
+                                stage="扫描",
+                                source="平台",
+                                objects=(
+                                    DiagnosticObject(key="entry_path", value=f"{prefix}{number}"),
+                                ),
+                                rule="PANEL_CASE",
+                                actual="已有问题",
+                                expected="一致",
+                                consequence="只报告",
+                                next_step="核对后重扫",
+                            ).model_dump(mode="json")
+                            for number in range(6)
+                        ]
+                        session.add(
+                            FindingRow(
+                                owner_key="dataset:" + identity,
+                                group=group,
+                                severity=severity,
+                                rule="PANEL_CASE",
+                                scan_id=scan_id,
+                                total=total,
+                                samples=samples,
+                            )
+                        )
+            session.execute(
+                update(ScanRootRow)
+                .where(ScanRootRow.name == fake_nav.storage_roots[0].name)
+                .values(online=False, reason="not_mounted", checked_at=NOW - timedelta(hours=1))
+            )
+        response = case.client.get("/api/datasets/panel")
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert [(row["group"], row["severity"]) for row in data["findings"]] == [
+            (group, severity)
+            for group in ("json", "views", "disk", "storage")
+            for severity in ("action_required", "notice")
+        ]
+        for row in data["findings"]:
+            diagnosis = row["diagnostics"]
+            assert diagnosis["total"] == 108
+            assert len(diagnosis["samples"]) == 10
+            assert diagnosis["samples"][0]["objects"] == [{"key": "entry_path", "value": "a0"}]
+            assert diagnosis["error_count"] == (108 if row["severity"] == "action_required" else 0)
+        offline = next(
+            row for row in data["storage_roots"] if row["name"] == fake_nav.storage_roots[0].name
+        )
+        assert offline["online"] is False and offline["reason"] == "not_mounted"
+        assert offline["checked_at"] == "2026-10-25T11:30:10.123456Z"
+        selected = case.client.get("/api/datasets/panel", params={"dataset_id": "dataset-14"})
+        assert selected.status_code == 200
+        assert all(row["diagnostics"]["total"] == 101 for row in selected.json()["findings"])
+        assert selected.json()["storage_roots"] == data["storage_roots"]
+        assert (
+            case.client.get("/api/datasets/panel", params={"dataset_id": "absent"}).status_code
+            == 404
+        )
+
+
+def test_detail_raw_unknown_fields_and_canonical_information(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收4：当前入口原文保留空白和陌生字段，业务信息独立使用规范副本。"""
+    from datasets_support import edit_json
+
+    path = fake_nav.nav_root / FORMAT_ENTRY / "数据集信息.json"
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        edit_json(path, lambda data: data.update({"unknown_field": {"x": [1, None]}}))
+        response = case.client.get("/api/datasets/detail", params={"entry_path": FORMAT_ENTRY})
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["information"]["content"] == path.read_text()
+        assert (
+            data["canonical_information"]["content"]
+            == (fake_nav.nav_root / ENTRY / "数据集信息.json").read_text()
+        )
+        assert (
+            data["original_paths"]["content"]
+            == (fake_nav.nav_root / FORMAT_ENTRY / "原始路径.json").read_text()
+        )
+        assert data["index_stale"] is True
+        assert len(data["entries"]) == 2
+        assert data["subtasks_entry_path"] == FORMAT_ENTRY
+        assert "subtasks" not in data
+
+
+def test_detail_fingerprint_detects_changed_json(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收4：不变指纹为false；仅改JSON空白且还原mtime仍为true，不依赖新旧时间比较。"""
+    import os
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        assert (
+            case.client.get("/api/datasets/detail", params={"entry_path": ENTRY}).json()[
+                "index_stale"
+            ]
+            is False
+        )
+        path = fake_nav.nav_root / ENTRY / "数据集信息.json"
+        before = path.stat()
+        path.write_bytes(path.read_bytes() + b" \n")
+        os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+        response = case.client.get("/api/datasets/detail", params={"entry_path": ENTRY})
+        assert response.status_code == 200
+        assert response.json()["index_stale"] is True
+
+
+def test_detail_fingerprint_covers_new_entries_and_unverifiable_state(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收4：L12发现新增格式入口、来源文件及不可读指纹；相同不可验证状态也不判未变。"""
+    import shutil
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        new = fake_nav.nav_root / "按格式/lerobot/2.1/libero_10"
+        shutil.copytree(fake_nav.nav_root / FORMAT_ENTRY, new, symlinks=True)
+        assert (
+            case.client.get("/api/datasets/detail", params={"entry_path": ENTRY}).json()[
+                "index_stale"
+            ]
+            is True
+        )
+        shutil.rmtree(new)
+        provenance = fake_nav.nav_root / ENTRY / "来源.json"
+        provenance.write_text("{}")
+        assert (
+            case.client.get("/api/datasets/detail", params={"entry_path": ENTRY}).json()[
+                "index_stale"
+            ]
+            is True
+        )
+        provenance.unlink()
+        provenance.symlink_to(tmp_path / "absent")
+        for _ in range(2):
+            assert (
+                case.client.get("/api/datasets/detail", params={"entry_path": ENTRY}).json()[
+                    "index_stale"
+                ]
+                is True
+            )
+
+
+def test_detail_partial_file_failure_is_visible(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收4：坏JSON、未知schema、缺依赖字段原文保留且不可用；缺文件不拿索引副本冒充。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        path = fake_nav.nav_root / ENTRY / "数据集信息.json"
+        for content in ("{broken", '{"schema_version": 999, "dataset_id": "dataset-14"}', "{}"):
+            path.write_text(content)
+            response = case.client.get("/api/datasets/detail", params={"entry_path": ENTRY})
+            assert response.status_code == 200
+            document = response.json()["information"]
+            assert document["content"] == content
+            assert document["usable"] is False
+            assert document["diagnostics"]
+        path.unlink()
+        response = case.client.get("/api/datasets/detail", params={"entry_path": ENTRY})
+        assert response.status_code == 200
+        assert response.json()["information"]["content"] is None
+        assert response.json()["original_paths"]["usable"] is True
+        issue = response.json()["information"]["diagnostics"][0]
+        assert {"key": "entry_path", "value": ENTRY} in issue["objects"]
+        assert issue["actual"] and issue["consequence"]
+
+
+def test_source_derived_paths_and_validation_labels(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收4：五个历史状态中文标签、未知与缺省保持区别；推导路径不采用存下来的错误值。"""
+    from datasets_support import edit_json
+
+    path = fake_nav.nav_root / ENTRY / "原始路径.json"
+    expected = {
+        "path_exists_only": "只核对了路径存在",
+        "archive_not_opened": "归档没有打开核对",
+        "metadata_and_references_pass": "元数据和引用都核对通过",
+        "attention_required": "需要关注",
+        "download_state_only": "只有下载控制文件",
+        "new_status": "未识别",
+        None: "未知",
+    }
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        for status, label in expected.items():
+            edit_json(
+                path,
+                lambda data, status=status: data["sources"][0].update(
+                    validation_status=status, entry_path="wrong"
+                ),
+            )
+            response = case.client.get("/api/datasets/detail", params={"entry_path": ENTRY})
+            assert response.status_code == 200, response.text
+            source = response.json()["sources"][0]
+            assert source["validation_status"] == status
+            assert source["validation_status_label"] == label
+            assert source["derived_entry_path"] != "wrong"
+
+
+def test_subtasks_not_embedded_and_fourteen_megabytes_exact(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收4：合成14MiB子任务只由独立接口原字节返回，详情不携带正文。"""
+    path = fake_nav.nav_root / ENTRY / "子任务.json"
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        content = b'{"dataset_id":"dataset-14","large":"' + b"x" * (14 * 1024 * 1024) + b'"}'
+        path.write_bytes(content)
+        detail = case.client.get("/api/datasets/detail", params={"entry_path": ENTRY})
+        assert detail.status_code == 200
+        assert "large" not in detail.text
+        response = case.client.get("/api/datasets/subtasks", params={"entry_path": ENTRY})
+        assert response.status_code == 200, response.text[:300]
+        assert response.content == content
+        assert response.headers["content-type"] == "text/plain; charset=utf-8"
+        assert response.headers["content-length"] == str(len(content))
+
+
+def test_subtasks_headers_and_changed_during_read(
+    tmp_path: Path, fake_nav: FakeNavigation, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """验收4：响应摘要/时间/缓存头对应本次字节；模拟读期间改动必须409且无半份正文。"""
+    import hashlib
+    import os
+    from datetime import datetime, timedelta
+
+    path = fake_nav.nav_root / ENTRY / "子任务.json"
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        response = case.client.get("/api/datasets/subtasks", params={"entry_path": ENTRY})
+        assert response.status_code == 200
+        assert (
+            response.headers["x-document-sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        )
+        assert response.headers["x-index-stale"] == "false"
+        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert datetime.fromisoformat(response.headers["x-observed-at"]).utcoffset() == timedelta(0)
+        original_read = os.read
+        changed = False
+
+        def racing_read(fd: int, length: int) -> bytes:
+            nonlocal changed
+            data = original_read(fd, length)
+            if not changed and b'"dataset_id"' in data:
+                changed = True
+                path.write_bytes(path.read_bytes() + b" ")
+            return data
+
+        monkeypatch.setattr(os, "read", racing_read)
+        failed = case.client.get("/api/datasets/subtasks", params={"entry_path": ENTRY})
+        assert failed.status_code == 409, failed.text
+        assert failed.headers["content-type"].startswith("application/problem+json")
+
+
+def test_subtasks_missing_oversize_and_io_failure(
+    tmp_path: Path, fake_nav: FakeNavigation, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """验收4：缺失/非UTF-8/非普通/超32MiB均400，权限I/O失败502；恰好32MiB允许。"""
+    import errno
+    import os
+
+    path = fake_nav.nav_root / ENTRY / "子任务.json"
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        original = path.read_bytes()
+        path.unlink()
+        assert (
+            case.client.get("/api/datasets/subtasks", params={"entry_path": ENTRY}).status_code
+            == 400
+        )
+        for content in (b"\xff", b" " * (32 * 1024 * 1024 + 1)):
+            path.write_bytes(content)
+            assert (
+                case.client.get("/api/datasets/subtasks", params={"entry_path": ENTRY}).status_code
+                == 400
+            )
+        path.write_bytes(b" " * (32 * 1024 * 1024))
+        assert (
+            case.client.get("/api/datasets/subtasks", params={"entry_path": ENTRY}).status_code
+            == 200
+        )
+        path.unlink()
+        os.mkfifo(path)
+        assert (
+            case.client.get("/api/datasets/subtasks", params={"entry_path": ENTRY}).status_code
+            == 400
+        )
+        path.unlink()
+        path.write_bytes(original)
+        real_open = os.open
+
+        def denied(
+            file: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+            flags: int,
+            mode: int = 0o777,
+            *,
+            dir_fd: int | None = None,
+        ) -> int:
+            if file == "子任务.json":
+                raise PermissionError(errno.EACCES, "拒绝读取")
+            return real_open(file, flags, mode, dir_fd=dir_fd)
+
+        monkeypatch.setattr(os, "open", denied)
+        assert (
+            case.client.get("/api/datasets/subtasks", params={"entry_path": ENTRY}).status_code
+            == 502
+        )
+
+
+def test_unknown_entry_and_dataset_return_404(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收4：未知入口404，已入索引但文件缺失在详情局部降级、子任务400；提交范围留第二段。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        for endpoint in ("detail", "subtasks"):
+            response = case.client.get(
+                "/api/datasets/" + endpoint, params={"entry_path": "按任务/absent"}
+            )
+            assert response.status_code == 404, response.text
+        (fake_nav.nav_root / ENTRY / "子任务.json").unlink()
+        assert (
+            case.client.get("/api/datasets/detail", params={"entry_path": ENTRY}).status_code == 200
+        )
+        assert (
+            case.client.get("/api/datasets/subtasks", params={"entry_path": ENTRY}).status_code
+            == 400
+        )
+
+
+def test_rescan_submits_current_actor_and_never_executes(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收5：重新检查只提交单数据集queued作业和审计，提交人来自登录身份，登记执行器不被调用。"""
+    from rdp.jobs.datasets.rescan import RescanParameters
+    from rdp.jobs.execution import ExecutionContext
+    from rdp.jobs.registry import JobDefinition, JobRegistry
+    from rdp.jobs.types import RecoveryMode
+
+    calls: list[int] = []
+
+    def execute(context: ExecutionContext) -> None:
+        calls.append(context.job_id)
+        raise AssertionError("Web不得执行扫描")
+
+    registry = JobRegistry()
+    registry.register(
+        JobDefinition(
+            "dataset_rescan", "重新扫描数据集", RescanParameters, RecoveryMode.RESTART, execute
+        )
+    )
+    with browser_case(tmp_path / "state", fake_nav, registry=registry) as case:
+        response = case.client.post("/api/datasets/dataset-14/rescan")
+        assert response.status_code == 201, response.text
+        job = response.json()
+        assert job["type_name"] == "dataset_rescan" and job["state"] == "queued"
+        assert job["parameters"] == {"dataset_id": "dataset-14"}
+        assert job["submitted_by"] == {"account_id": "1", "name": "管理员", "deleted": False}
+        assert case.client.get("/api/jobs/" + job["job_id"]).json() == job
+        logs = case.client.get("/api/audit/operations", params={"operation": "submit_job"}).json()[
+            "items"
+        ]
+        assert len(logs) == 1 and logs[0]["result"] == "success"
+        assert calls == []
+        assert case.client.post("/api/datasets/absent/rescan").status_code == 404
+
+
+def test_sizing_submits_all_or_one_without_worker_import(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收5：统计范围为null或单编号，当前成员提交；未登记422，Web不执行登记回调。"""
+    from account_api_support import add_actor
+    from pydantic import SecretStr
+
+    from rdp.jobs.dataset_browser.schemas import SizingRequest
+    from rdp.jobs.execution import ExecutionContext
+    from rdp.jobs.registry import JobDefinition, JobRegistry
+    from rdp.jobs.types import RecoveryMode
+
+    registry = JobRegistry()
+    with browser_case(tmp_path / "unregistered", fake_nav, registry=registry) as case:
+        assert (
+            case.client.post("/api/datasets/sizing", json={"dataset_id": None}).status_code == 422
+        )
+
+    def execute(_context: ExecutionContext) -> None:
+        raise AssertionError("Web不得执行统计")
+
+    registry.register(
+        JobDefinition(
+            "dataset_sizing", "统计数据集大小", SizingRequest, RecoveryMode.RESTART, execute
+        )
+    )
+    with browser_case(tmp_path / "registered", fake_nav, registry=registry) as case:
+        add_actor(case)
+        assert case.login("member", SecretStr("member-updated-value")).status_code == 200
+        identifiers: list[str] = []
+        for dataset_id in (None, "dataset-14"):
+            response = case.client.post("/api/datasets/sizing", json={"dataset_id": dataset_id})
+            assert response.status_code == 201, response.text
+            job = response.json()
+            assert job["parameters"] == {"dataset_id": dataset_id}
+            assert job["state"] == "queued" and job["type_name"] == "dataset_sizing"
+            assert (
+                job["submitted_by"]["name"] == "成员" and job["submitted_by"]["account_id"] == "2"
+            )
+            identifiers.append(job["job_id"])
+        assert len(set(identifiers)) == 2
+        assert (
+            case.client.post("/api/datasets/sizing", json={"dataset_id": "absent"}).status_code
+            == 404
+        )
+
+
+def test_submission_failure_rolls_back_job_and_audit(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收5：提交日志失败时作业一起回滚，只有失败补记；解除I/O故障后离线worker仍可排队。"""
+    import sqlite3
+    from typing import Any
+
+    from sqlalchemy import event
+    from sqlalchemy.exc import OperationalError
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        before = case.client.get("/api/jobs").json()["items"]
+        failed = False
+
+        def fail_once(
+            _connection: Any,
+            _cursor: Any,
+            statement: str,
+            parameters: Any,
+            _context: Any,
+            _many: bool,
+        ) -> None:
+            nonlocal failed
+            if not failed and statement.startswith("INSERT INTO operation_logs"):
+                failed = True
+                error = sqlite3.OperationalError("disk I/O error")
+                error.sqlite_errorcode = sqlite3.SQLITE_IOERR
+                raise OperationalError(statement, parameters, error)
+
+        event.listen(case.engine, "before_cursor_execute", fail_once)
+        try:
+            response = case.client.post("/api/datasets/dataset-14/rescan")
+            assert response.status_code == 502, response.text
+        finally:
+            event.remove(case.engine, "before_cursor_execute", fail_once)
+        assert failed
+        assert case.client.get("/api/jobs").json()["items"] == before
+        logs = case.client.get("/api/audit/operations", params={"operation": "submit_job"}).json()[
+            "items"
+        ]
+        assert [row["result"] for row in logs] == ["failure"]
+        assert case.client.get("/api/worker/status").json()["online"] is False
+        assert case.client.post("/api/datasets/dataset-14/rescan").status_code == 201
+
+
+def test_layout_persists_across_sessions_and_isolates_accounts(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收6：甲保存B后新会话仍读B；乙默认A，拒绝指定其他账号，未登录401。"""
+    from account_api_support import add_actor
+    from pydantic import SecretStr
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        initial = case.client.get("/api/datasets/layout")
+        assert initial.status_code == 200, initial.text
+        assert initial.json() == {"layout": "A", "updated_at": None}
+        response = case.client.put("/api/datasets/layout", json={"layout": "B"})
+        assert response.status_code == 200, response.text
+        saved = response.json()
+        case.client.cookies.clear()
+        assert case.login().status_code == 200
+        assert case.client.get("/api/datasets/layout").json() == saved
+        add_actor(case)
+        assert case.login("member", SecretStr("member-updated-value")).status_code == 200
+        assert case.client.get("/api/datasets/layout").json() == initial.json()
+        assert (
+            case.client.put(
+                "/api/datasets/layout", json={"layout": "C", "account_id": "1"}
+            ).status_code
+            == 422
+        )
+        assert case.client.put("/api/datasets/layout", json={"layout": "C"}).status_code == 200
+        assert case.login().status_code == 200
+        assert case.client.get("/api/datasets/layout").json() == saved
+        case.client.cookies.clear()
+        assert case.client.get("/api/datasets/layout").status_code == 401
+
+
+def test_layout_default_idempotence_and_clock_rollback(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收6：GET不制造保存时刻，首次A保存建记录，同值不改时刻，回拨不降低时刻，最后提交生效。"""
+    from datetime import timedelta
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        assert case.client.get("/api/datasets/layout").json() == {"layout": "A", "updated_at": None}
+        first = case.client.put("/api/datasets/layout", json={"layout": "A"}).json()
+        assert first["updated_at"] is not None
+        case.clock.value += timedelta(seconds=2)
+        assert case.client.put("/api/datasets/layout", json={"layout": "A"}).json() == first
+        later = case.client.put("/api/datasets/layout", json={"layout": "B"}).json()
+        assert later["updated_at"] > first["updated_at"]
+        case.clock.value -= timedelta(hours=1)
+        changed = case.client.put("/api/datasets/layout", json={"layout": "C"}).json()
+        assert changed == {"layout": "C", "updated_at": later["updated_at"]}
+        assert case.client.get("/api/datasets/layout").json() == changed
+
+
+def test_layout_without_audit_and_deleted_account(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验收6：布局操作不产生审计；全量重扫保留偏好，删除账号级联清除，重建同名账号不继承旧选择。"""
+    from account_api_support import add_actor
+    from datasets_execution_support import DatasetCase
+    from pydantic import SecretStr
+    from sqlalchemy import text
+
+    from rdp.infra.config import PlatformConfig
+    from rdp.infra.state import state_paths
+    from rdp.jobs.datasets.rescan import RescanDependencies
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        add_actor(case)
+        before = case.client.get("/api/audit/operations").json()["items"]
+        assert case.login("member", SecretStr("member-updated-value")).status_code == 200
+        member_id = case.client.get("/api/auth/me").json()["account_id"]
+        assert case.client.put("/api/datasets/layout", json={"layout": "C"}).status_code == 200
+        scanner = DatasetCase(
+            case.engine,
+            state_paths(PlatformConfig(state_dir=tmp_path / "state"), ("重新扫描数据集",)),
+            RescanDependencies(case.engine, fake_nav.nav_root, fake_nav.storage_roots, None),
+            number=72,
+        )
+        scanner.run()
+        assert case.client.get("/api/datasets/layout").json()["layout"] == "C"
+        assert case.login().status_code == 200
+        assert case.client.get("/api/audit/operations").json()["items"] == before
+        assert case.client.delete("/api/accounts/" + member_id).status_code == 204
+        # 这里验证的是已批准的外键级联契约，业务读写的断言仍经HTTP完成。
+        with case.engine.connect() as connection:
+            assert connection.scalar(text("SELECT count(*) FROM dataset_layout_preferences")) == 0
+        add_actor(case)
+        assert case.login("member", SecretStr("member-updated-value")).status_code == 200
+        assert case.client.get("/api/auth/me").json()["account_id"] != member_id
+        assert case.client.get("/api/datasets/layout").json() == {"layout": "A", "updated_at": None}
+
+
+def test_layout_migration_matches_model_and_preserves_existing_data(
+    tmp_path: Path, fake_nav: FakeNavigation, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """验收6：真实0007库升级0008保留账号/索引/作业，新表与ORM一致且约束/降级拒绝有效。"""
+    from accounts_support import NOW
+    from alembic.autogenerate import compare_metadata
+    from alembic.runtime.migration import MigrationContext
+    from dataset_api_support import historical_migrations
+    from sqlalchemy import inspect, text
+    from sqlalchemy.exc import IntegrityError
+
+    from rdp.infra.config import PlatformConfig
+    from rdp.infra.db.connection import create_database_engine
+    from rdp.infra.db.migration import migrate
+    from rdp.infra.db.models import metadata
+    from rdp.infra.state import state_paths
+
+    historical = historical_migrations(tmp_path)
+    state = tmp_path / "state"
+    with monkeypatch.context() as patch:
+        patch.setattr("rdp.infra.db.migration.__file__", str(historical.parent / "migration.py"))
+        with browser_case(state, fake_nav) as case:
+            assert case.client.get("/api/datasets").json()["total"] == 5
+    result = migrate(state_paths(PlatformConfig(state_dir=state), ()), now=NOW)
+    assert (result.previous_revision, result.current_revision) == (
+        "0007_dataset_index",
+        "0008_dataset_layout",
+    )
+    assert result.backup is not None and result.backup.is_file()
+    from rdp.infra.db.migrations.versions.v0008_dataset_layout import downgrade
+    from rdp.infra.diagnostics import InputError
+    from rdp.jobs.dataset_browser.preference_models import DatasetLayoutPreferenceRow
+
+    assert DatasetLayoutPreferenceRow.metadata is metadata
+    engine = create_database_engine(state / "rdp.sqlite3")
+    try:
+        with engine.connect() as connection:
+            assert "dataset_layout_preferences" in inspect(connection).get_table_names()
+            assert compare_metadata(MigrationContext.configure(connection), metadata) == []
+            assert connection.scalar(text("SELECT count(*) FROM datasets")) == 5
+            assert connection.scalar(text("SELECT count(*) FROM accounts")) == 1
+            assert connection.scalar(text("SELECT count(*) FROM jobs")) == 1
+        for account, layout in ((1, "Z"), (999, "A"), (0, "A")):
+            with pytest.raises(IntegrityError), engine.begin() as connection:
+                connection.execute(
+                    text("INSERT INTO dataset_layout_preferences VALUES (:id, :layout, :at)"),
+                    {"id": account, "layout": layout, "at": NOW.isoformat()},
+                )
+        with pytest.raises(InputError):
+            downgrade()
+    finally:
+        engine.dispose()
+
+
+def test_layout_invalid_value_and_database_failure(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收6：无效布局422；写入I/O失败502且原值保留；缺表502不能冒充默认，短锁竞争409。"""
+    import sqlite3
+    from typing import Any
+
+    from sqlalchemy import event, text
+    from sqlalchemy.exc import OperationalError
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        for payload in ({"layout": "Z"}, {"layout": "b"}, {"layout": "A", "extra": 1}):
+            assert case.client.put("/api/datasets/layout", json=payload).status_code == 422
+        assert case.client.put("/api/datasets/layout", json={"layout": "B"}).status_code == 200
+
+        def fail(
+            _connection: Any,
+            _cursor: Any,
+            statement: str,
+            parameters: Any,
+            _context: Any,
+            _many: bool,
+        ) -> None:
+            if statement.startswith("UPDATE dataset_layout_preferences"):
+                error = sqlite3.OperationalError("disk I/O error")
+                error.sqlite_errorcode = sqlite3.SQLITE_IOERR
+                raise OperationalError(statement, parameters, error)
+
+        event.listen(case.engine, "before_cursor_execute", fail)
+        try:
+            assert case.client.put("/api/datasets/layout", json={"layout": "C"}).status_code == 502
+        finally:
+            event.remove(case.engine, "before_cursor_execute", fail)
+        assert case.client.get("/api/datasets/layout").json()["layout"] == "B"
+        with case.engine.begin():
+            assert case.client.put("/api/datasets/layout", json={"layout": "C"}).status_code == 409
+        with case.engine.begin() as connection:
+            connection.execute(text("DROP TABLE dataset_layout_preferences"))
+        assert case.client.get("/api/datasets/layout").status_code == 502
+
+
+def test_security_precedes_body_and_route_validation(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收2/4：第一段查询匿名401，写请求缺Origin先403，成员可读取，坏路径由认证之后拒绝。"""
+    from account_api_support import add_actor
+    from pydantic import SecretStr
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        case.client.cookies.clear()
+        for suffix in ("", "/trees", "/filters", "/detail", "/subtasks"):
+            assert (
+                case.client.get(
+                    "/api/datasets" + suffix, params={"entry_path": "../bad"}
+                ).status_code
+                == 401
+            )
+        case.client.headers.pop("Origin")
+        assert case.client.put("/api/datasets/layout", content="{bad").status_code == 403
+        case.client.headers["Origin"] = "http://testserver"
+        add_actor(case)
+        assert case.login("member", SecretStr("member-updated-value")).status_code == 200
+        assert case.client.get("/api/datasets").status_code == 200
+
+
+def test_identity_revalidated_inside_business_transaction(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验收2/4：全局认证后注销会话，全部读写接口的事务重验均返回401，不留下作业或偏好。"""
+    from typing import Annotated
+
+    from fastapi import Depends, Request
+
+    from rdp.api.account_auth import AccountRequestContext, get_authenticated_context
+    from rdp.api.datasets import DatasetApiContext, get_dataset_context
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+
+        def revoke(
+            request: Request,
+            account: Annotated[AccountRequestContext, Depends(get_authenticated_context)],
+        ) -> DatasetApiContext:
+            context = get_dataset_context(request, account)
+            assert account.identity is not None
+            account.service.logout(account.identity, now=account.now, audit=account.audit)
+            return context
+
+        case.app.dependency_overrides[get_dataset_context] = revoke
+        for suffix, query in (
+            ("", {}),
+            ("/trees", {}),
+            ("/filters", {}),
+            ("/panel", {}),
+            ("/layout", {}),
+            ("/detail", {"entry_path": ENTRY}),
+            ("/subtasks", {"entry_path": ENTRY}),
+        ):
+            assert case.login().status_code == 200
+            response = case.client.get("/api/datasets" + suffix, params=query)
+            assert response.status_code == 401, response.text
+
+        for method, path, payload in (
+            ("POST", "/dataset-14/rescan", None),
+            ("POST", "/sizing", {"dataset_id": None}),
+            ("PUT", "/layout", {"layout": "B"}),
+        ):
+            assert case.login().status_code == 200
+            assert (
+                case.client.request(method, "/api/datasets" + path, json=payload).status_code == 401
+            )
 
 
 def test_openapi_and_generated_types_are_current() -> None:
-    """验收7：十个操作有SessionCookie/统一problem响应，子任务text/plain+头，make api-types产物与离线导出一致。"""
-    pytest.skip("契约骨架：make check已执行生成物过期检查；实现关卡补接口形状断言")
+    """验收7：离线OpenAPI和已生成JSON一致，十个操作声明cookie，子任务是文本并带安全头。"""
+    import json
+
+    from rdp.api import create_app
+
+    schema = create_app(None, database=None).openapi()
+    generated = Path(__file__).parents[1] / "src/web/src/api/openapi.json"
+    assert json.loads(generated.read_text()) == schema
+    operations = [
+        operation
+        for path, methods in schema["paths"].items()
+        if path.startswith("/api/datasets")
+        for operation in methods.values()
+    ]
+    assert len(operations) == 10
+    assert all(operation["security"] == [{"SessionCookie": []}] for operation in operations)
+    response = schema["paths"]["/api/datasets/subtasks"]["get"]["responses"]["200"]
+    assert response["content"]["text/plain"]["schema"]["type"] == "string"
+    assert "X-Index-Stale" in response["headers"]
+    assert "X-Content-Type-Options" in response["headers"]
+
+
+def test_layout_audit_contract_removed() -> None:
+    """关卡修正：个人布局不出现在操作日志类型或明细白名单，生成接口不能继续承诺该审计。"""
+    from rdp.api import create_app
+
+    schemas = create_app(None, database=None).openapi()["components"]["schemas"]
+    assert "set_dataset_layout" not in schemas["OperationType"]["enum"]
+    assert "dataset_layout" not in schemas["AuditValues"]["properties"]
+
+
+def test_production_entry_configures_dataset_queries(tmp_path: Path) -> None:
+    """第一段检查点：真实Web装配把配置导航根交给查询服务，空索引可通过认证HTTP读取，不监听端口。"""
+    from typing import Unpack, cast
+
+    from accounts_support import EXAMPLE_SECRET
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from httpx import Client
+    from ops_support import runtime_inputs
+
+    from rdp.accounts.security import PasswordCodec
+    from rdp.accounts.service import AccountService
+    from rdp.accounts.types import Credentials, NewAccount, Role
+    from rdp.api.production import UvicornOptions
+    from rdp.audit.types import OPS_AUDIT_CONTEXT
+    from rdp.cli import run_web
+    from rdp.ops.runtime import prepare_service
+
+    inputs = runtime_inputs(tmp_path)
+    runtime = prepare_service("web", no_stderr=True, inputs=inputs)
+    accounts = AccountService(runtime.engine, PasswordCodec())
+    accounts.create_first_admin(
+        NewAccount(Credentials("admin", EXAMPLE_SECRET), "管理员", Role.ADMINISTRATOR),
+        now=inputs.clock.now(),
+        audit=OPS_AUDIT_CONTEXT,
+    )
+
+    def runner(app: FastAPI, **_options: Unpack[UvicornOptions]) -> None:
+        with TestClient(
+            app, raise_server_exceptions=False, headers={"Origin": "http://testserver"}
+        ) as raw_client:
+            client = cast(Client, raw_client)
+            assert (
+                client.post(
+                    "/api/auth/login",
+                    json={"login_name": "admin", "password": EXAMPLE_SECRET.get_secret_value()},
+                ).status_code
+                == 200
+            )
+            response = client.get("/api/datasets/trees")
+            assert response.status_code == 200, response.text
+            assert [node["entry_count"] for node in response.json()["nodes"]] == [0, 0]
+
+    assert run_web(runtime, inputs=inputs, runner=runner) == 0
+
+
+def test_detail_projection_read_failure_marks_stale(
+    tmp_path: Path, fake_nav: FakeNavigation, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """验收4回归：原文成功后投影读取失败，不能以随后相同L12误报新鲜或静默丢失数据块。"""
+    import errno
+    import os
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        real_open = os.open
+        reads = 0
+
+        def fail_projection(
+            file: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+            flags: int,
+            mode: int = 0o777,
+            *,
+            dir_fd: int | None = None,
+        ) -> int:
+            nonlocal reads
+            if (
+                file == "原始路径.json"
+                and dir_fd is not None
+                and Path(f"/proc/self/fd/{dir_fd}").readlink() == fake_nav.nav_root / ENTRY
+            ):
+                reads += 1
+                if reads == 2:
+                    raise PermissionError(errno.EACCES, "临时不可读")
+            return real_open(file, flags, mode, dir_fd=dir_fd)
+
+        monkeypatch.setattr(os, "open", fail_projection)
+        response = case.client.get("/api/datasets/detail", params={"entry_path": ENTRY})
+        assert response.status_code == 200, response.text
+        assert response.json()["original_paths"]["usable"] is True
+        assert response.json()["index_stale"] is True
+        assert response.json()["diagnostics"]
+
+
+def test_layout_direct_call_rejects_invalid_value(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """领域契约回归：绕过HTTP的非法布局仍是输入拒绝，不能靠SQL CHECK误报冲突。"""
+    from typing import cast
+
+    from accounts_support import AUDIT_CONTEXT, EXAMPLE_SECRET
+
+    from rdp.accounts.types import Credentials
+    from rdp.jobs.dataset_browser.errors import DatasetQueryError
+    from rdp.jobs.dataset_browser.schemas import Layout
+    from rdp.jobs.dataset_browser.service import (
+        DatasetBrowserService,
+        read_unregistered_robot_models,
+    )
+    from rdp.jobs.service import JobRequest
+
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        grant = case.service.login(
+            Credentials("admin", EXAMPLE_SECRET), now=case.clock.value, audit=AUDIT_CONTEXT
+        )
+        service = DatasetBrowserService(
+            case.engine,
+            fake_nav.nav_root,
+            case.app.state.job_service,
+            read_unregistered_robot_models,
+        )
+        request = JobRequest(grant.identity, case.clock.value, AUDIT_CONTEXT)
+        with pytest.raises(DatasetQueryError):
+            service.set_layout(request, cast(Layout, "invalid"))
+        assert service.get_layout(request).model_dump() == {"layout": "A", "updated_at": None}

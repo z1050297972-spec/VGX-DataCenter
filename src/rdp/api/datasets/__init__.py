@@ -4,14 +4,20 @@
 模型由领域层提供单一定义，复用M0的作业响应和OpenAPI导出机制。
 """
 
+import logging
+import time
 from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.responses import PlainTextResponse, Response
 
+from rdp.api._account_context import identity
+from rdp.api._job_views import response as _job_response
 from rdp.api.account_auth import AccountRequestContext, get_authenticated_context
 from rdp.api.job_schemas import JobResponse
+from rdp.infra.db.validation import invalid_field
+from rdp.infra.diagnostics import DefectError, DiagnosticCategory, ExternalError
 from rdp.jobs.dataset_browser.schemas import (
     DatasetDetailResponse,
     DatasetFilterOptions,
@@ -27,6 +33,9 @@ from rdp.jobs.dataset_browser.schemas import (
     SizingRequest,
 )
 from rdp.jobs.dataset_browser.service import DatasetBrowserService
+from rdp.jobs.service import JobRequest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/datasets", tags=["datasets"])
 
@@ -63,7 +72,9 @@ def configure_datasets(app: FastAPI, service: DatasetBrowserService) -> None:
     Time Semantics:
         在接受请求前调用一次，无时钟、等待或重试。
     """
-    raise NotImplementedError
+    if app.middleware_stack is not None or hasattr(app.state, "dataset_browser_service"):
+        raise DefectError()
+    app.state.dataset_browser_service = service
 
 
 def get_dataset_context(
@@ -92,7 +103,17 @@ def get_dataset_context(
     Time Semantics:
         复用account.now，不重新读时钟或延长会话；身份先于路由参数校验。
     """
-    raise NotImplementedError
+    service = getattr(request.app.state, "dataset_browser_service", None)
+    if service is None:
+        raise ExternalError(
+            tuple(
+                item.model_copy(update={"category": DiagnosticCategory.EXTERNAL})
+                for item in invalid_field("datasets", "浏览服务必须配置").diagnostics
+            )
+        )
+    if not isinstance(service, DatasetBrowserService):
+        raise DefectError()
+    return DatasetApiContext(account, service)
 
 
 DatasetContext = Annotated[DatasetApiContext, Depends(get_dataset_context)]
@@ -126,7 +147,7 @@ def get_dataset_trees(
     Time Semantics:
         同步查询在工作线程；单次事务快照，数据库等待使用BUSY_TIMEOUT_MS。
     """
-    raise NotImplementedError
+    return context.service.trees(_request(context), filters)
 
 
 @router.get("", response_model=DatasetListResponse, operation_id="list_datasets")
@@ -157,7 +178,7 @@ def list_datasets(
     Time Semantics:
         每页内部一致，跨页可受新扫描影响；返回实际索引时间，不生成假刷新时刻。
     """
-    raise NotImplementedError
+    return context.service.list(_request(context), query)
 
 
 @router.get("/filters", response_model=DatasetFilterOptions, operation_id="get_dataset_filters")
@@ -185,7 +206,7 @@ def get_dataset_filters(context: DatasetContext) -> DatasetFilterOptions:
     Time Semantics:
         每次请求读取最新已提交目录，不缓存空型号表；无轮询等待。
     """
-    raise NotImplementedError
+    return context.service.filter_options(_request(context))
 
 
 @router.get("/panel", response_model=DatasetPanelResponse, operation_id="get_dataset_panel")
@@ -217,7 +238,7 @@ def get_dataset_panel(
     Time Semantics:
         根状态保留上次checked_at；未检查为null，不能声称本请求验证了存储可用性。
     """
-    raise NotImplementedError
+    return context.service.panel(_request(context), dataset_id)
 
 
 @router.get("/detail", response_model=DatasetDetailResponse, operation_id="get_dataset_detail")
@@ -250,7 +271,21 @@ def get_dataset_detail(
     Time Semantics:
         SQL完成后再读文件；L12比较使用内容指纹，不用mtime，漂移时保守标过期。
     """
-    raise NotImplementedError
+    started = time.monotonic()
+    result = context.service.detail(_request(context), entry_path)
+    # 只在HTTP边界记录规模和单调耗时，不记录导航JSON正文或重复下层错误。
+    logger.debug(
+        "数据集详情读取完成",
+        extra={
+            "fields": {
+                "entry_path": entry_path,
+                "index_stale": result.index_stale,
+                "source_count": len(result.sources),
+                "elapsed_s": max(0.0, time.monotonic() - started),
+            }
+        },
+    )
+    return result
 
 
 @router.get(
@@ -303,7 +338,30 @@ def get_dataset_subtasks(
         约14MB受已有32MiB预算覆盖，读取在工作线程；响应发送交ASGI，无自动重试或压缩。
         网络断开只终止发送，不改变已读文件；真实响应时间由工单验收1的只读演练测量。
     """
-    raise NotImplementedError
+    started = time.monotonic()
+    document = context.service.subtasks(_request(context), entry_path)
+    logger.debug(
+        "子任务原文读取完成",
+        extra={
+            "fields": {
+                "entry_path": entry_path,
+                "size_bytes": len(document.content),
+                "index_stale": document.index_stale,
+                "elapsed_s": max(0.0, time.monotonic() - started),
+            }
+        },
+    )
+    return Response(
+        document.content,
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "X-Index-Stale": str(document.index_stale).lower(),
+            "X-Document-SHA256": document.sha256,
+            "X-Observed-At": document.observed_at.isoformat(),
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.post(
@@ -337,7 +395,7 @@ def submit_dataset_sizing(context: DatasetContext, body: SizingRequest) -> JobRe
     Time Semantics:
         使用请求唯一UTC提交时刻，不等待worker在线或执行；客户端不自动重试POST。
     """
-    raise NotImplementedError
+    return _job_response(context.service.submit_sizing(_request(context), body.dataset_id))
 
 
 @router.get("/layout", response_model=LayoutResponse, operation_id="get_dataset_layout")
@@ -364,7 +422,7 @@ def get_dataset_layout(context: DatasetContext) -> LayoutResponse:
     Time Semantics:
         返回最后保存的UTC时刻，无保存记录时不使用当前时间冒充。
     """
-    raise NotImplementedError
+    return context.service.get_layout(_request(context))
 
 
 @router.put("/layout", response_model=LayoutResponse, operation_id="set_dataset_layout")
@@ -385,16 +443,16 @@ def set_dataset_layout(context: DatasetContext, body: LayoutRequest) -> LayoutRe
         PasswordChangeRequiredError: 当前账号须改密，403。
         InputError: 现有偏好或账号记录损坏，400。
         ConflictError: 写锁或约束冲突，409。
-        ExternalError: 偏好/操作日志事务失败，502，旧选择保留。
+        ExternalError: 偏好事务失败，502，旧选择保留。
         DefectError: 审计上下文或响应映射错误，500。
 
     Side Effects:
-        一行偏好和SET_DATASET_LAYOUT操作日志原子提交；其他账号完全不变，不记录筛选状态。
+        只提交当前账号一行偏好，不写操作日志；其他账号完全不变，不记录筛选状态。
 
     Time Semantics:
         最后提交者生效，同值不写；时钟回拨不降低updated_at，锁预算沿用M0。
     """
-    raise NotImplementedError
+    return context.service.set_layout(_request(context), body.layout)
 
 
 # 固定路径先声明，避免dataset_id捕获layout、panel等名字；新接口均在全局API兜底之前注册。
@@ -432,4 +490,10 @@ def rescan_dataset(context: DatasetContext, dataset_id: DatasetId) -> JobRespons
     Time Semantics:
         提交后立即返回排队记录，前端按M0作业接口查询进度；不以HTTP请求超时取消作业。
     """
-    raise NotImplementedError
+    return _job_response(context.service.submit_rescan(_request(context), dataset_id))
+
+
+def _request(context: DatasetApiContext) -> JobRequest:
+    """沿用服务器认证身份与同一次请求的时刻，不接受客户端操作者。"""
+    account = context.account
+    return JobRequest(identity(account), account.now, account.audit)

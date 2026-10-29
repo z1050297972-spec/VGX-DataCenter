@@ -150,16 +150,14 @@ addopts = "-ra --strict-config --strict-markers"
 # CODING_STANDARDS 7.8 要求失败时先保留证据；成功样例清理，失败现场保留供定位。
 tmp_path_retention_policy = "failed"
 
-# M1-03 / ADR 0006：数据集HTTP及其服务不得直接或经新辅助模块取得存储检查或扫描执行能力。
-# M0 JobService→registry传递导入执行定义是既有装配方式，仅豁免调用已审计提交服务的这一条边；
-# 数据集作业包整体禁入，连第02张将来新增的模块也覆盖，仅放行已合并的纯类型/常量。
+# M1-03关卡决定 / ADR 0006：允许复用导航reading和fingerprint，禁止存储访问及作业执行能力。
+# 查询与schema检查全部间接依赖；提交模块经M0服务插作业行，由不可读假根测试验证运行边界。
 # 实际调用及路径不跟随链接的边界由不可读假存储根和换链测试验证，不以此合约冒充I/O沙箱。
 [[tool.importlinter.contracts]]
 name = "数据集接口不得依赖存储根访问"
 type = "forbidden"
-source_modules = ["rdp.api.datasets", "rdp.jobs.dataset_browser"]
+source_modules = ["rdp.jobs.dataset_browser.queries", "rdp.jobs.dataset_browser.schemas"]
 forbidden_modules = [
-    "rdp.jobs.datasets",
     "rdp.jobs.storage",
     "rdp.infra.storage",
     "rdp.jobs.execution",
@@ -168,10 +166,3 @@ forbidden_modules = [
     "rdp.api.storage",
 ]
 allow_indirect_imports = false
-ignore_imports = [
-    # M0提交服务只写数据库；浏览服务仅调用submit，不取得registry或执行函数。
-    "rdp.jobs.dataset_browser.service -> rdp.jobs.service",
-    # 模型和稳定目录常量不含执行能力；不是第02张模块，复用以免重复定义视图/面板组。
-    "rdp.jobs.dataset_browser.schemas -> rdp.jobs.datasets.catalog",
-    "rdp.jobs.dataset_browser.schemas -> rdp.jobs.datasets.types",
-]

@@ -1,7 +1,11 @@
 """账号数据集布局迁移（M1-03），沿用M0冻结DDL、单事务和升级前备份。
 
-只声明新表；pending不属于Alembic活动versions目录，不改变0007版本检查。
+活动版本0008只新增布局偏好表；0007索引及M0永久记录保持原样。
 """
+
+from alembic import op
+
+from rdp.infra.db.migrations.versions.v0001_error_reports import downgrade as _reject_downgrade
 
 revision: str = "0008_dataset_layout"
 down_revision: str = "0007_dataset_index"
@@ -42,7 +46,7 @@ def upgrade() -> None:
     Time Semantics:
         Web/worker停止后维护窗口执行，沿用migrate锁预算；时间底层TEXT，由UTCDateTime解释。
     """
-    raise NotImplementedError
+    op.execute(CREATE_TABLE_SQL)
 
 
 def downgrade() -> None:
@@ -63,4 +67,4 @@ def downgrade() -> None:
     Time Semantics:
         即时拒绝，不等锁、不读取时间、不尝试按记录年龄丢弃数据。
     """
-    raise NotImplementedError
+    _reject_downgrade()

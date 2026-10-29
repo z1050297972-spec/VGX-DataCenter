@@ -1,7 +1,7 @@
 """账号布局偏好表声明（领域层，M1-03），复用M0的Base/UTCDateTime及账号级联删除。
 
-偏好不是数据集索引，重建索引时不得删除。仅迁移激活后的运行装配导入本模块，
-离线OpenAPI通过Pydantic模型导出，不登记新表到活动版本的MetaData。
+偏好不是数据集索引，重建索引时不得删除。查询装配导入本模块以登记共享MetaData；
+创建表只由0008迁移完成，导入不执行DDL。
 """
 
 from datetime import datetime

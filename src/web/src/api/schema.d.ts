@@ -782,11 +782,11 @@ export interface paths {
          *         PasswordChangeRequiredError: 当前账号须改密，403。
          *         InputError: 现有偏好或账号记录损坏，400。
          *         ConflictError: 写锁或约束冲突，409。
-         *         ExternalError: 偏好/操作日志事务失败，502，旧选择保留。
+         *         ExternalError: 偏好事务失败，502，旧选择保留。
          *         DefectError: 审计上下文或响应映射错误，500。
          *
          *     Side Effects:
-         *         一行偏好和SET_DATASET_LAYOUT操作日志原子提交；其他账号完全不变，不记录筛选状态。
+         *         只提交当前账号一行偏好，不写操作日志；其他账号完全不变，不记录筛选状态。
          *
          *     Time Semantics:
          *         最后提交者生效，同值不写；时钟回拨不降低updated_at，锁预算沿用M0。
@@ -1721,11 +1721,8 @@ export interface components {
          *         job_type: 稳定英文类型键，1-64 字符；默认 None，不存显示名或参数。
          *         job_state: jobs.JobState 的稳定英文码，before/after 分别存前后状态；默认 None。
          *         resubmitted_from: 原作业正编号文本；仅重新提交的 after 提供，默认 None。
-         *         dataset_layout: 当前账号的数据集布局A/B/C；仅SET_DATASET_LAYOUT使用，默认None。
          */
         AuditValues: {
-            /** Dataset Layout */
-            dataset_layout?: ("A" | "B" | "C") | null;
             /** Display Name */
             display_name?: string | null;
             /** Job Id */
@@ -2834,7 +2831,7 @@ export interface components {
          * @description 稳定的操作码；新增操作用新增枚举值，不改历史值（第 8 张可增加作业操作）。
          * @enum {string}
          */
-        OperationType: "create_account" | "set_role" | "disable_account" | "enable_account" | "reset_password" | "reset_password_from_ops" | "delete_account" | "change_password" | "create_first_admin" | "set_retention" | "submit_job" | "cancel_job" | "set_dataset_layout";
+        OperationType: "create_account" | "set_role" | "disable_account" | "enable_account" | "reset_password" | "reset_password_from_ops" | "delete_account" | "change_password" | "create_first_admin" | "set_retention" | "submit_job" | "cancel_job";
         /**
          * PanelGroup
          * @description 面板四组；存储相关两组由扫描第二段提供。

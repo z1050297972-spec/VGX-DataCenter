@@ -38,8 +38,6 @@ class OperationType(StrEnum):
     SET_RETENTION = "set_retention"
     SUBMIT_JOB = "submit_job"
     CANCEL_JOB = "cancel_job"
-    # M1-03：布局是当前账号偏好，复用account对象，不新增日志表对象种类。
-    SET_DATASET_LAYOUT = "set_dataset_layout"
 
 
 class OperationResult(StrEnum):
@@ -83,7 +81,6 @@ class AuditValues(BaseModel):
         job_type: 稳定英文类型键，1-64 字符；默认 None，不存显示名或参数。
         job_state: jobs.JobState 的稳定英文码，before/after 分别存前后状态；默认 None。
         resubmitted_from: 原作业正编号文本；仅重新提交的 after 提供，默认 None。
-        dataset_layout: 当前账号的数据集布局A/B/C；仅SET_DATASET_LAYOUT使用，默认None。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
@@ -102,7 +99,6 @@ class AuditValues(BaseModel):
     job_type: str | None = Field(default=None, strict=True, min_length=1, max_length=64)
     job_state: str | None = Field(default=None, strict=True, min_length=1, max_length=16)
     resubmitted_from: str | None = Field(default=None, strict=True, pattern=r"^[1-9][0-9]{0,18}$")
-    dataset_layout: Literal["A", "B", "C"] | None = None
 
 
 class OperationDetails(BaseModel):
@@ -138,7 +134,6 @@ OPERATION_DETAIL_FIELDS: dict[OperationType, frozenset[str]] = {
     OperationType.SET_RETENTION: frozenset({"retention_days"}),
     OperationType.SUBMIT_JOB: frozenset({"job_id", "job_type", "job_state", "resubmitted_from"}),
     OperationType.CANCEL_JOB: frozenset({"job_id", "job_type", "job_state"}),
-    OperationType.SET_DATASET_LAYOUT: frozenset({"dataset_layout"}),
 }
 
 

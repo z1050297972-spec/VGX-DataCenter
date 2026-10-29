@@ -277,7 +277,7 @@ def test_migration_upgrade(tmp_path: Path) -> None:
     paths = state_paths(PlatformConfig(state_dir=tmp_path), ())
     initialize_state(paths)
     result = migrate(paths, now=NOW)
-    assert result.current_revision == "0007_dataset_index"
+    assert result.current_revision == "0008_dataset_layout"
     engine = create_database_engine(paths.database)
     try:
         names = set(inspect(engine).get_table_names())

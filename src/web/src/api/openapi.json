@@ -141,24 +141,8 @@
       },
       "AuditValues": {
         "additionalProperties": false,
-        "description": "v1 的平面白名单，秘密无字段可容纳；None 表示未提供，序列化时排除。\n\nAttributes:\n    model_config: frozen/extra=forbid/hide_input_in_errors；未知字段拒绝且不回显值。\n    login_name: 已确认账号的登录名，3-32 字符；默认 None，不接受未知输入原文。\n    display_name: 已确认账号的显示名，1-64 码点；默认 None。\n    role: administrator/member；默认 None，不含权限令牌。\n    status: enabled/disabled；默认 None。\n    must_change_password: 严格布尔；默认 None，仅表示强制改密标记。\n    retention_days: 严格整数 7-365 天；默认 None。\n    job_id: 作业正编号的规范十进制文本，最大 2^63-1；默认 None。\n    job_type: 稳定英文类型键，1-64 字符；默认 None，不存显示名或参数。\n    job_state: jobs.JobState 的稳定英文码，before/after 分别存前后状态；默认 None。\n    resubmitted_from: 原作业正编号文本；仅重新提交的 after 提供，默认 None。\n    dataset_layout: 当前账号的数据集布局A/B/C；仅SET_DATASET_LAYOUT使用，默认None。",
+        "description": "v1 的平面白名单，秘密无字段可容纳；None 表示未提供，序列化时排除。\n\nAttributes:\n    model_config: frozen/extra=forbid/hide_input_in_errors；未知字段拒绝且不回显值。\n    login_name: 已确认账号的登录名，3-32 字符；默认 None，不接受未知输入原文。\n    display_name: 已确认账号的显示名，1-64 码点；默认 None。\n    role: administrator/member；默认 None，不含权限令牌。\n    status: enabled/disabled；默认 None。\n    must_change_password: 严格布尔；默认 None，仅表示强制改密标记。\n    retention_days: 严格整数 7-365 天；默认 None。\n    job_id: 作业正编号的规范十进制文本，最大 2^63-1；默认 None。\n    job_type: 稳定英文类型键，1-64 字符；默认 None，不存显示名或参数。\n    job_state: jobs.JobState 的稳定英文码，before/after 分别存前后状态；默认 None。\n    resubmitted_from: 原作业正编号文本；仅重新提交的 after 提供，默认 None。",
         "properties": {
-          "dataset_layout": {
-            "anyOf": [
-              {
-                "enum": [
-                  "A",
-                  "B",
-                  "C"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dataset Layout"
-          },
           "display_name": {
             "anyOf": [
               {
@@ -2737,8 +2721,7 @@
           "create_first_admin",
           "set_retention",
           "submit_job",
-          "cancel_job",
-          "set_dataset_layout"
+          "cancel_job"
         ],
         "title": "OperationType",
         "type": "string"
@@ -6208,7 +6191,7 @@
         ]
       },
       "put": {
-        "description": "保存当前账号的布局，供其他会话及浏览器读取。\n\nArgs:\n    context: 已通过同源写请求检查的当前账号，事务内仍重验身份。\n    body: 只有layout字段，严格A/B/C；拒绝account_id及额外字段。\n\nReturns:\n    200，已提交布局和UTC修改时刻；重复保存相同值保持原时刻。\n\nRaises:\n    DatasetQueryError: 布局非法，422；框架参数校验也使用统一422诊断。\n    AuthenticationError: 未登录或事务重验失效，401。\n    AuthorizationError: Origin不合格，403，先于body校验。\n    PasswordChangeRequiredError: 当前账号须改密，403。\n    InputError: 现有偏好或账号记录损坏，400。\n    ConflictError: 写锁或约束冲突，409。\n    ExternalError: 偏好/操作日志事务失败，502，旧选择保留。\n    DefectError: 审计上下文或响应映射错误，500。\n\nSide Effects:\n    一行偏好和SET_DATASET_LAYOUT操作日志原子提交；其他账号完全不变，不记录筛选状态。\n\nTime Semantics:\n    最后提交者生效，同值不写；时钟回拨不降低updated_at，锁预算沿用M0。",
+        "description": "保存当前账号的布局，供其他会话及浏览器读取。\n\nArgs:\n    context: 已通过同源写请求检查的当前账号，事务内仍重验身份。\n    body: 只有layout字段，严格A/B/C；拒绝account_id及额外字段。\n\nReturns:\n    200，已提交布局和UTC修改时刻；重复保存相同值保持原时刻。\n\nRaises:\n    DatasetQueryError: 布局非法，422；框架参数校验也使用统一422诊断。\n    AuthenticationError: 未登录或事务重验失效，401。\n    AuthorizationError: Origin不合格，403，先于body校验。\n    PasswordChangeRequiredError: 当前账号须改密，403。\n    InputError: 现有偏好或账号记录损坏，400。\n    ConflictError: 写锁或约束冲突，409。\n    ExternalError: 偏好事务失败，502，旧选择保留。\n    DefectError: 审计上下文或响应映射错误，500。\n\nSide Effects:\n    只提交当前账号一行偏好，不写操作日志；其他账号完全不变，不记录筛选状态。\n\nTime Semantics:\n    最后提交者生效，同值不写；时钟回拨不降低updated_at，锁预算沿用M0。",
         "operationId": "set_dataset_layout",
         "requestBody": {
           "content": {

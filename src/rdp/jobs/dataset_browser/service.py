@@ -6,14 +6,19 @@
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-from typing import Final
 
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from rdp.accounts.service import authorize_job_actor
+from rdp.infra.diagnostics import DefectError
+from rdp.jobs.dataset_browser.commands import DATASET_SIZING_JOB_TYPE as DATASET_SIZING_JOB_TYPE
+from rdp.jobs.dataset_browser.commands import DatasetCommands
+from rdp.jobs.dataset_browser.queries import DatasetQueries, QueryAccess, SubtasksDocument
+from rdp.jobs.dataset_browser.queries import (
+    read_unregistered_robot_models as read_unregistered_robot_models,
+)
 from rdp.jobs.dataset_browser.schemas import (
     DatasetDetailResponse,
     DatasetFilterOptions,
@@ -28,55 +33,6 @@ from rdp.jobs.dataset_browser.schemas import (
 )
 from rdp.jobs.service import JobRequest, JobService
 from rdp.jobs.types import JobRecord
-
-# 第02张拥有统计作业类型定义；这里只提交这个键，不导入其执行模块，合并时与登记值对齐。
-DATASET_SIZING_JOB_TYPE: Final = "dataset_sizing"
-# 标签来自导航层手册第5节；保留历史原值，不能用本次扫描覆盖核验事实。
-VALIDATION_STATUS_LABELS: Final = {
-    "path_exists_only": "只核对了路径存在",
-    "archive_not_opened": "归档没有打开核对",
-    "metadata_and_references_pass": "元数据和引用都核对通过",
-    "attention_required": "需要关注",
-    "download_state_only": "只有下载控制文件",
-}
-
-
-@dataclass(frozen=True)
-class SubtasksDocument:
-    """单独传输的子任务原字节和响应头信息，不放进详情 JSON 或响应模型编码器。
-
-    Attributes:
-        content: 导航层普通文件的完整原字节，0至MAX_DOCUMENT_BYTES字节；不截断、不重排键。
-        sha256: 这份content的64位小写SHA-256摘要，不能取另一次文件读取的摘要。
-        index_stale: 本次指纹与索引不同、不可验证或发送内容摘要与本次指纹不同时True。
-        observed_at: 请求注入的UTC时刻，非文件mtime，非多文件原子观察保证。
-    """
-
-    content: bytes
-    sha256: str
-    index_stale: bool
-    observed_at: datetime
-
-
-def read_unregistered_robot_models(session: Session) -> tuple[RobotModelOption, ...]:
-    """提供尚无型号登记模块时的空目录，作为M1生产装配的显式适配器。
-
-    Args:
-        session: 本请求已授权的只读数据库会话，不自行开启或提交事务。
-
-    Returns:
-        空元组，明确没有登记型号；M3装配真实表读取器后移除此适配器，筛选服务与HTTP类型不变。
-
-    Raises:
-        无。
-
-    Side Effects:
-        无；不尝试查询尚不存在的型号表，不按数据标签自动创建平台型号。
-
-    Time Semantics:
-        与本请求索引查询共享会话生命周期；不缓存空结果，不读取墙钟。
-    """
-    raise NotImplementedError
 
 
 class DatasetBrowserService:
@@ -110,7 +66,10 @@ class DatasetBrowserService:
         Time Semantics:
             启动期同步构造，无时钟、锁等待或后台轮询。
         """
-        raise NotImplementedError
+        if jobs.engine is not engine:
+            raise DefectError()
+        self.queries = DatasetQueries(engine, nav_root, read_robot_models)
+        self.commands = DatasetCommands(engine, jobs)
 
     def trees(self, request: JobRequest, filters: DatasetFilters) -> DatasetTreesResponse:
         """从索引构造两棵共用筛选条件的有界目录树。
@@ -140,7 +99,7 @@ class DatasetBrowserService:
             单个读事务保证本次树聚合一致；沿用BUSY_TIMEOUT_MS，不重试。
             大小时间是原统计时间范围，不改成请求时刻；不同请求间允许扫描发布变化。
         """
-        raise NotImplementedError
+        return self.queries.trees(_access(request), filters)
 
     def list(self, request: JobRequest, query: DatasetListQuery) -> DatasetListResponse:
         """按规范入口的索引信息筛选并分页返回数据集和损坏入口。
@@ -171,7 +130,7 @@ class DatasetBrowserService:
             行保留自身索引代次时间；分页跨请求不承诺固定快照，扫描发布后前端重新取首页。
             同步查询，数据库锁最多BUSY_TIMEOUT_MS，无无限等待或自动重试。
         """
-        raise NotImplementedError
+        return self.queries.list(_access(request), query)
 
     def filter_options(self, request: JobRequest) -> DatasetFilterOptions:
         """返回三个布局共用的候选值和默认机器人筛选模式。
@@ -198,7 +157,7 @@ class DatasetBrowserService:
         Time Semantics:
             每次读同一事务快照，型号登记后下一请求生效；不持久缓存“没有登记型号”。
         """
-        raise NotImplementedError
+        return self.queries.filter_options(_access(request))
 
     def panel(self, request: JobRequest, dataset_id: str | None) -> DatasetPanelResponse:
         """读取四组两级聚合发现以及最近扫描的存储根顶部提示。
@@ -228,7 +187,7 @@ class DatasetBrowserService:
         Time Semantics:
             发现可能来自各数据集不同代次；只在下次扫描发布后变化，不宣称实时检查。
         """
-        raise NotImplementedError
+        return self.queries.panel(_access(request), dataset_id)
 
     def detail(self, request: JobRequest, entry_path: str) -> DatasetDetailResponse:
         """读取选中入口的两份JSON原文，并与规范副本及索引指纹对照。
@@ -263,7 +222,7 @@ class DatasetBrowserService:
             文件I/O不占数据库事务；沿用MAX_DOCUMENT_BYTES、MAX_SCAN_BYTES/ENTRIES的预算。
             不重试，无法保证多个文件原子快照；读期间改变保守标过期，前端可提交重新检查。
         """
-        raise NotImplementedError
+        return self.queries.detail(_access(request), entry_path)
 
     def subtasks(self, request: JobRequest, entry_path: str) -> SubtasksDocument:
         """独立读取子任务原字节，提供有界的大文件传输内容和过期标记。
@@ -295,7 +254,7 @@ class DatasetBrowserService:
             同步读取在FastAPI线程池，单文件预算32MiB来自第01张，约14MB不是新上限。
             无压缩、后台任务或自动重试；客户端收到text/plain后在工作线程解析。
         """
-        raise NotImplementedError
+        return self.queries.subtasks(_access(request), entry_path)
 
     def submit_rescan(self, request: JobRequest, dataset_id: str) -> JobRecord:
         """为当前账号提交一个单数据集重新扫描作业。
@@ -326,7 +285,7 @@ class DatasetBrowserService:
         Time Semantics:
             复用请求唯一UTC时刻；普通写锁5秒、失败补记100毫秒，不在HTTP等待作业完成。
         """
-        raise NotImplementedError
+        return self.commands.submit_rescan(request, dataset_id)
 
     def submit_sizing(self, request: JobRequest, dataset_id: str | None) -> JobRecord:
         """向已有队列提交手动统计大小，执行类型由第02张登记。
@@ -356,7 +315,7 @@ class DatasetBrowserService:
         Time Semantics:
             锁与补记预算沿用JobService.submit，不等待上次统计结束、不自动重试POST。
         """
-        raise NotImplementedError
+        return self.commands.submit_sizing(request, dataset_id)
 
     def get_layout(self, request: JobRequest) -> LayoutResponse:
         """读取当前账号跨会话共用的最后一次布局选择。
@@ -381,17 +340,17 @@ class DatasetBrowserService:
         Time Semantics:
             换会话下一次读取立即可见已提交选择；读锁沿用BUSY_TIMEOUT_MS，不缓存会话副本。
         """
-        raise NotImplementedError
+        return self.queries.get_layout(_access(request))
 
     def set_layout(self, request: JobRequest, layout: Layout) -> LayoutResponse:
-        """原子保存当前账号布局与相应操作日志。
+        """原子保存当前账号的个人布局偏好，不写操作日志。
 
         Args:
             request: 身份、唯一UTC时刻和必填审计上下文，写事务内再次重验账号。
             layout: 严格A/B/C之一；大小写不自动修正，不存筛选或当前选中项。
 
         Returns:
-            已提交布局和updated_at；同值请求保持原时刻且不重复日志；首次保存A也建行。
+            已提交布局和updated_at；同值请求保持原时刻且不重复写入；首次保存A也建行。
 
         Raises:
             DatasetQueryError: 布局不是允许值。
@@ -399,16 +358,27 @@ class DatasetBrowserService:
             PasswordChangeRequiredError: 事务内强制改密。
             InputError: 原偏好或账号数据损坏。
             ConflictError: 写锁、外键或唯一约束竞争。
-            ExternalError: 偏好或操作日志写入失败，整体回滚；补记失败交统一边界报告。
-            DefectError: 请求时刻、审计上下文或领域装配错误。
+            ExternalError: 偏好写入失败，整体回滚，保留原选择。
+            DefectError: 请求时刻或领域装配错误。
 
         Side Effects:
-            BEGIN IMMEDIATE内重验身份后upsert一行；SET_DATASET_LAYOUT操作对象为当前account，
-            before/after只记dataset_layout；失败不改变偏好，复用M0审计失败补记规则。
+            BEGIN IMMEDIATE内重验身份后upsert当前账号一行；失败不改变偏好，不写操作日志。
             删除账号级联删除偏好；重建数据集索引不删除偏好。
 
         Time Semantics:
             最后成功串行提交者生效，不按客户端时刻排序；UTC墙钟回拨时updated_at保留原值最大值。
-            普通锁5秒、失败补记100毫秒；不跨请求持Session，不在事务内做文件I/O。
+            普通锁5秒；不跨请求持Session，不在事务内做文件I/O。
         """
-        raise NotImplementedError
+        return self.queries.set_layout(_access(request), layout)
+
+
+def _access(request: JobRequest) -> QueryAccess:
+    """只传入当前身份的事务授权回调，不把M0作业服务交给查询层。"""
+
+    def authorize(session: Session) -> int:
+        actor = authorize_job_actor(session, request.identity, now=request.now)
+        if actor.account_id is None:
+            raise DefectError()
+        return actor.account_id
+
+    return QueryAccess(request.now, authorize)

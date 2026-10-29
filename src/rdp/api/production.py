@@ -15,12 +15,14 @@ from fastapi import FastAPI
 from sqlalchemy import Engine
 
 from rdp.api import create_app
+from rdp.api.datasets import configure_datasets
 from rdp.api.jobs import configure_jobs
 from rdp.api.shutdown import drain_error_reports
 from rdp.api.storage import configure_storage
 from rdp.infra.config import WebConfig
 from rdp.infra.state import StatePaths
 from rdp.infra.storage import MountInspector
+from rdp.jobs.dataset_browser.service import DatasetBrowserService, read_unregistered_robot_models
 from rdp.jobs.registry import JobRegistry
 from rdp.jobs.scheduling_types import SchedulingCatalog
 
@@ -46,6 +48,7 @@ class WebRuntime:
         inspector: 仅从挂载表和 UUID 判断存储根状态的检查器。
         clock: 返回 UTC aware datetime 的请求时钟。
         version: 启动时读取的版本文字，1-128 个码点，无控制字符。
+        nav_root: 显式绝对导航根；生产CLI必传，None仅兼容不使用数据集接口的独立装配。
     """
 
     dist: Path
@@ -57,6 +60,7 @@ class WebRuntime:
     inspector: MountInspector
     clock: Callable[[], datetime]
     version: str
+    nav_root: Path | None = None
 
 
 class UvicornOptions(TypedDict):
@@ -123,7 +127,7 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
     Side Effects:
         create_app(dist, database=engine, clock=clock, platform_version=version) 内登记版本，
         返回后 configure_jobs(..., scheduling=...)、configure_storage(..., inspector=...)，
-        再单进程调用 runner，不二次 configure_version。
+        导航根非空时configure_datasets，再单进程调用 runner，不二次 configure_version。
         不访问存储根内容。失败在本边界写一次诊断；数据库版本不匹配明确提示 rdp migrate。
         runner 结束/异常后调用 drain_error_reports；仅返回 True 才 dispose engine。
         超时保留引擎至进程退出，记录失败，不声称迟到线程已回收，不在同进程重启。
@@ -145,6 +149,16 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
         )
         configure_jobs(app, runtime.paths, runtime.registry, scheduling=runtime.scheduling)
         configure_storage(app, inspector=runtime.inspector)
+        if runtime.nav_root is not None:
+            configure_datasets(
+                app,
+                DatasetBrowserService(
+                    runtime.engine,
+                    runtime.nav_root,
+                    app.state.job_service,
+                    read_unregistered_robot_models,
+                ),
+            )
         logger.info("Web开始运行", extra={"fields": {"platform_version": runtime.version}})
         runner(
             app,
