@@ -52,6 +52,7 @@ def historical_audit_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         name: table
         for name, table in metadata.tables.items()
         if name not in {"jobs", "worker_heartbeat", "schedule_submissions", "worker_gpu_checks"}
+        and not name.startswith("dataset")
     }
     monkeypatch.setattr(metadata, "tables", tables)
     # 唯一新增的历史CHECK值由0004负责；旧票仍核对0003的完整SQL，不改成最新版再冒充历史覆盖。

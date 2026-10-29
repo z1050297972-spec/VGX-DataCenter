@@ -4,15 +4,27 @@
 项目特有的字段投影和路径推导由本模块维护，不能用严格新 schema 拒绝已有未知字段。
 """
 
+import hashlib
+import json
+import re
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from typing import cast
 
+from rdp.infra.diagnostics import InputError
+from rdp.infra.ids import MAX_SQLITE_INTEGER
+from rdp.jobs.datasets import _io, _json
+from rdp.jobs.datasets._discovery import discover
+from rdp.jobs.datasets._issues import external_error, finding, input_error
+from rdp.jobs.datasets.catalog import MAX_DOCUMENT_BYTES, REQUIRED_DOCUMENTS
 from rdp.jobs.datasets.types import (
     EntryLocation,
     EntrySnapshot,
     JsonDocument,
+    JsonObject,
     Link,
     NavigationCatalog,
+    Source,
 )
 
 
@@ -37,7 +49,7 @@ def discover_entries(nav_root: Path) -> NavigationCatalog:
     Time Semantics:
         同步一次枚举，不等待目录出现、不重试；worker 第一段持写锁调用，Web只读调用允许观察漂移。
     """
-    raise NotImplementedError
+    return discover(nav_root)
 
 
 def parse_document(location: EntryLocation, name: str, content: bytes) -> JsonDocument:
@@ -65,7 +77,35 @@ def parse_document(location: EntryLocation, name: str, content: bytes) -> JsonDo
     Time Semantics:
         不取时钟，相同字节及位置产生相同解析结果；不使用文件修改时刻推测内容。
     """
-    raise NotImplementedError
+    if name not in REQUIRED_DOCUMENTS or len(content) > MAX_DOCUMENT_BYTES:
+        problem = input_error(str(location.path), "文件名或字节数不符合读取范围")
+        raise problem
+    digest = hashlib.sha256(content).hexdigest()
+    try:
+        payload = _json.object_value(
+            json.loads(
+                content.decode("utf-8"),
+                parse_float=_json.finite_number,
+                parse_constant=_json.finite_number,
+            )
+        )
+    except (ValueError, UnicodeError, RecursionError):
+        issue = finding(str(location.path), "JSON_INVALID", f"{name}：无法解析UTF-8 JSON对象")
+        return JsonDocument(name, None, digest, None, (issue,))
+    version = payload.get("schema_version", 1)
+    if type(version) is not int or version != 1:
+        issue = finding(
+            str(location.path), "JSON_SCHEMA_VERSION", f"{name}：schema_version不受支持"
+        )
+        return JsonDocument(name, None, digest, None, (issue,))
+    try:
+        _json.validate(payload, name)
+    except ValueError as error:
+        issue = finding(
+            str(location.path), "JSON_REQUIRED_FIELD", f"{name}：字段{error}缺失或类型错误"
+        )
+        return JsonDocument(name, None, digest, None, (issue,))
+    return JsonDocument(name, payload, digest, 1, ())
 
 
 def read_entry(
@@ -97,7 +137,39 @@ def read_entry(
     Time Semantics:
         worker 持导航锁调用；每文件单次尝试，文件在读取期间消失也按不可用返回，无重试。
     """
-    raise NotImplementedError
+    _validate_location(location)
+    try:
+        with _io.directory(nav_root / location.path) as descriptor:
+            names = _io.names(descriptor)
+            documents = tuple(
+                _read_document(descriptor, location, name, checkpoint)
+                for name in REQUIRED_DOCUMENTS
+            )
+    except OSError as error:
+        problem = external_error(str(location.path), "入口目录无法枚举")
+        raise problem from error
+    manifest = documents[0].payload
+    links = _links(location, manifest) if manifest is not None else ()
+    sources = _sources(location, manifest, links) if manifest is not None else ()
+    identity = next(
+        (str(doc.payload["dataset_id"]) for doc in documents if doc.payload is not None), None
+    )
+    size = extract_recorded_size(documents[1])
+    issues = tuple(issue for doc in documents for issue in doc.findings)
+    if size is None:
+        issues += (
+            finding(
+                str(location.path), "RECORDED_SIZE_MISSING", "第4项没有可用记录字节数", notice=True
+            ),
+        )
+    roots = (
+        tuple(str(value) for value in cast(list[object], manifest["dataset_roots"]))
+        if manifest
+        else ()
+    )
+    return EntrySnapshot(
+        location, documents, identity, roots, links, sources, "来源.json" in names, size, issues
+    )
 
 
 def derive_source_entry_path(
@@ -123,7 +195,27 @@ def derive_source_entry_path(
     Time Semantics:
         纯函数，无时间输入；输入来自同一次入口读取，不混用两个视图的链接集合。
     """
-    raise NotImplementedError
+    if not PurePosixPath(direct_path).is_absolute() or "\x00" in direct_path:
+        problem = input_error(str(location.path), "数据块当前位置必须是绝对路径")
+        raise problem
+    for link in links:
+        if not PurePosixPath(link.source_path).is_absolute() or link.entry_path != str(
+            location.path / link.name
+        ):
+            problem = input_error(str(location.path), "链接不属于入口或目标不是绝对路径")
+            raise problem
+    matches = [
+        link
+        for link in links
+        if PurePosixPath(direct_path).is_relative_to(PurePosixPath(link.source_path))
+    ]
+    if not matches:
+        return direct_path
+    link = sorted(
+        matches, key=lambda item: (-len(PurePosixPath(item.source_path).parts), item.name)
+    )[0]
+    relative = PurePosixPath(direct_path).relative_to(link.source_path)
+    return str(PurePosixPath(link.entry_path) / relative)
 
 
 def extract_recorded_size(information: JsonDocument) -> int | None:
@@ -146,4 +238,83 @@ def extract_recorded_size(information: JsonDocument) -> int | None:
     Time Semantics:
         值属于2026-10-12记录，不是扫描时刻的测量；不取当前时间。
     """
-    raise NotImplementedError
+    if information.name != "数据集信息.json":
+        problem = input_error(information.name, "记录值只从数据集信息读取")
+        raise problem
+    if information.payload is None:
+        return None
+    fields = _json.objects(information.payload.get("fields"), "fields")
+    selected = [
+        item for item in fields if item.get("number") == 4 and item.get("name") == "数据大小"
+    ]
+    if len(selected) != 1:
+        return None
+    match = re.search(r"（([0-9]+(?:,[0-9]{3})*) B；", str(selected[0]["value_markdown"]))
+    if match is None or len(match[1].replace(",", "")) > len(str(MAX_SQLITE_INTEGER)):
+        return None
+    value = int(match[1].replace(",", ""))
+    return value if value <= MAX_SQLITE_INTEGER else None
+
+
+def _validate_location(location: EntryLocation) -> None:
+    """位置是目录发现的输出，仍拒绝调用方传入绝对路径或穿越。"""
+    if (
+        location.path.is_absolute()
+        or ".." in location.path.parts
+        or not location.path.parts
+        or location.path.parts[0] not in {"按任务", "按格式"}
+    ):
+        problem = input_error(str(location.path), "入口位置越界")
+        raise problem
+
+
+def _read_document(
+    descriptor: int, location: EntryLocation, name: str, checkpoint: Callable[[], None]
+) -> JsonDocument:
+    """文件故障局部降级，取消与停止不被OSError处理吞掉。"""
+    try:
+        return parse_document(location, name, _io.read_file(descriptor, name, checkpoint))
+    except (OSError, InputError) as error:
+        issue = finding(
+            str(location.path),
+            "JSON_UNREADABLE",
+            f"{name}：无法读取普通文件（{type(error).__name__}）",
+        )
+        return JsonDocument(name, None, None, None, (issue,))
+
+
+def _links(location: EntryLocation, manifest: JsonObject) -> tuple[Link, ...]:
+    """推导路径单独保存，原payload保持未知字段与原始位置值。"""
+    return tuple(
+        Link(
+            str(item["name"]),
+            str(item["source_path"]),
+            str(item["source_type"]),
+            str(location.path / str(item["name"])),
+        )
+        for item in _json.objects(manifest["links"], "links")
+    )
+
+
+def _optional_text(item: JsonObject, key: str) -> str | None:
+    """展示字段的结构不纳入读取依赖，非文本原值只留在payload。"""
+    value = item.get(key)
+    return value if isinstance(value, str) else None
+
+
+def _sources(
+    location: EntryLocation, manifest: JsonObject, links: tuple[Link, ...]
+) -> tuple[Source, ...]:
+    """按原顺序投影数据块，重复source_id也保留，不重算首次登记身份。"""
+    return tuple(
+        Source(
+            str(item["source_id"]),
+            str(item["original_path"]),
+            str(item["direct_path"]),
+            derive_source_entry_path(location, str(item["direct_path"]), links),
+            _optional_text(item, "format"),
+            _optional_text(item, "version"),
+            _optional_text(item, "validation_status"),
+        )
+        for item in _json.objects(manifest["sources"], "sources")
+    )

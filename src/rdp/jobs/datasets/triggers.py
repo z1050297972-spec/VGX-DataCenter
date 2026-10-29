@@ -4,6 +4,12 @@
 手动提交仍走JobService.submit及RescanParameters，不共享系统身份入口。
 """
 
+import math
+from typing import cast
+
+from rdp.infra.diagnostics import ConflictError, DefectError
+from rdp.jobs import _storage
+from rdp.jobs.datasets.catalog import RESCAN_INTERVAL_S, RESCAN_TYPE
 from rdp.jobs.service import JobService
 from rdp.jobs.types import JobClock
 
@@ -30,7 +36,17 @@ class RescanTrigger:
         Time Semantics:
             worker取得单实例锁并完成恢复准备后使用；每次进程启动有一个新触发器。
         """
-        raise NotImplementedError
+        if not isinstance(cast(object, service), JobService) or not isinstance(
+            cast(object, clock), JobClock
+        ):
+            raise DefectError()
+        if service.registry.lookup(RESCAN_TYPE) is None:
+            raise DefectError()
+        _storage.moment(clock.now())
+        self.service = service
+        self.clock = clock
+        self._next_at_s: float | None = None
+        self._latest_s = _monotonic(clock)
 
     def poll(self) -> tuple[int, ...]:
         """在首次轮询或距上次提交满十分钟时提交一次全量重新扫描。
@@ -60,4 +76,26 @@ class RescanTrigger:
             不延长已累计等待，也不提前触发；UTC墙钟只用于持久化提交时刻。
             599.999秒不提交、600秒提交；短锁忙保留启动/到期状态，下轮重试，不在内部sleep。
         """
-        raise NotImplementedError
+        now = _storage.moment(self.clock.now())
+        # 回拨只冻结已观察到的单调进度；不重置已积累的等待，也不以UTC墙钟计算间隔。
+        now_s = max(self._latest_s, _monotonic(self.clock))
+        self._latest_s = now_s
+        if self._next_at_s is not None and now_s < self._next_at_s:
+            return ()
+        try:
+            record = self.service.submit_system(RESCAN_TYPE, {"dataset_id": None}, now=now)
+        except ConflictError as error:
+            if _storage.entry_busy(error):
+                return ()
+            raise
+        # 多个错过周期合并成这一次成功提交；下一期限从本次单调时刻算起，不循环补历史。
+        self._next_at_s = now_s + RESCAN_INTERVAL_S
+        return (record.job_id,)
+
+
+def _monotonic(clock: JobClock) -> float:
+    """非法注入值是程序缺陷，不能让NaN比较落入到期提交分支。"""
+    value = clock.monotonic()
+    if type(value) not in {int, float} or not math.isfinite(value):
+        raise DefectError()
+    return value

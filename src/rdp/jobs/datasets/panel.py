@@ -5,9 +5,17 @@
 """
 
 from collections.abc import Iterable
+from dataclasses import replace
 from enum import StrEnum
 
-from rdp.jobs.datasets.types import EntrySnapshot, Finding, FindingGroup
+from rdp.infra.diagnostics import (
+    DIAGNOSTIC_SAMPLE_LIMIT,
+    DefectError,
+    Diagnostic,
+    DiagnosticLevel,
+    aggregate_diagnostics,
+)
+from rdp.jobs.datasets.types import EntrySnapshot, Finding, FindingGroup, PanelGroup, PanelSeverity
 
 
 class NavigationRule(StrEnum):
@@ -47,7 +55,7 @@ def inspect_entry(entry: EntrySnapshot) -> tuple[Finding, ...]:
         三份可用 JSON 的 dataset_id 不同、任何已存 dataset_name 与目录名不同，
         或 view/format/version/links.entry_path/sources.entry_path 与投影不同均为需要处理。
         缺省 version 与 null 等价；按任务的 format/version 必须推导为 None。
-        来源.json 缺失产生 PROVENANCE_MISSING 提示；有文件也不猜测数据来源或解析血缘。
+        规范入口的来源.json 缺失产生一次 PROVENANCE_MISSING 提示；有文件也不猜测数据来源或解析血缘。
         不重复加入 entry.findings，不因文件不可用连锁报告它的所有字段都不同。
 
     Raises:
@@ -59,7 +67,9 @@ def inspect_entry(entry: EntrySnapshot) -> tuple[Finding, ...]:
     Time Semantics:
         不读取当前磁盘或时钟；检查结果属于快照观察时间，不声称当前链接仍存在。
     """
-    raise NotImplementedError
+    from rdp.jobs.datasets._entry_checks import check
+
+    return check(entry)
 
 
 def inspect_views(entries: tuple[EntrySnapshot, ...]) -> tuple[Finding, ...]:
@@ -90,7 +100,9 @@ def inspect_views(entries: tuple[EntrySnapshot, ...]) -> tuple[Finding, ...]:
     Time Semantics:
         同批次的视图之间比较；空输入返回空元组，不等待规范副本出现。
     """
-    raise NotImplementedError
+    from rdp.jobs.datasets._view_checks import check
+
+    return check(entries)
 
 
 def aggregate_findings(findings: Iterable[Finding]) -> tuple[FindingGroup, ...]:
@@ -113,4 +125,27 @@ def aggregate_findings(findings: Iterable[Finding]) -> tuple[FindingGroup, ...]:
     Time Semantics:
         结果只反映输入顺序，无系统时钟；不按发现时间重新排序或丢弃旧发现。
     """
-    raise NotImplementedError
+    groups: dict[tuple[PanelGroup, PanelSeverity, str, str], tuple[int, list[Diagnostic]]] = {}
+    for finding in findings:
+        expected = (
+            DiagnosticLevel.WARNING
+            if finding.severity is PanelSeverity.NOTICE
+            else DiagnosticLevel.ERROR
+        )
+        if finding.diagnostic.level is not expected:
+            raise DefectError()
+        key = (finding.group, finding.severity, finding.diagnostic.source, finding.diagnostic.rule)
+        total, samples = groups.get(key, (0, []))
+        if len(samples) < DIAGNOSTIC_SAMPLE_LIMIT:
+            samples.append(finding.diagnostic)
+        groups[key] = (total + 1, samples)
+    result: list[FindingGroup] = []
+    for (group, severity, _source, _rule), (total, samples) in sorted(groups.items()):
+        # 复用统一诊断的样例形状及分组规则；累计数独立于有限样例，不能拿样例长度充当总数。
+        sample_group = aggregate_diagnostics(samples)[0]
+        errors = total if severity is PanelSeverity.ACTION_REQUIRED else 0
+        diagnostics = replace(
+            sample_group, total=total, error_count=errors, warning_count=total - errors
+        )
+        result.append(FindingGroup(group, severity, diagnostics))
+    return tuple(result)

@@ -55,12 +55,13 @@ def test_explicit_registry() -> None:
 
 
 def test_production_example_only() -> None:
-    """类型登记：生产五类仍包含独立的 example_count/示例：数数，恢复方式 interrupt。"""
+    """类型登记：生产六类仍包含独立的 example_count/示例：数数，恢复方式 interrupt。"""
     first, second = production_registry(), production_registry()
     assert first is not second
     definitions = first.definitions()
-    assert len(definitions) == 5
-    definition = definitions[0]
+    assert len(definitions) == 6
+    definition = first.lookup("example_count")
+    assert definition is not None
     assert (definition.type_name, definition.display_name, definition.recovery_mode) == (
         "example_count",
         "示例：数数",

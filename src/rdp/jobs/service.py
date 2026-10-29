@@ -222,7 +222,29 @@ class JobService:
             每次调用只尝试一次短事务，不等待下次触发点；锁忙交worker下一轮重试。
             不改变submit_scheduled的每日唯一及补跑契约。
         """
-        raise NotImplementedError
+        now = _storage.moment(now)
+        definition, checked = _parameters(self.registry, type_name, parameters)
+        attempted: OperationEvent | None = None
+        try:
+            with session_scope_with_lock_timeout(
+                self.engine, busy_timeout_ms=policy.PROGRESS_LOCK_TIMEOUT_MS
+            ) as session:
+                attempted = OperationEvent(
+                    now,
+                    SYSTEM_ACTOR,
+                    OperationType.SUBMIT_JOB,
+                    _audit.target(None),
+                    OperationResult.SUCCESS,
+                    None,
+                    AuditContext(None, None),
+                    OperationDetails(before=AuditValues(), after=AuditValues()),
+                )
+                record = insert_job(session, NewJob(definition, checked, SYSTEM_ACTOR, now, None))
+                _audit.finish(session, attempted, record)
+            return record
+        except Exception as error:
+            _audit.failed(self.engine, attempted, error)
+            raise
 
     def cancel(self, request: JobRequest, job_id: int) -> JobRecord:
         """请求取消任意账号提交的作业，取消身份记为当前账号。

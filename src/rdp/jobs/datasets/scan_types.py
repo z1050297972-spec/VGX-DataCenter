@@ -88,6 +88,7 @@ class NavigationScan:
         finished_at: UTC第一段结束时刻，可因墙钟回拨早于started_at。
         elapsed_s: 非负单调耗时，含等锁；回拨时按累计增量非负处理。
         lock_held_s: 第一段实际持锁秒数，非负，不把存储阶段算进来。
+        job_id: 来源作业正编号；运维直接扫描时为None。
     """
 
     requested_dataset_id: str | None
@@ -99,6 +100,7 @@ class NavigationScan:
     finished_at: datetime
     elapsed_s: float
     lock_held_s: float
+    job_id: int | None = None
 
 
 @dataclass(frozen=True)

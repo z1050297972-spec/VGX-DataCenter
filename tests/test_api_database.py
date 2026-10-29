@@ -123,8 +123,8 @@ def test_configure_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     assert source is not None
     package = tmp_path / "newer_code"
     shutil.copytree(source, package / "migrations")
-    (package / "migrations" / "versions" / "v0007_test.py").write_text(
-        "revision = '0007_test'\ndown_revision = '0006_platform_version'\n"
+    (package / "migrations" / "versions" / "v0008_test.py").write_text(
+        "revision = '0008_test'\ndown_revision = '0007_dataset_index'\n"
     )
     for case in ("missing", "unversioned", "behind", "future_or_unknown"):
         paths = state_paths(PlatformConfig(state_dir=tmp_path / case), ())

@@ -86,6 +86,11 @@ class Loop:
                 if self.scheduler is None:
                     raise DefectError()
                 self.scheduler.tick_schedules()
+                if self.stop.is_set():
+                    break
+                if self.dependencies.poll_submissions is not None:
+                    # 恢复准备已经完成；资源不足也不能阻止自动提交，执行仍由原调度器领取。
+                    self.dependencies.poll_submissions()
                 self._fill()
                 self.stop.wait(policy.WORKER_POLL_INTERVAL_S)
         except Exception:

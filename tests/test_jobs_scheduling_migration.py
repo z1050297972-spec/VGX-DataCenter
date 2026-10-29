@@ -268,8 +268,9 @@ def test_downgrade_guard(tmp_path: Path) -> None:
         "INSERT INTO worker_gpu_checks VALUES (0,'00000000000040008000000000000001',1,'[]','2026-10-27T03:00:00.000000Z')",
     )
     for index, statement in enumerate(cases):
-        with version_four(tmp_path / str(index)) as (engine, paths):
-            migrate(paths, now=datetime(2026, 10, 27, tzinfo=UTC))
+        with version_four(tmp_path / str(index)) as (engine, _paths):
+            with engine.begin() as connection:
+                command.upgrade(migration_config(connection), "0005_job_scheduling")
             with engine.begin() as connection:
                 connection.execute(text(statement))
                 before = schema_objects(connection)
@@ -279,12 +280,13 @@ def test_downgrade_guard(tmp_path: Path) -> None:
                 assert schema_objects(connection) == before
                 assert (
                     connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-                    == ScriptDirectory.from_config(migration_config()).get_current_head()
+                    == "0005_job_scheduling"
                 )
-    with version_four(tmp_path / "safe") as (engine, paths):
+    with version_four(tmp_path / "safe") as (engine, _paths):
         with engine.connect() as connection:
             before = schema_objects(connection)
-        migrate(paths, now=datetime(2026, 10, 27, tzinfo=UTC))
+        with engine.begin() as connection:
+            command.upgrade(migration_config(connection), "0005_job_scheduling")
         with engine.begin() as connection:
             connection.execute(text("UPDATE sqlite_sequence SET seq=9000 WHERE name='jobs'"))
             connection.execute(

@@ -131,4 +131,7 @@ def fingerprint_dataset(
         检查点在每个文件和读块之间调用；不重试。外部手工写不受锁控制，检测到变化即不可验证，
         不能宣称多文件原子快照；不读取墙钟，不把两个不可验证值当作“未改变”。
     """
-    raise NotImplementedError
+    from rdp.jobs.datasets import _fingerprints
+
+    observed = _fingerprints.collect(nav_root, checkpoint)
+    return _fingerprints.select(nav_root, dataset_id, known_entry_paths, observed, checkpoint)

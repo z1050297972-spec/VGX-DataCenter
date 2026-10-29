@@ -5,9 +5,12 @@
 """
 
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from rdp.jobs.datasets import _index_write, _plan
+from rdp.jobs.datasets._index_read import baseline
 from rdp.jobs.datasets.fingerprint import DatasetFingerprint
 from rdp.jobs.datasets.scan_types import (
     IndexedDataset,
@@ -19,13 +22,14 @@ from rdp.jobs.datasets.scan_types import (
 
 
 def read_index_baseline(
-    session: Session, requested_dataset_id: str | None
+    session: Session, requested_dataset_id: str | None, *, nav_root: Path | None = None
 ) -> tuple[IndexedDataset, ...]:
     """读取扫描范围内已有索引的身份，供新增、变更和消失判定。
 
     Args:
         session: 受管只读事务会话，由调用方关闭，不跨线程共享。
         requested_dataset_id: None为全量，否则为非空原编号，不要求索引已存在。
+        nav_root: 显式绝对导航根；遇到无编号入口时必须提供，None仅允许全部入口身份已知。
 
     Returns:
         按编号及入口路径排序的基线，全量还包含dataset_id=None的旧入口；未索引返回空。
@@ -44,7 +48,7 @@ def read_index_baseline(
     Time Semantics:
         第一段拿到导航锁后调用，使用单个读事务快照，读完关闭再扫文件；不重试。
     """
-    raise NotImplementedError
+    return baseline(session, requested_dataset_id, nav_root)
 
 
 def plan_index_replacement(
@@ -79,7 +83,7 @@ def plan_index_replacement(
     Time Semantics:
         调用方在末次复核的同一导航写锁保护段计算计划并立即执行；不可缓存后晚些使用。
     """
-    raise NotImplementedError
+    return _plan.plan(navigation, storage, current, committed_at)
 
 
 def replace_index(session: Session, plan: IndexReplacement) -> ScanPublication:
@@ -115,4 +119,4 @@ def replace_index(session: Session, plan: IndexReplacement) -> ScanPublication:
         哈希和磁盘探测已在事务外完成；UTC由UTCDateTime统一存取，锁预算沿用受管数据库。
         不在事务内等待存储、重试或响应取消，原子提交后下一检查点响应控制信号。
     """
-    raise NotImplementedError
+    return _index_write.apply(session, plan)

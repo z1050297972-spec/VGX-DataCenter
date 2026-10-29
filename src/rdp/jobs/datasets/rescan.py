@@ -4,18 +4,27 @@
 生产登记通过build_rescan_definition显式加入JobRegistry，恢复、取消、结果均由M0框架收口。
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Engine
 
 from rdp.infra.config import StorageRootConfig
+from rdp.infra.db.connection import session_scope
+from rdp.infra.diagnostics import DefectError
 from rdp.infra.storage import StorageAccessChecker
-from rdp.jobs.datasets.scan_types import NavigationScan, ScanPublication, StorageScan
+from rdp.jobs import _storage
+from rdp.jobs.datasets import _fingerprints, _stage
+from rdp.jobs.datasets.catalog import RESCAN_NAME, RESCAN_TYPE
+from rdp.jobs.datasets.index import plan_index_replacement, read_index_baseline, replace_index
+from rdp.jobs.datasets.scan_types import NavigationScan, ScanPublication, StorageScan, StorageStage
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.registry import JobDefinition
+from rdp.jobs.types import ExecutionMode, JobProgress, RecoveryMode
 
 
 class RescanParameters(BaseModel):
@@ -88,7 +97,70 @@ class RescanExecutor:
             第一段和最终复核/提交分别持锁，第二段始终无锁；所有锁等待复用300秒框架预算。
             阶段间检查取消；持锁区延后取消/停止且每次文件读块触发检查点，耗时用context.clock。
         """
-        raise NotImplementedError
+        if (
+            self.dependencies is None
+            or not isinstance(context.parameters, RescanParameters)
+            or context.mode not in {ExecutionMode.FRESH, ExecutionMode.RESTART}
+        ):
+            raise DefectError()
+        context.reporter.check_cancelled()
+        navigation = scan_navigation(context, self.dependencies)
+        context.reporter.report(
+            JobProgress(
+                stage_index=1,
+                stage_count=3,
+                stage_name="读取导航层",
+                done=1,
+                total=1,
+                unit="阶段",
+                total_items=0,
+                failed_items=0,
+                warning_count=0,
+            )
+        )
+        context.reporter.check_cancelled()
+        storage = scan_storage(
+            navigation, self.dependencies, checkpoint=context.reporter.check_cancelled
+        )
+        context.reporter.report(
+            JobProgress(
+                stage_index=2,
+                stage_count=3,
+                stage_name="存储检查未执行",
+                done=1,
+                total=1,
+                unit="阶段",
+                total_items=0,
+                failed_items=0,
+                warning_count=0,
+            )
+        )
+        publication = publish_scan(context, self.dependencies, navigation, storage)
+        context.reporter.report(
+            JobProgress(
+                stage_index=3,
+                stage_count=3,
+                stage_name=f"发布索引：{publication.dataset_count}数据集、{publication.finding_count}发现、{publication.skipped_dataset_count}跳过",
+                done=publication.entry_count,
+                total=publication.entry_count,
+                unit="入口",
+                total_items=publication.entry_count,
+                failed_items=publication.failed_entry_count,
+                warning_count=publication.warning_count,
+            )
+        )
+        logging.getLogger(__name__).info(
+            "重新扫描发布完成",
+            extra={
+                "fields": {
+                    "dataset_count": publication.dataset_count,
+                    "entry_count": publication.entry_count,
+                    "finding_count": publication.finding_count,
+                    "lock_held_s": navigation.lock_held_s,
+                }
+            },
+        )
+        context.reporter.check_cancelled()
 
 
 def build_rescan_definition(dependencies: RescanDependencies | None) -> JobDefinition:
@@ -111,7 +183,21 @@ def build_rescan_definition(dependencies: RescanDependencies | None) -> JobDefin
     Time Semantics:
         Web/worker各在启动登记期构造一次；参数及恢复方式不受提交人覆盖。
     """
-    raise NotImplementedError
+    if dependencies is not None:
+        if (
+            not dependencies.engine.get_execution_options().get("rdp_managed")
+            or not dependencies.nav_root.is_absolute()
+        ):
+            raise DefectError()
+        if len({root.name for root in dependencies.roots}) != len(dependencies.roots):
+            raise DefectError()
+    return JobDefinition(
+        RESCAN_TYPE,
+        RESCAN_NAME,
+        RescanParameters,
+        RecoveryMode.RESTART,
+        RescanExecutor(dependencies).execute,
+    )
 
 
 def scan_navigation(context: ExecutionContext, dependencies: RescanDependencies) -> NavigationScan:
@@ -144,7 +230,36 @@ def scan_navigation(context: ExecutionContext, dependencies: RescanDependencies)
         先取锁再读基线及目录，读完指纹后放锁；UTC记录时刻，单调秒记录耗时。
         不在本阶段探测存储、等待任务或开放第二段并行回调。
     """
-    raise NotImplementedError
+    parameters = context.parameters
+    if not isinstance(parameters, RescanParameters):
+        raise DefectError()
+    started_at = _storage.moment(context.clock.now())
+    started = context.clock.monotonic()
+
+    def read() -> NavigationScan:
+        locked = context.clock.monotonic()
+        with session_scope(dependencies.engine, read_only=True) as session:
+            baseline = read_index_baseline(
+                session, parameters.dataset_id, nav_root=dependencies.nav_root
+            )
+        datasets, findings = _stage.observe(
+            dependencies.nav_root, parameters.dataset_id, baseline, context.reporter.check_cancelled
+        )
+        ended = context.clock.monotonic()
+        return NavigationScan(
+            parameters.dataset_id,
+            dependencies.roots,
+            baseline,
+            datasets,
+            findings,
+            started_at,
+            _storage.moment(context.clock.now()),
+            max(0.0, ended - started),
+            max(0.0, ended - locked),
+            job_id=context.job_id,
+        )
+
+    return context.write_navigation(lambda: None, read)
 
 
 def scan_storage(
@@ -175,7 +290,12 @@ def scan_storage(
     Time Semantics:
         只在第一段放锁后的阶段边界调用，无等待、无重试、不产生虚构检查时间。
     """
-    raise NotImplementedError
+    checkpoint()
+    if not isinstance(cast(object, navigation), NavigationScan) or not isinstance(
+        cast(object, dependencies), RescanDependencies
+    ):
+        raise DefectError()
+    return StorageScan(StorageStage.NOT_RUN, (), (), (), (), 0)
 
 
 def publish_scan(
@@ -213,4 +333,27 @@ def publish_scan(
         指纹计算在写事务外但在写锁内；每次重算传原known_entry_paths以检出消失和改身份。
         禁止锁内嵌套取锁，取消/停止延后至提交并放锁后的检查点；手工修改仅能尽力检测。
     """
-    raise NotImplementedError
+
+    def publish() -> ScanPublication:
+        observed = _fingerprints.collect(dependencies.nav_root, context.reporter.check_cancelled)
+        current = tuple(
+            _fingerprints.select(
+                dependencies.nav_root,
+                item.dataset_id,
+                tuple(entry.path for entry in item.fingerprint.entries),
+                observed,
+                context.reporter.check_cancelled,
+            )
+            for item in navigation.datasets
+        )
+        plan = plan_index_replacement(
+            navigation, storage, current, committed_at=context.clock.now()
+        )
+        with session_scope(dependencies.engine) as session:
+            result = replace_index(session, plan)
+        for group in plan.notices:
+            for sample in group.diagnostics.samples:
+                context.reporter.diagnostic(sample)
+        return result
+
+    return context.write_navigation(lambda: None, publish)
