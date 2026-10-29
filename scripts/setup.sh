@@ -54,7 +54,7 @@ usage() {
 每个工具分别说明版本、官方来源、用户目录和下载副作用，确认后才安装；拒绝则停止并打印手动办法。
 Node：官方node-v<版本>-linux-<架构>.tar.gz，SHA256来自同源SHASUMS256.txt。
 uv：astral-sh/uv官方GitHub release的uv-<target>.tar.gz。
-pnpm：pnpm/pnpm官方GitHub release的pnpm-linux-<架构>独立可执行文件，不依赖corepack。
+pnpm：pnpm/pnpm官方GitHub release的pnpm-linux-<架构>.tar.gz（官方 tar.gz，glibc 版），不依赖corepack。
 uv/pnpm：用已就绪的Node内置JSON读取官方GitHub release metadata，精确匹配tag/asset名，
 采用其非空digest字段中的SHA256，再从同源asset API下载；缺少有效摘要就拒绝，绝不跳过校验。
 不curl|sh；校验完成前不解包、不执行；官方HTTPS重定向仅允许预设官方域，不接受任意下载地址。
@@ -237,7 +237,7 @@ confirm_tool_installation() {
 # 精确匹配归档名及唯一64位摘要、按上限读取，校验后才检查归档条目和解包；失败不执行包内node。
 # 成功输出/保存可用Node绝对路径，后续JSON解析不依赖尚未发布的全局PATH。
 ensure_node() {
-    if [[ $(timeout 5 node --version 2>/dev/null || true) == "v${SETUP_TOOL_VERSIONS[node]}" ]]; then return 0; fi
+    if _tool_version_matches node node; then return 0; fi
     confirm_tool_installation node "${SETUP_TOOL_VERSIONS[node]}" "$SETUP_NODE_ORIGIN" "$HOME/.local/opt/rdp-tools/node"
     local archive="node-v${SETUP_TOOL_VERSIONS[node]}-linux-${SETUP_NODE_ARCH[$platform]}.tar.gz"
     local origin="$SETUP_NODE_ORIGIN/dist/v${SETUP_TOOL_VERSIONS[node]}"
@@ -256,7 +256,7 @@ ensure_node() {
 }
 
 # Args: uv或pnpm、平台；用Node内置JSON解析官方release metadata（<=2MiB），精确校验tag、asset名、
-# digest的sha256算法/64位值及下载URL归属；不执行JSON、不正则猜hash，缺摘要/歧义/HTTP错误立即失败。
+# digest的sha256算法/64位值及下载URL归属；不执行JSON、不正则猜hash，缺摘要或歧义立即失败，下载故障遵循统一有限重试策略。
 # metadata路径为/repos/astral-sh/uv/releases/tags/<版本>与/repos/pnpm/pnpm/releases/tags/v<版本>；
 # 下载精确匹配asset的同源API URL并使用Accept: application/octet-stream，不信任任意body URL。
 read_official_release_digest() {
@@ -266,7 +266,7 @@ read_official_release_digest() {
         asset="uv-${SETUP_UV_TARGET[$machine]}.tar.gz"
     else
         repo=pnpm/pnpm tag="v${SETUP_TOOL_VERSIONS[pnpm]}"
-        asset="pnpm-linux-${SETUP_PNPM_ARCH[$machine]}"
+        asset="pnpm-linux-${SETUP_PNPM_ARCH[$machine]}.tar.gz"
     fi
     metadata="$workspace/$tool.metadata"
     _fetch_official "$SETUP_GITHUB_ORIGIN/repos/$repo/releases/tags/$tag" "$metadata" "$SETUP_METADATA_MAX_BYTES"
@@ -306,7 +306,7 @@ download_and_verify_tool() {
 # 完整内容同盘原子发布，权限不扩大；仅替换带本脚本归属记录的入口，碰到用户自有文件即停止。
 # 发布失败清理本次半成品，保留旧工具/入口；不删除已成功安装的其他工具，不改shell rc或系统目录。
 publish_user_tool() {
-    local tool=$1 destination=$2 parent expected current
+    local tool=$1 destination=$2 parent current
     parent=$(dirname -- "$destination")
     mkdir -p -- "$parent" "$HOME/.local/bin"
     current="$HOME/.local/bin/$tool"
@@ -319,9 +319,11 @@ publish_user_tool() {
     [[ ! -e $destination && ! -L $destination ]] || _setup_die 1 '工具版本目录已存在；请检查现场'
     tool_stage=$(mktemp -d "$parent/.incoming.XXXXXXXX")
     if [[ $tool == pnpm ]]; then
-        mkdir -- "$tool_stage/bin"
-        cp -- "$workspace/$tool.download" "$tool_stage/bin/$tool"
-        chmod 700 "$tool_stage/bin/$tool"
+        # pnpm发行包存在根目录及单层目录两种布局；检查和解包使用同一不剥层坐标。
+        _check_tool_archive "$workspace/$tool.download" "$tool_stage" 0
+        tar --extract --gzip --file "$workspace/$tool.download" --directory "$tool_stage" \
+            --no-same-owner --no-same-permissions
+        _locate_pnpm_entry "$tool_stage"
     else
         _check_tool_archive "$workspace/$tool.download" "$tool_stage"
         tar --extract --gzip --file "$workspace/$tool.download" --directory "$tool_stage" \
@@ -332,10 +334,7 @@ publish_user_tool() {
         fi
     fi
     [[ -x $tool_stage/bin/$tool ]] || _setup_die 1 '工具包缺少可执行入口'
-    expected=${SETUP_TOOL_VERSIONS[$tool]}
-    if [[ $tool == node ]]; then expected="v$expected";
-    elif [[ $tool == uv ]]; then expected="uv $expected"; fi
-    [[ $(timeout 5 "$tool_stage/bin/$tool" --version 2>/dev/null) == "$expected" ]] ||
+    _tool_version_matches "$tool" "$tool_stage/bin/$tool" ||
         _setup_die 1 '工具版本自检失败'
     printf '%s\n' "$tool" > "$tool_stage/.rdp-setup-tool"
     mv -T -n -- "$tool_stage" "$destination"
@@ -349,18 +348,45 @@ publish_user_tool() {
     hash -r
 }
 
+# 只接受解包根或下一层的唯一普通可执行文件；未知/歧义布局不猜测，不执行候选。
+_locate_pnpm_entry() {
+    local directory=$1 executable
+    local -a candidates=()
+    for executable in "$directory/pnpm" "$directory"/*/pnpm "$directory"/.[!.]*/pnpm; do
+        if [[ -f $executable && -x $executable && ! -L $executable && ! -L ${executable%/*} ]]; then
+            candidates+=("$executable")
+        fi
+    done
+    (( ${#candidates[@]} == 1 )) || _setup_die 1 'pnpm归档结构不符合预期：根目录或下一层必须恰有一个普通可执行pnpm'
+    executable=${candidates[0]}
+    if [[ $executable != "$directory/bin/pnpm" ]]; then
+        [[ ! -L $directory/bin ]] || _setup_die 1 'pnpm归档bin目录不能为链接'
+        mkdir -p -- "$directory/bin"
+        [[ ! -e $directory/bin/pnpm && ! -L $directory/bin/pnpm ]] || _setup_die 1 'pnpm归档入口冲突'
+        ln -s "../${executable#"$directory/"}" "$directory/bin/pnpm"
+    fi
+}
+
+# 自检与PATH复用共用版本边界：只接受完整版本token，允许空格后的平台说明，不接受相近补丁号或预发行后缀。
+_tool_version_matches() {
+    local tool=$1 executable=$2 output expected
+    if ! output=$(timeout 5 "$executable" --version 2>/dev/null); then return 1; fi
+    expected=${SETUP_TOOL_VERSIONS[$tool]}
+    if [[ $tool == node ]]; then expected="v$expected";
+    elif [[ $tool == uv ]]; then expected="uv $expected"; fi
+    [[ $output == "$expected" || $output == "$expected "* ]]
+}
+
 # Node先于uv/pnpm元数据解析；逐个询问且仅选择顶部固定版本，全部成功后仅给本次进程树加PATH。
-# uv用官方tar包，pnpm用官方独立二进制；Python留给uv按锁文件安装，不自行选择Python版本。
+# uv/pnpm均用官方tar.gz包；Python留给uv按锁文件安装，不自行选择Python版本。
 ensure_user_toolchain() {
     # 重试必须先发现上次完成的用户工具；不能再次下载后因同版本目录存在而失败。
     export PATH="$HOME/.local/bin:$PATH"
     hash -r
     ensure_node
-    local tool expected
+    local tool
     for tool in uv pnpm; do
-        expected=${SETUP_TOOL_VERSIONS[$tool]}
-        if [[ $tool == uv ]]; then expected="uv $expected"; fi
-        if [[ $(timeout 5 "$tool" --version 2>/dev/null || true) == "$expected" ]]; then continue; fi
+        if _tool_version_matches "$tool" "$tool"; then continue; fi
         confirm_tool_installation "$tool" "${SETUP_TOOL_VERSIONS[$tool]}" "$SETUP_GITHUB_ORIGIN" "$HOME/.local/opt/rdp-tools/$tool"
         read_official_release_digest "$tool" "$platform"
     done
@@ -663,6 +689,10 @@ main() {
     parse_arguments "$@"
     resolve_repository_and_environment
     report_existing_installation
+    # 非交互缺配置在任何工具下载/暂存之前拒绝；管理员条件仍由目标版本校验后判断。
+    if [[ ! -t 0 && ! -e $config_file ]]; then
+        _setup_die 2 '无终端且配置缺失；请提供已有有效配置'
+    fi
     acquire_setup_workspace
     ensure_user_toolchain
     ensure_user_service_environment
@@ -806,9 +836,9 @@ _administrator_status() {
 
 # curl不自动跟随重定向：逐跳核验HTTPS官方域，避免第三方URL借重定向绕过来源约束。
 _fetch_official() {
-    local url=$1 destination=$2 limit=$3 response code redirect count host accept allowed
-    local started=$SECONDS remaining
-    for ((count=0; count<4; count++)); do
+    local url=$1 destination=$2 limit=$3 response code redirect host accept allowed curl_result
+    local started=$SECONDS remaining redirects=0 retries=0
+    while (( redirects < 4 )); do
         [[ $url =~ ^https://([^/]+)/ ]] || _setup_die 1 '下载仅允许官方HTTPS'
         host=${BASH_REMATCH[1]}
         allowed=false
@@ -822,26 +852,75 @@ _fetch_official() {
         (( remaining > 0 )) || _setup_die 1 '下载总时间超过预算'
         accept='application/octet-stream'
         if [[ $url == "$SETUP_GITHUB_ORIGIN/"* && $url != */releases/assets/* ]]; then accept='application/vnd.github+json'; fi
-        if ! response=$(timeout "$remaining" curl --fail --silent --show-error --proto '=https' --proto-redir '=https' \
-            --connect-timeout "$SETUP_CONNECT_TIMEOUT_S" --max-time "$remaining" --retry-max-time "$remaining" \
-            --retry "$SETUP_DOWNLOAD_RETRIES" --max-filesize "$limit" --max-redirs 0 \
+        curl_result=0
+        # 手动分类重试；关闭curl自身重试，避免叠加次数。保留HTTP错误体与响应头供限流诊断。
+        response=$(timeout "$remaining" curl --disable --silent --show-error --proto '=https' --proto-redir '=https' \
+            --connect-timeout "$SETUP_CONNECT_TIMEOUT_S" --max-time "$remaining" --retry 0 \
+            --max-filesize "$limit" --max-redirs 0 --dump-header "$workspace/download.headers" \
             --header "Accept: $accept" --output "$destination" \
-            --write-out $'%{http_code}\n%{redirect_url}' "$url" 2>"$workspace/download.error"); then
-            _setup_die 1 '官方文件下载失败；检查网络、代理与来源，未发布工具'
-        fi
-        [[ $(stat -c %s -- "$destination") -le $limit ]] || _setup_die 1 '下载超过大小上限'
+            --write-out $'%{http_code}\n%{redirect_url}' "$url" 2>"$workspace/download.error") || curl_result=$?
         code=${response%%$'\n'*}
         redirect=${response#*$'\n'}
+        if _retryable_download_failure "$curl_result" "$code" && (( retries < SETUP_DOWNLOAD_RETRIES )); then
+            retries=$((retries + 1))
+            remaining=$((SETUP_DOWNLOAD_TIMEOUT_S - (SECONDS - started)))
+            (( remaining > 0 )) || _setup_die 1 '下载总时间超过预算'
+            printf '官方请求暂时失败，重试 %s/%s。\n' "$retries" "$SETUP_DOWNLOAD_RETRIES" >&2
+            timeout "$remaining" sleep 1 || _setup_die 1 '下载总时间超过预算'
+            continue
+        fi
+        (( curl_result == 0 )) || _setup_die 1 "官方文件下载失败（curl退出码$curl_result）；重试预算已用尽或错误不可重试，请检查网络、代理或手动安装"
+        [[ $(stat -c %s -- "$destination") -le $limit ]] || _setup_die 1 '下载超过大小上限'
+        if [[ $host == "${SETUP_GITHUB_ORIGIN#https://}" && ( $code == 403 || $code == 429 ) ]]; then
+            _report_github_rate_limit "$destination" "$workspace/download.headers"
+        fi
         if [[ $code == 200 ]]; then return 0; fi
-        [[ $code =~ ^30[12378]$ && $redirect != "$response" ]] || _setup_die 1 '下载HTTP状态不合法'
+        [[ $code =~ ^30[12378]$ && $redirect != "$response" ]] || _setup_die 1 "官方下载HTTP状态$code；未发布工具，请检查来源或手动安装"
         url=$redirect
+        redirects=$((redirects + 1))
     done
     _setup_die 1 '下载重定向超过上限'
 }
 
+# 限流体只用于识别，不回显共享出口IP或任意响应文本；时间来自最后一份响应头，使用明确UTC表示。
+_report_github_rate_limit() {
+    local body=$1 headers=$2 retry_at
+    [[ $(stat -c %s -- "$body") -le $SETUP_METADATA_MAX_BYTES &&
+       $(stat -c %s -- "$headers") -le $SETUP_METADATA_MAX_BYTES ]] ||
+        _setup_die 1 'GitHub错误响应超过元数据上限；请手动安装并校验'
+    retry_at=$(node - "$body" "$headers" <<'JS'
+const fs = require("node:fs");
+try {
+  const [body, headers] = process.argv.slice(2);
+  if (!/rate[ -]?limit/i.test(fs.readFileSync(body, "utf8"))) process.exit(0);
+  const values = fs.readFileSync(headers, "utf8").split(/\r?\n/)
+    .filter(line => /^x-ratelimit-reset:/i.test(line));
+  const raw = (values.at(-1) || "").split(":").slice(1).join(":").trim();
+  const seconds = /^[0-9]+$/.test(raw) ? Number(raw) : NaN;
+  const date = new Date(seconds * 1000);
+  console.log(Number.isSafeInteger(seconds) && seconds >= 0 && Number.isFinite(date.getTime())
+    ? "响应头给出的可重试时间（UTC）：" + date.toISOString()
+    : "响应头未提供有效重试时间");
+} catch { process.exit(1); }
+JS
+    ) || _setup_die 1 'GitHub错误响应无法解析；请手动安装并校验'
+    if [[ -n $retry_at ]]; then
+        _setup_die 1 "已被GitHub限流；$retry_at；请稍后重试或手动安装固定版本并核验SHA256，未跳过校验"
+    fi
+}
+
+# 仅重试传输/握手类故障和选定5xx；证书校验失败、其他本地错误及所有4xx立即停止。
+_retryable_download_failure() {
+    [[ $2 != 4?? ]] || return 1
+    case "$1:$2" in
+        5:*|6:*|7:*|18:*|28:*|35:*|52:*|55:*|56:*|92:*|0:500|0:502|0:503|0:504) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # Node尚未可用时使用GNU tar只读清单；路径与链接必须留在解包根，大小先累计后解包。
 _check_tool_archive() {
-    local archive=$1 destination=$2 name line mode target resolved total
+    local archive=$1 destination=$2 strip=${3:-1} name line mode target resolved total
     timeout "$SETUP_DOWNLOAD_TIMEOUT_S" tar -tzf "$archive" | head -c "$((SETUP_METADATA_MAX_BYTES + 1))" > "$workspace/archive.names" || _setup_die 1 '归档清单不可读'
     [[ $(stat -c %s -- "$workspace/archive.names") -le $SETUP_METADATA_MAX_BYTES ]] || _setup_die 1 '归档清单过大'
     while IFS= read -r name; do
@@ -858,8 +937,8 @@ _check_tool_archive() {
             -|d) ;;
             l|h)
                 name=$(awk '{print $6}' <<< "$line")
-                # 解包会去掉顶层目录，链接核验必须使用相同坐标，否则少算一层逃逸。
-                name=${name#*/}
+                # 链接核验与各工具实际解包的剥层数保持一致，防止少算一层逃逸。
+                if (( strip == 1 )); then name=${name#*/}; fi
                 if [[ $mode == l ]]; then
                     target=${line#* -> }
                     [[ $target != /* ]] || _setup_die 1 '归档链接越界'
@@ -867,7 +946,8 @@ _check_tool_archive() {
                 else
                     target=${line#* link to }
                     [[ $target != /* ]] || _setup_die 1 '归档链接越界'
-                    resolved=$(readlink -m -- "$destination/${target#*/}")
+                    if (( strip == 1 )); then target=${target#*/}; fi
+                    resolved=$(readlink -m -- "$destination/$target")
                 fi
                 [[ $resolved == "$destination/"* ]] || _setup_die 1 '归档链接越界'
                 ;;

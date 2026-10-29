@@ -97,6 +97,7 @@ def test_missing_tools_ask_individually(tmp_path: Path, monkeypatch: pytest.Monk
     """验证契约：缺Node、uv、pnpm时按Node优先顺序逐个说明来源版本和目标目录，只有相应确认后才下载该工具。"""
     for index, tool in enumerate(("node", "uv", "pnpm")):
         case = setup_case(tmp_path / tool)
+        case.config()
         monkeypatch.setenv("HOME", str(case.home))
         result = case.interactive(
             "--no-systemd", overrides={"FAKE_VERSION_" + tool.upper(): "missing"}
@@ -111,6 +112,7 @@ def test_missing_tools_ask_individually(tmp_path: Path, monkeypatch: pytest.Monk
 def test_tool_refusal_stops(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """验证契约：拒绝任一工具安装就停止依赖它的后续步骤，输出该工具的手动下载/校验/用户目录安装办法，不继续部署。"""
     case = setup_case(tmp_path)
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     result = case.interactive("--no-systemd", overrides={"FAKE_VERSION_NODE": "wrong"})
     assert result.returncode == 130, result.stdout
@@ -149,6 +151,7 @@ def test_tools_user_paths_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     import os
 
     case = setup_case(tmp_path)
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     tool_downloads(case)
     unrelated = case.home / ".local/bin/unrelated"
@@ -168,6 +171,7 @@ def test_tools_user_paths_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 def test_existing_tool_version_policy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """验证契约：PATH已有固定版本直接复用；版本不符先询问再在自管目录并存安装，不覆盖系统工具或用户自有入口。"""
     case = setup_case(tmp_path)
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     case.run("--no-systemd")
     assert [call["command"] for call in case.calls() if call["args"] == ["--version"]] == [
@@ -185,6 +189,7 @@ def test_existing_tool_version_policy(tmp_path: Path, monkeypatch: pytest.Monkey
 def test_node_checksum_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """验证契约：Node归档先用官方同源SHASUMS256.txt精确匹配唯一文件名及SHA256，再解包执行；错名、重复、截断和非HTTPS来源拒绝。"""
     case = setup_case(tmp_path)
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     tool_downloads(case)
     result = case.run("--yes", "--no-systemd", overrides={"FAKE_VERSION_NODE": "wrong"})
@@ -196,6 +201,7 @@ def test_node_checksum_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert calls[1]["args"][-1] == "https://nodejs.org/dist/v22.23.2/node-v22.23.2-linux-x64.tar.gz"
     for variant in ("wrong-name", "duplicate", "truncated"):
         other = setup_case(tmp_path / variant)
+        other.config()
         tool_downloads(other)
         manifest = other.root / "SHASUMS256.txt"
         original = manifest.read_text()
@@ -216,6 +222,7 @@ def test_release_asset_digest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     """验证契约：uv/pnpm用Node内置JSON解析官方release metadata，校验tag、asset名、同源URL和非空sha256 digest；缺摘要不能降级跳过校验。"""
     for tool in ("uv", "pnpm"):
         case = setup_case(tmp_path / tool)
+        case.config()
         monkeypatch.setenv("HOME", str(case.home))
         release_downloads(case, tool)
         result = case.run(
@@ -225,6 +232,7 @@ def test_release_asset_digest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
         assert "/releases/assets/123" in case.calls("curl")[-1]["args"][-1]
     for bad in (None, "", "sha256:bad", "md5:" + "a" * 64):
         case = setup_case(tmp_path / ("bad" + str(len(list(tmp_path.iterdir())))))
+        case.config()
         release_downloads(case, "uv", digest=bad)
         result = case.run("--yes", overrides={"FAKE_VERSION_UV": "wrong"})
         assert result.returncode == 1
@@ -235,6 +243,7 @@ def test_release_asset_digest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 def test_checksum_failure_no_partial_tool(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """验证契约：下载或SHA256校验失败时非0退出，正式工具目录与PATH入口不变，无半装可执行文件，临时下载删除。"""
     case = setup_case(tmp_path)
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     tool_downloads(case, corrupt=True)
     result = case.run("--yes", overrides={"FAKE_VERSION_NODE": "wrong"})
@@ -253,6 +262,7 @@ def test_archive_path_and_size_limits(tmp_path: Path, monkeypatch: pytest.Monkey
 
     for variant in ("parent", "absolute", "link", "archive-size", "extract-size"):
         case = setup_case(tmp_path / variant)
+        case.config()
         monkeypatch.setenv("HOME", str(case.home))
         tool_downloads(case, traversal=variant == "parent")
         archive = case.root / "node.tar.gz"
@@ -293,6 +303,7 @@ def test_archive_path_and_size_limits(tmp_path: Path, monkeypatch: pytest.Monkey
 def test_tool_publish_atomic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """验证契约：工具完整校验与版本检查后才原子发布；中途失败保留旧入口，不覆盖非本脚本管理的同名文件。"""
     case = setup_case(tmp_path / "user")
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     tool_downloads(case)
     entry = case.home / ".local/bin/node"
@@ -302,6 +313,7 @@ def test_tool_publish_atomic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     assert result.returncode == 1 and "拒绝覆盖" in result.stderr
     assert entry.read_text() == "用户自己的工具"
     case = setup_case(tmp_path / "atomic")
+    case.config()
     tool_downloads(case)
     old = case.home / ".local/opt/rdp-tools/node/old"
     (old / "bin").mkdir(parents=True)
@@ -324,6 +336,7 @@ def test_tool_publish_atomic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 def test_download_proxy_and_budgets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """验证契约：下载保留HTTPS_PROXY等环境，限制连接/总时长/重试/大小，错误不输出代理凭据，不执行下载的安装脚本。"""
     case = setup_case(tmp_path)
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     tool_downloads(case, corrupt=True)
     proxy = "http://user:secret-value@proxy.invalid:8080"
@@ -335,7 +348,7 @@ def test_download_proxy_and_budgets(tmp_path: Path, monkeypatch: pytest.MonkeyPa
         for flag, value in (
             ("--connect-timeout", "10"),
             ("--max-time", "300"),
-            ("--retry", "2"),
+            ("--retry", "0"),
             ("--max-redirs", "0"),
             ("--proto", "=https"),
         ):
@@ -349,6 +362,7 @@ def test_systemd_missing_or_bus_unavailable(
 ) -> None:
     """验证契约：默认模式缺systemctl/loginctl或用户总线不可用只提示并失败，给出--no-systemd办法，不尝试安装系统服务。"""
     case = setup_case(tmp_path)
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     result = case.run("--yes", overrides={"FAKE_BUS_FAIL": "1"})
     assert result.returncode == 1 and "--no-systemd" in result.stderr
@@ -358,6 +372,7 @@ def test_systemd_missing_or_bus_unavailable(
 def test_linger_already_enabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """验证契约：Linger=yes不询问、不重复enable；检查只针对当前用户，不遍历或修改其他用户。"""
     case = setup_case(tmp_path)
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     case.run()
     assert [call["args"] for call in case.calls("loginctl")] == [
@@ -385,6 +400,7 @@ def test_linger_consent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
 def test_linger_enable_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """验证契约：启用linger失败退出非0并打印管理员sudo loginctl enable-linger命令，脚本自身没有sudo调用。"""
     case = setup_case(tmp_path)
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     result = case.run("--yes", overrides={"FAKE_LINGER": "no", "FAKE_LINGER_FAIL": "1"})
     assert result.returncode == 1
@@ -456,6 +472,7 @@ def test_validation_environment_matches_commit(
 ) -> None:
     """验证契约：从同一目标提交git archive建临时uv校验环境，依赖锁定且不改源仓库.venv，不调用install.sh提前迁移。"""
     case = setup_case(tmp_path)
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     case.run("--yes", "--no-systemd", overrides={"VIRTUAL_ENV": "/not-used"})
     archives = [call for call in case.calls("git") if "archive" in call["args"]]
@@ -936,6 +953,7 @@ def test_setup_concurrency_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     import fcntl
 
     case = setup_case(tmp_path)
+    case.config()
     monkeypatch.setenv("HOME", str(case.home))
     locks = case.home / ".local/state/rdp"
     locks.mkdir(parents=True)
@@ -1044,6 +1062,7 @@ def test_rejects_release_metadata_and_redirect_tampering(
 
     for variant in ("tag", "duplicate", "url", "http", "foreign"):
         case = setup_case(tmp_path / variant)
+        case.config()
         monkeypatch.setenv("HOME", str(case.home))
         release_downloads(case, "uv")
         metadata = case.root / "uv.json"

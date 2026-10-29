@@ -241,24 +241,29 @@ def tool_downloads(case: SetupCase, *, corrupt: bool = False, traversal: bool = 
     )
 
 
-def release_downloads(case: SetupCase, tool: str, *, digest: str | None = "valid") -> None:
+def release_downloads(
+    case: SetupCase, tool: str, *, digest: str | None = "valid", package_layout: str = "root"
+) -> None:
     """构造精确tag/asset/API URL响应；不使用外部下载服务。"""
     version = "0.13.5" if tool == "uv" else "11.22.0"
     repo = "astral-sh/uv" if tool == "uv" else "pnpm/pnpm"
     tag = version if tool == "uv" else "v" + version
-    name = "uv-x86_64-unknown-linux-gnu.tar.gz" if tool == "uv" else "pnpm-linux-x64"
+    name = "uv-x86_64-unknown-linux-gnu.tar.gz" if tool == "uv" else "pnpm-linux-x64.tar.gz"
+    display_version = f"uv {version} (x86_64-unknown-linux-gnu)" if tool == "uv" else version
     executable = (
-        f"#!/bin/sh\nif [ \"$1\" = --version ]; then printf '%s\n' '{'uv ' if tool == 'uv' else ''}{version}'; "
+        f"#!/bin/sh\nif [ \"$1\" = --version ]; then printf '%s\n' '{display_version}'; "
         f'else exec "$SETUP_TEST_ROOT/bin/{tool}" "$@"; fi\n'
     ).encode()
     asset = case.root / name
-    if tool == "uv":
-        with tarfile.open(asset, "w:gz") as stream:
-            entry = tarfile.TarInfo("uv-x86_64-unknown-linux-gnu/uv")
-            entry.mode, entry.size = 0o755, len(executable)
-            stream.addfile(entry, io.BytesIO(executable))
-    else:
-        asset.write_bytes(executable)
+    with tarfile.open(asset, "w:gz") as stream:
+        name_in_archive = (
+            "uv-x86_64-unknown-linux-gnu/uv"
+            if tool == "uv"
+            else ("pnpm" if package_layout == "root" else package_layout + "/pnpm")
+        )
+        entry = tarfile.TarInfo(name_in_archive)
+        entry.mode, entry.size = 0o755, len(executable)
+        stream.addfile(entry, io.BytesIO(executable))
     checksum = (
         "sha256:" + hashlib.sha256(asset.read_bytes()).hexdigest() if digest == "valid" else digest
     )
@@ -295,7 +300,7 @@ if command == "git":
     if args == ["rev-parse", "--show-toplevel"]: print(root / "source 中文"); sys.exit(0)
     if args[:2] == ["rev-parse", "--verify"]: print("a"*40); sys.exit(0)
 if command in ("node", "uv", "pnpm") and args == ["--version"]:
-    print(os.environ.get("FAKE_VERSION_" + command.upper(), {"node":"v22.23.2","uv":"uv 0.13.5","pnpm":"11.22.0"}[command])); sys.exit(0)
+    print(os.environ.get("FAKE_VERSION_" + command.upper(), {"node":"v22.23.2","uv":"uv 0.13.5 (x86_64-unknown-linux-gnu)","pnpm":"11.22.0"}[command])); sys.exit(0)
 if command == "git" and args == ["worktree", "list", "--porcelain"]:
     print("worktree " + str(root / "home/.local/opt/rdp")); sys.exit(0)
 if command == "rdp":
@@ -316,16 +321,31 @@ if command == "curl" and args[-1].startswith("http://"):
     Path(args[args.index("--output") + 1]).write_text(os.environ.get("FAKE_HEALTH_BODY", '{"status":"ok"}'))
     print(os.environ.get("FAKE_HEALTH_STATUS", "200")); sys.exit(0)
 if command == "curl":
-    import shutil
+    import shutil, time
     url = args[-1]
-    mappings = json.loads((root / "downloads.json").read_text())
-    if url not in mappings: sys.exit(22)
+    scenario = root / "responses.json"
+    responses = json.loads(scenario.read_text()).get(url, []) if scenario.exists() else []
+    calls = [json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines()]
+    index = sum(call["command"] == "curl" and call["args"][-1] == url for call in calls) - 1
+    response = responses[min(index, len(responses) - 1)] if responses else {}
+    time.sleep(response.get("delay_s", 0))
+    code = str(response.get("code", "200"))
+    if "--dump-header" in args:
+        Path(args[args.index("--dump-header") + 1]).write_text(
+            "HTTP/2 " + code + "\\n" + response.get("headers", "") + "\\n")
+    if response.get("exit"):
+        print(response.get("code", "000")); print("模拟TLS连接错误", file=sys.stderr); sys.exit(response["exit"])
     destination = Path(args[args.index("--output") + 1])
-    shutil.copyfile(mappings[url], destination)
+    if "body" in response:
+        destination.write_text(response["body"])
+    else:
+        mappings = json.loads((root / "downloads.json").read_text())
+        if url not in mappings: sys.exit(22)
+        shutil.copyfile(mappings[url], destination)
     if "--write-out" in args:
         if os.environ.get("FAKE_REDIRECT"):
             print("302\\n" + os.environ["FAKE_REDIRECT"])
-        else: print("200")
+        else: print(code)
     sys.exit(0)
 if command == "id" and args == ["-un"]:
     print("operator"); sys.exit(0)
