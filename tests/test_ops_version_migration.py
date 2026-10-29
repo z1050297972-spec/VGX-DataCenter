@@ -21,12 +21,16 @@ from rdp.jobs.models import JobRow
 
 
 def test_active_head() -> None:
-    """验证0007成为唯一活动head且没有pending目录。"""
+    """验证0008成为唯一活动head，历史0007仍在图中且所有活动迁移来自versions。"""
     config = migration_config()
-    assert ScriptDirectory.from_config(config).get_current_head() == "0007_dataset_index"
+    assert ScriptDirectory.from_config(config).get_current_head() == "0008_dataset_layout"
     location = config.get_main_option("script_location")
     assert location is not None
-    assert not (Path(location) / "pending").exists()
+    # 后续工单可以声明pending；真正的保护是Alembic只加载versions，不提前激活新revision。
+    assert all(
+        Path(revision.path).parent == Path(location) / "versions"
+        for revision in ScriptDirectory.from_config(config).walk_revisions()
+    )
     assert "0007_dataset_index" in {
         revision.revision for revision in ScriptDirectory.from_config(config).walk_revisions()
     }
@@ -43,7 +47,7 @@ def test_upgrade_empty_and_history(tmp_path: Path) -> None:
                 before = connection.execute(text("SELECT * FROM jobs")).mappings().all()
             result = migrate(paths, now=NOW)
             assert result.previous_revision == "0005_job_scheduling"
-            assert result.current_revision == "0007_dataset_index"
+            assert result.current_revision == "0008_dataset_layout"
             assert result.backup is not None and result.backup.is_file()
             with engine.connect() as connection:
                 after = connection.execute(text("SELECT * FROM jobs")).mappings().all()
@@ -51,11 +55,11 @@ def test_upgrade_empty_and_history(tmp_path: Path) -> None:
 
 
 def test_fresh_latest(tmp_path: Path) -> None:
-    """验证契约：空库迁移至0007具有完整账号、日志、作业、调度和数据集索引结构，版本闸门接受最新head。"""
+    """验证契约：空库迁移至0008具有完整账号、日志、作业、调度和数据集索引结构，版本闸门接受最新head。"""
     paths = state_paths(PlatformConfig(state_dir=tmp_path), ())
     initialize_state(paths)
     result = migrate(paths, now=NOW)
-    assert result.current_revision == "0007_dataset_index"
+    assert result.current_revision == "0008_dataset_layout"
     check_database_version(paths.database)
     engine = create_database_engine(paths.database)
     try:

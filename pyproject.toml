@@ -149,3 +149,20 @@ addopts = "-ra --strict-config --strict-markers"
 # 03 号票不设覆盖率门槛；保留跳过原因输出，防止环境阻塞被误当作通过。
 # CODING_STANDARDS 7.8 要求失败时先保留证据；成功样例清理，失败现场保留供定位。
 tmp_path_retention_policy = "failed"
+
+# M1-03关卡决定 / ADR 0006：允许复用导航reading和fingerprint，禁止存储访问及作业执行能力。
+# 查询与schema检查全部间接依赖；提交模块经M0服务插作业行，由不可读假根测试验证运行边界。
+# 实际调用及路径不跟随链接的边界由不可读假存储根和换链测试验证，不以此合约冒充I/O沙箱。
+[[tool.importlinter.contracts]]
+name = "数据集接口不得依赖存储根访问"
+type = "forbidden"
+source_modules = ["rdp.jobs.dataset_browser.queries", "rdp.jobs.dataset_browser.schemas"]
+forbidden_modules = [
+    "rdp.jobs.storage",
+    "rdp.infra.storage",
+    "rdp.jobs.execution",
+    "rdp.jobs.worker",
+    "rdp.jobs.registry",
+    "rdp.api.storage",
+]
+allow_indirect_imports = false

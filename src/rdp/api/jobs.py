@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from sqlalchemy import Engine
 
 from rdp.api._account_context import identity
+from rdp.api._job_views import response as _response
 from rdp.api.account_auth import AccountRequestContext, get_authenticated_context
 from rdp.api.job_schemas import (
     JobFilters,
@@ -47,7 +48,7 @@ from rdp.jobs.resource_examples import GpuExampleParameters, NavigationExamplePa
 from rdp.jobs.scheduling_service import SchedulingService
 from rdp.jobs.scheduling_types import SchedulingCatalog
 from rdp.jobs.service import JobRequest, JobService
-from rdp.jobs.types import JobQuery, JobRecord
+from rdp.jobs.types import JobQuery
 from rdp.jobs.worker import heartbeat_online
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -497,25 +498,6 @@ def _request(context: JobApiContext) -> JobRequest:
     """复用已认证身份、请求唯一时刻与服务器审计来源，不另读cookie或时钟。"""
     account = context.account
     return JobRequest(identity(account), account.now, account.audit)
-
-
-def _response(record: JobRecord) -> JobResponse:
-    """在 HTTP 边界转换 64 位编号；系统账号编号保持 None，不输出字符串 None 或已删除标记。"""
-    data = asdict(record)
-    data["job_id"] = str(record.job_id)
-    data["resubmitted_from"] = (
-        None if record.resubmitted_from is None else str(record.resubmitted_from)
-    )
-    data["submitted_by"] = {
-        "account_id": None
-        if record.submitted_by.account_id is None
-        else str(record.submitted_by.account_id),
-        "name": record.submitted_by.name,
-        "deleted": record.submitter_deleted,
-    }
-    for field in ("submitter_deleted", "artifacts", "tool_exit_code"):
-        data.pop(field)
-    return JobResponse.model_validate(data)
 
 
 def _identifier(value: str) -> int:

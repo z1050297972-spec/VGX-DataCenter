@@ -110,6 +110,7 @@ def run_web(runtime: ServiceRuntime, *, inputs: RuntimeInputs, runner: UvicornRu
         runtime.inspector,
         inputs.clock.now,
         runtime.version,
+        nav_root=runtime.loaded.config.nav_root,
     )
     return start_web(web_runtime, runner=runner)
 

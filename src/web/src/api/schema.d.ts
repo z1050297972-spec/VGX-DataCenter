@@ -605,6 +605,422 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/datasets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Datasets
+         * @description 返回按名称排序的筛选数据集页及损坏入口占位。
+         *
+         *     Args:
+         *         context: 当前认证上下文，无管理员额外限制。
+         *         query: 共享筛选加offset和limit，默认0及100，单页1至100项。
+         *
+         *     Returns:
+         *         200，items/total/offset/limit/indexed_at；同编号去重，entries提供全部跨视图跳转位置。
+         *
+         *     Raises:
+         *         DatasetQueryError: 分页/筛选不合法，422，不静默忽略条件。
+         *         InputError: 索引数据不能解码，400。
+         *         AuthenticationError: 当前会话失效，401。
+         *         PasswordChangeRequiredError: 强制改密，403。
+         *         ConflictError: 列表事务竞争，409。
+         *         ExternalError: 数据或映射查询失败，502。
+         *         DefectError: 型号多重对应或序列化违约，500。
+         *
+         *     Side Effects:
+         *         只查索引；不把14项或子任务全文塞入列表，不更新索引。
+         *
+         *     Time Semantics:
+         *         每页内部一致，跨页可受新扫描影响；返回实际索引时间，不生成假刷新时刻。
+         */
+        get: operations["list_datasets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset Detail
+         * @description 读取所选入口原文及规范信息，独立返回推导值和索引过期标记。
+         *
+         *     Args:
+         *         context: 当前账号、服务端UTC时刻及受限导航读取服务。
+         *         entry_path: 树/列表返回的相对入口路径；先查索引再打开，不接受任意绝对路径。
+         *
+         *     Returns:
+         *         200，原始路径与信息原文、规范信息、推导数据块、索引链接/大小和index_stale；
+         *         子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看。
+         *
+         *     Raises:
+         *         DatasetNotFoundError: 入口不在索引，404。
+         *         DatasetQueryError: 路径穿越或参数非法，422。
+         *         AuthenticationError: 会话失效，401。
+         *         PasswordChangeRequiredError: 须改密，403。
+         *         InputError: 索引损坏或整体导航预算超限，400。
+         *         ConflictError: 索引查询锁超时，409。
+         *         ExternalError: 数据库或导航根整体不可读，502；单文件失败以诊断局部返回。
+         *         DefectError: 推导或响应字段错误，500。
+         *
+         *     Side Effects:
+         *         只读导航普通文件和链接自身；不跟随存储目标，不修改索引，不隐藏坏JSON原文。
+         *
+         *     Time Semantics:
+         *         SQL完成后再读文件；L12比较使用内容指纹，不用mtime，漂移时保守标过期。
+         */
+        get: operations["get_dataset_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset Filters
+         * @description 返回筛选选项及型号空目录时的前端降级提示。
+         *
+         *     Args:
+         *         context: 全局安全检查通过的账号上下文与浏览服务。
+         *
+         *     Returns:
+         *         200，robot_models_registered、default_robot_filter及型号/标签/FPS/来源候选。
+         *         空目录默认robot_type，登记后默认robot_model；每类unknown项独立且保留零计数。
+         *
+         *     Raises:
+         *         AuthenticationError: 查询阶段会话失效，401。
+         *         PasswordChangeRequiredError: 必须改密，403。
+         *         InputError: 元信息索引损坏，400。
+         *         ConflictError: 候选读取竞争，409。
+         *         ExternalError: 型号读取器或数据库失败，502。
+         *         DefectError: 型号重复、响应形状非法，500。
+         *
+         *     Side Effects:
+         *         只读全索引候选及型号投影；不读取meta文件、不登记新型号。
+         *
+         *     Time Semantics:
+         *         每次请求读取最新已提交目录，不缓存空型号表；无轮询等待。
+         */
+        get: operations["get_dataset_filters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset Layout
+         * @description 读取当前账号跨会话保存的A/B/C布局。
+         *
+         *     Args:
+         *         context: 当前登录身份；不从请求接收其他账号编号。
+         *
+         *     Returns:
+         *         200，layout及updated_at；无偏好行时A和null。
+         *
+         *     Raises:
+         *         AuthenticationError: 未登录或领域重验失败，401。
+         *         PasswordChangeRequiredError: 账号必须改密，403。
+         *         InputError: 布局记录损坏，400。
+         *         ConflictError: 偏好查询锁超时，409。
+         *         ExternalError: 布局表未迁移或查询失败，502。
+         *         DefectError: 响应或时刻非法，500。
+         *
+         *     Side Effects:
+         *         仅查询当前账号行；GET不创建默认偏好，不读导航层。
+         *
+         *     Time Semantics:
+         *         返回最后保存的UTC时刻，无保存记录时不使用当前时间冒充。
+         */
+        get: operations["get_dataset_layout"];
+        /**
+         * Set Dataset Layout
+         * @description 保存当前账号的布局，供其他会话及浏览器读取。
+         *
+         *     Args:
+         *         context: 已通过同源写请求检查的当前账号，事务内仍重验身份。
+         *         body: 只有layout字段，严格A/B/C；拒绝account_id及额外字段。
+         *
+         *     Returns:
+         *         200，已提交布局和UTC修改时刻；重复保存相同值保持原时刻。
+         *
+         *     Raises:
+         *         DatasetQueryError: 布局非法，422；框架参数校验也使用统一422诊断。
+         *         AuthenticationError: 未登录或事务重验失效，401。
+         *         AuthorizationError: Origin不合格，403，先于body校验。
+         *         PasswordChangeRequiredError: 当前账号须改密，403。
+         *         InputError: 现有偏好或账号记录损坏，400。
+         *         ConflictError: 写锁或约束冲突，409。
+         *         ExternalError: 偏好事务失败，502，旧选择保留。
+         *         DefectError: 审计上下文或响应映射错误，500。
+         *
+         *     Side Effects:
+         *         只提交当前账号一行偏好，不写操作日志；其他账号完全不变，不记录筛选状态。
+         *
+         *     Time Semantics:
+         *         最后提交者生效，同值不写；时钟回拨不降低updated_at，锁预算沿用M0。
+         */
+        put: operations["set_dataset_layout"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/panel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset Panel
+         * @description 返回一致性面板发现与存储根顶部提示。
+         *
+         *     Args:
+         *         context: 当前账号上下文；成员与管理员得到相同数据范围。
+         *         dataset_id: 可选永久编号；不传查全局，传入时只筛该数据集发现。
+         *
+         *     Returns:
+         *         200，findings四组两级聚合、storage_roots及indexed_at；样例有界、total完整。
+         *
+         *     Raises:
+         *         DatasetNotFoundError: 指定数据集未入索引，404。
+         *         DatasetQueryError: 编号不合法，422。
+         *         AuthenticationError: 查询时身份已失效，401。
+         *         PasswordChangeRequiredError: 需要改口令，403。
+         *         InputError: 已存诊断或根状态损坏，400。
+         *         ConflictError: 面板读锁超时，409。
+         *         ExternalError: 面板查询失败，502。
+         *         DefectError: 五段诊断展示映射错误，500。
+         *
+         *     Side Effects:
+         *         仅查询扫描发现，离线提示不触发实时探测，不写修复或重扫作业。
+         *
+         *     Time Semantics:
+         *         根状态保留上次checked_at；未检查为null，不能声称本请求验证了存储可用性。
+         */
+        get: operations["get_dataset_panel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/sizing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Dataset Sizing
+         * @description 按当前账号提交一次全量或单数据集统计大小作业。
+         *
+         *     Args:
+         *         context: Origin、认证及强制改密已经通过的上下文，审计来源来自服务器。
+         *         body: 正式SizingParameters，dataset_id省略或null为全量；不接受存储根、提交人或类型覆盖。
+         *
+         *     Returns:
+         *         201，复用M0完整JobResponse，新作业queued，type_name=dataset_sizing。
+         *
+         *     Raises:
+         *         DatasetNotFoundError: 指定编号不存在，404。
+         *         DatasetQueryError: 编号不合约，422。
+         *         JobInputError: 类型未登记或参数不兼容，422。
+         *         AuthenticationError: 提交事务内身份失效，401。
+         *         AuthorizationError: Origin缺失或非本站，403，在读取body前拒绝。
+         *         PasswordChangeRequiredError: 账号须改密，403。
+         *         InputError: 数据库损坏，400。
+         *         ConflictError: 作业或审计写入竞争，409。
+         *         ExternalError: 持久化失败，502。
+         *         DefectError: 提交装配或M0响应映射错误，500。
+         *
+         *     Side Effects:
+         *         只提交作业并写M0提交日志；复用第02张参数模型，不调用统计执行器、不更新大小。
+         *
+         *     Time Semantics:
+         *         使用请求唯一UTC提交时刻，不等待worker在线或执行；客户端不自动重试POST。
+         */
+        post: operations["submit_dataset_sizing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/subtasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset Subtasks
+         * @description 单独返回大子任务文件原文，避免主详情响应和主线程JSON解析负担。
+         *
+         *     Args:
+         *         context: 已认证且完成改密的请求，文件服务只持有导航根。
+         *         entry_path: 已索引入口的相对路径；文件名固定，前端无需拼接文件系统绝对路径。
+         *
+         *     Returns:
+         *         200 text/plain; charset=utf-8，原始字节、不做JSON编码；Content-Length为原字节数。
+         *         X-Index-Stale是true/false，X-Document-SHA256对应发送内容，X-Observed-At为UTC；
+         *         Cache-Control=no-store，X-Content-Type-Options=nosniff。失败仍是application/problem+json。
+         *
+         *     Raises:
+         *         DatasetNotFoundError: 入口未入索引，404。
+         *         DatasetQueryError: 相对路径非法，422。
+         *         AuthenticationError: 读取前会话无效，401。
+         *         PasswordChangeRequiredError: 账号须改密，403。
+         *         InputError: 文件缺失、非普通文件、非UTF-8或超过32MiB，400。
+         *         ConflictError: 数据库忙或读取期间文件变化，409；不发送半份正文。
+         *         ExternalError: 导航权限/I/O或索引失败，502。
+         *         DefectError: 摘要与响应构造违约，500。
+         *
+         *     Side Effects:
+         *         同步服务先完整受限读取，再以Response发送现成bytes；不用按路径重开文件的FileResponse。
+         *         不缓存全文、不写临时文件、不访问链接目标、不在Web执行后台解析或统计作业。
+         *
+         *     Time Semantics:
+         *         约14MB受已有32MiB预算覆盖，读取在工作线程；响应发送交ASGI，无自动重试或压缩。
+         *         网络断开只终止发送，不改变已读文件；真实响应时间由工单验收1的只读演练测量。
+         */
+        get: operations["get_dataset_subtasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/trees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset Trees
+         * @description 返回共用筛选条件的按任务/按格式两棵树。
+         *
+         *     Args:
+         *         context: 当前已登录且完成改密的账号及浏览服务。
+         *         filters: 型号、原标签、整数FPS/unknown、来源和视图路径筛选；未提供表示不限。
+         *
+         *     Returns:
+         *         200，nodes平铺节点及indexed_at；每节点含数量、大小来源计数和原统计时间范围。
+         *
+         *     Raises:
+         *         DatasetQueryError: 路径、FPS或筛选组合非法，422。
+         *         InputError: 索引损坏或树超过扫描预算，400。
+         *         AuthenticationError: 读事务重验失败，401。
+         *         PasswordChangeRequiredError: 账号须改密，403。
+         *         ConflictError: 树读取锁超时，409。
+         *         ExternalError: 数据库或型号目录不可读，502。
+         *         DefectError: 聚合或响应模型非法，500；状态映射以规范6.2为准。
+         *
+         *     Side Effects:
+         *         只调用service.trees，不读导航或挂载表，不在请求中测量大小。
+         *
+         *     Time Semantics:
+         *         同步查询在工作线程；单次事务快照，数据库等待使用BUSY_TIMEOUT_MS。
+         */
+        get: operations["get_dataset_trees"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/rescan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rescan Dataset
+         * @description 将链接状态旁的重新检查操作转换成单数据集扫描作业。
+         *
+         *     Args:
+         *         context: 当前登录且完成改密账号，Origin已由全局安全边界验证。
+         *         dataset_id: 永久编号，1至256码点，不含分隔符、空白或NUL；不接受全量范围。
+         *
+         *     Returns:
+         *         201，M0 JobResponse，type_name=dataset_rescan，parameters仅dataset_id，提交人为当前账号。
+         *
+         *     Raises:
+         *         DatasetNotFoundError: 编号尚未入索引，404。
+         *         DatasetQueryError: 编号不合约，422。
+         *         JobInputError: 扫描类型未登记或参数模型不兼容，422。
+         *         AuthenticationError: 提交时会话失效，401。
+         *         AuthorizationError: 写请求Origin缺失/无效，403。
+         *         PasswordChangeRequiredError: 账号须改密，403。
+         *         InputError: 索引或作业数据损坏，400。
+         *         ConflictError: 提交/日志写锁冲突，409。
+         *         ExternalError: 作业持久化失败，502。
+         *         DefectError: 登记或响应转换错误，500。
+         *
+         *     Side Effects:
+         *         JobService提交及审计同事务；Web不运行扫描、不持导航写锁，不立即重算链接状态。
+         *
+         *     Time Semantics:
+         *         提交后立即返回排队记录，前端按M0作业接口查询进度；不以HTTP请求超时取消作业。
+         */
+        post: operations["rescan_dataset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/errors/{error_id}": {
         parameters: {
             query?: never;
@@ -1401,6 +1817,286 @@ export interface components {
             role: components["schemas"]["Role"];
         };
         /**
+         * DataOrigin
+         * @description 13 Q5 的六种来源；M1 只读段索引仅提供 unknown。
+         * @enum {string}
+         */
+        DataOrigin: "real" | "umi" | "ego" | "simulation" | "open_source" | "unknown";
+        /**
+         * DatasetDetailResponse
+         * @description 入口详情保留原文和规范信息，子任务正文只由独立接口提供。
+         */
+        DatasetDetailResponse: {
+            /** Canonical Entry Path */
+            canonical_entry_path: string | null;
+            /** @description 14项业务展示以此规范副本为准；缺失/重复规范入口为null，不将格式副本冒充规范副本 */
+            canonical_information: components["schemas"]["NavigationDocument"] | null;
+            dataset_size: components["schemas"]["DatasetSize"];
+            /** Diagnostics */
+            diagnostics: components["schemas"]["Diagnostic"][];
+            /** Entries */
+            entries: components["schemas"]["EntrySummary"][];
+            entry: components["schemas"]["EntrySummary"];
+            /**
+             * Index Stale
+             * @description 本次L12指纹不同或任一不可验证即true，不比较mtime新旧
+             */
+            index_stale: boolean;
+            /**
+             * Indexed At
+             * Format: date-time
+             */
+            indexed_at: string;
+            /** @description 当前入口原文，布局C查看所选文件时使用 */
+            information: components["schemas"]["NavigationDocument"];
+            /**
+             * Links
+             * @description 索引快照，不与本次原文混称同一时刻
+             */
+            links: components["schemas"]["DatasetLink"][];
+            /**
+             * Observed At
+             * Format: date-time
+             * @description 服务端本次请求UTC时刻，不伪装为全文件原子快照时间
+             */
+            observed_at: string;
+            original_paths: components["schemas"]["NavigationDocument"];
+            /** Sources */
+            sources: components["schemas"]["DatasetSource"][];
+            /**
+             * Subtasks Entry Path
+             * @description 请求 /api/datasets/subtasks 时使用；正文不预加载
+             */
+            subtasks_entry_path: string;
+        };
+        /**
+         * DatasetFilterOptions
+         * @description 未应用当前筛选的全局候选；所有列表按值排序，未知项固定最后且即使零项也保留。
+         */
+        DatasetFilterOptions: {
+            /** Data Origins */
+            data_origins: components["schemas"]["FilterOption"][];
+            /**
+             * Default Robot Filter
+             * @enum {string}
+             */
+            default_robot_filter: "robot_model" | "robot_type";
+            /**
+             * Fps
+             * @description value 为整数十进制文本或 unknown；已知按数值排序
+             */
+            fps: components["schemas"]["FilterOption"][];
+            /** Robot Model Options */
+            robot_model_options: components["schemas"]["FilterOption"][];
+            /** Robot Models */
+            robot_models: components["schemas"]["RobotModelOption"][];
+            /** Robot Models Registered */
+            robot_models_registered: boolean;
+            /** Robot Types */
+            robot_types: components["schemas"]["FilterOption"][];
+        };
+        /**
+         * DatasetLink
+         * @description 索引链接状态与原检查时间，顺序为入口 links 数组顺序。
+         */
+        DatasetLink: {
+            /** Checked At */
+            checked_at: string | null;
+            /** Derived Entry Path */
+            derived_entry_path: string;
+            /** Name */
+            name: string;
+            /** Observed Target */
+            observed_target: string | null;
+            /** Ordinal */
+            ordinal: number;
+            /** Size Bytes */
+            size_bytes: number | null;
+            /** Size Checked At */
+            size_checked_at: string | null;
+            /** Source Path */
+            source_path: string;
+            /** Source Type */
+            source_type: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unchecked" | "available" | "missing" | "broken" | "offline" | "mismatch" | "unregistered";
+            /** Storage Root Name */
+            storage_root_name: string | null;
+        };
+        /**
+         * DatasetListItem
+         * @description 已知编号按数据集去重，损坏入口逐个列出；不可伪造永久编号。
+         */
+        DatasetListItem: {
+            /** Canonical Entry Path */
+            canonical_entry_path: string | null;
+            data_origin: components["schemas"]["DataOrigin"];
+            /** Dataset Id */
+            dataset_id: string | null;
+            /**
+             * Entries
+             * @description 全部关联入口按路径排序，供跨视图跳转；无身份时恰好一项
+             */
+            entries: components["schemas"]["EntrySummary"][];
+            /** Fps */
+            fps: (number | null)[];
+            /**
+             * Indexed At
+             * Format: date-time
+             */
+            indexed_at: string;
+            /** Name */
+            name: string;
+            /** Robot Model Ids */
+            robot_model_ids: string[];
+            /** Robot Types */
+            robot_types: (string | null)[];
+            /** @description 数据集取按任务入口；无唯一规范入口时未知，不叠加格式副本 */
+            size: components["schemas"]["DatasetSize"];
+        };
+        /**
+         * DatasetListResponse
+         * @description 单次索引事务的一页；筛选只决定是否入选，entries 保留完整跨视图位置。
+         */
+        DatasetListResponse: {
+            /**
+             * Indexed At
+             * @description 当前成功扫描发布时刻；未扫描为null，行内时刻可能更旧
+             */
+            indexed_at: string | null;
+            /** Items */
+            items: components["schemas"]["DatasetListItem"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * DatasetPanelResponse
+         * @description 四组两级按组/级别/来源/规则合并，DiagnosticGroup.total 完整、样例复用既有上限。
+         */
+        DatasetPanelResponse: {
+            /** Findings */
+            findings: components["schemas"]["FindingGroup"][];
+            /** Indexed At */
+            indexed_at: string | null;
+            /**
+             * Storage Roots
+             * @description 顶部提示使用最近发布扫描的离线根；各项保留实际检查时间
+             */
+            storage_roots: components["schemas"]["IndexedStorageRoot"][];
+        };
+        /**
+         * DatasetSize
+         * @description 单入口/数据集大小；有统计值优先，否则10-12记录值，均无则明确未知。
+         */
+        DatasetSize: {
+            /** Display Bytes */
+            display_bytes: number | null;
+            /**
+             * Display Source
+             * @enum {string}
+             */
+            display_source: "measured" | "recorded" | "unknown";
+            /**
+             * Recorded On
+             * @default 2026-10-12
+             * @constant
+             */
+            recorded_on: "2026-10-12";
+            /** Recorded Size Bytes */
+            recorded_size_bytes: number | null;
+            /**
+             * Size Bytes
+             * @description 统计表观字节数；未统计为null，离线保留旧值
+             */
+            size_bytes: number | null;
+            /** Size Checked At */
+            size_checked_at: string | null;
+        };
+        /**
+         * DatasetSource
+         * @description 当前原始路径文件的推导字段及历史核验中文标签；不检查 original_path。
+         */
+        DatasetSource: {
+            /** Derived Entry Path */
+            derived_entry_path: string;
+            /** Direct Path */
+            direct_path: string;
+            /** Format */
+            format: string | null;
+            /** Ordinal */
+            ordinal: number;
+            /** Original Path */
+            original_path: string;
+            /** Source Id */
+            source_id: string;
+            /** Validation Status */
+            validation_status: string | null;
+            /**
+             * Validation Status Label
+             * @description 手册第5节五个中文标签；缺失为未知，未知原值为未识别（保留原值）
+             */
+            validation_status_label: string;
+            /** Version */
+            version: string | null;
+        };
+        /**
+         * DatasetTreeNode
+         * @description 平铺树节点，parent_path 用于三栏树、大表和逐级目录；按路径排序。
+         */
+        DatasetTreeNode: {
+            /**
+             * Dataset Count
+             * @description 节点下已知永久编号去重数；未知身份不虚构编号
+             */
+            dataset_count: number;
+            /** Dataset Id */
+            dataset_id: string | null;
+            /**
+             * Entry Count
+             * @description 含损坏入口；与dataset_count不同，大小按此口径求和
+             */
+            entry_count: number;
+            /**
+             * Entry Path
+             * @description 仅入口节点非空，可直接请求详情
+             */
+            entry_path: string | null;
+            /** Format */
+            format: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "view" | "format" | "version" | "entry";
+            /** Name */
+            name: string;
+            /** Parent Path */
+            parent_path: string | null;
+            /** Path */
+            path: string;
+            size: components["schemas"]["TreeSize"];
+            /** Version */
+            version: string | null;
+            view: components["schemas"]["View"];
+        };
+        /**
+         * DatasetTreesResponse
+         * @description 两棵树各保留一个视图根，空索引仍可浏览；最多 MAX_SCAN_ENTRIES 个入口。
+         */
+        DatasetTreesResponse: {
+            /** Indexed At */
+            indexed_at: string | null;
+            /** Nodes */
+            nodes: components["schemas"]["DatasetTreeNode"][];
+        };
+        /**
          * Diagnostic
          * @description 工具与平台共用的不可变五段诊断；JSON 字段名与属性同名，禁止额外字段。
          *
@@ -1510,6 +2206,24 @@ export interface components {
         };
         DiagnosticText: string;
         /**
+         * EntrySummary
+         * @description 跨视图定位及列表大小；路径只作导航标识，不能由浏览器直接打开存储根。
+         */
+        EntrySummary: {
+            /** Dataset Id */
+            dataset_id: string | null;
+            /** Entry Path */
+            entry_path: string;
+            /** Format */
+            format: string | null;
+            /** Name */
+            name: string;
+            size: components["schemas"]["DatasetSize"];
+            /** Version */
+            version: string | null;
+            view: components["schemas"]["View"];
+        };
+        /**
          * ErrorRecord
          * @description 脱离 Session 的不可变报错快照，同时作为查询接口响应模型。
          *
@@ -1542,6 +2256,32 @@ export interface components {
             source_kind: "request" | "job";
             /** Summary */
             summary: string;
+        };
+        /**
+         * FilterOption
+         * @description 筛选值及中文标签；count 是全索引中匹配的数据集数，不重复计跨视图副本。
+         */
+        FilterOption: {
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+        };
+        /**
+         * FindingGroup
+         * @description 按组、级别、来源、规则聚合的面板发现。
+         *
+         *     Attributes:
+         *         group: 四组之一。
+         *         severity: 两级之一。
+         *         diagnostics: 复用既有 DiagnosticGroup，完整计数，前 DIAGNOSTIC_SAMPLE_LIMIT 条样例。
+         */
+        FindingGroup: {
+            diagnostics: components["schemas"]["DiagnosticGroup"];
+            group: components["schemas"]["PanelGroup"];
+            severity: components["schemas"]["PanelSeverity"];
         };
         /**
          * GpuAvailability
@@ -1617,6 +2357,22 @@ export interface components {
             deleted: boolean;
             /** Name */
             name: string;
+        };
+        /**
+         * IndexedStorageRoot
+         * @description 扫描记录的根状态；不调用实时挂载或存储访问接口，未检查不能报离线。
+         */
+        IndexedStorageRoot: {
+            /** Checked At */
+            checked_at: string | null;
+            /** Name */
+            name: string;
+            /** Online */
+            online: boolean | null;
+            /** Path */
+            path: string;
+            /** Reason */
+            reason: ("not_mounted" | "source_mismatch" | "timeout") | null;
         };
         /**
          * JobListResponse
@@ -1803,6 +2559,30 @@ export interface components {
         };
         JsonValue: unknown;
         /**
+         * LayoutRequest
+         * @description 当前账号的布局选择，不接受account_id或会话标识。
+         */
+        LayoutRequest: {
+            /**
+             * Layout
+             * @enum {string}
+             */
+            layout: "A" | "B" | "C";
+        };
+        /**
+         * LayoutResponse
+         * @description 无偏好行时返回A和null；GET不创建记录。
+         */
+        LayoutResponse: {
+            /**
+             * Layout
+             * @enum {string}
+             */
+            layout: "A" | "B" | "C";
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /**
          * LogTail
          * @description 日志尾部结果，缺失与读取故障分开表达。
          *
@@ -1899,6 +2679,33 @@ export interface components {
          * @enum {string}
          */
         LoginResult: "success" | "wrong_password" | "disabled" | "waiting" | "account_missing" | "failure";
+        /**
+         * NavigationDocument
+         * @description 导航文件原文；非UTF-8或不可读时content为空并附诊断，坏JSON文本仍可查看。
+         */
+        NavigationDocument: {
+            /**
+             * Content
+             * @description UTF-8原文，保留空白、未知键和省略字段；不得用索引副本替代
+             */
+            content: string | null;
+            /** Diagnostics */
+            diagnostics: components["schemas"]["Diagnostic"][];
+            /** Entry Path */
+            entry_path: string;
+            /**
+             * Name
+             * @enum {string}
+             */
+            name: "原始路径.json" | "数据集信息.json";
+            /** Sha256 */
+            sha256: string | null;
+            /**
+             * Usable
+             * @description 按第01张宽松契约可解析；false 不等于 content 一定为空
+             */
+            usable: boolean;
+        };
         /**
          * NavigationExampleParameters
          * @description 写锁演示的预览值和有界暂停。
@@ -2026,6 +2833,18 @@ export interface components {
          */
         OperationType: "create_account" | "set_role" | "disable_account" | "enable_account" | "reset_password" | "reset_password_from_ops" | "delete_account" | "change_password" | "create_first_admin" | "set_retention" | "submit_job" | "cancel_job";
         /**
+         * PanelGroup
+         * @description 面板四组；存储相关两组由扫描第二段提供。
+         * @enum {string}
+         */
+        PanelGroup: "json" | "views" | "disk" | "storage";
+        /**
+         * PanelSeverity
+         * @description 面板两级；不等同作业成功失败计数（11 Q14）。
+         * @enum {string}
+         */
+        PanelSeverity: "action_required" | "notice";
+        /**
          * ProblemResponse
          * @description RFC 9457 的不可变错误载荷；字段固定，不包含 traceback、错误链或请求内容。
          *
@@ -2070,6 +2889,18 @@ export interface components {
          */
         RecoveryMode: "resume" | "restart" | "interrupt";
         /**
+         * RescanParameters
+         * @description 扫描范围参数，不能指定导航路径、存储根或提交人。
+         *
+         *     Attributes:
+         *         model_config: 不可变，拒绝多余字段，不回显不可信输入。
+         *         dataset_id: None为全量；否则非空、无路径分隔符的永久编号；上限256码点。
+         */
+        RescanParameters: {
+            /** Dataset Id */
+            dataset_id?: string | null;
+        };
+        /**
          * ResetPasswordRequest
          * @description 管理员重置口令请求，不接受解除强制改密标记。
          *
@@ -2093,6 +2924,24 @@ export interface components {
         RetentionPayload: {
             /** Days */
             days: number;
+        };
+        /**
+         * RobotModelOption
+         * @description 登记型号的最小只读投影；一个标签最多属于一个型号，停用型号仍能筛历史数据。
+         */
+        RobotModelOption: {
+            /**
+             * Model Id
+             * @description 平台永久编号文本，不接受标签冒充
+             */
+            model_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Robot Types
+             * @description 去重排序的对应标签，允许空
+             */
+            robot_types: string[];
         };
         /**
          * Role
@@ -2236,6 +3085,32 @@ export interface components {
             type_name: string;
         };
         /**
+         * TreeSize
+         * @description 按入口求和的树大小；部分未知时不把已知小计冒充总量。
+         */
+        TreeSize: {
+            /**
+             * Known Bytes
+             * @description 有统计值取统计值、否则取记录值后的已知小计，字节
+             */
+            known_bytes: number;
+            /** Measured Entry Count */
+            measured_entry_count: number;
+            /** Newest Size Checked At */
+            newest_size_checked_at: string | null;
+            /** Oldest Size Checked At */
+            oldest_size_checked_at: string | null;
+            /** Recorded Entry Count */
+            recorded_entry_count: number;
+            /**
+             * Total Bytes
+             * @description unknown_entry_count>0 时为null；空树为0
+             */
+            total_bytes: number | null;
+            /** Unknown Entry Count */
+            unknown_entry_count: number;
+        };
+        /**
          * TypeUsageResponse
          * @description 一类作业的生效上限与数据库运行数。
          *
@@ -2282,6 +3157,12 @@ export interface components {
             /** Version */
             version: string;
         };
+        /**
+         * View
+         * @description 由位置推导的两个视图，不能由 JSON 内字段决定。
+         * @enum {string}
+         */
+        View: "task" | "format";
         /**
          * WaitReason
          * @description 资源等待不增加作业状态；无等待用 None，终态必须清空。
@@ -3785,6 +4666,1070 @@ export interface operations {
                 headers: {
                     /** @description 向上取整的剩余秒数，1-60 */
                     "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    list_datasets: {
+        parameters: {
+            query?: {
+                /** @description 型号编号或 unknown；空表时指定编号返回空集 */
+                robot_model_id?: string | null;
+                /** @description 原始型号标签或 unknown；不解析 Markdown */
+                robot_type?: string | null;
+                /** @description 四舍五入后非负整数帧/秒或 unknown */
+                fps?: number | "unknown" | null;
+                data_origin?: components["schemas"]["DataOrigin"] | null;
+                view?: components["schemas"]["View"] | null;
+                /** @description 格式稳定键，如 lerobot；与 view=task 同用时422 */
+                format?: string | null;
+                /** @description 格式版本；提供时必须同时给 format */
+                version?: string | null;
+                /** @description 树选中节点的相对路径，按完整路径分量前缀筛选 */
+                entry_path?: string | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_dataset_detail: {
+        parameters: {
+            query: {
+                entry_path: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_dataset_filters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetFilterOptions"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_dataset_layout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    set_dataset_layout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LayoutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_dataset_panel: {
+        parameters: {
+            query?: {
+                dataset_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetPanelResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    submit_dataset_sizing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescanParameters"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_dataset_subtasks: {
+        parameters: {
+            query: {
+                entry_path: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 子任务.json原始UTF-8字节；用parseAs=text交工作线程解析，不包装JSON字符串 */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    "Content-Length"?: string;
+                    "X-Content-Type-Options"?: "nosniff";
+                    "X-Document-SHA256"?: string;
+                    "X-Index-Stale"?: "true" | "false";
+                    "X-Observed-At"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_dataset_trees: {
+        parameters: {
+            query?: {
+                /** @description 型号编号或 unknown；空表时指定编号返回空集 */
+                robot_model_id?: string | null;
+                /** @description 原始型号标签或 unknown；不解析 Markdown */
+                robot_type?: string | null;
+                /** @description 四舍五入后非负整数帧/秒或 unknown */
+                fps?: number | "unknown" | null;
+                data_origin?: components["schemas"]["DataOrigin"] | null;
+                view?: components["schemas"]["View"] | null;
+                /** @description 格式稳定键，如 lerobot；与 view=task 同用时422 */
+                format?: string | null;
+                /** @description 格式版本；提供时必须同时给 format */
+                version?: string | null;
+                /** @description 树选中节点的相对路径，按完整路径分量前缀筛选 */
+                entry_path?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetTreesResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    rescan_dataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {
