@@ -1,0 +1,7 @@
+port_check: KILLED | 1 failed, 6 passed in 0.70s
+active_jobs: KILLED | 1 failed, 12 passed in 1.71s
+recheck: KILLED | 1 failed, 18 passed in 3.25s
+no_systemd: KILLED | 1 failed, 10 passed in 1.07s
+percent_escape: KILLED | 1 failed, 4 passed in 0.53s
+stop_order: KILLED | 1 failed, 18 passed in 3.28s
+build_info: KILLED | 1 failed, 2 passed in 0.16s

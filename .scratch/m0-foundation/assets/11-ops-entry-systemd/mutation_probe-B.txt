@@ -1,0 +1,12 @@
+log_config: KILLED | 1 failed, 2 passed, 1 warning in 0.53s
+access_log: KILLED | 1 failed, 2 passed, 1 warning in 0.53s
+no_stderr: KILLED | 1 failed, 6 passed in 0.43s
+version_gate: KILLED | 1 failed, 5 passed in 0.35s
+archive_today: KILLED | 1 failed, 1 passed in 0.02s
+archive_never: KILLED | 1 failed in 0.03s
+lock_probe: KILLED | 1 failed, 8 passed in 0.36s
+storage_validate: KILLED | 1 failed, 3 passed in 0.29s
+gpu_empty_which: KILLED | 1 failed, 6 passed in 0.35s
+worker_exit_code: KILLED | 1 failed in 0.24s
+claim_version: KILLED | 1 failed, 12 passed, 1 warning in 0.70s
+rollback_version: KILLED | 1 failed, 14 passed, 1 warning in 0.82s

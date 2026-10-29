@@ -1,0 +1,9 @@
+# 一键脚本变异抽查（快照 refs/rdp/m0-11/C-B-out，tests/test_ops_setup_script.py，2026-10-28）
+SHA256 校验失效 | KILLED | 1 failed, 11 passed in 13.33s
+链接逃逸检查失效 | KILLED | 1 failed, 12 passed in 14.72s
+linger 判断反转 | KILLED | 1 failed, 6 passed in 4.95s
+已有管理员不跳过 | KILLED | 1 failed, 34 passed in 67.98s (0:01:07)
+配置可覆盖 | KILLED | 1 failed, 26 passed in 38.46s
+不透传 --no-systemd | KILLED | 1 failed, 19 passed in 22.25s
+平台检查失效 | SURVIVED | 50 passed in 96.77s (0:01:36)
+NFS 写许可选择失效 | KILLED | 1 failed, 29 passed in 46.90s
