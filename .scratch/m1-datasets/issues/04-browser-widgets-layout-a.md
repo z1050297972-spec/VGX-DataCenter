@@ -84,3 +84,4 @@ Status: in-progress
 
 - 2026-10-28，起草（Claude，主会话）。Status 定为 `ready-for-agent`：第 03 张的契约提交以后才能开票；合并要等第 03 张合并。
 - 2026-10-29 08:57 开票（执行线，负责人授权）。第 03 张已合并（6ab55ae）。Status 改为 in-progress。直做，分两段交。派工 B（fast，新会话 `01a18829-a662-7780-9527-208fa1650869`，提示 `assets/04-browser-widgets-layout-a/prompt-B.md`）。和第 06 张并行。
+- 2026-10-29 09:33 前半段检查点交回（快照 `refs/rdp/m1-04/B-out1`），日志审计 0 条，Codex 自报 make check 全绿（Vitest 261 passed / 8 skipped），主入口 50.51 kB。**验收 1 真实浏览器演练失败**（`browser-drill.sh`、`browser-drill.mjs` → `browser-drill-run.log`）：正式构建的前端打开登录页一片空白。无头 Chrome 控制台报：`Uncaught TypeError: Cannot destructure property 'ESC' of 'h' as it is undefined.`，出在 `assets/ui-Btq1zqpx.js`。原因：本票在 vite.config.ts 里加了 rolldown codeSplitting，`ui` 分组设了 `maxSize: 700_000`，把 antd、rc-* 切成好几个块，块之间的初始化顺序错了，`rc-util` 的 KeyCode 还没定义就被解构了。Vitest 不经过打包，所以测不出来。导航层和两块数据盘都没有写入，web.log 没有 ERROR。打回第 1 轮：修拆包，并做完后半段。
