@@ -22,7 +22,7 @@
 | 操作系统 | Linux，glibc 发行版，x86_64 或 aarch64 |
 | Python | 3.12，由 uv 管理 |
 | 前端工具 | Node.js 22.23.2、pnpm 11.22.0 |
-| Python 环境工具 | uv 0.13.5 |
+| Python 环境工具 | uv 0.13.5 （uv 0.13.5)|
 | 基础命令 | Bash、git、curl、tar、sha256sum、findmnt、ip、flock 和常用 coreutils |
 | 服务管理 | 默认使用 systemd 用户服务；前台试用可选 `--no-systemd` |
 | GPU | 可选；需要 GPU 的作业使用配置中登记的设备 |
