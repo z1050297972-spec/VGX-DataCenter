@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pytest
-from setup_support import release_downloads, setup_case, tool_downloads
+from setup_support import release_downloads, release_url, setup_case, tool_downloads
 
 
 @pytest.fixture(autouse=True)
@@ -218,8 +218,8 @@ def test_node_checksum_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
         assert not (other.home / ".local/bin/node").exists()
 
 
-def test_release_asset_digest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证契约：uv/pnpm用Node内置JSON解析官方release metadata，校验tag、asset名、同源URL和非空sha256 digest；缺摘要不能降级跳过校验。"""
+def test_release_fixed_digest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """uv/pnpm按固定摘要校验归档；缺失或非法摘要在下载前拒绝，不降级跳过。"""
     for tool in ("uv", "pnpm"):
         case = setup_case(tmp_path / tool)
         case.config()
@@ -229,7 +229,7 @@ def test_release_asset_digest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
             "--yes", "--no-systemd", overrides={"FAKE_VERSION_" + tool.upper(): "wrong"}
         )
         assert (case.home / ".local/bin" / tool).is_symlink(), result.stderr
-        assert "/releases/assets/123" in case.calls("curl")[-1]["args"][-1]
+        assert case.calls("curl")[-1]["args"][-1] == release_url(tool)
     for bad in (None, "", "sha256:bad", "md5:" + "a" * 64):
         case = setup_case(tmp_path / ("bad" + str(len(list(tmp_path.iterdir())))))
         case.config()
@@ -237,7 +237,7 @@ def test_release_asset_digest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
         result = case.run("--yes", overrides={"FAKE_VERSION_UV": "wrong"})
         assert result.returncode == 1
         assert not (case.home / ".local/bin/uv").exists()
-        assert len(case.calls("curl")) == 1
+        assert not case.calls("curl")
 
 
 def test_checksum_failure_no_partial_tool(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1034,7 +1034,7 @@ def test_retry_reuses_verified_tools(tmp_path: Path, monkeypatch: pytest.MonkeyP
     downloads = len(case.calls("curl"))
     second = case.run("--yes", "--skip-admin", overrides={"FAKE_VERSION_NODE": "wrong"})
     assert second.returncode == 0, second.stderr
-    # 只增加一次本机健康探测，没有再次下载Node或release metadata。
+    # 只增加一次本机健康探测，没有再次下载Node或其他发行包。
     assert len(case.calls("curl")) == downloads + 1
 
 
@@ -1054,32 +1054,22 @@ def test_foreground_child_failure_is_not_healthy(
     assert not case.calls("systemctl")
 
 
-def test_rejects_release_metadata_and_redirect_tampering(
+def test_rejects_untrusted_release_redirects(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """验证错误tag、重复资产、非官方资产URL及降级/跨域重定向都在执行工具前拒绝。"""
-    import json
-
-    for variant in ("tag", "duplicate", "url", "http", "foreign"):
+    """发行包重定向拒绝HTTP、第三方主机和API主机，在发出下一次请求前停止。"""
+    for variant, redirect in (
+        ("http", "http://github.com/asset"),
+        ("foreign", "https://evil.invalid/asset"),
+        ("api", "https://api.github.com/asset"),
+    ):
         case = setup_case(tmp_path / variant)
         case.config()
         monkeypatch.setenv("HOME", str(case.home))
         release_downloads(case, "uv")
-        metadata = case.root / "uv.json"
-        data = json.loads(metadata.read_text())
-        if variant == "tag":
-            data["tag_name"] = "other"
-        elif variant == "duplicate":
-            data["assets"].append(data["assets"][0])
-        elif variant == "url":
-            data["assets"][0]["url"] = "https://evil.invalid/asset"
-        metadata.write_text(json.dumps(data))
-        overrides = {"FAKE_VERSION_UV": "wrong"}
-        if variant in ("http", "foreign"):
-            overrides["FAKE_REDIRECT"] = (
-                "http://api.github.com/asset" if variant == "http" else "https://evil.invalid/asset"
-            )
-        result = case.run("--yes", overrides=overrides)
+        result = case.run(
+            "--yes", overrides={"FAKE_VERSION_UV": "wrong", "FAKE_REDIRECT": redirect}
+        )
         assert result.returncode == 1
         assert len(case.calls("curl")) == 1
         assert not (case.home / ".local/bin/uv").exists()

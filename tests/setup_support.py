@@ -5,6 +5,7 @@ import io
 import json
 import os
 import pty
+import re
 import select
 import shutil
 import signal
@@ -241,44 +242,61 @@ def tool_downloads(case: SetupCase, *, corrupt: bool = False, traversal: bool = 
     )
 
 
-def release_downloads(
-    case: SetupCase, tool: str, *, digest: str | None = "valid", package_layout: str = "root"
+def release_url(tool: str, machine: str = "x86_64") -> str:
+    """独立构造测试期望的官方发行地址，不读取生产脚本生成期望。"""
+    if tool == "uv":
+        return f"https://github.com/astral-sh/uv/releases/download/0.13.5/uv-{machine}-unknown-linux-gnu.tar.gz"
+    arch = "x64" if machine == "x86_64" else "arm64"
+    return f"https://github.com/pnpm/pnpm/releases/download/v11.22.0/pnpm-linux-{arch}.tar.gz"
+
+
+def pin_release_digest(
+    case: SetupCase, tool: str, *, machine: str = "x86_64", digest: str | None = None
 ) -> None:
-    """构造精确tag/asset/API URL响应；不使用外部下载服务。"""
+    """只替换临时脚本副本的摘要来核验本地归档；生产四个摘要由独立测试逐字核对。"""
+    asset = case.root / release_url(tool, machine).rsplit("/", 1)[1]
+    expected = hashlib.sha256(asset.read_bytes()).hexdigest() if digest is None else digest
+    script = case.source / "scripts/setup.sh"
+    pattern = r"(\[" + re.escape(tool + ":" + machine) + r"\]=')[^']*(')"
+    text, count = re.subn(pattern, lambda match: match[1] + expected + match[2], script.read_text())
+    assert count == 1, "临时脚本必须恰有一个对应摘要项"
+    script.write_text(text)
+
+
+def release_downloads(
+    case: SetupCase,
+    tool: str,
+    *,
+    digest: str | None = "valid",
+    package_layout: str = "root",
+    machine: str = "x86_64",
+) -> None:
+    """本地构造两种归档结构并固定测试副本摘要；curl只返回这些归档，不模拟API元数据。"""
     version = "0.13.5" if tool == "uv" else "11.22.0"
-    repo = "astral-sh/uv" if tool == "uv" else "pnpm/pnpm"
-    tag = version if tool == "uv" else "v" + version
-    name = "uv-x86_64-unknown-linux-gnu.tar.gz" if tool == "uv" else "pnpm-linux-x64.tar.gz"
-    display_version = f"uv {version} (x86_64-unknown-linux-gnu)" if tool == "uv" else version
+    url = release_url(tool, machine)
+    display_version = f"uv {version} ({machine}-unknown-linux-gnu)" if tool == "uv" else version
     executable = (
         f"#!/bin/sh\nif [ \"$1\" = --version ]; then printf '%s\n' '{display_version}'; "
         f'else exec "$SETUP_TEST_ROOT/bin/{tool}" "$@"; fi\n'
     ).encode()
-    asset = case.root / name
+    asset = case.root / url.rsplit("/", 1)[1]
     with tarfile.open(asset, "w:gz") as stream:
-        name_in_archive = (
-            "uv-x86_64-unknown-linux-gnu/uv"
+        name = (
+            f"uv-{machine}-unknown-linux-gnu/uv"
             if tool == "uv"
             else ("pnpm" if package_layout == "root" else package_layout + "/pnpm")
         )
-        entry = tarfile.TarInfo(name_in_archive)
+        entry = tarfile.TarInfo(name)
         entry.mode, entry.size = 0o755, len(executable)
         stream.addfile(entry, io.BytesIO(executable))
-    checksum = (
-        "sha256:" + hashlib.sha256(asset.read_bytes()).hexdigest() if digest == "valid" else digest
-    )
-    url = f"https://api.github.com/repos/{repo}/releases/assets/123"
-    metadata = case.root / (tool + ".json")
-    metadata.write_text(
-        json.dumps({"tag_name": tag, "assets": [{"name": name, "digest": checksum, "url": url}]})
+    pin_release_digest(
+        case, tool, machine=machine, digest=None if digest == "valid" else (digest or "")
     )
     mappings_file = case.root / "downloads.json"
     mappings: dict[str, str] = (
         json.loads(mappings_file.read_text()) if mappings_file.exists() else {}
     )
-    mappings.update(
-        {f"https://api.github.com/repos/{repo}/releases/tags/{tag}": str(metadata), url: str(asset)}
-    )
+    mappings[url] = str(asset)
     mappings_file.write_text(json.dumps(mappings))
 
 
@@ -323,6 +341,7 @@ if command == "curl" and args[-1].startswith("http://"):
 if command == "curl":
     import shutil, time
     url = args[-1]
+    assert not url.startswith("https://api.github.com/"), "部署禁止请求GitHub API"
     scenario = root / "responses.json"
     responses = json.loads(scenario.read_text()).get(url, []) if scenario.exists() else []
     calls = [json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines()]
@@ -343,8 +362,9 @@ if command == "curl":
         if url not in mappings: sys.exit(22)
         shutil.copyfile(mappings[url], destination)
     if "--write-out" in args:
-        if os.environ.get("FAKE_REDIRECT"):
-            print("302\\n" + os.environ["FAKE_REDIRECT"])
+        redirect = response.get("redirect") or os.environ.get("FAKE_REDIRECT")
+        if redirect:
+            print("302\\n" + redirect)
         else: print(code)
     sys.exit(0)
 if command == "id" and args == ["-un"]:

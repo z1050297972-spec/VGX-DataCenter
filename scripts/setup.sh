@@ -3,16 +3,23 @@
 # 工具使用官方发行包，JSON由Node内置JSON解析，文件发布用同盘暂存+原子rename；不引入jq或安装框架。
 set -euo pipefail
 
+# 升级版本时必须同时更新版本表和SHA256表；摘要由执行线从官方release资产核对。
 # 自动安装版本唯一来源；Python由uv读取目标提交的requires-python/uv.lock，不另设Python版本。
 # package.json没有engines/packageManager字段；这里采用负责人提供的已验证工具版本，Node满足锁定Vite/Vitest要求。
 declare -Ar SETUP_TOOL_VERSIONS=([node]='22.23.2' [uv]='0.13.5' [pnpm]='11.22.0')
+declare -Ar SETUP_TOOL_SHA256=(
+    [uv:x86_64]='f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f'
+    [uv:aarch64]='4bb69cf95ed13f23713bb7bc09f241896ea0c75b7c557e615a20604b82f9c403'
+    [pnpm:x86_64]='4c592fa410eb23b69691a9efb9bf21c87c15b3e9d88c6ec8acdd354a0eb8de71'
+    [pnpm:aarch64]='f1426231f365bdfd46c15fa3d1211c3936ee2c4e557afd304f6c66dbf1b2a8bf'
+)
 # 仅Linux/glibc；下载名由这两份明确映射构造，不猜未知CPU的兼容二进制。
 declare -Ar SETUP_NODE_ARCH=([x86_64]='x64' [aarch64]='arm64')
 declare -Ar SETUP_UV_TARGET=([x86_64]='x86_64-unknown-linux-gnu' [aarch64]='aarch64-unknown-linux-gnu')
 declare -Ar SETUP_PNPM_ARCH=([x86_64]='x64' [aarch64]='arm64')
 readonly SETUP_NODE_ORIGIN='https://nodejs.org'
-readonly SETUP_GITHUB_ORIGIN='https://api.github.com'
-# GitHub资产API的HTTPS下载重定向白名单；不能使用响应体提供的任意镜像。
+readonly SETUP_GITHUB_ORIGIN='https://github.com'
+# GitHub releases下载的HTTPS重定向白名单；不能使用响应体提供的任意镜像。
 readonly SETUP_GITHUB_ASSET_HOSTS='release-assets.githubusercontent.com objects.githubusercontent.com'
 # 单位秒；单次下载最多300秒，至多重试2次，每次连接预算10秒，不无限等待。
 readonly SETUP_CONNECT_TIMEOUT_S=10 SETUP_DOWNLOAD_TIMEOUT_S=300 SETUP_DOWNLOAD_RETRIES=2
@@ -53,10 +60,10 @@ usage() {
 工具检查顺序：Node、uv、pnpm。PATH已有固定版本就复用；缺失或版本不一致时，
 每个工具分别说明版本、官方来源、用户目录和下载副作用，确认后才安装；拒绝则停止并打印手动办法。
 Node：官方node-v<版本>-linux-<架构>.tar.gz，SHA256来自同源SHASUMS256.txt。
-uv：astral-sh/uv官方GitHub release的uv-<target>.tar.gz。
-pnpm：pnpm/pnpm官方GitHub release的pnpm-linux-<架构>.tar.gz（官方 tar.gz，glibc 版），不依赖corepack。
-uv/pnpm：用已就绪的Node内置JSON读取官方GitHub release metadata，精确匹配tag/asset名，
-采用其非空digest字段中的SHA256，再从同源asset API下载；缺少有效摘要就拒绝，绝不跳过校验。
+uv：使用脚本内固定的SHA256，从github.com/astral-sh/uv/releases/download/<版本>/uv-<target>.tar.gz下载。
+pnpm：使用脚本内固定的SHA256，从github.com/pnpm/pnpm/releases/download/v<版本>/pnpm-linux-<架构>.tar.gz下载（官方 tar.gz，glibc 版），不依赖corepack。
+uv/pnpm：固定摘要按工具和架构维护；升级版本须同步更新版本表和SHA256表。
+不请求GitHub API；缺少有效固定摘要就拒绝，绝不跳过校验。
 不curl|sh；校验完成前不解包、不执行；官方HTTPS重定向仅允许预设官方域，不接受任意下载地址。
 下载遵守HTTPS_PROXY/HTTP_PROXY/ALL_PROXY/NO_PROXY，诊断不打印代理凭据；不使用-k。
 安装到\$HOME/.local/opt/rdp-tools/<工具>/<版本>-<平台>/，入口放\$HOME/.local/bin。
@@ -255,40 +262,21 @@ ensure_node() {
     publish_user_tool node "$HOME/.local/opt/rdp-tools/node/${SETUP_TOOL_VERSIONS[node]}-$platform"
 }
 
-# Args: uv或pnpm、平台；用Node内置JSON解析官方release metadata（<=2MiB），精确校验tag、asset名、
-# digest的sha256算法/64位值及下载URL归属；不执行JSON、不正则猜hash，缺摘要或歧义立即失败，下载故障遵循统一有限重试策略。
-# metadata路径为/repos/astral-sh/uv/releases/tags/<版本>与/repos/pnpm/pnpm/releases/tags/v<版本>；
-# 下载精确匹配asset的同源API URL并使用Accept: application/octet-stream，不信任任意body URL。
+# Args: uv或pnpm、平台；从顶部固定表选取SHA256，版本/架构确定tag与glibc归档名。
+# 只下载官方releases/download地址，不请求API元数据；缺少有效摘要先拒绝，不能降级跳过校验。
 read_official_release_digest() {
-    local tool=$1 machine=$2 repo tag asset metadata
-    if [[ $tool == uv ]]; then
-        repo=astral-sh/uv tag=${SETUP_TOOL_VERSIONS[uv]}
-        asset="uv-${SETUP_UV_TARGET[$machine]}.tar.gz"
-    else
-        repo=pnpm/pnpm tag="v${SETUP_TOOL_VERSIONS[pnpm]}"
-        asset="pnpm-linux-${SETUP_PNPM_ARCH[$machine]}.tar.gz"
-    fi
-    metadata="$workspace/$tool.metadata"
-    _fetch_official "$SETUP_GITHUB_ORIGIN/repos/$repo/releases/tags/$tag" "$metadata" "$SETUP_METADATA_MAX_BYTES"
-    node - "$metadata" "$tag" "$asset" "$SETUP_GITHUB_ORIGIN/repos/$repo/releases/assets/" > "$workspace/$tool.digest" <<'JS' ||
-const fs = require("node:fs");
-try {
-  const [file, tag, name, prefix] = process.argv.slice(2);
-  const data = JSON.parse(fs.readFileSync(file, "utf8"));
-  if (data.tag_name !== tag || !Array.isArray(data.assets)) throw Error();
-  const matches = data.assets.filter(x => x.name === name);
-  if (matches.length !== 1) throw Error();
-  const asset = matches[0];
-  if (typeof asset.digest !== "string" || !/^sha256:[a-fA-F0-9]{64}$/.test(asset.digest)) throw Error();
-  if (typeof asset.url !== "string" || !asset.url.startsWith(prefix) || !/^[0-9]+$/.test(asset.url.slice(prefix.length))) throw Error();
-  console.log(asset.digest.slice(7));
-  console.log(asset.url);
-} catch { process.exit(1); }
-JS
-        _setup_die 1 '官方release的tag、asset、URL或SHA256 digest无效'
-    local -a fields
-    mapfile -t fields < "$workspace/$tool.digest"
-    download_and_verify_tool "$tool" "${fields[1]}" "${fields[0]}"
+    local tool=$1 machine=$2 repo tag asset digest
+    case $tool in
+        uv)
+            repo=astral-sh/uv tag=${SETUP_TOOL_VERSIONS[uv]}
+            asset="uv-${SETUP_UV_TARGET[$machine]}.tar.gz" ;;
+        pnpm)
+            repo=pnpm/pnpm tag="v${SETUP_TOOL_VERSIONS[pnpm]}"
+            asset="pnpm-linux-${SETUP_PNPM_ARCH[$machine]}.tar.gz" ;;
+        *) _setup_die 1 '未知工具，拒绝下载' ;;
+    esac
+    digest=${SETUP_TOOL_SHA256["$tool:$machine"]:-}
+    download_and_verify_tool "$tool" "$SETUP_GITHUB_ORIGIN/$repo/releases/download/$tag/$asset" "$digest"
     publish_user_tool "$tool" "$HOME/.local/opt/rdp-tools/$tool/${SETUP_TOOL_VERSIONS[$tool]}-$machine"
 }
 
@@ -377,7 +365,7 @@ _tool_version_matches() {
     [[ $output == "$expected" || $output == "$expected "* ]]
 }
 
-# Node先于uv/pnpm元数据解析；逐个询问且仅选择顶部固定版本，全部成功后仅给本次进程树加PATH。
+# 按Node、uv、pnpm顺序逐个询问并选择固定版本；Node供后续配置问答解析JSON。
 # uv/pnpm均用官方tar.gz包；Python留给uv按锁文件安装，不自行选择Python版本。
 ensure_user_toolchain() {
     # 重试必须先发现上次完成的用户工具；不能再次下载后因同版本目录存在而失败。
@@ -836,7 +824,7 @@ _administrator_status() {
 
 # curl不自动跟随重定向：逐跳核验HTTPS官方域，避免第三方URL借重定向绕过来源约束。
 _fetch_official() {
-    local url=$1 destination=$2 limit=$3 response code redirect host accept allowed curl_result
+    local url=$1 destination=$2 limit=$3 response code redirect host allowed curl_result
     local started=$SECONDS remaining redirects=0 retries=0
     while (( redirects < 4 )); do
         [[ $url =~ ^https://([^/]+)/ ]] || _setup_die 1 '下载仅允许官方HTTPS'
@@ -850,14 +838,12 @@ _fetch_official() {
         $allowed || _setup_die 1 '拒绝非官方下载域'
         remaining=$((SETUP_DOWNLOAD_TIMEOUT_S - (SECONDS - started)))
         (( remaining > 0 )) || _setup_die 1 '下载总时间超过预算'
-        accept='application/octet-stream'
-        if [[ $url == "$SETUP_GITHUB_ORIGIN/"* && $url != */releases/assets/* ]]; then accept='application/vnd.github+json'; fi
         curl_result=0
-        # 手动分类重试；关闭curl自身重试，避免叠加次数。保留HTTP错误体与响应头供限流诊断。
+        # 手动分类重试；关闭curl自身重试，避免叠加次数。HTTP状态只用于安全诊断，不回显响应体。
         response=$(timeout "$remaining" curl --disable --silent --show-error --proto '=https' --proto-redir '=https' \
             --connect-timeout "$SETUP_CONNECT_TIMEOUT_S" --max-time "$remaining" --retry 0 \
-            --max-filesize "$limit" --max-redirs 0 --dump-header "$workspace/download.headers" \
-            --header "Accept: $accept" --output "$destination" \
+            --max-filesize "$limit" --max-redirs 0 \
+            --header 'Accept: application/octet-stream' --output "$destination" \
             --write-out $'%{http_code}\n%{redirect_url}' "$url" 2>"$workspace/download.error") || curl_result=$?
         code=${response%%$'\n'*}
         redirect=${response#*$'\n'}
@@ -871,8 +857,8 @@ _fetch_official() {
         fi
         (( curl_result == 0 )) || _setup_die 1 "官方文件下载失败（curl退出码$curl_result）；重试预算已用尽或错误不可重试，请检查网络、代理或手动安装"
         [[ $(stat -c %s -- "$destination") -le $limit ]] || _setup_die 1 '下载超过大小上限'
-        if [[ $host == "${SETUP_GITHUB_ORIGIN#https://}" && ( $code == 403 || $code == 429 ) ]]; then
-            _report_github_rate_limit "$destination" "$workspace/download.headers"
+        if [[ $code == 403 || $code == 429 ]]; then
+            _setup_die 1 "官方下载被拒绝或限流（HTTP $code）；请检查网络/代理或稍后重试，也可手动安装固定版本并核验SHA256，未发布工具"
         fi
         if [[ $code == 200 ]]; then return 0; fi
         [[ $code =~ ^30[12378]$ && $redirect != "$response" ]] || _setup_die 1 "官方下载HTTP状态$code；未发布工具，请检查来源或手动安装"
@@ -880,33 +866,6 @@ _fetch_official() {
         redirects=$((redirects + 1))
     done
     _setup_die 1 '下载重定向超过上限'
-}
-
-# 限流体只用于识别，不回显共享出口IP或任意响应文本；时间来自最后一份响应头，使用明确UTC表示。
-_report_github_rate_limit() {
-    local body=$1 headers=$2 retry_at
-    [[ $(stat -c %s -- "$body") -le $SETUP_METADATA_MAX_BYTES &&
-       $(stat -c %s -- "$headers") -le $SETUP_METADATA_MAX_BYTES ]] ||
-        _setup_die 1 'GitHub错误响应超过元数据上限；请手动安装并校验'
-    retry_at=$(node - "$body" "$headers" <<'JS'
-const fs = require("node:fs");
-try {
-  const [body, headers] = process.argv.slice(2);
-  if (!/rate[ -]?limit/i.test(fs.readFileSync(body, "utf8"))) process.exit(0);
-  const values = fs.readFileSync(headers, "utf8").split(/\r?\n/)
-    .filter(line => /^x-ratelimit-reset:/i.test(line));
-  const raw = (values.at(-1) || "").split(":").slice(1).join(":").trim();
-  const seconds = /^[0-9]+$/.test(raw) ? Number(raw) : NaN;
-  const date = new Date(seconds * 1000);
-  console.log(Number.isSafeInteger(seconds) && seconds >= 0 && Number.isFinite(date.getTime())
-    ? "响应头给出的可重试时间（UTC）：" + date.toISOString()
-    : "响应头未提供有效重试时间");
-} catch { process.exit(1); }
-JS
-    ) || _setup_die 1 'GitHub错误响应无法解析；请手动安装并校验'
-    if [[ -n $retry_at ]]; then
-        _setup_die 1 "已被GitHub限流；$retry_at；请稍后重试或手动安装固定版本并核验SHA256，未跳过校验"
-    fi
 }
 
 # 仅重试传输/握手类故障和选定5xx；证书校验失败、其他本地错误及所有4xx立即停止。

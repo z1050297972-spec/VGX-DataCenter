@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pytest
-from setup_support import release_downloads, setup_case
+from setup_support import pin_release_digest, release_downloads, release_url, setup_case
 
 
 @pytest.fixture(autouse=True)
@@ -35,7 +35,7 @@ def test_uv_real_version_output_is_accepted(tmp_path: Path, installed: bool) -> 
     )
     assert result.returncode == 0, result.stderr
     downloads = [call for call in case.calls("curl") if call["args"][-1].startswith("https://")]
-    assert len(downloads) == (0 if installed else 2)
+    assert len(downloads) == (0 if installed else 1)
     assert (case.home / ".local/bin/uv").exists() is (not installed)
 
 
@@ -51,21 +51,20 @@ def test_pnpm_official_archive_layouts(tmp_path: Path, layout: str) -> None:
     assert executable.is_symlink() and executable.resolve().is_file()
     assert executable.resolve().is_relative_to(case.home / ".local/opt/rdp-tools/pnpm")
     calls = [call for call in case.calls("curl") if call["args"][-1].startswith("https://")]
-    assert len(calls) == 2
-    assert calls[0]["args"][-1].endswith("/pnpm/pnpm/releases/tags/v11.22.0")
-    assert calls[1]["args"][-1].endswith("/pnpm/pnpm/releases/assets/123")
+    assert len(calls) == 1
+    assert calls[0]["args"][-1] == release_url("pnpm")
     help_text = case.run("--help").stdout
     assert "pnpm-linux-<架构>.tar.gz" in help_text and "官方 tar.gz" in help_text
 
 
 def test_tls_failure_retries_then_verifies_download(tmp_path: Path) -> None:
-    """首次TLS错误35后重试成功，仍校验官方digest并完成安装，不回显底层连接诊断。"""
+    """首次TLS错误35后重试成功，仍校验固定SHA256并完成安装，不回显底层连接诊断。"""
     import json
 
     case = setup_case(tmp_path)
     case.config()
     release_downloads(case, "uv")
-    url = "https://api.github.com/repos/astral-sh/uv/releases/tags/0.13.5"
+    url = release_url("uv")
     (case.root / "responses.json").write_text(json.dumps({url: [{"exit": 35}, {"code": "200"}]}))
     result = case.run("--yes", "--skip-admin", overrides={"FAKE_VERSION_UV": "missing"})
     assert result.returncode == 0, result.stderr
@@ -75,26 +74,21 @@ def test_tls_failure_retries_then_verifies_download(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("status", ("403", "429"))
-def test_github_rate_limit_reports_reset_without_retry(tmp_path: Path, status: str) -> None:
-    """GitHub限流响应明确报告UTC重试时间和手动办法，只请求一次，不泄漏响应体或绕过校验。"""
+def test_download_denied_or_throttled_is_explicit(tmp_path: Path, status: str) -> None:
+    """下载地址拒绝或限流时给通用HTTP诊断和手动办法，不请求API、不重试4xx、不回显响应体。"""
     import json
 
     case = setup_case(tmp_path)
     case.config()
     release_downloads(case, "uv")
-    url = "https://api.github.com/repos/astral-sh/uv/releases/tags/0.13.5"
-    response = {
-        "code": status,
-        "headers": "x-ratelimit-reset: 1700000000\r\n",
-        "body": '{"message":"API rate limit exceeded for private-egress-address"}',
-    }
+    url = release_url("uv")
+    response = {"code": status, "body": "opaque server error private-egress-address"}
     (case.root / "responses.json").write_text(json.dumps({url: [response]}))
     result = case.run("--yes", "--skip-admin", overrides={"FAKE_VERSION_UV": "missing"})
     assert result.returncode == 1
-    assert "GitHub限流" in result.stderr
-    assert "2023-11-14T22:13:20.000Z" in result.stderr
+    assert "被拒绝或限流" in result.stderr and "HTTP " + status in result.stderr
     assert "手动安装" in result.stderr and "SHA256" in result.stderr
-    assert "private-egress-address" not in result.stderr
+    assert "API" not in result.stderr and "private-egress-address" not in result.stderr
     assert len(case.calls("curl")) == 1
     assert not (case.home / ".local/bin/uv").exists()
     assert list((case.root / "tmp").iterdir()) == []
@@ -121,7 +115,7 @@ def test_retry_classification_is_bounded(
     case = setup_case(tmp_path)
     case.config()
     release_downloads(case, "uv")
-    url = "https://api.github.com/repos/astral-sh/uv/releases/tags/0.13.5"
+    url = release_url("uv")
     (case.root / "responses.json").write_text(json.dumps({url: [response]}))
     result = case.run("--yes", "--skip-admin", overrides={"FAKE_VERSION_UV": "missing"})
     assert result.returncode == 1
@@ -143,33 +137,13 @@ def test_download_total_budget_covers_blocked_request(tmp_path: Path) -> None:
     script.write_text(
         script.read_text().replace("SETUP_DOWNLOAD_TIMEOUT_S=300", "SETUP_DOWNLOAD_TIMEOUT_S=1")
     )
-    url = "https://api.github.com/repos/astral-sh/uv/releases/tags/0.13.5"
+    url = release_url("uv")
     (case.root / "responses.json").write_text(json.dumps({url: [{"delay_s": 5, "exit": 35}]}))
     started = time.monotonic()
     result = case.run("--yes", "--skip-admin", overrides={"FAKE_VERSION_UV": "missing"})
     assert time.monotonic() - started < 4
     assert result.returncode == 1 and len(case.calls("curl")) == 1
     assert not (case.home / ".local/bin/uv").exists()
-
-
-@pytest.mark.parametrize("header", ("", "X-RateLimit-Reset: invalid\n"))
-def test_rate_limit_without_valid_reset_is_explicit(tmp_path: Path, header: str) -> None:
-    """缺失或非法reset头不编造时间，仍明确报告限流和手动办法且不重试。"""
-    import json
-
-    case = setup_case(tmp_path)
-    case.config()
-    release_downloads(case, "uv")
-    url = "https://api.github.com/repos/astral-sh/uv/releases/tags/0.13.5"
-    (case.root / "responses.json").write_text(
-        json.dumps(
-            {url: [{"code": "429", "headers": header, "body": '{"message":"rate limit exceeded"}'}]}
-        )
-    )
-    result = case.run("--yes", "--skip-admin", overrides={"FAKE_VERSION_UV": "missing"})
-    assert result.returncode == 1 and "GitHub限流" in result.stderr
-    assert "未提供有效重试时间" in result.stderr and "手动安装" in result.stderr
-    assert len(case.calls("curl")) == 1
 
 
 @pytest.mark.parametrize(
@@ -193,12 +167,10 @@ def test_version_comparison_requires_token_boundary(tmp_path: Path, tool: str, o
     assert not case.calls("curl")
 
 
-@pytest.mark.parametrize("layout", ("outer/inner", "duplicate", "link-escape", "musl-only"))
+@pytest.mark.parametrize("layout", ("outer/inner", "duplicate", "link-escape"))
 def test_pnpm_rejects_unexpected_or_unsafe_archive(tmp_path: Path, layout: str) -> None:
-    """不猜测深层或歧义入口，不选musl，不允许链接逃逸；失败时不发布pnpm。"""
-    import hashlib
+    """不猜测深层或歧义入口，不允许链接逃逸；失败时不发布pnpm。"""
     import io
-    import json
     import tarfile
 
     case = setup_case(tmp_path)
@@ -207,11 +179,7 @@ def test_pnpm_rejects_unexpected_or_unsafe_archive(tmp_path: Path, layout: str) 
         case, "pnpm", package_layout="outer/inner" if layout == "outer/inner" else "root"
     )
     archive = case.root / "pnpm-linux-x64.tar.gz"
-    metadata = case.root / "pnpm.json"
-    data = json.loads(metadata.read_text())
-    if layout == "musl-only":
-        data["assets"][0]["name"] = "pnpm-linux-x64-musl.tar.gz"
-    elif layout in ("duplicate", "link-escape"):
+    if layout in ("duplicate", "link-escape"):
         with tarfile.open(archive) as stream:
             original = stream.getmembers()[0]
             reader = stream.extractfile(original)
@@ -226,8 +194,7 @@ def test_pnpm_rejects_unexpected_or_unsafe_archive(tmp_path: Path, layout: str) 
             else:
                 extra.type, extra.linkname = tarfile.SYMTYPE, "../escape"
                 stream.addfile(extra)
-        data["assets"][0]["digest"] = "sha256:" + hashlib.sha256(archive.read_bytes()).hexdigest()
-    metadata.write_text(json.dumps(data))
+        pin_release_digest(case, "pnpm")
     result = case.run("--yes", "--skip-admin", overrides={"FAKE_VERSION_PNPM": "missing"})
     assert result.returncode == 1, result.stderr
     if layout in ("outer/inner", "duplicate"):
@@ -239,10 +206,8 @@ def test_pnpm_rejects_unexpected_or_unsafe_archive(tmp_path: Path, layout: str) 
 
 @pytest.mark.parametrize("tool", ("uv", "pnpm"))
 def test_verified_archive_still_requires_matching_version(tmp_path: Path, tool: str) -> None:
-    """即使digest正确，新工具自身报告的版本不匹配也不能发布，避免放宽版本解析后跳过自检。"""
-    import hashlib
+    """即使固定摘要正确，新工具自身报告的版本不匹配也不能发布，避免放宽版本解析后跳过自检。"""
     import io
-    import json
     import tarfile
 
     case = setup_case(tmp_path)
@@ -264,10 +229,7 @@ def test_verified_archive_still_requires_matching_version(tmp_path: Path, tool: 
     with tarfile.open(archive, "w:gz") as stream:
         entry.size = len(payload)
         stream.addfile(entry, io.BytesIO(payload))
-    metadata = case.root / (tool + ".json")
-    data = json.loads(metadata.read_text())
-    data["assets"][0]["digest"] = "sha256:" + hashlib.sha256(archive.read_bytes()).hexdigest()
-    metadata.write_text(json.dumps(data))
+    pin_release_digest(case, tool)
     result = case.run(
         "--yes", "--skip-admin", overrides={"FAKE_VERSION_" + tool.upper(): "missing"}
     )
@@ -283,7 +245,7 @@ def test_http_client_error_is_not_retried_after_body_timeout(tmp_path: Path) -> 
     case = setup_case(tmp_path)
     case.config()
     release_downloads(case, "uv")
-    url = "https://api.github.com/repos/astral-sh/uv/releases/tags/0.13.5"
+    url = release_url("uv")
     (case.root / "responses.json").write_text(json.dumps({url: [{"code": "403", "exit": 28}]}))
     result = case.run("--yes", "--skip-admin", overrides={"FAKE_VERSION_UV": "missing"})
     assert result.returncode == 1
@@ -302,7 +264,7 @@ def test_total_budget_is_shared_by_tls_retries(tmp_path: Path) -> None:
     script.write_text(
         script.read_text().replace("SETUP_DOWNLOAD_TIMEOUT_S=300", "SETUP_DOWNLOAD_TIMEOUT_S=1")
     )
-    url = "https://api.github.com/repos/astral-sh/uv/releases/tags/0.13.5"
+    url = release_url("uv")
     (case.root / "responses.json").write_text(json.dumps({url: [{"delay_s": 0.8, "exit": 35}]}))
     started = time.monotonic()
     result = case.run("--yes", "--skip-admin", overrides={"FAKE_VERSION_UV": "missing"})
@@ -310,3 +272,110 @@ def test_total_budget_is_shared_by_tls_retries(tmp_path: Path) -> None:
     assert time.monotonic() - started < 3
     assert 1 <= len(case.calls("curl")) <= 2
     assert not (case.home / ".local/bin/uv").exists()
+
+
+@pytest.mark.parametrize("tool", ("uv", "pnpm"))
+def test_release_downloads_do_not_use_api(tmp_path: Path, tool: str) -> None:
+    """工具下载直接使用releases/download，不请求GitHub API，也不跳过SHA256和版本自检。"""
+    case = setup_case(tmp_path)
+    case.config()
+    release_downloads(case, tool)
+    result = case.run(
+        "--yes", "--skip-admin", overrides={"FAKE_VERSION_" + tool.upper(): "missing"}
+    )
+    assert result.returncode == 0, result.stderr
+    urls = [
+        call["args"][-1] for call in case.calls("curl") if call["args"][-1].startswith("https://")
+    ]
+    assert all("api.github.com" not in url for url in urls)
+    expected = (
+        "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-unknown-linux-gnu.tar.gz"
+        if tool == "uv"
+        else "https://github.com/pnpm/pnpm/releases/download/v11.22.0/pnpm-linux-x64.tar.gz"
+    )
+    assert urls == [expected]
+    assert (case.home / ".local/bin" / tool).is_symlink()
+
+
+def test_pinned_release_digests_match_approved_values() -> None:
+    """生产摘要表逐项等于执行线核对的四个值，并且每个值只维护一份。"""
+    script = (Path(__file__).parents[1] / "scripts/setup.sh").read_text()
+    approved = {
+        "uv:x86_64": "f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f",
+        "uv:aarch64": "4bb69cf95ed13f23713bb7bc09f241896ea0c75b7c557e615a20604b82f9c403",
+        "pnpm:x86_64": "4c592fa410eb23b69691a9efb9bf21c87c15b3e9d88c6ec8acdd354a0eb8de71",
+        "pnpm:aarch64": "f1426231f365bdfd46c15fa3d1211c3936ee2c4e557afd304f6c66dbf1b2a8bf",
+    }
+    for key, value in approved.items():
+        assert f"[{key}]='{value}'" in script
+        assert script.count(value) == 1
+    assert "升级版本时必须同时更新版本表和SHA256表" in script
+
+
+@pytest.mark.parametrize("tool", ("uv", "pnpm"))
+def test_fixed_digest_mismatch_never_publishes(tmp_path: Path, tool: str) -> None:
+    """固定表摘要与归档不符时必须停下；不执行工具、不发布入口、不进入安装。"""
+    case = setup_case(tmp_path)
+    case.config()
+    release_downloads(case, tool, digest="0" * 64)
+    result = case.run(
+        "--yes", "--skip-admin", overrides={"FAKE_VERSION_" + tool.upper(): "missing"}
+    )
+    assert result.returncode == 1 and "SHA256校验失败" in result.stderr
+    assert len(case.calls("curl")) == 1
+    assert not (case.home / ".local/bin" / tool).exists()
+    assert not (case.home / ".local/opt/rdp-tools" / tool).exists()
+    assert not case.calls("install.sh")
+
+
+@pytest.mark.parametrize("machine", ("x86_64", "aarch64"))
+@pytest.mark.parametrize("tool", ("uv", "pnpm"))
+def test_architecture_selects_pinned_glibc_archive(tmp_path: Path, machine: str, tool: str) -> None:
+    """两架构均选择对应glibc归档和摘要，不回退到其他架构或musl包。"""
+    case = setup_case(tmp_path)
+    case.config()
+    release_downloads(case, tool, machine=machine)
+    result = case.run(
+        "--yes",
+        "--skip-admin",
+        overrides={
+            "FAKE_ARCH": machine,
+            "FAKE_VERSION_" + tool.upper(): "missing",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    urls = [
+        call["args"][-1] for call in case.calls("curl") if call["args"][-1].startswith("https://")
+    ]
+    assert urls == [release_url(tool, machine)]
+    assert "musl" not in urls[0]
+    executable = (case.home / ".local/bin" / tool).resolve()
+    assert executable.is_file() and machine in str(executable)
+
+
+@pytest.mark.parametrize(
+    "host", ("release-assets.githubusercontent.com", "objects.githubusercontent.com")
+)
+def test_official_asset_redirect_preserves_digest_check(tmp_path: Path, host: str) -> None:
+    """releases地址可重定向到两个官方资产主机，最终字节仍须通过固定摘要后才能发布。"""
+    import json
+
+    case = setup_case(tmp_path)
+    case.config()
+    release_downloads(case, "uv")
+    original = release_url("uv")
+    redirect = f"https://{host}/fixture-asset"
+    mappings = case.root / "downloads.json"
+    data = json.loads(mappings.read_text())
+    data[redirect] = data[original]
+    mappings.write_text(json.dumps(data))
+    (case.root / "responses.json").write_text(
+        json.dumps({original: [{"code": "302", "body": "", "redirect": redirect}]})
+    )
+    result = case.run("--yes", "--skip-admin", overrides={"FAKE_VERSION_UV": "missing"})
+    assert result.returncode == 0, result.stderr
+    urls = [
+        call["args"][-1] for call in case.calls("curl") if call["args"][-1].startswith("https://")
+    ]
+    assert urls == [original, redirect]
+    assert (case.home / ".local/bin/uv").is_symlink()
