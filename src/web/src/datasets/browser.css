@@ -1,0 +1,49 @@
+/* M1-04 布局 A 的排布；共享部件不依赖此三栏容器，后续 B/C 可直接复用。 */
+.dataset-layout-a {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(400px, 3fr) minmax(180px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.dataset-layout-a > * {
+  min-width: 0;
+}
+.dataset-layout-a > aside {
+  background: #fafafa;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+@media (max-width: 1000px) {
+  .dataset-layout-a {
+    grid-template-columns: minmax(190px, 1fr) minmax(350px, 3fr);
+  }
+  .dataset-layout-a > aside:last-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 650px) {
+  .dataset-layout-a {
+    display: block;
+  }
+}
+
+.dataset-json {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 65vh;
+  overflow: auto;
+  background: #f6f8fa;
+  padding: 12px;
+}
+.dataset-filters {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.dataset-filters label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
