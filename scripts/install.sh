@@ -80,7 +80,8 @@ migrate_and_check_port() {
 }
 
 # 仅默认模式：把模板里的 @DEPLOY_DIR@ 换成部署目录，写到 $HOME/.config/systemd/user/。
-# 保留模板的双引号，对反斜线、双引号、百分号作 systemd 语法转义；不使用 shell eval。
+# WorkingDirectory按整行路径读取，不加引号且只转义百分号；ExecStart/Environment的双引号值
+# 对反斜线、双引号和百分号作systemd转义；不使用shell eval。
 # 调用环境显式给了 RDP_CONFIG 时，把同一配置路径作为 Environment 指令写入两个单元；
 # 未设置时不写该指令，沿用用户默认配置。不能假定 systemd 用户管理器继承当前终端的环境。
 # 原子写入 rdp-web.service/rdp-worker.service，不枚举删除其他单元，不写死用户名。
@@ -190,9 +191,13 @@ _write_units() {
     for name in rdp-web.service rdp-worker.service; do
         unit_temp=$(mktemp "$unit_dir/.${name}.XXXXXX")
         while IFS= read -r line || [[ -n $line ]]; do
-            if [[ $line == *'@DEPLOY_DIR@'* ]]; then
+            if [[ $line == WorkingDirectory=*'@DEPLOY_DIR@'* ]]; then
+                # 此指令不使用ExecStart的词法引号；同时兼容目标提交里曾带引号的模板。
+                replacement=${deploy_dir//%/%%}
+                line="WorkingDirectory=$replacement"
+            elif [[ $line == *'@DEPLOY_DIR@'* ]]; then
                 replacement=$escaped
-                # ExecStart单独解释美元符号；WorkingDirectory和Environment保持其字面值。
+                # ExecStart单独解释美元符号；Environment保留其字面值。
                 if [[ $line == ExecStart=* ]]; then replacement=${replacement//\$/\$\$}; fi
                 line=${line%%@DEPLOY_DIR@*}${replacement}${line#*@DEPLOY_DIR@}
             fi

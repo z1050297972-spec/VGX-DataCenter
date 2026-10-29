@@ -141,6 +141,7 @@ def test_install_custom_paths(deployment: DeploymentCase) -> None:
     unit = (deployment.home / ".config/systemd/user/rdp-web.service").read_text()
     assert '部署 空格%%\\"反\\\\斜 &路径/.venv/bin/rdp" web --no-stderr' in unit
     assert '配置 %%\\"反\\\\斜.toml"' in unit
+    assert "WorkingDirectory=" + str(target).replace("%", "%%") + "\n" in unit
     assert "@DEPLOY_DIR@" not in unit
 
 
@@ -513,7 +514,7 @@ def test_literal_dollar_in_exec_start(deployment: DeploymentCase) -> None:
     result = deployment.run("install.sh", "--deploy-dir", str(target))
     assert result.returncode == 0, result.stderr
     unit = (deployment.home / ".config/systemd/user/rdp-web.service").read_text()
-    assert f'WorkingDirectory="{target}"' in unit
+    assert f"WorkingDirectory={target}\n" in unit
     assert '/部署$${RDP_TEST_SENTINEL}/.venv/bin/rdp" web --no-stderr' in unit
 
 
@@ -526,3 +527,63 @@ def test_install_partial_start_cleanup(deployment: DeploymentCase) -> None:
     assert (deployment.root / "rdp-web.service").read_text() == "inactive"
     assert deployment.deploy.is_dir()
     assert (deployment.home / ".config/systemd/user/rdp-web.service").exists()
+
+
+@pytest.mark.parametrize("directory", ("plain", "部署 空格", "部署%目录"))
+@pytest.mark.parametrize("operation", ("install", "upgrade"))
+def test_rendered_units_pass_systemd_verify(
+    deployment: DeploymentCase, directory: str, operation: str
+) -> None:
+    """真实systemd解析安装/升级渲染的两单元；普通、中文空格、百分号路径均合法，绝不连接总线或启动服务。"""
+    import os
+    import shutil
+
+    analyzer = shutil.which("systemd-analyze")
+    assert analyzer is not None, "必须提供systemd-analyze用于离线单元校验，不能跳过"
+    target = deployment.root / directory
+    config = deployment.home / '配置 %"$字面\\斜.toml'
+    config.write_text("")
+    result = deployment.run(
+        "install.sh", "--deploy-dir", str(target), overrides={"RDP_CONFIG": str(config)}
+    )
+    assert result.returncode == 0, result.stderr
+    if operation == "upgrade":
+        result = deployment.run(
+            "upgrade.sh",
+            "--deploy-dir",
+            str(target),
+            "--yes",
+            overrides={"RDP_CONFIG": str(config)},
+        )
+        assert result.returncode == 0, result.stderr
+    # 安装替身提供临时可执行入口；verify会检查它存在，但不会执行。
+    assert (target / ".venv/bin/rdp").is_file()
+    assert os.access(target / ".venv/bin/rdp", os.X_OK)
+    units = deployment.home / ".config/systemd/user"
+    runtime = deployment.root / "runtime"
+    runtime.mkdir(mode=0o700)
+    environment = {
+        "HOME": str(deployment.home),
+        "PATH": str(deployment.bin),
+        "XDG_RUNTIME_DIR": str(runtime),
+        "XDG_CONFIG_HOME": str(deployment.home / ".config"),
+        "XDG_DATA_HOME": str(deployment.home / ".local/share"),
+        "SYSTEMD_UNIT_PATH": str(units) + ":",
+    }
+    checked = subprocess.run(  # noqa: S603  # 理由：真实解析器仅verify临时单元，入口为临时替身，不连接总线。
+        [
+            analyzer,
+            "--user",
+            "verify",
+            "--man=no",
+            "--generators=no",
+            str(units / "rdp-web.service"),
+            str(units / "rdp-worker.service"),
+        ],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert checked.returncode == 0, checked.stdout + checked.stderr

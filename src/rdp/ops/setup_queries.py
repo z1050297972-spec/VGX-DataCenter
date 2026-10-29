@@ -5,14 +5,34 @@
 模块只接收findmnt/ip的元数据快照，不访问导航层、存储根内容或探测硬件。
 """
 
+import argparse
+import json
+import os
+import re
+import sqlite3
+import stat
 import sys
 from collections.abc import Sequence
-from dataclasses import dataclass
+from contextlib import closing, redirect_stderr, redirect_stdout
+from dataclasses import asdict, dataclass
 from enum import StrEnum
+from ipaddress import IPv4Address, IPv6Address, ip_address
 from pathlib import Path
-from typing import Literal, TextIO
+from typing import Any, Literal, TextIO, cast
+from urllib.parse import quote
+from uuid import UUID
 
-from rdp.infra.config import LoadedConfig, WebConfig
+from rdp.infra.config import LoadedConfig, PlatformConfig, StorageRootConfig, WebConfig, load_config
+from rdp.infra.db._errors import database_path_error, database_problem
+from rdp.infra.db.connection import BUSY_TIMEOUT_MS, translate_database_error
+from rdp.infra.db.migration import check_database_version
+from rdp.infra.diagnostics import (
+    ConflictError,
+    DefectError,
+    ExternalError,
+    InputError,
+    render_diagnostic,
+)
 
 # 系统JSON快照的读取上限为2MiB；CLI最多多读一个字节判定超限，不无限读stdin或设备文件。
 SETUP_SNAPSHOT_MAX_BYTES = 2 * 1024 * 1024
@@ -77,7 +97,11 @@ def validate_setup_configuration(config_file: Path, *, home: Path) -> LoadedConf
     Time Semantics:
         同步检查一次，规则和缺省值来自运行本函数的目标提交；无时钟、等待或自动重试。
     """
-    raise NotImplementedError
+    PlatformConfig.validate_state_dir(config_file)
+    PlatformConfig.validate_state_dir(home)
+    if not stat.S_ISREG(config_file.lstat().st_mode):
+        raise OSError("配置必须为普通文件", str(config_file))
+    return load_config(environ={"RDP_CONFIG": str(config_file)}, home=home)
 
 
 def administrator_presence(database: Path) -> AdministratorPresence:
@@ -106,7 +130,37 @@ def administrator_presence(database: Path) -> AdministratorPresence:
         单次锁预算复用BUSY_TIMEOUT_MS；结果只代表查询时快照，不预留首管理员创建资格，
         真正创建仍由既有create_first_admin事务再次检查，不按这个布尔事实跳过领域约束。
     """
-    raise NotImplementedError
+    if problem := database_path_error(database):
+        raise problem
+    try:
+        try:
+            mode = database.lstat().st_mode
+        except FileNotFoundError:
+            return AdministratorPresence.DATABASE_MISSING
+        if not stat.S_ISREG(mode):
+            problem = translate_database_error(
+                OSError("数据库必须为普通文件"), database=database, operation="检查数据库类型"
+            )
+            raise problem
+        check_database_version(database)
+        with closing(
+            sqlite3.connect(
+                database.as_uri() + "?mode=ro", uri=True, timeout=BUSY_TIMEOUT_MS / 1000
+            )
+        ) as connection:
+            connection.execute("PRAGMA query_only=ON")
+            # 版本匹配仍不能把缺失业务表解释成没有管理员。
+            columns = connection.execute("PRAGMA table_info(accounts)").fetchall()
+            if not any(row[1] == "role" for row in columns):
+                problem = database_problem(InputError, database, "查询管理员结构", 0)
+                raise problem
+            row = connection.execute(
+                "SELECT 1 FROM accounts WHERE role='administrator' LIMIT 1"
+            ).fetchone()
+        return AdministratorPresence.PRESENT if row else AdministratorPresence.ABSENT
+    except (sqlite3.Error, OSError) as error:
+        problem = translate_database_error(error, database=database, operation="查询管理员")
+        raise problem from error
 
 
 def mounted_storage_candidates(findmnt_json: str) -> tuple[MountedStorageCandidate, ...]:
@@ -133,7 +187,82 @@ def mounted_storage_candidates(findmnt_json: str) -> tuple[MountedStorageCandida
     Time Semantics:
         不读时钟；候选仅代表采集时刻，不能替代worker执行前的挂载身份检查。
     """
-    raise NotImplementedError
+    data = _snapshot(findmnt_json)
+    if not isinstance(data, dict):
+        raise ValueError("挂载快照必须为对象")
+    rows = _rows(cast(dict[str, Any], data).get("filesystems"))
+    roots = tuple(_mount_candidate(_mount_row(row)) for row in rows)
+    if len({root.path for root in roots}) != len(roots):
+        raise ValueError("挂载点不得重复")
+    return tuple(sorted(roots, key=lambda root: str(root.path)))
+
+
+def _snapshot(text: str) -> Any:
+    """限制快照字节数，并且不将原始载荷带入错误。"""
+    if len(text.encode("utf-8")) > SETUP_SNAPSHOT_MAX_BYTES:
+        raise ValueError("快照超过2MiB")
+    try:
+        return json.loads(text)
+    except (ValueError, RecursionError) as error:
+        raise ValueError("快照不是合法JSON") from error
+
+
+def _rows(value: Any) -> list[Any]:
+    """系统行数有界，避免元数据占用无限内存或CPU。"""
+    if not isinstance(value, list) or len(cast(list[Any], value)) > 4096:
+        raise ValueError("快照数组至多4096项")
+    return cast(list[Any], value)
+
+
+def _mount_row(value: Any) -> dict[str, Any]:
+    """在来源模型前检查快照完整性，避免把坏快照误报为不可选盘。"""
+    if (
+        not isinstance(value, dict)
+        or not {"target", "source", "fstype", "uuid", "options"} <= value.keys()
+    ):
+        raise ValueError("挂载字段不完整")
+    value = cast(dict[str, Any], value)
+    for field in ("target", "fstype", "options"):
+        if (
+            not isinstance(value[field], str)
+            or not value[field]
+            or re.search(r"[\x00-\x1f\x7f]", value[field])
+        ):
+            raise ValueError("挂载文字字段非法")
+    for field in ("uuid", "source"):
+        if value[field] is not None and not isinstance(value[field], str):
+            raise ValueError("挂载来源类型非法")
+    path = Path(value["target"])
+    if not path.is_absolute() or ".." in path.parts or len(value["fstype"]) > 64:
+        raise ValueError("挂载路径或文件系统非法")
+    options = value["options"].split(",")
+    if options.count("ro") + options.count("rw") != 1:
+        raise ValueError("挂载选项必须恰含一个ro或rw")
+    return value
+
+
+def _mount_candidate(row: dict[str, Any]) -> MountedStorageCandidate:
+    """仅复用平台来源校验；不支持的来源保留为不可选事实。"""
+    filesystem = row["fstype"]
+    uuid = None
+    nfs = None
+    reason: Literal["unsupported_filesystem", "missing_uuid", "invalid_source"] | None = None
+    if filesystem == "ext4":
+        try:
+            uuid = str(UUID(row["uuid"]))
+        except (ValueError, TypeError):
+            reason = "missing_uuid"
+    elif filesystem in ("nfs", "nfs4"):
+        try:
+            StorageRootConfig(name="candidate", path=Path(row["target"]), nfs_export=row["source"])
+            nfs = row["source"]
+        except ValueError:
+            reason = "invalid_source"
+    else:
+        reason = "unsupported_filesystem"
+    return MountedStorageCandidate(
+        Path(row["target"]), filesystem, uuid, nfs, "ro" in row["options"].split(","), reason
+    )
 
 
 def accessible_urls(settings: WebConfig, interface_json: str) -> tuple[str, ...]:
@@ -161,7 +290,73 @@ def accessible_urls(settings: WebConfig, interface_json: str) -> tuple[str, ...]
     Time Semantics:
         同步生成当前快照的候选地址；不等待、不重试，不缓存跨次部署的网卡信息。
     """
-    raise NotImplementedError
+    interfaces = _rows(_snapshot(interface_json))
+    addresses: set[IPv4Address | IPv6Address] = set()
+    count = 0
+    for raw_interface in interfaces:
+        if not isinstance(raw_interface, dict):
+            raise ValueError("网卡必须为对象")
+        interface = cast(dict[str, Any], raw_interface)
+        if not isinstance(interface.get("ifname"), str):
+            raise ValueError("网卡缺少接口名")
+        name = interface["ifname"]
+        if re.fullmatch(r"[A-Za-z0-9_.:-]{1,15}", name) is None:
+            raise ValueError("接口名非法")
+        entries = _rows(interface.get("addr_info"))
+        count += len(entries)
+        if count > 4096:
+            raise ValueError("网卡地址至多4096项")
+        for entry in entries:
+            addresses.add(_interface_address(entry, name))
+    if settings.host not in ("0.0.0.0", "::"):  # noqa: S104  # 理由：只映射监听配置，不绑定端口。
+        return (_http_url(settings.host, settings.port),)
+    version = 4 if settings.host == "0.0.0.0" else 6  # noqa: S104  # 理由：只映射地址族，不监听。
+    loopback = ip_address("127.0.0.1" if version == 4 else "::1")
+    selected = sorted(
+        (
+            a
+            for a in addresses
+            if a.version == version
+            and a != loopback
+            and not a.is_unspecified
+            and not a.is_multicast
+        ),
+        key=lambda a: (int(a), str(a)),
+    )
+    return tuple(_http_url(str(a), settings.port) for a in (loopback, *selected))
+
+
+def _interface_address(entry: Any, name: str) -> IPv4Address | IPv6Address:
+    """验证IP族与来源形状，链路本地区域来自接口名而非用户载荷。"""
+    if not isinstance(entry, dict):
+        raise ValueError("网卡地址必须为对象")
+    entry = cast(dict[str, Any], entry)
+    if not all(isinstance(entry.get(k), str) for k in ("local", "family", "scope")):
+        raise ValueError("网卡地址字段非法")
+    try:
+        if "%" in entry["local"]:
+            raise ValueError("地址不应自带区域")
+        address = ip_address(entry["local"])
+    except ValueError as error:
+        raise ValueError("网卡IP地址非法") from error
+    if entry["family"] != ("inet" if address.version == 4 else "inet6"):
+        raise ValueError("网卡地址与family不符")
+    if address.version == 6 and address.is_link_local:
+        address = ip_address(f"{address}%{name}")
+    return address
+
+
+def _http_url(host: str, port: int) -> str:
+    """IPv6的区域标识只作URL编码，绝不解析DNS。"""
+    if ":" in host:
+        try:
+            ip_address(host)
+        except ValueError as error:
+            raise ValueError("监听IPv6地址非法") from error
+    elif re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9.])?", host) is None:
+        raise ValueError("监听主机名非法")
+    authority = f"[{quote(host, safe=':')}]" if ":" in host else host
+    return f"http://{authority}:{port}/"
 
 
 def run_setup_query(argv: Sequence[str], *, home: Path, stdout: TextIO, stderr: TextIO) -> int:
@@ -192,7 +387,72 @@ def run_setup_query(argv: Sequence[str], *, home: Path, stdout: TextIO, stderr: 
     Time Semantics:
         配置/快照同步读取；数据库预算沿用administrator_presence；无无限等待或自动重试。
     """
-    raise NotImplementedError
+    parser = argparse.ArgumentParser(prog="rdp-setup-query")
+    commands = parser.add_subparsers(dest="command", required=True)
+    for name in ("validate-config", "administrator", "mounts", "urls"):
+        sub = commands.add_parser(name)
+        if name in ("validate-config", "urls"):
+            sub.add_argument("--config", type=Path, required=True)
+        if name in ("mounts", "urls"):
+            sub.add_argument("--input", type=Path, required=True)
+        if name == "administrator":
+            sub.add_argument("--database", type=Path, required=True)
+    try:
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            args = parser.parse_args(argv)
+    except SystemExit as error:
+        return int(error.code or 0)
+    try:
+        result = _query_result(args, home)
+    except (InputError, ConflictError, ExternalError, DefectError) as error:
+        stderr.write(f"查询失败：{type(error).__name__}\n")
+        for diagnostic in error.diagnostics:
+            stderr.write(render_diagnostic(diagnostic) + "\n")
+        return 1
+    except (ValueError, OSError) as error:
+        stderr.write(f"查询失败：{type(error).__name__}；{error}\n")
+        return 1
+    except Exception as error:
+        stderr.write(f"查询失败：{type(error).__name__}\n")
+        return 1
+    stdout.write(json.dumps(result, ensure_ascii=False, default=str) + "\n")
+    return 0
+
+
+def _read_snapshot(path: Path) -> str:
+    """用非阻塞描述符和fstat拒绝设备/FIFO；最多读取上限加一字节。"""
+    descriptor = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)
+    with os.fdopen(descriptor, "rb") as stream:
+        if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+            raise ValueError("快照必须为普通文件")
+        data = stream.read(SETUP_SNAPSHOT_MAX_BYTES + 1)
+    if len(data) > SETUP_SNAPSHOT_MAX_BYTES:
+        raise ValueError("快照超过2MiB")
+    return data.decode("utf-8")
+
+
+def _query_result(args: argparse.Namespace, home: Path) -> dict[str, Any]:
+    """在完整查询成功后生成白名单对象，避免输出部分结果。"""
+    if args.command == "administrator":
+        return {"status": administrator_presence(args.database)}
+    if args.command == "mounts":
+        return {
+            "items": [
+                asdict(item) for item in mounted_storage_candidates(_read_snapshot(args.input))
+            ]
+        }
+    loaded = validate_setup_configuration(args.config, home=home)
+    if args.command == "urls":
+        return {"urls": accessible_urls(loaded.config.web, _read_snapshot(args.input))}
+    config = loaded.config
+    return {
+        "config_file": str(loaded.source),
+        "state_dir": str(config.state_dir),
+        "nav_root": str(config.nav_root),
+        "web": config.web.model_dump(mode="json"),
+        "gpus": config.jobs.gpus,
+        "storage_roots": [root.model_dump(mode="json") for root in config.storage_roots],
+    }
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -215,7 +475,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     Time Semantics:
         只运行一次，不后台化、不轮询；查询返回后立即交还退出码。
     """
-    raise NotImplementedError
+    return run_setup_query(
+        sys.argv[1:] if argv is None else argv,
+        home=Path.home(),
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

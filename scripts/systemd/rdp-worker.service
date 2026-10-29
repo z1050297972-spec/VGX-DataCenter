@@ -5,7 +5,7 @@ Description=RDP Worker
 [Service]
 Type=simple
 # 安装时若显式指定 RDP_CONFIG，在此增加转义后的 Environment 指令，与 Web/迁移保持一致。
-WorkingDirectory="@DEPLOY_DIR@"
+WorkingDirectory=@DEPLOY_DIR@
 ExecStart="@DEPLOY_DIR@/.venv/bin/rdp" worker --no-stderr
 Restart=on-failure
 RestartSec=5

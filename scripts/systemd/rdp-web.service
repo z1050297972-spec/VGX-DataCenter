@@ -6,7 +6,7 @@ Description=RDP Web
 Type=simple
 # 安装时若显式指定 RDP_CONFIG，在此增加转义后的 Environment 指令，与迁移使用同一配置。
 # 从固定部署目录读取包/构建产物；日志进入 web.log，uvicorn 不另开访问日志。
-WorkingDirectory="@DEPLOY_DIR@"
+WorkingDirectory=@DEPLOY_DIR@
 ExecStart="@DEPLOY_DIR@/.venv/bin/rdp" web --no-stderr
 Restart=on-failure
 RestartSec=5
