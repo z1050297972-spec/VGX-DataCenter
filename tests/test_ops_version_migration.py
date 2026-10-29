@@ -21,12 +21,15 @@ from rdp.jobs.models import JobRow
 
 
 def test_active_head() -> None:
-    """验证0006是唯一活动head、没有pending目录，版本列与活动jobs表一同登记。"""
+    """验证0006是唯一活动head且0006不在pending，未激活的0007不改变M0迁移链。"""
     config = migration_config()
     assert ScriptDirectory.from_config(config).get_current_head() == "0006_platform_version"
     location = config.get_main_option("script_location")
     assert location is not None
-    assert not (Path(location) / "pending").exists()
+    assert not (Path(location) / "pending" / "v0006_platform_version.py").exists()
+    assert "0007_dataset_index" not in {
+        revision.revision for revision in ScriptDirectory.from_config(config).walk_revisions()
+    }
     assert JobRow.__table__.c.platform_version.nullable
 
 

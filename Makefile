@@ -30,7 +30,7 @@ check:
 	@echo "[5/11] 契约检查"
 	.venv/bin/python scripts/check_contracts.py src/rdp scripts
 	@echo "[6/11] pytest"
-	.venv/bin/pytest
+	.venv/bin/pytest -n auto
 	@$(MAKE) --no-print-directory web-tools
 	@echo "[7/11] OpenAPI 过期检查"
 	@$(MAKE) --no-print-directory check-api-types
