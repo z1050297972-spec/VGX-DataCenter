@@ -1,6 +1,6 @@
 # 运维入口与 systemd 服务
 
-Status: in-progress
+Status: done
 
 ## 依据
 
@@ -153,3 +153,4 @@ Status: in-progress
 - 2026-10-29 00:28 第 4 轮交付（快照 `refs/rdp/m0-11/C-r4-out`），日志审计 0 条，四个固定摘要和执行线给出的一致。提交 `b556311`（钩子全绿，pytest 2103 passed / 0 skipped）。重跑完整的验收 9。
 - 2026-10-29 00:37 验收 9 在 `b556311` 上全部通过（`drill9-run.log`、`drill9/*.png`）：真实联网自动装上 Node 22.23.2、uv 0.13.5、pnpm 11.22.0（不再调用 GitHub API）；问答选中两块盘，生成 0600 配置；安装、建管理员、健康检查、DRILL PASS 全部通过；Ctrl+C 退出码 0；重复运行只报告状态（0）；无终端时退出码 2。验收 6：用 `upgrade.sh --commit b556311 --yes` 升级真实部署（`real-upgrade-run.log`），升级前把手修过的单元备份到 `~/.cache/rdp-dispatch/m0-11/*.hotfix`。升级后版本 `0.1.0 (b556311)`；单元由修好的模板重新生成，WorkingDirectory 不带引号，systemd-analyze verify 通过；两个服务 active、enabled；127.0.0.1 和局域网 10.1.179.3 的 health 都是 ok；起停日志齐全，退出码 0；账号数据保留；egopro-restore 没动。本机访问自己的 Tailscale 地址 100.82.81.44 超时（连 22 端口也超时，问题不在平台），早先 19:39 时是通的，记为环境现象。还剩"重启 worker 时运行中作业变成已中断"：需要负责人登录后提交一个长作业。
 - 2026-10-29 02:30 负责人："合并，接着做"。执行线按 3.7 合并。"重启 worker 时作业变成已中断"这一项等负责人下次登录后提交长作业再补验。
+- 2026-10-29 02:36 合并 `a67be16`（`合并：运维入口与 systemd 服务`，钩子全绿：pytest 2103 passed，Vitest 250）。工作目录、分支、快照都已删除；真实部署 `~/.local/opt/rdp` 保持在 b556311（等于合并进来的实现）。Status 改为 done。下一步：整理两份手册，做 M0 回顾。

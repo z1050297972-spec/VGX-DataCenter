@@ -1,0 +1,10 @@
+total 36
+drwxr-xr-x  9 shawn shawn 4096 Oct 24 07:24 .
+drwxr-xr-x  5 root  root  4096 Oct 16 06:34 ..
+drwxrwxr-x  4 shawn shawn 4096 Oct 24 07:16 VGX_video
+drwxrwxr-x  3 shawn shawn 4096 Oct 17 01:52 工具
+drwxrwxr-x 37 shawn shawn 4096 Oct 16 23:04 按任务
+drwxrwxr-x  5 shawn shawn 4096 Oct 16 23:04 按格式
+drwxrwxr-x  2 shawn shawn 4096 Oct 17 06:39 文档
+drwxrwxr-x  2 shawn shawn 4096 Oct 16 23:41 索引
+drwxrwxr-x  4 shawn shawn 4096 Oct 17 07:32 解压样本

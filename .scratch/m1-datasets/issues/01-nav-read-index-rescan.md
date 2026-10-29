@@ -1,6 +1,6 @@
 # 导航层读取、数据集索引与重新扫描
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：骨架关卡。理由：这张票新建数据集索引这个领域对象，定下读取契约和数据集状态指纹。后面每一张都建在它上面，写入段的预览核对也沿用这份指纹（`codex-workflow.md` 3.0 第 1 条"新领域对象、数据契约"）。
 
@@ -136,3 +136,4 @@ Claude 起 worker（临时状态目录，`nav_root` 指向真实导航层，只�
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。依据是 M1 spec（同日 accepted，负责人"M1按推荐"）和 12 的 1A（同日已决）。Status 定为 `ready-for-agent`：M0 合并（第 11 张）以后才能开票。
+- 2026-10-29 02:44 开票（执行线；负责人："合并，接着做"，并授权执行线按建议过关卡）。M0 已合并（a67be16）。Status 改为 in-progress。工作目录 `~/桌面/robot-data-platform.wt/m1-01-nav-read-index-rescan`，分支 `t/m1-01-nav-read-index-rescan`。依赖提交 `efe6e1c 依赖：pytest-xdist`（钩子全绿，2103 passed）。真实导航层基线已只读采集到 `assets/01-nav-read-index-rescan/baseline-*.txt`：顶层 7 个目录，含 VGX_video；84 条链接；217 份 JSON；find 清单 5689 行，留作跑后比对。派工 A（fast，新会话 `01a186d4-8f54-7443-b37a-97c27e5b7ec3`，提示 `prompt-A.md`，日志 `~/.cache/rdp-dispatch/m1-01/ev-A.jsonl`）。
