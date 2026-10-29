@@ -223,7 +223,7 @@ def test_mount_unavailable_reasons() -> None:
 
 
 def test_mount_invalid_snapshot() -> None:
-    """验证契约：坏JSON、缺字段、非法类型、重复挂载点、ro/rw冲突、超行数和超字节均失败，错误不回显原始挂载选项。"""
+    """验证契约：坏JSON、缺字段、非法类型、ro/rw冲突、超行数和超字节均失败，错误不回显原始挂载选项。"""
     valid = {
         "target": "/data/a",
         "source": "/dev/a",
@@ -235,7 +235,6 @@ def test_mount_invalid_snapshot() -> None:
         None,
         [],
         {},
-        {"filesystems": [valid, valid]},
         {"filesystems": [valid] * 4097},
     ]
     invalid.extend(
@@ -569,3 +568,82 @@ def test_query_failure_preserves_safe_remediation(tmp_path: Path) -> None:
     )
     assert "unexpected" in errors.getvalue() and "do-not-disclose" not in errors.getvalue()
     assert output.getvalue() == ""
+
+
+def test_real_mount_snapshot_preserves_stacked_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """真实60行快照全部保留；两层binfmt挂载均不可选，三个ext4根的UUID及只读事实准确，不访问路径。"""
+    snapshot = (Path(__file__).parent / "fixtures/storage/findmnt-real-2026-10-28.json").read_text()
+
+    def forbidden(*args: object, **kwargs: object) -> None:
+        pytest.fail("快照解析不能访问挂载点")
+
+    with monkeypatch.context() as patch:
+        for method in ("stat", "resolve", "open"):
+            patch.setattr(Path, method, forbidden)
+        roots = mounted_storage_candidates(snapshot)
+    assert len(roots) == 60
+    stacked = [root for root in roots if str(root.path) == "/proc/sys/fs/binfmt_misc"]
+    assert len(stacked) == 2
+    assert {root.filesystem for root in stacked} == {"autofs", "binfmt_misc"}
+    assert all(root.unavailable_reason == "stacked_mount" for root in stacked)
+    assert all(not root.read_only for root in stacked)
+    ext4 = {
+        str(root.path): (root.uuid, root.read_only, root.unavailable_reason)
+        for root in roots
+        if root.filesystem == "ext4"
+    }
+    # 路径文字只来自fixture元数据；独立UUID清单防止把其他ext4记录混作这三个根。
+    expected = {
+        row["target"]: (row["uuid"], False, None)
+        for row in json.loads(snapshot)["filesystems"]
+        if row["fstype"] == "ext4"
+    }
+    assert {value[0] for value in expected.values()} == {
+        "643d8529-5476-4ef7-a6c0-0d1fea81d3da",
+        "2d3a48d6-3785-47fe-8c8f-a20857fdc41a",
+        "35445b14-9e83-4f74-ac73-1551e3db6d63",
+    }
+    assert ext4 == expected
+
+
+def test_stacked_valid_sources_are_all_unavailable() -> None:
+    """本来可选的ext4/NFS也不能猜测可见层；保留每层事实和快照顺序，独立根仍可选。"""
+    first = {
+        "target": "/data/stacked",
+        "source": "/dev/example",
+        "fstype": "ext4",
+        "uuid": "123e4567-e89b-42d3-a456-426614174000",
+        "options": "ro",
+    }
+    independent = first | {"target": "/data/independent", "options": "rw"}
+    nfs = first | {"source": "nas:/archive", "fstype": "nfs4", "uuid": None, "options": "rw"}
+    roots = mounted_storage_candidates(json.dumps({"filesystems": [first, independent, nfs]}))
+    assert roots[0].path == Path("/data/independent") and roots[0].unavailable_reason is None
+    assert [root.unavailable_reason for root in roots[1:]] == ["stacked_mount", "stacked_mount"]
+    assert [
+        (root.filesystem, root.uuid, root.nfs_export, root.read_only) for root in roots[1:]
+    ] == [
+        ("ext4", "123e4567-e89b-42d3-a456-426614174000", None, True),
+        ("nfs4", None, "nas:/archive", False),
+    ]
+
+
+@pytest.mark.parametrize("fault", ("missing-field", "contradictory-options", "wrong-type"))
+def test_stacked_rows_still_require_valid_fields(fault: str) -> None:
+    """叠加挂载不可选不等于可忽略坏输入；缺字段、ro/rw矛盾和非法类型仍拒绝整份快照。"""
+    first: dict[str, object] = {
+        "target": "/data/stacked",
+        "source": "/dev/example",
+        "fstype": "ext4",
+        "uuid": "123e4567-e89b-42d3-a456-426614174000",
+        "options": "ro",
+    }
+    second = dict(first)
+    if fault == "missing-field":
+        del second["source"]
+    elif fault == "contradictory-options":
+        second["options"] = "ro,rw"
+    else:
+        second["fstype"] = 4
+    with pytest.raises(ValueError):
+        mounted_storage_candidates(json.dumps({"filesystems": [first, second]}))

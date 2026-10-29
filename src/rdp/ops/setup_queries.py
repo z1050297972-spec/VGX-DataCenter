@@ -12,9 +12,10 @@ import re
 import sqlite3
 import stat
 import sys
+from collections import Counter
 from collections.abc import Sequence
 from contextlib import closing, redirect_stderr, redirect_stdout
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from enum import StrEnum
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from pathlib import Path
@@ -63,6 +64,7 @@ class MountedStorageCandidate:
         nfs_export: nfs/nfs4的合法服务器:导出路径，来自source字段；其他文件系统或来源非法为None。
         read_only: 内核挂载选项中的ro/rw观察值；不代表平台写许可，不输出其余挂载选项。
         unavailable_reason: None表示可供配置选择；其他值指出当前平台不支持或缺少可信来源，仍展示该行。
+            同一挂载点重复出现时为stacked_mount，所有层均不可选。
             不自动填造UUID，不把内核rw变成StorageRootConfig.writable=True。
     """
 
@@ -71,7 +73,9 @@ class MountedStorageCandidate:
     uuid: str | None
     nfs_export: str | None
     read_only: bool
-    unavailable_reason: Literal["unsupported_filesystem", "missing_uuid", "invalid_source"] | None
+    unavailable_reason: (
+        Literal["unsupported_filesystem", "missing_uuid", "invalid_source", "stacked_mount"] | None
+    )
 
 
 def validate_setup_configuration(config_file: Path, *, home: Path) -> LoadedConfig:
@@ -172,8 +176,9 @@ def mounted_storage_candidates(findmnt_json: str) -> tuple[MountedStorageCandida
             不接受缺失或相互矛盾的ro/rw选项；UUID与来源只允许从输入元数据取得。
 
     Returns:
-        按挂载点文字排序的不可变元组，允许空；每个挂载点唯一，重复记录拒绝而不猜叠层关系。
-        ext4有合法UUID、nfs/nfs4有合法导出来源才可选择；其他文件系统和缺来源仍显示不可选原因。
+        按挂载点文字排序的不可变元组，允许空；重复挂载点的所有记录均保留并标为stacked_mount，
+        不猜测哪一层可见，同一挂载点内保持快照顺序。
+        未叠加时，ext4有合法UUID、nfs/nfs4有合法导出来源才可选择；其他文件系统和缺来源仍显示不可选原因。
         UUID仅规范化大小写/标准连字符表示，不从设备名、路径或哈希推导；其余挂载选项不返回。
 
     Raises:
@@ -192,9 +197,13 @@ def mounted_storage_candidates(findmnt_json: str) -> tuple[MountedStorageCandida
         raise ValueError("挂载快照必须为对象")
     rows = _rows(cast(dict[str, Any], data).get("filesystems"))
     roots = tuple(_mount_candidate(_mount_row(row)) for row in rows)
-    if len({root.path for root in roots}) != len(roots):
-        raise ValueError("挂载点不得重复")
-    return tuple(sorted(roots, key=lambda root: str(root.path)))
+    # 先完成每行校验，再标记全部叠加层；不能因不可选就吞掉坏字段，也不能猜测最后一行可见。
+    counts = Counter(root.path for root in roots)
+    candidates = (
+        replace(root, unavailable_reason="stacked_mount") if counts[root.path] > 1 else root
+        for root in roots
+    )
+    return tuple(sorted(candidates, key=lambda root: str(root.path)))
 
 
 def _snapshot(text: str) -> Any:

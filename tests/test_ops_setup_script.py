@@ -618,7 +618,7 @@ def test_mount_uuid_and_read_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
 
 def test_unsupported_mounts_not_selectable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证契约：不支持的文件系统、缺UUID或非法来源显示不可选原因；重复挂载点/坏JSON失败，不猜来源。"""
+    """验证契约：不支持的文件系统、缺UUID或非法来源显示不可选原因，不能选择或发布配置，不猜来源。"""
     import json
 
     for filesystem, source, reason in (
@@ -1267,3 +1267,90 @@ def test_printed_upgrade_command_matches_script_parser(
     )
     assert parsed.returncode == 0 and "--deploy-dir" in parsed.stdout, parsed.stderr
     assert not case.calls("install.sh") and not case.calls("systemctl")
+
+
+def test_questionnaire_continues_with_stacked_mounts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """含叠加挂载的问答保留并解释两层，仍可选择独立ext4根，生成通过平台校验的配置。"""
+    import json
+
+    from rdp.ops.setup_queries import validate_setup_configuration
+
+    case = setup_case(tmp_path)
+    monkeypatch.setenv("HOME", str(case.home))
+    (case.binary / "nvidia-smi").unlink()
+    stacked = case.home / "a-stacked"
+    disk = case.home / "z-disk"
+    mounts = {
+        "filesystems": [
+            {
+                "target": str(stacked),
+                "source": "systemd-1",
+                "fstype": "autofs",
+                "uuid": None,
+                "options": "rw",
+            },
+            {
+                "target": str(stacked),
+                "source": "binfmt_misc",
+                "fstype": "binfmt_misc",
+                "uuid": None,
+                "options": "rw",
+            },
+            {
+                "target": str(disk),
+                "source": "/dev/example",
+                "fstype": "ext4",
+                "uuid": "123e4567-e89b-42d3-a456-426614174000",
+                "options": "ro",
+            },
+        ]
+    }
+    result = case.interactive(
+        "--yes",
+        "--skip-admin",
+        answers=f"127.0.0.1\n9123\n{case.home / 'nav'}\n\n3\ndisk\n",
+        overrides={"FAKE_MOUNTS": json.dumps(mounts)},
+    )
+    assert result.returncode == 0, result.stdout
+    assert result.stdout.count("叠加挂载，无法确认哪一层可见") == 2
+    assert "autofs" in result.stdout and "binfmt_misc" in result.stdout
+    config = validate_setup_configuration(
+        case.home / ".config/rdp/config.toml", home=case.home
+    ).config
+    assert len(config.storage_roots) == 1
+    root = config.storage_roots[0]
+    assert root.name == "disk" and root.path == disk
+    assert root.uuid == "123e4567-e89b-42d3-a456-426614174000" and not root.writable
+    assert not disk.exists() and not stacked.exists()
+    assert len(case.calls("install.sh")) == 1
+
+
+@pytest.mark.parametrize("selection", ("1", "2"))
+def test_questionnaire_cannot_select_either_stacked_layer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selection: str
+) -> None:
+    """两个原本来源合法的ext4叠加层都不能选择，不发布配置、不进入安装。"""
+    import json
+
+    case = setup_case(tmp_path)
+    monkeypatch.setenv("HOME", str(case.home))
+    row = {
+        "target": str(case.home / "stacked"),
+        "source": "/dev/example",
+        "fstype": "ext4",
+        "uuid": "123e4567-e89b-42d3-a456-426614174000",
+        "options": "ro",
+    }
+    mounts = {"filesystems": [row, row | {"source": "/dev/other", "options": "rw"}]}
+    result = case.interactive(
+        "--yes",
+        "--skip-admin",
+        answers=f"127.0.0.1\n9123\n{case.home / 'nav'}\n\n{selection}\n",
+        overrides={"FAKE_MOUNTS": json.dumps(mounts)},
+    )
+    assert result.returncode == 1 and "所选存储根不可选" in result.stdout
+    assert result.stdout.count("叠加挂载，无法确认哪一层可见") == 2
+    assert not (case.home / ".config/rdp/config.toml").exists()
+    assert not case.calls("install.sh") and not case.calls("nvidia-smi")

@@ -468,7 +468,7 @@ collect_configuration_answers() {
         _setup_die 1 '挂载元数据读取失败'
     "$validation_python" -m rdp.ops.setup_queries mounts --input "$workspace/mounts.json" > "$workspace/candidates.json" ||
         _setup_die 1 '挂载快照校验失败'
-    node -e 'const rows=JSON.parse(require("node:fs").readFileSync(process.argv[1],"utf8")).items; rows.forEach((r,i)=>console.log(i+1, r.path, r.filesystem, r.uuid||r.nfs_export||"", r.read_only?"内核只读":"内核可写", r.unavailable_reason||"可选"));' "$workspace/candidates.json"
+    node -e 'const rows=JSON.parse(require("node:fs").readFileSync(process.argv[1],"utf8")).items; rows.forEach((r,i)=>console.log(i+1, r.path, r.filesystem, r.uuid||r.nfs_export||"", r.read_only?"内核只读":"内核可写", (r.unavailable_reason==="stacked_mount"?"叠加挂载，无法确认哪一层可见":r.unavailable_reason||"可选")));' "$workspace/candidates.json"
     printf '选择存储根编号（逗号分隔，空为不选）：'
     read -r answer_roots || _setup_die 130 '配置输入取消'
     printf '[]' > "$workspace/roots.json"
