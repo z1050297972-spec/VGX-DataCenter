@@ -267,7 +267,9 @@ bash scripts/upgrade.sh
 | 数据集事实与索引 | [ADR：导航层](docs/adr/0006-导航层是数据集的唯一事实来源.md) |
 | 调研材料及其参考来源 | [调研目录](docs/research/) |
 | 术语解释 | [术语表](GLOSSARY.md) |
+| 接口文档 | 待补充 |
 | 全部文档分类 | [文档地图](docs/README.md) |
+
 
 ## 开发与版本管理
 
