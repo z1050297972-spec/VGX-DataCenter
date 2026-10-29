@@ -167,6 +167,7 @@ function details(value: OperationLogPage["items"][number]["details"]): string {
     job_type: input.job_type,
     job_state: input.job_state,
     resubmitted_from: input.resubmitted_from,
+    dataset_layout: input.dataset_layout,
   });
   return JSON.stringify({
     version: value.version,

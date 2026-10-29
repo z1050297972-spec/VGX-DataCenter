@@ -21,12 +21,16 @@ from rdp.jobs.models import JobRow
 
 
 def test_active_head() -> None:
-    """验证0007成为唯一活动head且没有pending目录。"""
+    """验证0007仍是唯一活动head，M1-03要求的pending迁移不进入活动迁移图。"""
     config = migration_config()
     assert ScriptDirectory.from_config(config).get_current_head() == "0007_dataset_index"
     location = config.get_main_option("script_location")
     assert location is not None
-    assert not (Path(location) / "pending").exists()
+    # 后续工单可以声明pending；真正的保护是Alembic只加载versions，不提前激活新revision。
+    assert all(
+        Path(revision.path).parent == Path(location) / "versions"
+        for revision in ScriptDirectory.from_config(config).walk_revisions()
+    )
     assert "0007_dataset_index" in {
         revision.revision for revision in ScriptDirectory.from_config(config).walk_revisions()
     }

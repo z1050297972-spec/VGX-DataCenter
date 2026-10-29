@@ -1,4 +1,4 @@
-"""Web 入口层，提供应用工厂及 SPA 托管边界，不访问导航层或存储根。
+"""Web 入口层，提供应用工厂及 SPA 托管边界，工厂本身不访问导航层或存储根。
 
 静态托管使用 FastAPI 再导出的 StaticFiles；不自行实现文件传输或直接依赖 starlette。
 依据：ADR 0001、0002、0005，M0 工单 02/03；接口与静态托管共享一个应用入口。
@@ -25,6 +25,7 @@ from rdp.api.account_auth import install_account_security
 from rdp.api.accounts import router as accounts_router
 from rdp.api.audit import router as audit_router
 from rdp.api.database import configure_database
+from rdp.api.datasets import router as datasets_router
 from rdp.api.error_details import get_error_details
 from rdp.api.errors import ErrorBoundary, install_error_handlers
 from rdp.api.health import HealthResponse, get_health
@@ -176,6 +177,8 @@ def create_app(
         第 10 张登记 GET /api/storage-roots，所有登录账号可看；configure_storage 单独装配挂载检查。
         第 11 张通过 configure_version 登记 GET /api/version，版本 schema 同样出现在离线 OpenAPI；
         路径先于 API 兜底和静态挂载，沿用已登录且完成改密的认证边界，不改变健康响应。
+        M1 第03张登记 /api/datasets 路由及展示类型；服务由 configure_datasets 显式装配，
+        离线导出不读取导航，详情请求的导航只读边界由数据集服务负责。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -190,7 +193,7 @@ def create_app(
     Side Effects:
         只读构建目录及入口文件状态，注册内存路由；有数据库时初始化默认 Argon2 编码器及假哈希，
         其资源和失败语义见 install_account_security；不建 socket、不写磁盘。
-        接收请求后只读构建产物；不访问导航层、存储根。
+        静态托管请求只读构建产物；数据集详情按其服务契约只读导航，业务路由不访问存储根。
         database 非空时只读校验版本，失败不迁移、不 dispose 调用者引擎；
         请求业务会话和缺陷报错会话彼此独立，报错失败不掩盖原 500，详见
         errors.report_error_with_database。
@@ -224,6 +227,8 @@ def create_app(
     app.include_router(audit_router)
     # 08 作业和心跳均允许全部登录账号，复用全局鉴权和同源写请求边界。
     app.include_router(jobs_router)
+    # 数据集路由与M0共享认证/Origin及统一诊断；必须先于API兜底登记，离线可导出类型。
+    app.include_router(datasets_router)
     app.include_router(storage_router)
     app.include_router(worker_router)
     configure_version(
