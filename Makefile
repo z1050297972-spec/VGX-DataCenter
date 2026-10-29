@@ -15,9 +15,10 @@ web-tools:
 	@test -d src/web/node_modules || { echo "先在 src/web 里运行 pnpm install --frozen-lockfile" >&2; exit 1; }
 
 check:
-	@echo "[shell] bash -n 安装与升级脚本"
+	@echo "[shell] bash -n 安装、升级与一键部署脚本"
 	bash -n scripts/install.sh
 	bash -n scripts/upgrade.sh
+	bash -n scripts/setup.sh
 	@echo "[1/11] ruff format --check"
 	.venv/bin/ruff format --check .
 	@echo "[2/11] ruff check"
