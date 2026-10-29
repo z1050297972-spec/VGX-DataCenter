@@ -23,7 +23,7 @@ from rdp.api.jobs import configure_jobs
 from rdp.audit.types import OPS_AUDIT_CONTEXT
 from rdp.jobs.dataset_browser.schemas import RobotModelOption
 from rdp.jobs.dataset_browser.service import DatasetBrowserService
-from rdp.jobs.registry import JobRegistry, production_registry
+from rdp.jobs.registry import production_registry
 
 ENTRY = "按任务/libero_10"
 FORMAT_ENTRY = "按格式/lerobot/3.0/libero_10"
@@ -34,8 +34,6 @@ def browser_case(
     root: Path,
     nav: FakeNavigation,
     models: list[RobotModelOption] | None = None,
-    *,
-    registry: JobRegistry | None = None,
 ) -> Generator[ApiCase]:
     """以真实公开扫描接口准备索引，模型目录作为尚未实现M3的外部读取边界注入。"""
     with dataset_case(root, nav) as scan:
@@ -51,7 +49,7 @@ def browser_case(
         clock = Clock()
         app = create_app(None, database=scan.engine, clock=clock)
         app.state.account_service = accounts
-        configured_registry = production_registry() if registry is None else registry
+        configured_registry = production_registry()
         configure_jobs(
             app, scan.paths, configured_registry, scheduling=catalog_fixture(configured_registry)
         )
@@ -112,23 +110,3 @@ def historical_migrations(root: Path) -> Path:
         if script.name < "v0008":
             shutil.copyfile(script, target / "versions" / script.name)
     return target
-
-
-def submission_registry() -> JobRegistry:
-    """用当前已合并登记表加统计参数契约替身，执行入口一旦被Web调用便失败。"""
-    from rdp.jobs.dataset_browser.schemas import SizingRequest
-    from rdp.jobs.execution import ExecutionContext
-    from rdp.jobs.registry import JobDefinition
-    from rdp.jobs.types import RecoveryMode
-
-    registry = production_registry()
-
-    def execute(_context: ExecutionContext) -> None:
-        raise AssertionError("HTTP不得执行统计作业")
-
-    registry.register(
-        JobDefinition(
-            "dataset_sizing", "统计数据集大小", SizingRequest, RecoveryMode.RESTART, execute
-        )
-    )
-    return registry

@@ -57,6 +57,7 @@ def apply(session: Session, plan: IndexReplacement) -> ScanPublication:
     if nav.requested_dataset_id is None:
         _findings(session, "global", nav.global_findings, scan.scan_id, clear=True)
     _findings(session, "global", plan.notices, scan.scan_id, clear=False)
+    storage_count = _storage_values(session, plan)
     session.flush()
     _cleanup(session)
     entries = sum(len(item.entries) for item in nav.datasets)
@@ -69,7 +70,7 @@ def apply(session: Session, plan: IndexReplacement) -> ScanPublication:
         entries,
         failed,
         len(plan.skipped),
-        count,
+        count + storage_count,
         len(plan.skipped) + plan.storage.warning_count,
     )
 
@@ -324,3 +325,75 @@ def _cleanup(session: Session) -> None:
             DatasetScanRow.is_current.is_(False), DatasetScanRow.scan_id.not_in(referenced)
         )
     )
+
+
+def _storage_values(session: Session, plan: IndexReplacement) -> int:
+    """只把通过指纹复核的数据块观察写入索引，不覆盖跳过者。"""
+    skipped_paths = {str(entry.location.path) for item in plan.skipped for entry in item.entries}
+    paths = {
+        str(entry.location.path) for item in plan.accepted for entry in item.entries
+    } - skipped_paths
+    for item in plan.storage.links:
+        if item.entry_path in paths:
+            session.execute(
+                update(LinkRow)
+                .where(LinkRow.entry_path == item.entry_path, LinkRow.ordinal == item.ordinal)
+                .values(
+                    storage_root_name=item.storage_root_name,
+                    status=item.status.value,
+                    checked_at=item.checked_at,
+                )
+            )
+    for item in plan.storage.sources:
+        if item.entry_path not in paths:
+            continue
+        session.execute(
+            update(SourceRow)
+            .where(SourceRow.entry_path == item.entry_path, SourceRow.ordinal == item.ordinal)
+            .values(
+                storage_root_name=item.storage_root_name,
+                status=item.status.value,
+                checked_at=item.checked_at,
+                robot_type=item.robot_type,
+                fps=item.fps,
+                fps_rounded=int(item.fps + 0.5) if item.fps is not None else None,
+                codebase_version=item.codebase_version,
+                meta_checked_at=item.meta_checked_at,
+            )
+        )
+
+    return _storage_findings(session, plan)
+
+
+def _storage_findings(session: Session, plan: IndexReplacement) -> int:
+    """完成第二段才替换对应发现；单数据集扫描保留全局和其他数据集发现。"""
+    if plan.storage.stage.value == "not_run":
+        return 0
+    skipped_paths = {str(entry.location.path) for item in plan.skipped for entry in item.entries}
+    owners = {
+        "dataset:" + item.dataset_id
+        if item.dataset_id
+        else "entry:" + str(item.entries[0].location.path)
+        for item in plan.accepted
+        if item.entries
+        and not any(str(entry.location.path) in skipped_paths for entry in item.entries)
+    }
+    if plan.navigation.requested_dataset_id is None:
+        owners.add("global")
+    session.execute(
+        delete(FindingRow).where(
+            FindingRow.owner_key.in_(owners),
+            (FindingRow.group == "disk") | (FindingRow.rule == "STORAGE_OFFLINE"),
+        )
+    )
+    scan_id = session.scalar(
+        select(DatasetScanRow.scan_id).where(DatasetScanRow.is_current.is_(True))
+    )
+    if scan_id is None:
+        raise DefectError()
+    count = 0
+    for owner, group in plan.storage.findings:
+        if owner in owners:
+            _findings(session, owner, (group,), scan_id, clear=False)
+            count += group.diagnostics.total
+    return count

@@ -67,9 +67,7 @@ def test_all_endpoints_with_unreadable_storage_roots(
     """验收2：全部数据集接口在假根chmod000且操作系统探针拒绝根访问时仍返回200。"""
     import os
 
-    from dataset_api_support import submission_registry
-
-    with browser_case(tmp_path / "state", fake_nav, registry=submission_registry()) as case:
+    with browser_case(tmp_path / "state", fake_nav) as case:
         roots = tuple(root.path for root in fake_nav.storage_roots)
         opened = os.open
         modes = {root: root.stat().st_mode for root in roots}
@@ -740,24 +738,7 @@ def test_rescan_submits_current_actor_and_never_executes(
     tmp_path: Path, fake_nav: FakeNavigation
 ) -> None:
     """验收5：重新检查只提交单数据集queued作业和审计，提交人来自登录身份，登记执行器不被调用。"""
-    from rdp.jobs.datasets.rescan import RescanParameters
-    from rdp.jobs.execution import ExecutionContext
-    from rdp.jobs.registry import JobDefinition, JobRegistry
-    from rdp.jobs.types import RecoveryMode
-
-    calls: list[int] = []
-
-    def execute(context: ExecutionContext) -> None:
-        calls.append(context.job_id)
-        raise AssertionError("Web不得执行扫描")
-
-    registry = JobRegistry()
-    registry.register(
-        JobDefinition(
-            "dataset_rescan", "重新扫描数据集", RescanParameters, RecoveryMode.RESTART, execute
-        )
-    )
-    with browser_case(tmp_path / "state", fake_nav, registry=registry) as case:
+    with browser_case(tmp_path / "state", fake_nav) as case:
         response = case.client.post("/api/datasets/dataset-14/rescan")
         assert response.status_code == 201, response.text
         job = response.json()
@@ -769,37 +750,20 @@ def test_rescan_submits_current_actor_and_never_executes(
             "items"
         ]
         assert len(logs) == 1 and logs[0]["result"] == "success"
-        assert calls == []
+        # Web生产登记没有执行依赖；若误调用正式执行器会失败，且不能得到未启动的排队记录。
+        assert job["started_at"] is None
+        assert job["progress"] is None and job["summary"] is None
         assert case.client.post("/api/datasets/absent/rescan").status_code == 404
 
 
 def test_sizing_submits_all_or_one_without_worker_import(
     tmp_path: Path, fake_nav: FakeNavigation
 ) -> None:
-    """验收5：统计范围为null或单编号，当前成员提交；未登记422，Web不执行登记回调。"""
+    """验收5：统计使用正式生产登记，null或单编号由当前成员提交，记录保持queued且没有执行进度。"""
     from account_api_support import add_actor
     from pydantic import SecretStr
 
-    from rdp.jobs.dataset_browser.schemas import SizingRequest
-    from rdp.jobs.execution import ExecutionContext
-    from rdp.jobs.registry import JobDefinition, JobRegistry
-    from rdp.jobs.types import RecoveryMode
-
-    registry = JobRegistry()
-    with browser_case(tmp_path / "unregistered", fake_nav, registry=registry) as case:
-        assert (
-            case.client.post("/api/datasets/sizing", json={"dataset_id": None}).status_code == 422
-        )
-
-    def execute(_context: ExecutionContext) -> None:
-        raise AssertionError("Web不得执行统计")
-
-    registry.register(
-        JobDefinition(
-            "dataset_sizing", "统计数据集大小", SizingRequest, RecoveryMode.RESTART, execute
-        )
-    )
-    with browser_case(tmp_path / "registered", fake_nav, registry=registry) as case:
+    with browser_case(tmp_path / "registered", fake_nav) as case:
         add_actor(case)
         assert case.login("member", SecretStr("member-updated-value")).status_code == 200
         identifiers: list[str] = []
@@ -812,6 +776,8 @@ def test_sizing_submits_all_or_one_without_worker_import(
             assert (
                 job["submitted_by"]["name"] == "成员" and job["submitted_by"]["account_id"] == "2"
             )
+            assert job["started_at"] is None and job["progress"] is None and job["summary"] is None
+            assert case.client.get("/api/jobs/" + job["job_id"]).json() == job
             identifiers.append(job["job_id"])
         assert len(set(identifiers)) == 2
         assert (
@@ -1265,3 +1231,37 @@ def test_layout_direct_call_rejects_invalid_value(tmp_path: Path, fake_nav: Fake
         with pytest.raises(DatasetQueryError):
             service.set_layout(request, cast(Layout, "invalid"))
         assert service.get_layout(request).model_dump() == {"layout": "A", "updated_at": None}
+
+
+def test_sizing_openapi_matches_production_parameters(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """合并对齐：HTTP直接复用正式统计参数模型，省略编号按全量提交，错误类型及额外字段422。"""
+    from rdp.api import create_app
+    from rdp.jobs.datasets.sizing import SizingParameters
+
+    schema = create_app(None, database=None).openapi()
+    request = schema["paths"]["/api/datasets/sizing"]["post"]["requestBody"]["content"][
+        "application/json"
+    ]["schema"]
+    assert request == {"$ref": "#/components/schemas/" + SizingParameters.__name__}
+    exported = schema["components"]["schemas"][SizingParameters.__name__]
+    expected = SizingParameters.model_json_schema()
+    # FastAPI省略None默认值；比较输入约束和必填集合，默认行为另用真实HTTP请求验证。
+    assert set(exported["properties"]) == set(expected["properties"]) == {"dataset_id"}
+    assert (
+        exported["properties"]["dataset_id"]["anyOf"]
+        == expected["properties"]["dataset_id"]["anyOf"]
+    )
+    assert exported.get("required", []) == expected.get("required", []) == []
+    assert exported["additionalProperties"] is expected["additionalProperties"] is False
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        response = case.client.post("/api/datasets/sizing", json={})
+        assert response.status_code == 201, response.text
+        assert response.json()["parameters"] == {"dataset_id": None}
+        for payload in (
+            {"dataset_id": True},
+            {"dataset_id": "../invalid"},
+            {"dataset_id": None, "extra": 1},
+        ):
+            assert case.client.post("/api/datasets/sizing", json=payload).status_code == 422

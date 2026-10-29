@@ -24,6 +24,7 @@ def plan(
 ) -> IndexReplacement:
     """先验证范围，再分别列出替换、删除和跳过，不触碰数据库。"""
     now = _storage.moment(now)
+    _validate_storage(navigation, storage)
     if len(current) != len(navigation.datasets):
         raise DefectError()
     accepted: list[DatasetObservation] = []
@@ -84,3 +85,22 @@ def _new_observation(
         and item.dataset_id not in previous
         and all(str(entry.location.path) not in old_paths for entry in item.entries)
     )
+
+
+def _validate_storage(navigation: NavigationScan, storage: StorageScan) -> None:
+    """阶段结果只能引用同一次导航快照里的入口和数组序号，不能静默丢弃坏交接。"""
+    entries = {
+        str(entry.location.path): entry for item in navigation.datasets for entry in item.entries
+    }
+    seen: set[tuple[str, str, int]] = set()
+    for kind, observations in (("links", storage.links), ("sources", storage.sources)):
+        for observed in observations:
+            entry = entries.get(observed.entry_path)
+            identity = kind, observed.entry_path, observed.ordinal
+            if entry is None or identity in seen:
+                raise DefectError()
+            limit = len(entry.links) if kind == "links" else len(entry.sources)
+            if not 0 <= observed.ordinal < limit:
+                raise DefectError()
+            _storage.moment(observed.checked_at)
+            seen.add(identity)

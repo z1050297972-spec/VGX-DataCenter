@@ -857,7 +857,7 @@ export interface paths {
          *
          *     Args:
          *         context: Origin、认证及强制改密已经通过的上下文，审计来源来自服务器。
-         *         body: 必填dataset_id，null为全量；不接受存储根、提交人或作业类型覆盖。
+         *         body: 正式SizingParameters，dataset_id省略或null为全量；不接受存储根、提交人或类型覆盖。
          *
          *     Returns:
          *         201，复用M0完整JobResponse，新作业queued，type_name=dataset_sizing。
@@ -875,7 +875,7 @@ export interface paths {
          *         DefectError: 提交装配或M0响应映射错误，500。
          *
          *     Side Effects:
-         *         只提交作业并写M0提交日志；不运行统计、不更新大小，不导入第02张执行模块。
+         *         只提交作业并写M0提交日志；复用第02张参数模型，不调用统计执行器、不更新大小。
          *
          *     Time Semantics:
          *         使用请求唯一UTC提交时刻，不等待worker在线或执行；客户端不自动重试POST。
@@ -2889,6 +2889,18 @@ export interface components {
          */
         RecoveryMode: "resume" | "restart" | "interrupt";
         /**
+         * RescanParameters
+         * @description 扫描范围参数，不能指定导航路径、存储根或提交人。
+         *
+         *     Attributes:
+         *         model_config: 不可变，拒绝多余字段，不回显不可信输入。
+         *         dataset_id: None为全量；否则非空、无路径分隔符的永久编号；上限256码点。
+         */
+        RescanParameters: {
+            /** Dataset Id */
+            dataset_id?: string | null;
+        };
+        /**
          * ResetPasswordRequest
          * @description 管理员重置口令请求，不接受解除强制改密标记。
          *
@@ -3006,14 +3018,6 @@ export interface components {
             types: components["schemas"]["TypeUsageResponse"][];
             /** Worker Online */
             worker_online: boolean;
-        };
-        /**
-         * SizingRequest
-         * @description 手动统计范围，显式null为全部；不接收路径、操作者、类型键或执行选项。
-         */
-        SizingRequest: {
-            /** Dataset Id */
-            dataset_id: string | null;
         };
         /**
          * StatusRequest
@@ -5328,7 +5332,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SizingRequest"];
+                "application/json": components["schemas"]["RescanParameters"];
             };
         };
         responses: {

@@ -1,6 +1,6 @@
 # 数据集接口
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：骨架关卡。理由：这是跨模块的接口，前端第 04 张要照着它的 OpenAPI 并行开工；"接口不碰存储根"要在骨架里写成一条能检查的边界（3.0 第 1 条"跨模块接口"）。
 
@@ -96,3 +96,8 @@ Status: ready-for-agent
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。Status 定为 `ready-for-agent`：第 01 张合并后才能开票，可以和第 02 张并行。
+- 2026-10-29 06:08 开票（执行线，负责人授权）。第 01 张已合并（04c2886）。Status 改为 in-progress。工作目录 `~/桌面/robot-data-platform.wt/m1-03-dataset-api`。派工 A 交骨架（fast，新会话 `01a1878f-7935-78d2-abfd-2e523a6f1b9f`，提示 `assets/03-dataset-api/prompt-A.md`）。和第 02 张并行；统计大小作业的键名先按 `dataset_sizing` 写成具名常量，合并时和第 02 张对齐。
+- 2026-10-29 06:40 骨架交回（快照 `refs/rdp/m1-03/A-out`）：10 个接口，布局表 `dataset_layout_preferences`（迁移 0008 在 pending），36 项跳过测试，import-linter 新增禁入契约；日志审计 0 条。执行线按负责人授权过关卡，接口路径和字段、子任务按原字节 text/plain 返回、布局表结构、统计作业键先写 `dataset_sizing`，都接受。有两处要在 B 里改：(1) 禁入契约收窄成只禁存储根访问的模块（`rdp.jobs.storage`、`rdp.infra.storage`、`rdp.api.storage`，worker、执行器、登记表照旧禁），不再整体禁 `rdp.jobs.datasets`。这样详情接口可以直接复用第 01 张的 `reading`、`fingerprint` 判断索引是否过期，不用另写一套读取逻辑；间接导入仍然检查，所以只要经过某条链路碰到存储根访问，照样会被拦住。(2) 布局偏好是个人界面设置，不写操作日志，去掉 `SET_DATASET_LAYOUT`，减少日志噪音。契约提交见下一条。
+- 2026-10-29 06:41 契约提交 `9b71070`（钩子全绿）。派工 B 第一段（fast，同会话，提示 `prompt-B.md`）。
+- 2026-10-29 06:44 派工 B 按停止条件停下（`out-B.md`）：禁入契约收窄后仍然失败，原因是浏览服务 import 了 M0 的 `JobService`，它经 registry → execution / datasets.rescan 间接引入存储根访问。和 reading、fingerprint 无关。执行线决定：把浏览层拆成只读查询和提交作业两个模块。只读查询（树、列表、筛选、详情、子任务、面板、布局）放进一个模块，禁入契约只管它和 schemas，并且检查间接导入；提交作业（重新检查、统计大小）单独放一个模块，经 M0 的 JobService 只插作业行，这和 M0 现有的 `rdp.api.jobs` 做法一样。运行时的边界仍由验收 2 的测试保证：把存储根设成不可读，所有接口照常返回。这一轮不算打回（Codex 按指令停下，没有交付缺陷）。
+- 2026-10-29 07:33 第一段检查点交回（快照 `refs/rdp/m1-03/B-out1`），日志审计 0 条，Codex 自报 make check 全绿（2220 passed / 9 skipped）。拆分落实：`queries.DatasetQueries` 和 `commands.DatasetCommands`，禁入契约只管 queries、schemas，检查间接导入，没有 ignore；布局审计已去掉。**验收 1 真实演练**（`apidrill.sh` → `apidrill-run.log`）：存储根路径改成不存在的目录，worker 启动时的扫描建了 35 个数据集的索引。树 200（35 KB，0.05 秒）、列表 200（35 条，0.03 秒）、筛选 200（没有登记型号，默认按型号标签筛选）、详情 200（496 KB，0.30 秒，index_stale=false）；最大的 `子任务.json` 14.09 MB 三次都是 0.24–0.27 秒，text/plain，内容和原文件逐字节相同，带 X-Document-SHA256。面板返回 500，因为它在第二段才实现，符合预期。不存在的存储根目录没有被创建，/mnt/datasets 清单前后逐字节相同。14 MB 的响应时间可以接受，不需要压缩或流式返回。派工 B 第二段。

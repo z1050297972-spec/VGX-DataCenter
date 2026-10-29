@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from rdp.accounts.service import authorize_job_actor
 from rdp.infra.diagnostics import DefectError
-from rdp.jobs.dataset_browser.commands import DATASET_SIZING_JOB_TYPE as DATASET_SIZING_JOB_TYPE
 from rdp.jobs.dataset_browser.commands import DatasetCommands
 from rdp.jobs.dataset_browser.queries import DatasetQueries, QueryAccess, SubtasksDocument
 from rdp.jobs.dataset_browser.queries import (
@@ -295,7 +294,7 @@ class DatasetBrowserService:
             dataset_id: 已索引编号；None表示全量，拒绝附带存储根、IO优先级或路径。
 
         Returns:
-            DATASET_SIZING_JOB_TYPE的新queued记录，parameters只有dataset_id；
+            catalog.SIZING_TYPE的新queued记录，parameters只有dataset_id；
             响应使用M0作业类型，大小结果由后续worker发布，提交时不假造新大小。
 
         Raises:
@@ -310,7 +309,7 @@ class DatasetBrowserService:
             DefectError: 统计提交装配、时钟或返回记录违反契约。
 
         Side Effects:
-            M0同事务新增作业和提交日志，不import第02张模块、不遍历根、不在Web执行作业。
+            M0同事务新增作业和提交日志；提交模块复用第02张类型键和参数模型，不遍历根、不执行作业。
 
         Time Semantics:
             锁与补记预算沿用JobService.submit，不等待上次统计结束、不自动重试POST。

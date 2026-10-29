@@ -30,9 +30,9 @@ from rdp.jobs.dataset_browser.schemas import (
     EntryPath,
     LayoutRequest,
     LayoutResponse,
-    SizingRequest,
 )
 from rdp.jobs.dataset_browser.service import DatasetBrowserService
+from rdp.jobs.datasets.sizing import SizingParameters
 from rdp.jobs.service import JobRequest
 
 logger = logging.getLogger(__name__)
@@ -367,12 +367,12 @@ def get_dataset_subtasks(
 @router.post(
     "/sizing", response_model=JobResponse, status_code=201, operation_id="submit_dataset_sizing"
 )
-def submit_dataset_sizing(context: DatasetContext, body: SizingRequest) -> JobResponse:
+def submit_dataset_sizing(context: DatasetContext, body: SizingParameters) -> JobResponse:
     """按当前账号提交一次全量或单数据集统计大小作业。
 
     Args:
         context: Origin、认证及强制改密已经通过的上下文，审计来源来自服务器。
-        body: 必填dataset_id，null为全量；不接受存储根、提交人或作业类型覆盖。
+        body: 正式SizingParameters，dataset_id省略或null为全量；不接受存储根、提交人或类型覆盖。
 
     Returns:
         201，复用M0完整JobResponse，新作业queued，type_name=dataset_sizing。
@@ -390,7 +390,7 @@ def submit_dataset_sizing(context: DatasetContext, body: SizingRequest) -> JobRe
         DefectError: 提交装配或M0响应映射错误，500。
 
     Side Effects:
-        只提交作业并写M0提交日志；不运行统计、不更新大小，不导入第02张执行模块。
+        只提交作业并写M0提交日志；复用第02张参数模型，不调用统计执行器、不更新大小。
 
     Time Semantics:
         使用请求唯一UTC提交时刻，不等待worker在线或执行；客户端不自动重试POST。

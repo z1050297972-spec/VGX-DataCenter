@@ -5,12 +5,10 @@ from sqlalchemy import Engine
 from rdp.accounts.service import authorize_job_actor
 from rdp.infra.db.connection import session_scope
 from rdp.jobs.dataset_browser import _scope
-from rdp.jobs.datasets.catalog import RESCAN_TYPE
+from rdp.jobs.datasets.catalog import RESCAN_TYPE, SIZING_TYPE
+from rdp.jobs.datasets.sizing import SizingParameters
 from rdp.jobs.service import JobRequest, JobService
 from rdp.jobs.types import JobRecord
-
-# 第02张拥有登记键，合并时对齐；本模块只向M0队列提交。
-DATASET_SIZING_JOB_TYPE = "dataset_sizing"
 
 
 class DatasetCommands:
@@ -79,7 +77,7 @@ class DatasetCommands:
             dataset_id: 已索引编号；None表示全量，拒绝附带存储根、IO优先级或路径。
 
         Returns:
-            DATASET_SIZING_JOB_TYPE的新queued记录，parameters只有dataset_id；
+            SIZING_TYPE的新queued记录，parameters只有dataset_id；
             响应使用M0作业类型，大小结果由后续worker发布，提交时不假造新大小。
 
         Raises:
@@ -94,13 +92,14 @@ class DatasetCommands:
             DefectError: 统计提交装配、时钟或返回记录违反契约。
 
         Side Effects:
-            M0同事务新增作业和提交日志，不import第02张模块、不遍历根、不在Web执行作业。
+            M0同事务新增作业和提交日志；复用第02张类型键和参数模型，不遍历根、不执行作业。
 
         Time Semantics:
             锁与补记预算沿用JobService.submit，不等待上次统计结束、不自动重试POST。
         """
         self._check_scope(request, dataset_id)
-        return self.jobs.submit(request, DATASET_SIZING_JOB_TYPE, {"dataset_id": dataset_id})
+        parameters = SizingParameters(dataset_id=dataset_id)
+        return self.jobs.submit(request, SIZING_TYPE, parameters.model_dump(mode="json"))
 
     def _check_scope(self, request: JobRequest, dataset_id: str | None) -> None:
         """提交前只读检查身份和编号，实际执行资格与导航变化仍由worker处理。"""

@@ -290,12 +290,6 @@ class DatasetDetailResponse(BrowserValue):
     diagnostics: tuple[Diagnostic, ...]
 
 
-class SizingRequest(BrowserValue):
-    """手动统计范围，显式null为全部；不接收路径、操作者、类型键或执行选项。"""
-
-    dataset_id: DatasetId | None
-
-
 class LayoutRequest(BrowserValue):
     """当前账号的布局选择，不接受account_id或会话标识。"""
 

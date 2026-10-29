@@ -1,6 +1,6 @@
 # 扫描第二段与统计大小
 
-Status: ready-for-agent
+Status: done
 
 分级：直做。理由：契约、索引字段和诊断的形状都已经在第 01 张过了骨架关卡。这张票是在已有模块里加检查，再加一个规则已经定好的作业类型（3.0 第 1 条）。如果第 01 张的骨架没覆盖统计大小要用的字段，或者要改第 01 张的契约含义，就升为骨架关卡（spec 实现票清单）。
 
@@ -96,3 +96,7 @@ Claude 起 worker（真实导航层，只读），提交一次全量扫描和一
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。Status 定为 `ready-for-agent`：第 01 张合并后才能开票，可以和第 03 张并行。
+- 2026-10-29 06:08 开票（执行线，负责人授权）。第 01 张已合并（04c2886）。Status 改为 in-progress。工作目录 `~/桌面/robot-data-platform.wt/m1-02-scan-stage2-sizing`。分级为直做，一次派工先写测试再实现，分两段交：第一段是第二段扫描、③④ 组和离线处理，交检查点后执行线做验收 1 的真实扫描；第二段是统计大小。派工 B（fast，新会话 `01a1878f-7936-74e0-a4c2-95b770fa393c`，提示 `assets/02-scan-stage2-sizing/prompt-B.md`）。和第 03 张并行。
+- 2026-10-29 06:58 第一段检查点交回（快照 `refs/rdp/m1-02/B-out1`），日志审计 0 条，Codex 自报 make check 全绿（2219 passed / 1 skipped）。**验收 1 真实存储根扫描**（`realscan.sh` → `realscan-run.log`、`realscan-findings.txt`）：两段都跑完，storage_stage=completed；两块盘都在线；3697 个数据块里 504 个读到型号、982 个读到 FPS。第二段约 2.0 秒（热缓存，0010 预期约 8 秒），持锁 0.56 秒。发现共 150 条，和 Codex 的预计逐条一致：③需要处理 SOURCE_MISSING 6（alpha 已删除的 3 个副本 × 两个视图）；③提示 SUMMARY_PATH_MISSING 70、EXCLUDED_PATH_MISSING 6、TASK_REFERENCE_MISSING、MARKDOWN_REFERENCE_MISSING 2、ROOT_CONTENT_UNLINKED 4；④ 0；加上第 01 张的 PROVENANCE_MISSING 35、TOP_LEVEL_UNREGISTERED 1。和手册第 8 节"1 类需要处理、5 类提示"对得上。/mnt/datasets 清单前后逐字节相同。**但两块数据盘在扫描期间有写入**（/sys/block 写入扇区：sda +272，sdb +3720）。执行线查实是读取引起的 atime 更新：两块盘按 rw,relatime 挂载，扫描读了 meta/info.json，这些文件的 atime 变成了 06:57:29，mtime 仍是 08-17。平台的代码本身没有写盘，但"数据盘只读"在内核层面并不成立。处理：(1) 平台读存储根时尽量带 O_NOATIME（文件属主是本用户时有效，EPERM 时退回普通读取），写进第二段要求；(2) 建议负责人把两块数据盘改成 noatime 或 ro 挂载（要 sudo，执行线不动系统配置）。
+- 2026-10-29 08:06 第二段交回（快照 `refs/rdp/m1-02/B-out2`），日志审计 0 条，Codex 自报 make check 三次全绿（2234 passed / 0 skipped）。**验收 2 真实统计**（`sizing.sh` → `sizing-run.log`）：全量 dataset_sizing 用时 512 秒，其中 agibot_world_alpha 约 8 分 15 秒（13:57:06 到 14:05:21），和预期的约 8 分钟一致；统计线程 `ionice` 是 idle；35 个数据集合计 35.1 TB；DOWNLOAD_INCOMPLETE 两条（1 个和 8 个），和历史预期一致。两块盘的写入扇区数在扫描和统计期间都没变，说明 O_NOATIME 生效了；/mnt/datasets 清单前后逐字节相同。**和 du 对照不一致**：libero_10 平台 631188445、du 631143389；droid_100 464086249 和 464033001；aloha_static_towel 591751624 和 591690184。差额正好是目标里的目录数 × 4096（11、13、15 个目录）：平台把目录自身的 st_size 也算进去了，du --apparent-size -sb 的结果（也等于 10-12 的记录值）没有算。执行线决定统计口径和 du、记录值保持一致：只计普通文件和软链接自身，不计目录的 st_size。打回第 1 轮。另记：agibot_world_2026 统计值 13.216 TB，记录值 13.873 TB，差约 4.7%，留给面板显示两者时说明。
+- 2026-10-29 08:20 第 1 轮交回（快照 `refs/rdp/m1-02/r1-out`），日志审计 0 条。执行线拿修好的统计函数直接算三个真实目标：libero_10 631143389、droid_100 464033001、aloha_static_towel 591690184，和 du 完全一致。变异抽查 3 处全部被发现（`mutation_probe.txt`：O_NOATIME、EPERM 回退、离线根跳过检查）。验收 1–7 全部满足。实现提交后按负责人授权合并；作业键 `dataset_sizing` 和参数 `{"dataset_id": str|null}` 已经和第 03 张的写法一致。
