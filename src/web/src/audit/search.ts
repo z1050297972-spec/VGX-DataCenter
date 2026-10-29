@@ -55,6 +55,13 @@ export const OPERATION_LABELS = {
   submit_job: "提交作业",
   cancel_job: "取消作业",
   rebuild_index: "重建索引",
+  create_link: "建链",
+  create_dataset: "新增数据集",
+  repoint_dataset: "改指向",
+  set_data_origin: "标注数据来源",
+  revert_change: "撤回改动",
+  rollback_navigation_write: "回滚中断的写入",
+  confirm_navigation_recovery: "确认恢复失败",
 } satisfies Record<NonNullable<OperationSearch["operation"]>, string>;
 /** 操作结果筛选和展示使用同一字典。 */
 export const OPERATION_RESULTS = { success: "成功", failure: "失败" };

@@ -65,6 +65,8 @@ class JobDefinition:
         requires_gpu: 默认 False，严格布尔；True 时领取必须同时申请 GPU，空配置在执行时失败。
         storage: 按检查顺序排列的 StorageUse 元组，默认空，同一个根不可重复声明；
             名字须在启动配置中登记，用户不能用作业参数扩大该声明。
+        writes_navigation: 默认 False，严格布尔（M1-07，ADR 0005 修订）。True 表示该类型会写导航层：
+            "导航层恢复失败"标记存在时，worker 不领取这类作业，它们留在排队中；其他类型不受影响。
         execute: 仅接收 ExecutionContext 的同步函数，成功返回 None；每一步至多 JOB_CHECKPOINT_MAX_S
             到达检查点，所有等待经上下文；异常由执行器外层收口，不自行写作业状态或结果。
     """
@@ -77,6 +79,7 @@ class JobDefinition:
     concurrency: int = 1
     requires_gpu: bool = False
     storage: tuple[StorageUse, ...] = ()
+    writes_navigation: bool = False
 
 
 class JobRegistry:

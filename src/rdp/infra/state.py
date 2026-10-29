@@ -36,6 +36,9 @@ class StatePaths:
             保持输入顺序、类型不重复，允许为空；必填，无默认值，不使用可变 dict。
         worker_lock: root/worker.lock 的绝对 Path，无单位；必填，无默认值。
         navigation_example: 由 root 派生的示例文件绝对路径，只有示例写锁作业可追加。
+        nav_journal: 由 root 派生的写入日志目录（M1-07，ADR 0009 L13）。
+        nav_changes: 由 root 派生的变更记录目录（M1-07，ADR 0009 L16）。
+        nav_previews: 由 root 派生的预览结果目录（M1-07，预览是只读 worker 作业）。
     """
 
     root: Path
@@ -48,6 +51,21 @@ class StatePaths:
     def navigation_example(self) -> Path:
         """示例写锁文件 root/navigation-example.jsonl 的绝对路径，只计算、不创建。"""
         return self.root / "navigation-example.jsonl"
+
+    @property
+    def nav_journal(self) -> Path:
+        """写入日志目录 root/nav-journal 的绝对路径，每个未收尾的写导航层作业一个子目录；只计算、不创建。"""
+        return self.root / "nav-journal"
+
+    @property
+    def nav_changes(self) -> Path:
+        """变更记录目录 root/nav-changes 的绝对路径，永久保留，一个作业一份 .json.gz；只计算、不创建。"""
+        return self.root / "nav-changes"
+
+    @property
+    def nav_previews(self) -> Path:
+        """预览结果目录 root/nav-previews 的绝对路径，一个预览作业一份 .json.gz；只计算、不创建。"""
+        return self.root / "nav-previews"
 
 
 def state_paths(config: PlatformConfig, job_types: Sequence[str]) -> StatePaths:

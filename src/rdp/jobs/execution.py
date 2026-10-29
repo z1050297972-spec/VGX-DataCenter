@@ -192,6 +192,12 @@ class ExecutorDependencies:
         poll_submissions: worker每轮恢复准备完成后、领取前调用的内部提交回调；默认None表示没有额外触发。
             返回本轮已提交作业编号元组，M1用RescanTrigger.poll；不访问导航或存储根，不启动线程。
             停止后不再调用，回调只能有界等待数据库短锁，不改变现有每日调度语义。
+        recover_navigation: 无参回调，默认 None（M1-07，ADR 0005 修订）。worker 在全部旧 running/cancelling
+            作业判为中断之后、第一次领取之前调用一次，内容是 recover_navigation_writes（回滚没收尾的写入、
+            必要时设置"导航层恢复失败"标记）；抛出的异常按全局基础设施故障处理，整实例失败退出。
+            回调返回之前没有任何作业被领取。
+        navigation_blocked: 无参回调，默认 None。每轮领取前调用，返回 True 表示"导航层恢复失败"标记在，
+            此时 writes_navigation 的作业类型整类跳过、留在排队中；回调只读数据库，抛出异常时同样整实例失败。
     """
 
     engine: Engine
@@ -202,6 +208,8 @@ class ExecutorDependencies:
     storage: StorageAccessChecker | None = field(kw_only=True)
     platform_version: str | None = field(default=None, kw_only=True)
     poll_submissions: Callable[[], tuple[int, ...]] | None = field(default=None, kw_only=True)
+    recover_navigation: Callable[[], None] | None = field(default=None, kw_only=True)
+    navigation_blocked: Callable[[], bool] | None = field(default=None, kw_only=True)
 
 
 def execute_job(

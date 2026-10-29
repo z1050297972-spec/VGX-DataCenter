@@ -143,6 +143,24 @@ type = "forbidden"
 source_modules = ["rdp.infra.logging", "rdp.infra.ids"]
 forbidden_modules = ["rdp.infra.db"]
 
+# M1-07 / 规范 1.4 / ADR 0005：Web 进程不写导航层。写导航层的三个模块（原子写、中断恢复、写入流水线）
+# 只能由 worker 一侧 import；rdp.api 和 rdp.ops 不得直接依赖它们。
+# 刻意用 allow_indirect_imports=true：rdp.jobs.registry.production_registry 在函数内同时给 Web 和 worker
+# 登记同一批作业类型（Web 只为校验提交参数），这条间接链是设计内的；Web 拿不到写入能力，
+# 因为 NavWriteDependencies 只由 worker 构造，Web 侧登记传 None，执行时缺依赖即程序缺陷。
+# 直接依赖由本合约保证；"Web 侧没有真的写"由测试（只读状态、假导航层未变）保证，不冒充 I/O 沙箱。
+[[tool.importlinter.contracts]]
+name = "写导航层的模块只能被 worker 一侧 import"
+type = "forbidden"
+source_modules = ["rdp.api", "rdp.ops"]
+forbidden_modules = [
+    "rdp.jobs.navwrite.atomic",
+    "rdp.jobs.navwrite.recovery",
+    "rdp.jobs.navwrite.pipeline",
+    "rdp.jobs.navwrite.jobs",
+]
+allow_indirect_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-config --strict-markers"
