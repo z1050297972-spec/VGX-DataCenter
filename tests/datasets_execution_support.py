@@ -20,7 +20,7 @@ from rdp.jobs.datasets.rescan import RescanDependencies, build_rescan_definition
 from rdp.jobs.execution import ExecutionContext, ExecutionWork, ExecutorDependencies, execute_job
 from rdp.jobs.progress import ExecutionMonitor, ExecutionSignals
 from rdp.jobs.records import claim_job
-from rdp.jobs.registry import JobRegistry
+from rdp.jobs.registry import JobDefinition, JobRegistry
 from rdp.jobs.types import ExecutionMode, JobClock, JobRecord, JobState
 
 
@@ -37,9 +37,11 @@ class DatasetCase:
         self,
         dataset_id: str | None = None,
         execute: Callable[[ExecutionContext], None] | None = None,
+        definition: JobDefinition | None = None,
+        cancel: Event | None = None,
     ) -> JobRecord:
         """按真实RESTART定义领取并执行一个作业，回调只能替换类型执行边界。"""
-        definition = build_rescan_definition(self.scanning)
+        definition = definition or build_rescan_definition(self.scanning)
         if execute is not None:
             definition = replace(definition, execute=execute)
         registry = JobRegistry()
@@ -64,7 +66,13 @@ class DatasetCase:
         )
         work = ExecutionWork(record, ExecutionMode.FRESH, None, claim=claim_fixture(record, deps))
         result = execute_job(
-            work, deps, ExecutionSignals(Event(), Event(), ExecutionMonitor([], None, Lock()))
+            work,
+            deps,
+            ExecutionSignals(
+                cancel if cancel is not None else Event(),
+                Event(),
+                ExecutionMonitor([], None, Lock()),
+            ),
         )
         assert result is not None
         return result
@@ -73,7 +81,7 @@ class DatasetCase:
 @contextmanager
 def dataset_case(root: Path, navigation: FakeNavigation) -> Generator[DatasetCase]:
     """真实迁移只写临时状态目录，不读默认配置或真实挂载表。"""
-    paths = state_paths(PlatformConfig(state_dir=root), ("重新扫描数据集",))
+    paths = state_paths(PlatformConfig(state_dir=root), ("重新扫描数据集", "统计数据集大小"))
     initialize_state(paths)
     migrate(paths, now=NOW)
     engine = create_database_engine(paths.database)

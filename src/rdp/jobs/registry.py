@@ -249,6 +249,7 @@ def production_registry(rescan_dependencies: RescanDependencies | None = None) -
     """
     # 延迟导入避免登记定义和执行上下文的模块环；每次构造都返回独立对象。
     from rdp.jobs.datasets.rescan import build_rescan_definition
+    from rdp.jobs.datasets.sizing import build_sizing_definition
     from rdp.jobs.example import CountParameters, execute_count
     from rdp.jobs.maintenance import PurgeParameters, execute_purge_errors, execute_purge_logs
     from rdp.jobs.resource_examples import (
@@ -297,6 +298,7 @@ def production_registry(rescan_dependencies: RescanDependencies | None = None) -
     ):
         registry.register(definition)
     registry.register(build_rescan_definition(rescan_dependencies))
+    registry.register(build_sizing_definition(rescan_dependencies))
     return registry
 
 

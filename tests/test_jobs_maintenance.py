@@ -18,7 +18,7 @@ from rdp.jobs.types import JobState
 
 
 def test_two_rules() -> None:
-    """验收7：生产每天03:00只登记purge_errors和purge_audit_logs；后者联合清两种日志，不注册M1统计或备份。"""
+    """验收7：生产每天03:00登记两个清除作业和M1统计；后者为全量参数，三个类型均可重跑。"""
     from datetime import time
 
     from rdp.jobs.registry import production_registry
@@ -30,8 +30,12 @@ def test_two_rules() -> None:
     assert {(rule.name, rule.type_name, rule.local_time) for rule in rules} == {
         ("清除过期报错", "purge_errors", time(3)),
         ("清除过期日志", "purge_audit_logs", time(3)),
+        ("统计数据集大小", "dataset_sizing", time(3)),
     }
-    assert len(rules) == 2 and all(rule.parameters == {} for rule in rules)
+    assert len(rules) == 3 and all(
+        rule.parameters == ({"dataset_id": None} if rule.type_name == "dataset_sizing" else {})
+        for rule in rules
+    )
     for rule in rules:
         definition = registry.lookup(rule.type_name)
         assert definition is not None and definition.recovery_mode is RecoveryMode.RESTART
