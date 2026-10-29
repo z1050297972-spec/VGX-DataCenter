@@ -47,33 +47,32 @@ try {
   const rt = filters.robot_types.find(x => (x.value ?? x) !== "unknown"); const rtv = rt.value ?? rt;
   const fp = filters.fps.find(x => (x.value ?? x) !== "unknown"); const fpv = fp.value ?? fp;
   for (const [k, v] of [["robot_type", rtv], ["fps", fpv]]) {
-    const n = (await api(p, `/datasets?limit=200&${k}=${encodeURIComponent(v)}`)).total;
+    const n = (await api(p, `/datasets?limit=100&${k}=${encodeURIComponent(v)}`)).total;
     await p.go(`/datasets?${k}=${encodeURIComponent(v)}`); await p.wait("!document.body.innerText.includes('正在加载数据集')", 15000); await sleep(800);
     const rows = await p.ev("document.querySelectorAll('[aria-label=\"数据集列表\"] [aria-label^=\"打开 \"]').length");
     log(`筛选 ${k}=${v}：接口 ${n} 条，页面列出 ${rows} 条，${n === rows ? "一致" : "不一致"}`);
     await p.shot(`m104-2-filter-${k}`);
   }
   await p.go("/datasets"); await p.wait("!document.body.innerText.includes('正在加载数据集')", 15000); await sleep(800);
-  await p.ev("[...document.querySelectorAll('[aria-label^=\"打开 \"]')].find(b => b.getAttribute('aria-label').includes('libero_10')).click()");
+  // 列表分页，libero_10 不一定在第一页；改用详情的 URL 参数 selected 直接打开（页面自己的路由）。
+  await p.go("/datasets?selected=" + encodeURIComponent("按任务/libero_10"));
   await p.wait("!!document.querySelector('[aria-label=\"数据集详情\"]') && !document.body.innerText.includes('正在加载详情')", 15000); await sleep(800);
   log("libero_10 详情打开，URL:", decodeURIComponent(await p.ev("location.search")));
   await p.shot("m104-3-detail-libero10");
   const jumped = await p.ev("(() => { const b = [...document.querySelectorAll('[aria-label^=\"跳转到 \"]')]; if (!b.length) return null; const l = b[0].getAttribute('aria-label'); b[0].click(); return l; })()");
   await sleep(1500); log("跨视图跳转：", jumped, "→ URL", decodeURIComponent(await p.ev("location.search")));
   await p.shot("m104-4-crossview");
-  await p.go("/datasets"); await p.wait("!document.body.innerText.includes('正在加载数据集')", 15000); await sleep(800);
-  await p.ev("[...document.querySelectorAll('[aria-label^=\"打开 \"]')].find(b => b.getAttribute('aria-label').includes('agibot_world_2026')).click()");
+  await p.go("/datasets?selected=" + encodeURIComponent("按任务/agibot_world_2026"));
   await p.wait("!document.body.innerText.includes('正在加载详情') && document.body.innerText.includes('打开 子任务.json')", 20000); await sleep(800);
   await p.ev("window.__long = []; new PerformanceObserver(l => { for (const e of l.getEntries()) window.__long.push(Math.round(e.duration)); }).observe({ entryTypes: ['longtask'] }); true");
-  const t0 = Date.now(); await p.ev(H + "__click('打开 子任务.json')");
+  const t0 = Date.now(); await p.ev(H + "__click('打开子任务.json')");
   await p.wait("!document.body.innerText.includes('正在读取子任务') && !document.body.innerText.includes('正在解析 JSON') && !!document.querySelector('[aria-label=\"下一页 JSON\"], [aria-label=\"上一页 JSON\"]')", 60000);
   const lt = await p.ev("window.__long"); log(`14 MB 子任务.json：打开到显示 ${Date.now() - t0} ms；长任务 ${lt.length} 个，最长 ${lt.length ? Math.max(...lt) : 0} ms：${JSON.stringify(lt)}`);
   await p.shot("m104-5-subtasks");
   await p.go("/datasets?panel=true"); await p.wait("!!document.querySelector('[aria-label=\"一致性面板\"]') && !document.body.innerText.includes('正在加载面板')", 20000); await sleep(1000);
   log("一致性面板：", (await p.ev("document.querySelector('[aria-label=\"一致性面板\"]').innerText")).replace(/\s+/g, " ").slice(0, 500));
   await p.shot("m104-6-panel");
-  await p.go("/datasets"); await p.wait("!document.body.innerText.includes('正在加载数据集')", 15000); await sleep(800);
-  await p.ev("[...document.querySelectorAll('[aria-label^=\"打开 \"]')].find(b => b.getAttribute('aria-label').includes('libero_10')).click()");
+  await p.go("/datasets?selected=" + encodeURIComponent("按任务/libero_10"));
   await p.wait("document.body.innerText.includes('重新检查')", 15000); await sleep(500);
   await p.ev("[...document.querySelectorAll('button')].find(b => b.innerText.replace(/\\s/g,'') === '重新检查').click()");
   await p.wait("/^\\/jobs\\/\\d+$/.test(location.pathname)", 15000); const job = await p.ev("location.pathname"); log("重新检查 → 作业页", job);
