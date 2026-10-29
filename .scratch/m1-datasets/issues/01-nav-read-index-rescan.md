@@ -1,6 +1,6 @@
 # 导航层读取、数据集索引与重新扫描
 
-Status: in-progress
+Status: done
 
 分级：骨架关卡。理由：这张票新建数据集索引这个领域对象，定下读取契约和数据集状态指纹。后面每一张都建在它上面，写入段的预览核对也沿用这份指纹（`codex-workflow.md` 3.0 第 1 条"新领域对象、数据契约"）。
 
@@ -142,3 +142,4 @@ Claude 起 worker（临时状态目录，`nav_root` 指向真实导航层，只�
 - 2026-10-29 04:42 B1 交回（快照 `refs/rdp/m1-01/B1-out`），日志审计 0 条。Codex 自报三次 make check 全绿：2156 passed / 28 skipped，pytest 65–73 秒，用了 `-n auto --maxprocesses=8`。53 项里 35 项第一次运行就是绿的，没有严格先红后绿，所以执行线加做变异抽查：5 处全部被发现（`mutation_probe-B1.txt`）。只加不改的扩展 `production_registry(rescan_dependencies=)`、`read_index_baseline(nav_root=)`、`NavigationScan.job_id` 批准。**验收 1 真实扫描**（`realscan.sh` → `realscan-run.log`、`realscan-datasets.txt`、`realscan-findings.txt`）：临时状态目录，nav_root=/mnt/datasets，手动提交全量 dataset_rescan，作业 completed。结果：35 个数据集，按任务、按格式入口各 35 个，84 条链接，3697 个数据块，210 份 JSON；第一段持锁 0.497 秒（0010 预期约 0.2 秒），第二段 not_run；发现 1 条 TOP_LEVEL_UNREGISTERED（VGX_video），其余 ①② 组检查在 B2 做。扫描前后 /mnt/datasets 的 find 清单逐字节相同，和开票时的基线也相同。顺带发现：开发工作目录没有 `src/web/dist` 时，Web 报"数据库版本不匹配时请运行 rdp migrate"，提示和原因对不上，记为 M0 第 13 张的遗留（执行线临时构建了 dist，跑完删掉）。
 - 2026-10-29 04:42 派工 B2（fast，同会话，提示 `prompt-B2.md`）：①② 组检查、启动和定时触发接入生产装配，并按手册第 8 节预计真实数据上会报出的发现。
 - 2026-10-29 06:05 B2 交回（快照 `refs/rdp/m1-01/B2-out`），日志审计 0 条。Codex 自报三次 make check：2190 passed / 0 skipped。28 项里 21 项先红后绿，7 项第一次就绿，原因是 B1 的读取已经覆盖。执行线变异抽查 4 处全部被发现（`mutation_probe-B2.txt`）；第 5 处"定时提交人"在源码里出现两次，没有套用。**真实扫描复核**（`realscan-run.log`、`realscan-findings.txt`，B1 那次的结果挪到 `b1/`）：worker 启动时自动提交了扫描（作业 3），手动全量扫描是作业 4，两次都 completed；35 个数据集、70 个入口、84 条链接、3697 个数据块。发现共 36 条，和 Codex 的预计逐条一致：VGX_video 报 TOP_LEVEL_UNREGISTERED（需要处理），35 个数据集各报一条 PROVENANCE_MISSING（提示）。持锁 0.52–0.54 秒。扫描前后 /mnt/datasets 清单逐字节相同。验收 1–9 全部满足。实现提交 `225522f`（钩子全绿：2190 passed，Vitest 250）。执行线按负责人授权（"合并，接着做""你来做决定"）合并。
+- 2026-10-29 06:06 合并 `04c2886`（钩子全绿：2190 passed，pytest 64 秒）。工作目录、分支、快照都已删除。Status 改为 done。下一步：02（扫描第二段）和 03（数据集接口）并行开工。

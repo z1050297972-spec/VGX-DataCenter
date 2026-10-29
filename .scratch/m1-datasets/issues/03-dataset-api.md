@@ -1,6 +1,6 @@
 # 数据集接口
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：骨架关卡。理由：这是跨模块的接口，前端第 04 张要照着它的 OpenAPI 并行开工；"接口不碰存储根"要在骨架里写成一条能检查的边界（3.0 第 1 条"跨模块接口"）。
 
@@ -96,3 +96,4 @@ Status: ready-for-agent
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。Status 定为 `ready-for-agent`：第 01 张合并后才能开票，可以和第 02 张并行。
+- 2026-10-29 06:08 开票（执行线，负责人授权）。第 01 张已合并（04c2886）。Status 改为 in-progress。工作目录 `~/桌面/robot-data-platform.wt/m1-03-dataset-api`。派工 A 交骨架（fast，新会话 `01a1878f-7935-78d2-abfd-2e523a6f1b9f`，提示 `assets/03-dataset-api/prompt-A.md`）。和第 02 张并行；统计大小作业的键名先按 `dataset_sizing` 写成具名常量，合并时和第 02 张对齐。
