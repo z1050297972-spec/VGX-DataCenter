@@ -1,6 +1,6 @@
-"""作业记录与单行心跳的 ORM 声明（08/09、0005）；领域层，不创建或迁移数据库。
+"""作业记录与单行心跳的 ORM 声明（08/09/11、0006）；领域层，不创建或迁移数据库。
 
-共享基础层Base/UTCDateTime，导入时注册共用metadata；0005 迁移维护相同列与 CHECK。JSON 存进度/摘要/诊断快照，计数另列便于最终值一致性校验。
+共享基础层Base/UTCDateTime，导入时注册共用metadata；0006 迁移维护相同列与 CHECK。JSON 存进度/摘要/诊断快照，计数另列便于最终值一致性校验。
 """
 
 from datetime import datetime
@@ -54,11 +54,16 @@ class JobRow(JobSchedulingColumns):
         diagnostics: 至多 100 规则组加溢出组，每组完整总数和有限样例。
         summary: JobSummary 的冻结 JSON；非终态 NULL。
         tool_exit_code: 最后工具退出码，负数为信号，无工具 NULL。
+        platform_version: 最近实际领取版本，1-128 个码点；历史未知或从未领取为 NULL。
     """
 
     __tablename__ = "jobs"
     __table_args__ = (
         *JobSchedulingColumns.__table_args__,
+        CheckConstraint(
+            "platform_version IS NULL OR length(platform_version) BETWEEN 1 AND 128",
+            name="platform_version_length",
+        ),
         CheckConstraint("job_id > 0 AND submitter_id > 0", name="positive_ids"),
         CheckConstraint("length(type_name) BETWEEN 1 AND 64", name="type_length"),
         CheckConstraint("length(display_name) BETWEEN 1 AND 40", name="display_length"),
@@ -124,6 +129,7 @@ class JobRow(JobSchedulingColumns):
     diagnostics: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
     summary: Mapped[dict[str, object] | None] = mapped_column(JSON(none_as_null=True))
     tool_exit_code: Mapped[int | None] = mapped_column(Integer)
+    platform_version: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
 
 class WorkerHeartbeatRow(Base):

@@ -1,4 +1,4 @@
-"""工单 03 契约测试清单，骨架阶段逐项跳过；所有文件样例限于 tmp_path。"""
+"""工单 03 日志行为测试；所有文件样例限于 tmp_path。"""
 
 import asyncio
 import io
@@ -515,7 +515,7 @@ def test_idle_days_no_empty_archives(tmp_path: Path) -> None:
 
 
 def test_startup_expiry_cleanup(tmp_path: Path) -> None:
-    """验证契约：重启后的首条日志也删除过期归档；已有活动文件按本次启动建区间，不依据 mtime 立即切分。"""
+    """验证契约：重启先按mtime补归档，首条日志删除过期归档；活动文件只保存重启后的记录。"""
     old = tmp_path / "web.log.2020-01-01"
     old.write_text("过期", encoding="utf-8")
     current = tmp_path / "web.log"
@@ -523,9 +523,12 @@ def test_startup_expiry_cleanup(tmp_path: Path) -> None:
     os.utime(current, (1, 1))
     configure_logging(LoggingSettings("web", tmp_path), time_source=_Clock().source())
     assert old.exists()
+    assert (tmp_path / "web.log.1970-01-01").read_text() == "旧活动文件\n"
     logging.getLogger("rdp.test").info("重启首条")
     assert not old.exists()
-    assert "旧活动文件" in current.read_text(encoding="utf-8")
+    assert "旧活动文件" not in current.read_text(encoding="utf-8")
+    assert "重启首条" in current.read_text(encoding="utf-8")
+    assert not (tmp_path / "web.log.1970-01-01").exists()
     assert not list(tmp_path.glob("web.log.*"))
 
 

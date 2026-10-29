@@ -184,6 +184,8 @@ class JobRecord:
         wait_reason: None、GPU、NAVIGATION_LOCK，不改变 state；主循环唯一写 queued 的 GPU 等待，
             每轮重判，领到卡、类型上限阻挡或取消后清旧原因；终态强制清空，启动统一清全部非终态。
         holds_navigation_lock: 展示副本，默认 False；终态和恢复处理时清空，不是真正的互斥锁。
+        platform_version: 最近一次实际领取的平台版本，1-128 个码点；默认 None，表示历史未知或尚未领取。
+            恢复领取更新为当前 worker 快照；终态不再变化，重新提交的新作业不继承此字段。
     """
 
     job_id: int
@@ -210,6 +212,7 @@ class JobRecord:
     gpu_index: int | None = None
     wait_reason: WaitReason | None = None
     holds_navigation_lock: bool = False
+    platform_version: str | None = None
 
 
 @dataclass(frozen=True)

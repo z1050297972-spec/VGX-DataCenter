@@ -23,11 +23,13 @@ from rdp.jobs.scheduling_models import ScheduleSubmissionRow, WorkerGpuCheckRow
 
 
 def test_isolated() -> None:
-    """激活契约：0005是唯一head、pending已删除，新表及资源列注册到同一MetaData。"""
+    """历史契约：0005承接0004且只有一份活动脚本，资源列共享MetaData。"""
     config = migration_config()
-    assert ScriptDirectory.from_config(config).get_current_head() == "0005_job_scheduling"
+    revision = ScriptDirectory.from_config(config).get_revision("0005_job_scheduling")
+    assert revision is not None and revision.down_revision == "0004_jobs_worker"
     location = config.get_main_option("script_location")
-    assert location is not None and not (Path(location) / "pending").exists()
+    assert location is not None
+    assert not (Path(location) / "pending" / "v0005_job_scheduling.py").exists()
     assert JobRow.__table__.c.submitter_id.nullable
     assert {"gpu_index", "wait_reason", "holds_navigation_lock"} <= set(JobRow.__table__.c.keys())
     for model in (ScheduleSubmissionRow, WorkerGpuCheckRow):
@@ -36,7 +38,7 @@ def test_isolated() -> None:
 
 
 def test_upgrade_preserves(tmp_path: Path) -> None:
-    """契约：0004升级0005保留作业/操作日志全部旧记录与索引，默认资源列为空/False。"""
+    """契约：0004升级当前版本保留0005引入的作业/操作日志全部旧记录与索引，默认资源列为空/False。"""
     assert AccountRow.metadata is OperationLogRow.metadata is metadata
     with version_four(tmp_path / "state") as (engine, paths):
         with engine.connect() as connection:
@@ -48,7 +50,8 @@ def test_upgrade_preserves(tmp_path: Path) -> None:
         result = migrate(paths, now=datetime(2026, 10, 27, tzinfo=UTC))
         assert (
             result.previous_revision == "0004_jobs_worker"
-            and result.current_revision == "0005_job_scheduling"
+            and result.current_revision
+            == ScriptDirectory.from_config(migration_config()).get_current_head()
         )
         assert result.backup is not None and result.backup.is_file()
         with engine.connect() as connection:
@@ -276,7 +279,7 @@ def test_downgrade_guard(tmp_path: Path) -> None:
                 assert schema_objects(connection) == before
                 assert (
                     connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-                    == "0005_job_scheduling"
+                    == ScriptDirectory.from_config(migration_config()).get_current_head()
                 )
     with version_four(tmp_path / "safe") as (engine, paths):
         with engine.connect() as connection:

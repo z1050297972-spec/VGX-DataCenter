@@ -1,4 +1,6 @@
 // 账号页面（06）：采用 antd 与 TanStack Router/Query；错误统一用 DiagnosticCard，秘密只在表单内存。
+import type { HealthClient } from "../api/client";
+import { VersionFooter } from "../VersionFooter";
 import { WorkerStatusBanner } from "../jobs/Pages";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -541,6 +543,7 @@ export function AccountMenu(): ReactElement {
  * @timeSemantics 请求上限 ACCOUNT_TIMEOUT_MS；切页/卸载取消请求和倒计时，忽略迟到结果，无自动重试。
  */
 export function AccountLayout(): ReactElement {
+  const client = useAccountClient();
   const identity = useCurrentAccount();
   const navigate = useNavigate();
   const location = useLocation();
@@ -568,6 +571,7 @@ export function AccountLayout(): ReactElement {
       <main style={{ marginTop: 24 }}>
         <Outlet />
       </main>
+      {renderVersionFooter(identity.data, location.pathname, client)}
     </div>
   );
 }
@@ -636,4 +640,14 @@ function ActionFailure({ action }: { action: ReturnType<typeof useAccountAction>
       )}
     </>
   );
+}
+
+// 只有完成改密的业务页面请求受保护版本；身份守卫仍由布局统一处理。
+function renderVersionFooter(
+  account: Account,
+  pathname: string,
+  client: HealthClient,
+): ReactElement | null {
+  if (account.must_change_password || pathname === "/change-password") return null;
+  return <VersionFooter client={client} />;
 }

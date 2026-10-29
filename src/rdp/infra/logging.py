@@ -40,7 +40,7 @@ _SAFE_FIELD_STRING_PATTERN = re.compile(r"[A-Za-z0-9_./:@+-]+")
 # 仅持有本模块安装的输出，重配时不关闭 pytest/宿主应用拥有的 handler。
 _installed_handlers: tuple[logging.Handler, ...] = ()
 
-# 09 号票要求自动关联当前作业/请求；None 表示未绑定，不输出该 key。
+# 第 9 张要求自动关联当前作业/请求；None 表示未绑定，不输出该 key。
 job_id_context: ContextVar[int | None] = ContextVar("rdp_job_id", default=None)
 request_id_context: ContextVar[str | None] = ContextVar("rdp_request_id", default=None)
 
@@ -214,6 +214,7 @@ class _DailyFileHandler(TimedRotatingFileHandler):
         self.rolloverAt = _next_midnight(moment)
         self.backupCount = settings.log.retention_days
         self._startup_cleanup = True
+        _archive_before_open(settings.log_dir / f"{settings.process}.log", moment)
         # TimedRotatingFileHandler.__init__ 硬读 time.time/mtime，无法实例级注入。
         # 直接初始化其文件基类，仍复用 BaseRotatingHandler.emit、Handler 锁与文件流。
         logging.FileHandler.__init__(
@@ -325,14 +326,19 @@ def configure_logging(
         创建或追加打开本进程日志文件，修改 root 及上述三个 logger 的 handler、级别和传播设置。
         成功后替换旧 root handler，关闭本模块之前创建的 handler；外部 handler 只解除挂载不关闭。
         其他命名 logger 不改；调用方须确保应用 logger 不自行挂 handler，并向 root 传播。
-        重复调用（包括换 process/目录）原子替换本模块输出，不重复写；旧文件内容不改。
-        失败可能留下新建的空日志文件，不删除已有文件；不改目录权限。
+        重复调用（包括换 process/目录）原子替换本模块输出，不重复写；按下述规则补归档。
+        失败可能留下新建的空日志文件或已完成的启动归档；不改目录权限。
         运行中在越过当地零点后的第一条日志前归档为 <process>.log.YYYY-MM-DD；
         后缀为被关闭区间的起始当地日期。长期无日志时不生成空的逐日文件。
         切分时删除日期早于“当前当地日期减 retention_days”的本进程归档，边界日保留；
         当前文件、别的进程文件、非日期后缀、目录及软链接均不删除。无新日志不清理。
         删不掉的过期归档跳过并留下，下次切分或启动再试。
-        重启后首条日志也做过期清理，已有活动文件从本次启动建立新区间，不按 mtime 回溯切分。
+        打开活动文件前，按 time_source 的本地规则把 mtime 转为日期，与同次启动时钟的当地日期比较。
+        修改日期早于今天先归档成 <process>.log.<修改日期>，再打开新活动文件；
+        日期为今天或未来不补归档，文件缺失正常新建。空的旧活动文件也按此规则归档。
+        同名归档存在时追加合并，不覆盖原归档；I/O 失败向调用方抛出，原 logging 配置保持不变，
+        已完成的归档保留，合并失败可能留下归档中的部分追加和原活动文件，不声称磁盘故障下无重复。
+        重启后首条日志仍做过期清理；补归档不改其他进程文件。
         切分/写入失败遵循标准 handler.handleError，不向业务抛 I/O 异常；
         设置 logging.raiseExceptions=False，systemd 下也不因日志自身故障写 stderr。
         这种运行期失败可能丢失当前记录或留下已完成的归档，不承诺磁盘故障下日志不丢。
@@ -553,3 +559,22 @@ def log_state_warnings(warnings: tuple[DirectoryPermissionWarning, ...]) -> None
             extra={"fields": {"path": str(warning.path), "mode": f"{warning.mode:04o}"}},
         )
         logger.handle(record)
+
+
+def _archive_before_open(active: Path, moment: datetime) -> None:
+    """先归档停机前的活动文件，避免新文件打开后mtime掩盖真正的日志日期。"""
+    try:
+        modified = active.stat().st_mtime
+    except FileNotFoundError:
+        return
+    day = datetime.fromtimestamp(modified, tz=moment.tzinfo).date()
+    if day >= moment.date():
+        return
+    destination = active.with_name(f"{active.name}.{day.isoformat()}")
+    if destination.exists():
+        # 与运行中切分一样保留既有归档；复制失败时保留源文件供人工核实。
+        with active.open("rb") as source, destination.open("ab") as target:
+            shutil.copyfileobj(source, target)
+        active.unlink()
+    else:
+        active.rename(destination)

@@ -40,6 +40,7 @@ from rdp.jobs.scheduling_types import (
 )
 from rdp.jobs.service import JobService
 from rdp.jobs.types import ExecutionMode, JobRecord, JobState, WaitReason
+from rdp.jobs.versioning import record_execution_version
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,11 @@ class WorkerResources:
 
 
 class Scheduler:
-    """主循环拥有的按类型队首调度器；资源归还不改变各类型提交顺序。"""
+    """主循环拥有的按类型队首调度器；资源归还不改变各类型提交顺序。
+
+    Attributes:
+        previous_version: 最近一次成功领取之前的执行版本；仅供主循环在启动线程前退回领取。
+    """
 
     def __init__(
         self,
@@ -112,6 +117,7 @@ class Scheduler:
             raise DefectError()
         ClockReader(dependencies.clock).read()
         _validate_recovered(recovered)
+        self.previous_version: str | None = None
         self.dependencies = dependencies
         self.resources = resources
         self._recovered = {item.record.job_id: item for item in recovered}
@@ -272,7 +278,13 @@ class Scheduler:
                     else:
                         record = assign_recovery_gpu(session, candidate.job_id, claim.gpu_index)
                         work = replace(previous, record=record, claim=claim)
+                    if self.dependencies.platform_version is not None:
+                        record_execution_version(
+                            session, candidate.job_id, version=self.dependencies.platform_version
+                        )
+                        work = replace(work, record=find_job(session, candidate.job_id))
                 committed = True
+                self.previous_version = current.platform_version
                 self._recovered.pop(candidate.job_id, None)
                 return work
             except ConflictError as error:
