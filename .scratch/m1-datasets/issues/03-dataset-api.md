@@ -1,6 +1,6 @@
 # 数据集接口
 
-Status: in-progress
+Status: done
 
 分级：骨架关卡。理由：这是跨模块的接口，前端第 04 张要照着它的 OpenAPI 并行开工；"接口不碰存储根"要在骨架里写成一条能检查的边界（3.0 第 1 条"跨模块接口"）。
 
@@ -101,3 +101,5 @@ Status: in-progress
 - 2026-10-29 06:41 契约提交 `9b71070`（钩子全绿）。派工 B 第一段（fast，同会话，提示 `prompt-B.md`）。
 - 2026-10-29 06:44 派工 B 按停止条件停下（`out-B.md`）：禁入契约收窄后仍然失败，原因是浏览服务 import 了 M0 的 `JobService`，它经 registry → execution / datasets.rescan 间接引入存储根访问。和 reading、fingerprint 无关。执行线决定：把浏览层拆成只读查询和提交作业两个模块。只读查询（树、列表、筛选、详情、子任务、面板、布局）放进一个模块，禁入契约只管它和 schemas，并且检查间接导入；提交作业（重新检查、统计大小）单独放一个模块，经 M0 的 JobService 只插作业行，这和 M0 现有的 `rdp.api.jobs` 做法一样。运行时的边界仍由验收 2 的测试保证：把存储根设成不可读，所有接口照常返回。这一轮不算打回（Codex 按指令停下，没有交付缺陷）。
 - 2026-10-29 07:33 第一段检查点交回（快照 `refs/rdp/m1-03/B-out1`），日志审计 0 条，Codex 自报 make check 全绿（2220 passed / 9 skipped）。拆分落实：`queries.DatasetQueries` 和 `commands.DatasetCommands`，禁入契约只管 queries、schemas，检查间接导入，没有 ignore；布局审计已去掉。**验收 1 真实演练**（`apidrill.sh` → `apidrill-run.log`）：存储根路径改成不存在的目录，worker 启动时的扫描建了 35 个数据集的索引。树 200（35 KB，0.05 秒）、列表 200（35 条，0.03 秒）、筛选 200（没有登记型号，默认按型号标签筛选）、详情 200（496 KB，0.30 秒，index_stale=false）；最大的 `子任务.json` 14.09 MB 三次都是 0.24–0.27 秒，text/plain，内容和原文件逐字节相同，带 X-Document-SHA256。面板返回 500，因为它在第二段才实现，符合预期。不存在的存储根目录没有被创建，/mnt/datasets 清单前后逐字节相同。14 MB 的响应时间可以接受，不需要压缩或流式返回。派工 B 第二段。
+- 2026-10-29 08:24 第二段交回（快照 `refs/rdp/m1-03/B-out2`），日志审计 0 条，Codex 自报三次 make check 全绿（2230 passed / 0 skipped）。执行线把实现提交到分支（`实现：数据集接口`，提交时没跑钩子，下面的合并检查就是全量检查），然后在工作目录里 `git merge --no-commit main` 试合并：第 02 张已合并（5c9bc2f），没有文本冲突。全量检查有 1 项失败：`test_all_endpoints_with_unreadable_storage_roots` 自己登记了一个 `dataset_sizing` 替身，和第 02 张的正式登记重名，被判 DefectError。打回第 1 轮（合并对齐）：commands 改用 `rdp.jobs.datasets.catalog.SIZING_TYPE`，删掉自己的常量；参数模型复用第 02 张的；测试改用正式登记表，删掉替身。
+- 2026-10-29 08:51 第 1 轮交回，日志审计 0 条：commands 改用 `catalog.SIZING_TYPE`，HTTP 层和 commands 共用 `sizing.SizingParameters`，测试改用正式登记表，OpenAPI 重新生成。执行线在工作目录提交了试合并（钩子全绿：2276 passed）。变异抽查 3 处全部被发现（`mutation_probe.txt`：索引过期判断、布局按账号隔离、FPS 四舍五入）。验收 1–8 全部满足，按负责人授权合并。
