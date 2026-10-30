@@ -24,6 +24,8 @@ import { toFailureView, type RequestFailureView } from "../api/problems";
 import { DiagnosticCard } from "../DiagnosticCard";
 import { ADMINISTRATOR_PAGE_PATHS, safeReturnTo } from "./navigation";
 import { useAccountClient, useCurrentAccount, ACCOUNT_QUERY_KEY } from "./runtime";
+import { formatDateTime } from "../time";
+import "../shell.css";
 
 /**
  * 登录名和口令表单；成功后按必须改密标记转改密页，否则回 safeReturnTo；已登录者不重复显示登录表单。401/403/422/429/网络失败均显示 DiagnosticCard，429 展示安全倒计时，不区分未知账号与错口令。
@@ -282,7 +284,7 @@ export function AccountsPage(): ReactElement {
     { title: "创建人", render: (_value: unknown, row: Account) => row.created_by.name },
     {
       title: "修改时间",
-      render: (_value: unknown, row: Account) => new Date(row.updated_at).toLocaleString(),
+      render: (_value: unknown, row: Account) => formatDateTime(row.updated_at),
     },
     {
       title: "操作",
@@ -362,6 +364,7 @@ export function AccountsPage(): ReactElement {
         新建账号
       </Button>
       <Table<Account>
+        scroll={{ x: "max-content" }}
         rowKey="account_id"
         columns={columns}
         dataSource={list.data?.items ?? []}
@@ -501,18 +504,20 @@ export function AccountMenu(): ReactElement {
       <Typography.Text>
         角色：{identity.data.role === "administrator" ? "管理员" : "成员"}
       </Typography.Text>
-      <Link to="/change-password">修改口令</Link>
-      <Link to="/jobs">作业</Link>
-      <Link to="/scheduling">调度</Link>
-      <Link to="/datasets">数据集</Link>
-      <Link to="/storage-roots">存储根</Link>
-      {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
-      {identity.data.role === "administrator" && (
-        <>
-          <Link to="/audit/operations">操作日志</Link>
-          <Link to="/audit/logins">登录日志</Link>
-        </>
-      )}
+      <nav aria-label="主菜单" className="app-menu">
+        <Link to="/change-password">修改口令</Link>
+        <Link to="/jobs">作业</Link>
+        <Link to="/scheduling">调度</Link>
+        <Link to="/datasets">数据集</Link>
+        <Link to="/storage-roots">存储根</Link>
+        {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
+        {identity.data.role === "administrator" && (
+          <>
+            <Link to="/audit/operations">操作日志</Link>
+            <Link to="/audit/logins">登录日志</Link>
+          </>
+        )}
+      </nav>
       <Button
         aria-label="登出"
         loading={action.busy}
@@ -563,7 +568,7 @@ export function AccountLayout(): ReactElement {
   if (identity.isError) return <DiagnosticCard failure={toFailureView(identity.error)} />;
   if (force || denied) return <Typography.Text>正在跳转…</Typography.Text>;
   return (
-    <div style={{ padding: 24 }}>
+    <div className="app-shell">
       <AccountMenu />
       <WorkerStatusBanner />
       {new URLSearchParams(location.searchStr).get("permission") === "denied" && (

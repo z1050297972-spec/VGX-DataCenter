@@ -194,20 +194,42 @@ export const panel: Schema["DatasetPanelResponse"] = {
   storage_roots: [],
 };
 
+/** 一个账号保存的布局偏好；测试里用两个对象模拟两个账号，互不影响。 */
+export type LayoutStore = Schema["LayoutResponse"];
+
 /**
  * 创建数据集页面的 HTTP 边界替身，其他页面复用现有样本。
  * @param requests - 接收实际 Request，供测试检查 URL 与请求体，不访问网络。
+ * @param layout - 当前账号保存的布局偏好；GET 读它，PUT 改它，默认是无偏好行时的 A 和 null。
  * @returns 注入真实客户端的传输；不替换内部模块。
  * @throws 无。
- * @sideEffects 只向传入数组追加请求。
+ * @sideEffects 只向传入数组追加请求；PUT /api/datasets/layout 会改传入的偏好对象。
  * @timeSemantics 每次即时响应，无定时器。
  */
-export function datasetFetch(requests: Request[] = []): FetchImplementation {
+export function datasetFetch(
+  requests: Request[] = [],
+  layout: LayoutStore = { layout: "A", updated_at: null },
+): FetchImplementation {
   const fallback = pageFetch();
   return (request) => {
     requests.push(request);
     const url = new URL(request.url);
-    if (url.pathname === "/api/datasets/trees") return Promise.resolve(Response.json(trees));
+    if (url.pathname === "/api/datasets/layout") {
+      if (request.method !== "PUT") return Promise.resolve(Response.json(layout));
+      return request.json().then((body: Schema["LayoutRequest"]) => {
+        layout.layout = body.layout;
+        layout.updated_at = "2026-10-29T12:00:00Z";
+        return Response.json(layout);
+      });
+    }
+    if (url.pathname === "/api/datasets/trees") {
+      // 与服务端一致：给了 entry_path 就只返回该路径前缀下的节点。
+      const prefix = url.searchParams.get("entry_path");
+      const nodes = prefix
+        ? trees.nodes.filter((node) => node.path === prefix || node.path.startsWith(`${prefix}/`))
+        : trees.nodes;
+      return Promise.resolve(Response.json({ ...trees, nodes }));
+    }
     if (url.pathname === "/api/datasets/filters") return Promise.resolve(Response.json(filters));
     if (url.pathname === "/api/datasets/panel") return Promise.resolve(Response.json(panel));
     if (url.pathname === "/api/datasets/detail")

@@ -1,4 +1,5 @@
 // M1-04 后半段验收：真实 Router 和 HTTP 边界替身验证用户可见行为，不访问真实数据。
+import { formatDateTime } from "../time";
 import { describe, it, expect, vi } from "vitest";
 import { screen, within, fireEvent, waitFor, act } from "@testing-library/react";
 import { mountPage } from "../scheduling/pageTestSupport";
@@ -87,9 +88,7 @@ describe("数据集后半段验收", () => {
       expect(within(links).getByText("存储根离线")).toBeTruthy();
       expect(within(links).queryByText("断链")).toBeNull();
       expect(screen.getByText("统计大小：4.0 KiB")).toBeTruthy();
-      expect(
-        screen.getByText(`统计时间：${new Date("2026-10-28T12:00:00Z").toLocaleString()}`),
-      ).toBeTruthy();
+      expect(screen.getByText(`统计时间：${formatDateTime("2026-10-28T12:00:00Z")}`)).toBeTruthy();
     } finally {
       page.close();
     }
@@ -323,9 +322,7 @@ describe("数据集后半段验收", () => {
     try {
       const links = await screen.findByRole("region", { name: "链接状态" });
       expect(within(links).getByText("断链")).toBeTruthy();
-      expect(
-        within(links).getByText(new Date("2026-10-29T12:00:00Z").toLocaleString()),
-      ).toBeTruthy();
+      expect(within(links).getByText(formatDateTime("2026-10-29T12:00:00Z"))).toBeTruthy();
       const sources = screen.getByRole("region", { name: "数据块" });
       for (const value of [
         "source-17",

@@ -6,6 +6,7 @@ import { useStorageRoots } from "./queries";
 import schema from "../api/openapi.json";
 import { DiagnosticCard } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
+import { formatDateTime } from "../time";
 
 // 中文文案由后端唯一映射生成到OpenAPI，生成类型仍负责核对枚举覆盖完整。
 const offlineLabels: Record<NonNullable<StorageRoot["reason"]>, string> = schema.components.schemas
@@ -38,6 +39,7 @@ export function StorageRootsPage(): ReactElement {
       {query.error && <DiagnosticCard failure={toFailureView(query.error)} />}
       {query.isFetching && <Typography.Text role="status">正在检查</Typography.Text>}
       <Table<StorageRoot>
+        scroll={{ x: "max-content" }}
         rowKey="name"
         pagination={false}
         dataSource={query.data?.items}
@@ -54,7 +56,7 @@ export function StorageRootsPage(): ReactElement {
           {
             title: "检查时间",
             render: (_, root) => (
-              <time dateTime={root.checked_at}>{new Date(root.checked_at).toLocaleString()}</time>
+              <time dateTime={root.checked_at}>{formatDateTime(root.checked_at)}</time>
             ),
           },
         ]}

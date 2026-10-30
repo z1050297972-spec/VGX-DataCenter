@@ -5,6 +5,7 @@ import type { TreeDataNode } from "antd";
 import type { components } from "../api/schema";
 import type { DatasetList, DatasetTrees } from "../api/datasets";
 import { exactBytes, formatBytes } from "./formatBytes";
+import { formatDateTime } from "../time";
 
 type Size = components["schemas"]["DatasetSize"];
 
@@ -25,9 +26,7 @@ export function DatasetSizeLabel(props: {
       title={
         [
           exactBytes(props.size.display_bytes),
-          props.size.size_checked_at
-            ? new Date(props.size.size_checked_at).toLocaleString()
-            : undefined,
+          props.size.size_checked_at ? formatDateTime(props.size.size_checked_at) : undefined,
         ]
           .filter((part) => part !== undefined)
           .join(" · ") || undefined
@@ -39,6 +38,27 @@ export function DatasetSizeLabel(props: {
         : props.size.display_source === "measured"
           ? "统计值"
           : "未统计"}
+    </span>
+  );
+}
+
+type TreeNode = DatasetTrees["nodes"][number];
+/**
+ * 显示树节点的数据集数量和大小；三种布局的目录、入口行都用它，数字口径一致。
+ * @param props - 服务端树节点，汇总值由服务端给出，不在前端叠加。
+ * @param props.node - 树节点。
+ * @returns 数量、人读大小、10-12 记录标记；悬停给精确字节。
+ * @throws 无。
+ * @sideEffects 无。
+ * @timeSemantics 沿用索引快照，不实时统计。
+ */
+export function TreeNodeMeta(props: { node: TreeNode }): ReactElement {
+  const { node } = props;
+  return (
+    <span className="dataset-tree-meta" title={exactBytes(node.size.total_bytes)}>
+      {node.dataset_count} 个 ·{" "}
+      {node.size.total_bytes === null ? "大小部分未知" : formatBytes(node.size.total_bytes)}
+      {node.size.recorded_entry_count > 0 ? " · 含 10-12 记录" : ""}
     </span>
   );
 }
@@ -69,11 +89,7 @@ export function DatasetTree(props: TreeProps): ReactElement {
             <span className="dataset-tree-name" title={node.name}>
               {node.name}
             </span>
-            <span className="dataset-tree-meta" title={exactBytes(node.size.total_bytes)}>
-              {node.dataset_count} 个 ·{" "}
-              {node.size.total_bytes === null ? "大小部分未知" : formatBytes(node.size.total_bytes)}
-              {node.size.recorded_entry_count > 0 ? " · 含 10-12 记录" : ""}
-            </span>
+            <TreeNodeMeta node={node} />
           </span>
         ),
         children: children(node.path),

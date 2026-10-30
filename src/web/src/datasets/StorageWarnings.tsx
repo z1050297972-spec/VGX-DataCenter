@@ -2,6 +2,7 @@
 import type { ReactElement } from "react";
 import { Alert } from "antd";
 import type { DatasetPanel } from "../api/datasets";
+import { formatDateTime } from "../time";
 
 const REASONS = {
   not_mounted: "未挂载",
@@ -30,7 +31,7 @@ export function StorageWarnings(props: Props): ReactElement {
             type="warning"
             showIcon
             title={`存储根 ${root.name} 离线：${root.reason ? REASONS[root.reason] : "原因未知"}；其下磁盘检查已跳过`}
-            description={`检查时间：${root.checked_at ? new Date(root.checked_at).toLocaleString() : "未知"}`}
+            description={`检查时间：${root.checked_at ? formatDateTime(root.checked_at) : "未知"}`}
           />
         ))}
     </>

@@ -1,4 +1,5 @@
 // 09 契约清单；路由行为通过真实 createAppRouter 与内存 history 验证。
+import { formatDateTime } from "../time";
 import { it, expect, vi } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { mountPage, pageFetch } from "./pageTestSupport";
@@ -89,7 +90,7 @@ it("同一只读页显示下一次本地时刻、上次作业链接和六种结�
     for (const text of ["成功", "带警告成功", "部分成功", "失败", "已取消", "已中断", "从未提交"])
       expect(await screen.findByText(text)).toBeTruthy();
     expect(screen.getByRole("link", { name: "#80" }).getAttribute("href")).toBe("/jobs/80");
-    expect(screen.getAllByText(new Date("2026-10-27T03:00:00Z").toLocaleString()).length).toBe(7);
+    expect(screen.getAllByText(formatDateTime("2026-10-27T03:00:00Z")).length).toBe(7);
     expect(within(screen.getByRole("row", { name: /从未运行/ })).queryByRole("link")).toBeNull();
   } finally {
     view.close();
@@ -297,7 +298,7 @@ it("到期但尚未提交显示等待 worker，不把旧到期时间伪造成明
   );
   try {
     expect(await screen.findByText("已到点，等待 worker")).toBeTruthy();
-    expect(screen.getByText(new Date(due).toLocaleString())).toBeTruthy();
+    expect(screen.getByText(formatDateTime(due))).toBeTruthy();
   } finally {
     view.close();
   }
@@ -514,7 +515,7 @@ it("被移出池的卡显示移出状态、原因和核对时间，修复后提�
     expect(await screen.findByText("已移出名额池")).toBeTruthy();
     expect(screen.getByText(/找不到物理卡/)).toBeTruthy();
     expect(screen.getByText("修复后需重启 worker 重新核对")).toBeTruthy();
-    expect(screen.getByText(new Date("2026-10-26T12:00:00Z").toLocaleString())).toBeTruthy();
+    expect(screen.getByText(formatDateTime("2026-10-26T12:00:00Z"))).toBeTruthy();
     expect(screen.queryByText("空闲")).toBeNull();
   } finally {
     view.close();

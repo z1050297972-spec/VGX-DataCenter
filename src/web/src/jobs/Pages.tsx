@@ -225,6 +225,7 @@ function JobListContent({ search }: { search: JobSearch }): ReactElement {
   return (
     <>
       <Table<Job>
+        scroll={{ x: "max-content" }}
         rowKey="job_id"
         pagination={false}
         loading={query.isPending}

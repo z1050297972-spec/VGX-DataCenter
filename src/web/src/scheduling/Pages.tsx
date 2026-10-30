@@ -7,6 +7,7 @@ import { toFailureView } from "../api/problems";
 import { JOB_OUTCOME_LABELS, JOB_STATE_LABELS } from "../jobs/progress";
 import type { Scheduling } from "../api/scheduling";
 import type { ReactElement } from "react";
+import { formatDateTime } from "../time";
 
 /**
  * 显示所有登录账号可见的只读调度页。
@@ -25,6 +26,7 @@ export function SchedulingPage(): ReactElement {
       <Typography.Title level={2}>调度</Typography.Title>
       {!data.worker_online && <Alert type="warning" title="worker 离线，以下为最后已保存状态" />}
       <Table<Scheduling["types"][number]>
+        scroll={{ x: "max-content" }}
         rowKey="type_name"
         pagination={false}
         dataSource={data.types}
@@ -47,9 +49,7 @@ export function SchedulingPage(): ReactElement {
                 {card.checked_at && (
                   <div>
                     核对时间：
-                    <time dateTime={card.checked_at}>
-                      {new Date(card.checked_at).toLocaleString()}
-                    </time>
+                    <time dateTime={card.checked_at}>{formatDateTime(card.checked_at)}</time>
                   </div>
                 )}
                 <DiagnosticEntries diagnostics={card.diagnostics} />
@@ -79,6 +79,7 @@ export function SchedulingPage(): ReactElement {
       <section aria-label="定时作业">
         <Typography.Title level={3}>定时作业</Typography.Title>
         <Table<Scheduling["schedules"][number]>
+          scroll={{ x: "max-content" }}
           rowKey="name"
           pagination={false}
           dataSource={data.schedules}
@@ -88,9 +89,7 @@ export function SchedulingPage(): ReactElement {
               title: "下次运行",
               render: (_value: unknown, item) => (
                 <>
-                  <time dateTime={item.next_run_at}>
-                    {new Date(item.next_run_at).toLocaleString()}
-                  </time>
+                  <time dateTime={item.next_run_at}>{formatDateTime(item.next_run_at)}</time>
                   {Date.parse(item.next_run_at) <= Date.parse(data.checked_at) && (
                     <div>已到点，等待 worker</div>
                   )}

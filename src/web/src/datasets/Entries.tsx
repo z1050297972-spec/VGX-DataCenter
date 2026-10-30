@@ -2,6 +2,7 @@
 import type { ReactElement } from "react";
 import { Table, Typography } from "antd";
 import type { DatasetDetail } from "../api/datasets";
+import { formatDateTime } from "../time";
 
 const LINK_LABELS: Record<DatasetDetail["links"][number]["status"], string> = {
   unchecked: "未检查",
@@ -54,7 +55,7 @@ export function DatasetLinks(props: LinksProps): ReactElement {
           {
             title: "检查时间",
             dataIndex: "checked_at",
-            render: (value: string | null) => (value ? new Date(value).toLocaleString() : "未检查"),
+            render: (value: string | null) => (value ? formatDateTime(value) : "未检查"),
           },
         ]}
       />
