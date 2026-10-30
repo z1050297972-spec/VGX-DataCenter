@@ -1,6 +1,6 @@
 # 建链与新增数据集
 
-Status: in-progress
+Status: done
 
 分级：骨架关卡。理由：新增两种写导航层的作业，以及它们给前端用的接口契约（3.0 第 1 条"跨模块接口"）。spec 原来预计"后端骨架关卡，前端页面拆成直做票并行"，这里没有拆票：前端页面在契约提交以后，作为同一张票的第二个派工并行做，占一个并行名额（3.0 第 1 条"票可以开得大一些"）。要拆的话见「待负责人确认」第 3 条。
 
@@ -115,3 +115,4 @@ Status: in-progress
 - 2026-10-30 00:16 派工 A（Codex gpt-6.1-sol high，新会话 `01a18b73-1cd9-71f2-80b3-d79c90592840`，提示 `assets/08-link-create-new-dataset/prompt-A.md`）。
 - 2026-10-30 01:01 骨架交回：5 个接口挂在 /api/datasets 下（creation-options、link-previews、creation-previews、读预览、creation-writes），65 项后端加 20 项前端的跳过测试，日志审计 0 条。执行线按负责人授权过关卡：接口、预览结构（report.creation 列出文件、目录、链接、格式入口、数据块、dataset_roots、格式和版本的来源，不返回计划正文）、两种计划的步骤、名称规则（空名、NUL、`/`、`.` 开头、四份 JSON 的保留名都拒绝，数据集名另外查重）、页面流程，全部接受；`PlanReport.creation`（只加不改）批准。改一处：确认写入接口不用"都返回 200、job 可能是 null"的双分支，改成有新排队的写作业而请求里没确认时返回 409，五段诊断里列出这些排队作业的编号，前端据此提示，用户确认后带上 acknowledged_queue_job_ids 重新提交；确认成功返回 201 和新的写入作业。契约提交 `ab8d5fe`。
 - 2026-10-30 02:20 后端检查点交回，日志审计 0 条，Codex 自报 make check 全绿（2534 passed；前端 20 项按要求保留跳过）。**副本演练**（`create-drill.sh` → `create-drill-run.log`；日志开头被 `tee /dev/stderr` 截掉了，脚本已改，作业结果以数据库和变更记录为准）：(A) libero_10 建链 "演练链接" → /mnt/dataset1/libero_v3/libero_goal：预览 5、写入 6 completed；变更记录 6 是 create_link committed，规范入口和按格式入口各建了一条链接，并改了原始路径.json，按格式副本按 L8/L9 重新生成。(B) 新增数据集 "M1_08_演练" → /mnt/dataset1/lerobot（空目录，mcap）：分到 dataset-36；按任务和按格式/mcap 两个入口各有链接和三份 JSON，按任务入口另有来源.json（开源下载，管理员人工标注）；索引变成 36 个。(C) 两次都撤回，撤回作业都 completed，目录和链接都删掉，索引回到 35。操作日志：create_link、create_dataset、revert_change×2。/mnt 清单逐字节相同，两块盘写入扇区数不变。**发现一个小缺陷**：撤回新建数据集后，流水线仍给已不存在的 dataset-36 提交统计大小（作业 13），worker 报"数据集尚未建立索引"的 InputError。要求撤回删掉数据集以后，不再给它提交统计。派第二段（前端），这个修复一并做。
+- 2026-10-30 03:36 前端交回，日志审计 0 条；撤回后不再给已删除的数据集提交统计（`ApplyResult.sizing_skipped_dataset_ids`），预览结果加 `format_entry_options`，都是只加不改，批准。main 合进本分支时有 7 个文件冲突（registry 两边都加了作业类型、测试里的类型数、生成文件），由 Codex 解决：生产类型共 12 个，生成文件用 api-types 重新生成，另加了跨票集成测试（新建数据集的来源.json 能被第 10 张的详情和筛选使用）。Codex 在沙箱里做不了 `git add`，由执行线暂存并提交合并（钩子全绿：2551 passed，Vitest 349）。**浏览器演练**（`create-browser-drill.sh`、`.mjs` → `create-browser-drill-run.log`、`drill/m108-*.png`，在副本上做）：libero_10 详情 → 建链 → 预览（格式 lerobot 3.0，来源 meta/info.json，列出新增和更新的文件）→ 确认 → 作业 6 completed；数据集页 → 新增数据集 "M1_08_浏览器演练"（开源下载，目标 /mnt/dataset1/lerobot，没有元信息，选 mcap）→ 预览显示 dataset-36、格式 mcap、版本 null、来源"用户选择（缺少 meta/info.json）"→ 确认 → 作业 9 completed → 树里出现新数据集；两个入口的链接、三份 JSON 和来源.json 都写在副本里。1280×900 下各步都没有横向溢出；/mnt 清单逐字节相同，两块盘写入扇区数不变。演练脚本前几次失败都是执行线自己的问题：原生 select 当成 antd 来点、误点了预览里的格式入口。非阻塞记录：创建表单用的是原生 select 和 checkbox，和平台其他地方的 antd 控件风格不一致，记作 M1.5 统一处理。按负责人授权合并。
