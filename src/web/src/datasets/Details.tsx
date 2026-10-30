@@ -12,6 +12,7 @@ import { DatasetSizeSummary } from "./Sizes";
 import { DataOriginEditor } from "./DataOrigin";
 import { DatasetInformation } from "./Information";
 import { DatasetLinks, DatasetSources } from "./Entries";
+import { CreateLinkEntry } from "./CreationEntries";
 import { useDatasetDetail } from "./queries";
 import { formatDateTime } from "../time";
 
@@ -77,6 +78,7 @@ function DetailContent({
         />
       )}
       <Typography.Title level={3}>{detail.entry.name}</Typography.Title>
+      <CreateLinkEntry datasetId={detail.entry.dataset_id} />
       <p>{detail.entry.dataset_id ?? "身份未知"}</p>
       <p>{detail.entry.entry_path}</p>
       <p>索引时间：{formatDateTime(detail.indexed_at)}</p>

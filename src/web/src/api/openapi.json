@@ -433,6 +433,32 @@
         "title": "CheckScope",
         "type": "string"
       },
+      "ConfirmCreationRequest": {
+        "additionalProperties": false,
+        "description": "用户确认保存的预览，不能夹带替换参数或计划。\n\nAttributes:\n    preview_job_id: 成功的创建预览编号，规范十进制文本，数值不超过 MAX_SQLITE_INTEGER。\n    acknowledged_queue_job_ids: 已在页面看到并确认的排队作业编号，去重；默认空。\n        新出现未确认的排队编号会再次返回提醒，不能以通配布尔值绕过。",
+        "properties": {
+          "acknowledged_queue_job_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            },
+            "maxItems": 10000,
+            "title": "Acknowledged Queue Job Ids",
+            "type": "array"
+          },
+          "preview_job_id": {
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "title": "Preview Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preview_job_id"
+        ],
+        "title": "ConfirmCreationRequest",
+        "type": "object"
+      },
       "CountParameters": {
         "additionalProperties": false,
         "description": "示例作业参数，序号从 1 开始，所有整数拒绝 bool。\n\nAttributes:\n    model_config: 冻结、禁止多余字段、不回显拒绝值。\n    steps: 总步数，COUNT_MIN_STEPS 至 COUNT_MAX_STEPS，必填。\n    interval_ms: 每步间隔，COUNT_MIN_INTERVAL_MS 至 COUNT_MAX_INTERVAL_MS 毫秒，必填。\n    failed_steps: 失败步序号元组，默认空，去重前先拒绝重复；每项 1 至 steps，至多 COUNT_MAX_STEPS 项。\n    warning_steps: 警告步序号元组，默认空，同一失败步也可产生警告；范围/重复规则同上。\n    abort_at_step: 在该步处理前整体中止，1 至 steps；默认 None 不整体中止。",
@@ -528,6 +554,253 @@
           "role"
         ],
         "title": "CreateAccountRequest",
+        "type": "object"
+      },
+      "CreationDetails": {
+        "additionalProperties": false,
+        "description": "两种创建操作共享的展示差异，各路径清单完整且受既有扫描预算限制。\n\nAttributes:\n    canonical_entry_path: 按任务入口的导航相对路径。\n    format_entry_paths: 实际重生成的全部按格式入口路径，按路径排序；含未勾选的已有入口。\n    selected_format_entry_paths: 用户本次勾选并加入链接的入口路径；可为空。\n    file_paths: 所有 WriteFileStep 的路径，按执行顺序；不含文件全文。\n    directory_paths: 所有 MakeDirStep 的路径，按父目录到子目录顺序；可为空。\n    links: 所有 SetLinkStep 的位置和目标，按执行顺序；no-op 时为空。\n    sources_added: 规范副本新增的数据块，至多一条；覆盖已有数据块时为空。\n    dataset_roots_added: 要追加的绝对根路径，至多一条；已覆盖时为空。\n    resolved_format: 本条目标的格式稳定键；noop 不重新读元信息，为 None。\n    resolved_version: 本条目标的版本，无 meta/info.json 时为 None。\n    metadata_source: meta_info 表示使用文件；selected_format 表示缺文件后用用户选择；\n        not_checked 仅用于 noop，不强迫无变化请求补选格式。\n    noop: L2 已有同目标且已登记时为 True，所有写入步骤及差异清单为空。",
+        "properties": {
+          "canonical_entry_path": {
+            "title": "Canonical Entry Path",
+            "type": "string"
+          },
+          "dataset_roots_added": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1,
+            "title": "Dataset Roots Added",
+            "type": "array"
+          },
+          "directory_paths": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Directory Paths",
+            "type": "array"
+          },
+          "file_paths": {
+            "items": {
+              "type": "string"
+            },
+            "title": "File Paths",
+            "type": "array"
+          },
+          "format_entry_paths": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10000,
+            "title": "Format Entry Paths",
+            "type": "array"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/LinkAddition"
+            },
+            "title": "Links",
+            "type": "array"
+          },
+          "metadata_source": {
+            "enum": [
+              "meta_info",
+              "selected_format",
+              "not_checked"
+            ],
+            "title": "Metadata Source",
+            "type": "string"
+          },
+          "noop": {
+            "title": "Noop",
+            "type": "boolean"
+          },
+          "resolved_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Format"
+          },
+          "resolved_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Version"
+          },
+          "selected_format_entry_paths": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10000,
+            "title": "Selected Format Entry Paths",
+            "type": "array"
+          },
+          "sources_added": {
+            "items": {
+              "$ref": "#/components/schemas/SourceAddition"
+            },
+            "maxItems": 1,
+            "title": "Sources Added",
+            "type": "array"
+          }
+        },
+        "required": [
+          "canonical_entry_path",
+          "format_entry_paths",
+          "selected_format_entry_paths",
+          "file_paths",
+          "directory_paths",
+          "links",
+          "sources_added",
+          "dataset_roots_added",
+          "resolved_format",
+          "resolved_version",
+          "metadata_source",
+          "noop"
+        ],
+        "title": "CreationDetails",
+        "type": "object"
+      },
+      "CreationFormatOption": {
+        "additionalProperties": false,
+        "description": "格式登记表的一项，前端不复制目录映射。\n\nAttributes:\n    format: 格式稳定键，来自 FORMAT_DIRECTORIES。\n    directory: 原样磁盘目录名，archives 的显示名也由这里提供。\n    has_versions: 是否要求输入单层版本目录。\n    versions: 索引中已有版本候选，去重排序；允许用户输入新的安全单层版本名。",
+        "properties": {
+          "directory": {
+            "title": "Directory",
+            "type": "string"
+          },
+          "format": {
+            "title": "Format",
+            "type": "string"
+          },
+          "has_versions": {
+            "title": "Has Versions",
+            "type": "boolean"
+          },
+          "versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "format",
+          "directory",
+          "has_versions",
+          "versions"
+        ],
+        "title": "CreationFormatOption",
+        "type": "object"
+      },
+      "CreationOptions": {
+        "additionalProperties": false,
+        "description": "创建表单共享候选，不通过访问存储根推测格式。\n\nAttributes:\n    formats: FORMAT_DIRECTORIES 的全部项，保持登记顺序。\n    data_origins: DATA_ORIGINS 的全部中文值，保持登记顺序；未知也是可显式选择的值。",
+        "properties": {
+          "data_origins": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Origins",
+            "type": "array"
+          },
+          "formats": {
+            "items": {
+              "$ref": "#/components/schemas/CreationFormatOption"
+            },
+            "title": "Formats",
+            "type": "array"
+          }
+        },
+        "required": [
+          "formats",
+          "data_origins"
+        ],
+        "title": "CreationOptions",
+        "type": "object"
+      },
+      "CreationPreviewView": {
+        "additionalProperties": false,
+        "description": "成功预览的页面结果；仅投影已持久保存的同一份 NavPreview。\n\nAttributes:\n    preview_job_id: 成功预览作业编号，文本，确认请求仅引用此编号。\n    created_at: 预览保存的 UTC 时刻，不是 GET 请求时刻。\n    operation: create_link 或 create_dataset；不允许拿撤回预览调用本票确认入口。\n    dataset_id: 已有编号或预计分配的新编号；后者尚未占用。\n    dataset_name: 规范入口名称。\n    parameters: 原样回显已校验参数，不能在确认时覆盖。\n    report: 第 07 张报告，creation 必须非空；差异、计数、检查范围与提示来自同一计划。\n    queued_jobs: 当前数据库里同编号的排队写作业，升序，完整且有上界；仅作提醒。\n    format_entry_options: 预览阶段可勾选的登记格式入口，含已索引及本目标元信息中的版本。",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dataset_id": {
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "dataset_name": {
+            "title": "Dataset Name",
+            "type": "string"
+          },
+          "format_entry_options": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FormatEntrySelection"
+            },
+            "title": "Format Entry Options",
+            "type": "array"
+          },
+          "operation": {
+            "enum": [
+              "create_link",
+              "create_dataset"
+            ],
+            "title": "Operation",
+            "type": "string"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkPreviewParameters"
+              },
+              {
+                "$ref": "#/components/schemas/DatasetPreviewParameters"
+              }
+            ],
+            "title": "Parameters"
+          },
+          "preview_job_id": {
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "title": "Preview Job Id",
+            "type": "string"
+          },
+          "queued_jobs": {
+            "items": {
+              "$ref": "#/components/schemas/QueuedNavigationJob"
+            },
+            "maxItems": 10000,
+            "title": "Queued Jobs",
+            "type": "array"
+          },
+          "report": {
+            "$ref": "#/components/schemas/PlanReport"
+          }
+        },
+        "required": [
+          "preview_job_id",
+          "created_at",
+          "operation",
+          "dataset_id",
+          "dataset_name",
+          "parameters",
+          "report",
+          "queued_jobs"
+        ],
+        "title": "CreationPreviewView",
         "type": "object"
       },
       "DataOrigin": {
@@ -1093,6 +1366,39 @@
           "indexed_at"
         ],
         "title": "DatasetPanelResponse",
+        "type": "object"
+      },
+      "DatasetPreviewParameters": {
+        "additionalProperties": false,
+        "description": "新增数据集的预览参数；编号与入口路径只能由平台分配。\n\nAttributes:\n    dataset_name: 安全单层数据集名；不能与按任务下任何已有对象重名，包括断链。\n    data_origin: DATA_ORIGINS 中的必填中文值。\n    link: 新数据集的第一条链接；至少有这一条，不创建空数据集。\n    format_entries: 零到多个去重格式位置，按登记表推导目录；每个放入第一条链接。",
+        "properties": {
+          "data_origin": {
+            "title": "Data Origin",
+            "type": "string"
+          },
+          "dataset_name": {
+            "minLength": 1,
+            "title": "Dataset Name",
+            "type": "string"
+          },
+          "format_entries": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FormatEntrySelection"
+            },
+            "title": "Format Entries",
+            "type": "array"
+          },
+          "link": {
+            "$ref": "#/components/schemas/FirstLink"
+          }
+        },
+        "required": [
+          "dataset_name",
+          "data_origin",
+          "link"
+        ],
+        "title": "DatasetPreviewParameters",
         "type": "object"
       },
       "DatasetProvenance": {
@@ -1779,6 +2085,67 @@
           "diagnostics"
         ],
         "title": "FindingGroup",
+        "type": "object"
+      },
+      "FirstLink": {
+        "additionalProperties": false,
+        "description": "一条建链参数，目标解释与元信息读取只在 worker 中发生。\n\nAttributes:\n    name: 安全单层链接名，适用 L1 的四份 JSON 保留名规则。\n    target_path: 文件或目录的非空绝对 POSIX 路径，无 NUL；不接受客户端指定存储根或 realpath 结果。\n    fallback_format: 无 meta/info.json 时必选的登记格式；有该文件时以文件为准。\n        文件损坏、不可读或字段不合约不能降级到此值；缺文件时 version 固定 None。",
+        "properties": {
+          "fallback_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Format"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "target_path": {
+            "minLength": 1,
+            "pattern": "^/[^\\x00]*$",
+            "title": "Target Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "target_path"
+        ],
+        "title": "FirstLink",
+        "type": "object"
+      },
+      "FormatEntrySelection": {
+        "additionalProperties": false,
+        "description": "要加入第一条链接的按格式入口位置，不接受任意入口路径。\n\nAttributes:\n    format: 登记表中的格式稳定键。\n    version: 有版本层的格式必须填写安全的单层版本名；无版本层必须为 None。\n        这是视图位置，与数据块从 meta/info.json 读出的版本分别展示。",
+        "properties": {
+          "format": {
+            "title": "Format",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "format"
+        ],
+        "title": "FormatEntrySelection",
         "type": "object"
       },
       "GpuAvailability": {
@@ -2469,6 +2836,56 @@
         "title": "LayoutResponse",
         "type": "object"
       },
+      "LinkAddition": {
+        "additionalProperties": false,
+        "description": "计划创建的一条绝对目标软链接。\n\nAttributes:\n    path: 相对导航根的完整链接位置。\n    target_path: 通过 L1 校验的绝对目标路径。",
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "target_path": {
+            "title": "Target Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "target_path"
+        ],
+        "title": "LinkAddition",
+        "type": "object"
+      },
+      "LinkPreviewParameters": {
+        "additionalProperties": false,
+        "description": "给现有数据集建链的预览参数，规范入口由永久编号查找。\n\nAttributes:\n    dataset_id: 已存在数据集的永久编号；不接受按格式入口路径冒充规范副本。\n    link: 本次要追加的单条链接。\n    format_entries: 勾选的零到多个格式/版本位置，不能重复；每个位置放入本条链接。\n        未勾选的已有按格式入口仍由规范副本重生成，保留它们自己的 links[]（L8）。",
+        "properties": {
+          "dataset_id": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^/\\\\\\s\\x00]+$",
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "format_entries": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FormatEntrySelection"
+            },
+            "title": "Format Entries",
+            "type": "array"
+          },
+          "link": {
+            "$ref": "#/components/schemas/FirstLink"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "link"
+        ],
+        "title": "LinkPreviewParameters",
+        "type": "object"
+      },
       "ListedChange": {
         "additionalProperties": false,
         "description": "需要逐处列出的改动（Markdown 正文与 notes 里的替换，L18）。\n\nAttributes:\n    model_config: 冻结，拒绝未知字段。\n    file: 相对 nav_root 的文件路径。\n    json_path: 字符串值所在的 JSON 路径。\n    before: 改前的片段，截取到上下文足够辨认，非空。\n    after: 改后的片段，非空。",
@@ -3156,7 +3573,7 @@
       },
       "PlanReport": {
         "additionalProperties": false,
-        "description": "给人看的预览报告，由计划算出，不独立重算规则。\n\nAttributes:\n    model_config: 冻结，拒绝未知字段。\n    file_count: 将写的文件数，≥ 0。\n    link_count: 将建或改的链接数，≥ 0。\n    directory_count: 将建的目录数，≥ 0。\n    field_counts: 按文件和字段分组的数量，完整不截断。\n    listed_changes: 逐处列出的改动，至多 PREVIEW_LISTED_CHANGE_LIMIT 条样例。\n    listed_total: 应逐处列出的总数，≥ len(listed_changes)；总数始终完整。\n    checks: 预览做了哪些检查及其范围。\n    notices: 提醒与例外，例如\"将把 X 加进 dataset_roots\"、alpha 少 3 个数据块。",
+        "description": "给人看的预览报告，由计划算出，不独立重算规则。\n\nAttributes:\n    model_config: 冻结，拒绝未知字段。\n    file_count: 将写的文件数，≥ 0。\n    link_count: 将建或改的链接数，≥ 0。\n    directory_count: 将建的目录数，≥ 0。\n    field_counts: 按文件和字段分组的数量，完整不截断。\n    listed_changes: 逐处列出的改动，至多 PREVIEW_LISTED_CHANGE_LIMIT 条样例。\n    listed_total: 应逐处列出的总数，≥ len(listed_changes)；总数始终完整。\n    checks: 预览做了哪些检查及其范围。\n    notices: 提醒与例外，例如\"将把 X 加进 dataset_roots\"、alpha 少 3 个数据块。\n    creation: 建链和新增数据集的结构化差异；其他操作及历史预览为 None。",
         "properties": {
           "checks": {
             "items": {
@@ -3164,6 +3581,16 @@
             },
             "title": "Checks",
             "type": "array"
+          },
+          "creation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CreationDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "directory_count": {
             "minimum": 0.0,
@@ -3318,6 +3745,30 @@
         ],
         "title": "ProvenanceState",
         "type": "string"
+      },
+      "QueuedNavigationJob": {
+        "additionalProperties": false,
+        "description": "提交前发现的同数据集排队写作业；不把预览作业算进写冲突提醒。\n\nAttributes:\n    job_id: 规范十进制作业编号文本，禁止前端转 Number。\n    dataset_ids: 与本次预览重叠的永久编号，去重升序。",
+        "properties": {
+          "dataset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dataset Ids",
+            "type": "array"
+          },
+          "job_id": {
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "dataset_ids"
+        ],
+        "title": "QueuedNavigationJob",
+        "type": "object"
       },
       "RecoveryBlockResponse": {
         "additionalProperties": false,
@@ -3637,6 +4088,55 @@
           "worker_online"
         ],
         "title": "SchedulingResponse",
+        "type": "object"
+      },
+      "SourceAddition": {
+        "additionalProperties": false,
+        "description": "规范副本 sources[] 新增的数据块；已有 source_id 永不重算。\n\nAttributes:\n    source_id: 导航层手册第 2 节的 src_ 加 original_path 的 UTF-8 字节 sha256 前 12 位。\n    original_path: 首次登记的绝对路径，与新增时 direct_path 相同。\n    direct_path: 当前目标绝对路径。\n    format: 元信息或用户选择得到的登记格式稳定键。\n    version: 元信息里的格式版本；缺文件时明确为 None。\n    validation_status: 固定 path_exists_only；预览不声称完成深度质检。",
+        "properties": {
+          "direct_path": {
+            "title": "Direct Path",
+            "type": "string"
+          },
+          "format": {
+            "title": "Format",
+            "type": "string"
+          },
+          "original_path": {
+            "title": "Original Path",
+            "type": "string"
+          },
+          "source_id": {
+            "pattern": "^src_[0-9a-f]{12}$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "validation_status": {
+            "const": "path_exists_only",
+            "default": "path_exists_only",
+            "title": "Validation Status",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "source_id",
+          "original_path",
+          "direct_path",
+          "format",
+          "version"
+        ],
+        "title": "SourceAddition",
         "type": "object"
       },
       "StatusRequest": {
@@ -6416,6 +6916,506 @@
         ]
       }
     },
+    "/api/datasets/creation-options": {
+      "get": {
+        "description": "返回创建表单的格式和数据来源候选。\n\nArgs:\n    context: 当前账号和最小查询依赖，无管理员限制。\n\nReturns:\n    200，formats 含登记目录、版本层标记与索引版本候选；data_origins 为全部合法中文值。\n\nRaises:\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 未完成改密，403。\n    InputError: 版本索引损坏，400。\n    ConflictError: 候选查询竞争，409。\n    ExternalError: 候选读取或装配失败，502。\n    DefectError: 依赖、时刻或展示映射违约，500。\n\nSide Effects:\n    仅调用 read_creation_options 查询索引与登记规则，不扫描存储或导航目录。\n\nTime Semantics:\n    同步短查询，数据库预算沿用 M0；前端离页清理缓存，不轮询候选。",
+        "operationId": "get_dataset_creation_options",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreationOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Creation Options",
+        "tags": [
+          "dataset-creation"
+        ]
+      }
+    },
+    "/api/datasets/creation-previews": {
+      "post": {
+        "description": "提交新增数据集预览，由 worker 计算预计编号和入口差异。\n\nArgs:\n    context: 当前成员/管理员的会话及服务端审计来源。\n    body: dataset_name、data_origin、link 和 format_entries；来源必填，编号不允许传入。\n\nReturns:\n    201，nav_create_dataset_preview 的 M0 queued 记录；编号只在成功预览中展示。\n\nRaises:\n    JobInputError: 名称/来源/格式选择不合法、超预算或类型未登记，422。\n    AuthenticationError: 当前会话在写事务内失效，401。\n    AuthorizationError: Origin 检查失败，403。\n    PasswordChangeRequiredError: 当前账号必须改密，403。\n    InputError: 已有作业数据损坏，400。\n    ConflictError: 提交/日志竞争，409。\n    ExternalError: 队列数据库写失败，502。\n    DefectError: 时钟或参数/响应映射违约，500。\n\nSide Effects:\n    新增只读预览作业及提交日志；不建目录、不分配编号、不创建来源文件。\n\nTime Semantics:\n    排队立即返回；HTTP 超时不证明提交失败，页面不盲目重发。",
+        "operationId": "submit_dataset_creation_preview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetPreviewParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Submit Dataset Preview",
+        "tags": [
+          "dataset-creation"
+        ]
+      }
+    },
+    "/api/datasets/creation-previews/{preview_job_id}": {
+      "get": {
+        "description": "读取任一种成功创建预览供页面确认。\n\nArgs:\n    context: 当前登录账号与只读状态目录依赖。\n    preview_job_id: 规范十进制文本，1 至 MAX_SQLITE_INTEGER；始终以文本传给前端。\n\nReturns:\n    200，预览身份、UTC 时刻、操作、参数、PlanReport 和当前 queued_jobs；\n    report.creation 明确列文件/链接/数据块/根及按格式入口，不传完整执行计划。\n\nRaises:\n    JobNotFoundError: 作业编号不存在，404。\n    JobInputError: 编号超范围，422。\n    AuthenticationError: 读取时账号会话失效，401。\n    PasswordChangeRequiredError: 须先改密，403。\n    InputError: 未成功完成、错误类型、文件过期/丢失/损坏或关联不合法，400。\n    ConflictError: 读取队列竞争，409。\n    ExternalError: 状态文件、数据库读取失败，502。\n    DefectError: 报告与计划不一致或创建差异缺失，500。\n\nSide Effects:\n    仅调用 read_creation_preview，查询数据库并读取已存预览文件；不访问导航或目标。\n\nTime Semantics:\n    created_at 不刷新；预览沿用七天保留期，过期提示重新预览；不等待运行中的预览结束。",
+        "operationId": "get_dataset_creation_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preview_job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Preview Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreationPreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Creation Preview",
+        "tags": [
+          "dataset-creation"
+        ]
+      }
+    },
+    "/api/datasets/creation-writes": {
+      "post": {
+        "description": "确认保存的创建预览并提交通用写入作业，出现新排队提醒时要求再次确认。\n\nArgs:\n    context: 本次确认者身份，作业和操作日志用该身份而非预览作者。\n    body: preview_job_id 与 acknowledged_queue_job_ids；不接受其他参数或 plan。\n\nReturns:\n    201，已提交的 nav_write_apply 完整 JobResponse，parameters 只有整数 preview_job_id。\n    有未确认的新排队作业时抛 409，五段诊断的 queued_job_id_N 对象列出作业编号。\n\nRaises:\n    JobNotFoundError: 预览作业不存在，404。\n    JobInputError: 非法/重复编号、额外字段或类型未登记，422。\n    AuthenticationError: 提交事务中确认者会话失效，401。\n    AuthorizationError: 同源写请求检查失败，403。\n    PasswordChangeRequiredError: 确认者必须先改密，403。\n    InputError: 预览类型/成功状态/文件不合约，400。\n    ConflictError: 有未确认的新排队写作业或提交事务竞争，409；实际导航冲突在写入作业诊断中展示。\n    ExternalError: 读取预览或持久化作业/日志失败，502。\n    DefectError: 领域结果或依赖违反契约，500。\n\nSide Effects:\n    委托 submit_creation_write；未确认排队项返回冲突且不提交，成功时只写作业及提交日志，\n    HTTP 不执行计划。恢复失败时作业仍可排队，由既有门禁保护导航写入。\n\nTime Semantics:\n    确认前刷新队列快照；作业入队后立即返回，页面转 /jobs/$jobId；不重试 POST。\n    导航变化由 worker 在写锁内核对，冲突提示列出差异并要求重新预览。",
+        "operationId": "confirm_dataset_creation_write",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmCreationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Confirm Creation Write",
+        "tags": [
+          "dataset-creation"
+        ]
+      }
+    },
     "/api/datasets/detail": {
       "get": {
         "description": "读取所选入口原文及规范信息，独立返回推导值和索引过期标记。\n\nArgs:\n    context: 当前账号、服务端UTC时刻及受限导航读取服务。\n    entry_path: 树/列表返回的相对入口路径；先查索引再打开，不接受任意绝对路径。\n\nReturns:\n    200，原始路径与信息原文、规范信息、推导数据块、索引链接/大小和index_stale；\n    子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看；\n    provenance 返回规范入口当前来源、文件状态和标注人/UTC时刻。\n\nRaises:\n    DatasetNotFoundError: 入口不在索引，404。\n    DatasetQueryError: 路径穿越或参数非法，422。\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 须改密，403。\n    InputError: 索引损坏或整体导航预算超限，400。\n    ConflictError: 索引查询锁超时，409。\n    ExternalError: 数据库或导航根整体不可读，502；单文件失败以诊断局部返回。\n    DefectError: 推导或响应字段错误，500。\n\nSide Effects:\n    只读导航普通文件和链接自身；不跟随存储目标，不修改索引，不隐藏坏JSON原文。\n\nTime Semantics:\n    SQL完成后再读文件；L12比较使用内容指纹，不用mtime，漂移时保守标过期。",
@@ -6902,6 +7902,133 @@
         "summary": "Set Dataset Layout",
         "tags": [
           "datasets"
+        ]
+      }
+    },
+    "/api/datasets/link-previews": {
+      "post": {
+        "description": "提交建链预览，目标检查交给 worker。\n\nArgs:\n    context: 服务器认证身份、UTC 时刻和审计上下文。\n    body: dataset_id、link{name,target_path,fallback_format}、format_entries[{format,version}]。\n        非法名称/额外字段按统一 422 拒绝，不回显不可信值。\n\nReturns:\n    201，nav_create_link_preview 的完整 M0 queued 记录；不等待预览完成。\n\nRaises:\n    DatasetNotFoundError: 编号未入索引，404。\n    JobInputError: 未登记、参数或去重/编码预算校验失败，422。\n    AuthenticationError: 提交事务内会话失效，401。\n    AuthorizationError: Origin 非本站，403，先于 body 校验。\n    PasswordChangeRequiredError: 强制改密，403。\n    InputError: 索引或作业数据损坏，400。\n    ConflictError: 提交竞争或编号耗尽，409。\n    ExternalError: 队列与提交日志持久化失败，502。\n    DefectError: 提交装配或响应映射错误，500。\n\nSide Effects:\n    调用领域 submit_link_preview，再用 M0 作业响应转换；只新增作业与提交日志。\n    不打开目标、不运行 builder、不拿导航写锁。\n\nTime Semantics:\n    使用请求唯一提交时刻；客户端按 JOB_POLL_INTERVAL_MS 轮询作业状态，无 POST 重试。",
+        "operationId": "submit_dataset_link_preview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkPreviewParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Submit Link Preview",
+        "tags": [
+          "dataset-creation"
         ]
       }
     },

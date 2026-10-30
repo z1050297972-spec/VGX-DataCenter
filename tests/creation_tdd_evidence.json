@@ -1,0 +1,466 @@
+{
+  "scope": "M1-08 后端检查点；前端20项继续跳过",
+  "red_then_green": 8,
+  "first_green": 57,
+  "tests": [
+    {
+      "test": "test_creation_api.py::test_routes_and_generated_contract",
+      "behavior": "验证契约：HTTP 契约：五个新增路径方法、请求字段、响应及 SessionCookie 出现在真实应用 OpenAPI，类型由 make api-types 生成。",
+      "first_behavior_run": "green",
+      "reason": "已批准的类型声明、结果校验和HTTP装配已存在；本项验证兼容性或结构约束，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_routes_and_generated_contract；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_origin_auth_password_member",
+      "behavior": "验证契约：安全边界：真实应用先 Origin、认证、强制改密；成员与管理员都可创建，额外字段/非法模型统一 422 且不回显输入。",
+      "first_behavior_run": "green",
+      "reason": "HTTP切片沿用M0认证、作业、编号和事务边界；本项验证角色或故障状态，没有重写底座规则，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_origin_auth_password_member；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_web_cannot_access_targets",
+      "behavior": "验证契约：ADR 0006：把临时存储根设为不可读，HTTP 仍只提交预览行，不 stat/resolve/open 目标或执行 builder。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_web_cannot_access_targets；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_submit_preview_job_types",
+      "behavior": "验证契约：契约：建链与新建分别提交两个 RESTART 只读类型，返回 201 queued，当前账号和提交日志同事务。",
+      "first_behavior_run": "green",
+      "reason": "完整HTTP切片已接入同一提交/读取服务与M0身份、事务和作业机制；本项经真实应用验证对应状态。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_submit_preview_job_types；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_preview_options_registry",
+      "behavior": "验证契约：契约：候选来自格式/来源单一登记及索引版本，空索引仍有登记选项，读取不创建目录。",
+      "first_behavior_run": "green",
+      "reason": "read_creation_options 已在HTTP装配切片中一并实现；本项首次独立验证登记表与索引候选，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_preview_options_registry；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_read_only_successful_creation_preview",
+      "behavior": "验证契约：只有 completed 且 succeeded/succeeded_with_warnings 的正确创建预览可读/确认；运行、失败、取消、中断、错类型都拒绝。",
+      "first_behavior_run": "green",
+      "reason": "完整HTTP切片已接入同一提交/读取服务与M0身份、事务和作业机制；本项经真实应用验证对应状态。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_read_only_successful_creation_preview；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_preview_missing_corrupt_expired",
+      "behavior": "验证契约：契约：不存在作业 404；丢失/损坏/七天过期文件给输入诊断；文件 I/O 失败给外部失败，不伪造空预览。",
+      "first_behavior_run": "red",
+      "reason": "保留在磁盘的八天旧预览仍返回200；加入创建时刻保留期校验后转绿。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_preview_missing_corrupt_expired；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_preview_response_excludes_plan_body",
+      "behavior": "验证契约：契约：结果只有身份、参数、报告差异及排队提醒，不暴露 after_content 或接受客户端 plan。",
+      "first_behavior_run": "green",
+      "reason": "完整HTTP切片已接入同一提交/读取服务与M0身份、事务和作业机制；本项经真实应用验证对应状态。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_preview_response_excludes_plan_body；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_confirm_only_references_saved_plan",
+      "behavior": "验证契约：契约：确认只传预览与已见队列编号，提交 NAV_APPLY_TYPE 参数仅 preview_job_id，执行复用同一持久计划。",
+      "first_behavior_run": "red",
+      "reason": "真实HTTP流程在上下文依赖处得到500；完成提交、预览执行、读取和确认后转绿。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_confirm_only_references_saved_plan；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_queued_write_warning_requires_ack",
+      "behavior": "验证契约：ADR 0005：同数据集未确认的排队写作业先返回409五段诊断且不插作业；确认所见编号后返回201，新编号出现再次提醒。",
+      "first_behavior_run": "green",
+      "reason": "确认写入切片已经实现提交前队列检查；本项独立验证409诊断、已确认编号及其他数据集的变体，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_queued_write_warning_requires_ack；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_queue_resolves_plan_dataset_ids",
+      "behavior": "验证契约：契约：nav_write_apply 参数只有预览编号时仍通过保存计划找同编号；排除只读预览、其他数据集和非排队作业。",
+      "first_behavior_run": "green",
+      "reason": "确认写入切片已经实现提交前队列检查；本项独立验证409诊断、已确认编号及其他数据集的变体，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_queue_resolves_plan_dataset_ids；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_identifier_precision_and_oversize",
+      "behavior": "验证契约：契约：作业编号全程文本支持 2^63-1，拒绝前导零/负数/超范围和重复确认编号，不经过浮点转换。",
+      "first_behavior_run": "green",
+      "reason": "HTTP切片沿用M0认证、作业、编号和事务边界；本项验证角色或故障状态，没有重写底座规则，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_identifier_precision_and_oversize；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_submitter_and_storage_failures",
+      "behavior": "验证契约：契约：确认者是写入提交人，审计 IP/请求编号必填；队列或日志事务失败不留半条作业。",
+      "first_behavior_run": "green",
+      "reason": "HTTP切片沿用M0认证、作业、编号和事务边界；本项验证角色或故障状态，没有重写底座规则，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_submitter_and_storage_failures；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_preview_cancellation_restart",
+      "behavior": "验证契约：作业契约：预览取消不留半份结果，worker RESTART 从头生成；缺依赖/错模式为程序缺陷。",
+      "first_behavior_run": "green",
+      "reason": "HTTP切片沿用M0认证、作业、编号和事务边界；本项验证角色或故障状态，没有重写底座规则，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_preview_cancellation_restart；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_confirmation_after_recovery_block",
+      "behavior": "验证契约：L14：恢复失败时仍能提交排队，既有门禁阻止 nav_write_apply 领取，预览不写导航。",
+      "first_behavior_run": "green",
+      "reason": "HTTP切片沿用M0认证、作业、编号和事务边界；本项验证角色或故障状态，没有重写底座规则，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_confirmation_after_recovery_block；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_optional_creation_report_preserves_history",
+      "behavior": "验证契约：旧 PlanReport 不含 creation 时读为 None；新字段随原有预览与变更记录格式保存，不改变其他操作的含义。",
+      "first_behavior_run": "green",
+      "reason": "已批准的类型声明、结果校验和HTTP装配已存在；本项验证兼容性或结构约束，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_optional_creation_report_preserves_history；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_api.py::test_creation_response_rejects_inconsistent_branches",
+      "behavior": "验证契约：确认成功返回201完整作业，取消可空作业分支；创建预览操作匹配参数且noop必须零差异。",
+      "first_behavior_run": "green",
+      "reason": "已批准的类型声明、结果校验和HTTP装配已存在；本项验证兼容性或结构约束，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_creation_response_rejects_inconsistent_branches；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_apply_integration.py::test_changed_json_conflicts_without_write",
+      "behavior": "验证契约：验收 4/L12：临时导航预览后改变 JSON，在第 07 张流水线写锁下冲突，逐字节证明一行未写。",
+      "first_behavior_run": "green",
+      "reason": "完整写入切片已接入第07张 nav_write_apply、指纹复核、日志、恢复和后处理；本项走真实公共接口验证新计划，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_changed_json_conflicts_without_write；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_apply_integration.py::test_changed_link_and_names_conflict",
+      "behavior": "验证契约：L12：修改链接目标、删除入口或新增条目分别触发冲突，列出实际/期望及重新预览建议。",
+      "first_behavior_run": "green",
+      "reason": "完整写入切片已接入第07张 nav_write_apply、指纹复核、日志、恢复和后处理；本项走真实公共接口验证新计划，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_changed_link_and_names_conflict；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_apply_integration.py::test_new_dataset_number_and_destination_conflict",
+      "behavior": "验证契约：L6/L12：最大编号变化或目的目录出现时整个写入冲突，不偷偷重分配编号。",
+      "first_behavior_run": "green",
+      "reason": "完整写入切片已接入第07张 nav_write_apply、指纹复核、日志、恢复和后处理；本项走真实公共接口验证新计划，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_new_dataset_number_and_destination_conflict；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_apply_integration.py::test_shared_journal_rollback_recovery",
+      "behavior": "验证契约：L13/L14：两种新计划均走已有日志先行/逆序回滚/重启恢复；故障不留下不明半成品且不改存储目标。",
+      "first_behavior_run": "green",
+      "reason": "完整写入切片已接入第07张 nav_write_apply、指纹复核、日志、恢复和后处理；本项走真实公共接口验证新计划，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_shared_journal_rollback_recovery；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_apply_integration.py::test_apply_reindex_sizing_and_change_record",
+      "behavior": "验证契约：L15/L16 与验收 1：成功后同作业更新索引、提交统计，记录操作摘要与永久变更记录，来源可查询。",
+      "first_behavior_run": "green",
+      "reason": "完整写入切片已接入第07张 nav_write_apply、指纹复核、日志、恢复和后处理；本项走真实公共接口验证新计划，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_apply_reindex_sizing_and_change_record；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_apply_integration.py::test_copy_drill_link_and_dataset_panel",
+      "behavior": "验证契约：验收 1 的自动替代：临时导航样本完成建链、场景一、预计 dataset-36 和格式副本，再扫描不新增需要处理；不读真实部署或挂载数据。",
+      "first_behavior_run": "green",
+      "reason": "完整写入切片已接入第07张 nav_write_apply、指纹复核、日志、恢复和后处理；本项走真实公共接口验证新计划，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_copy_drill_link_and_dataset_panel；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_link_plan_updates_manifest",
+      "behavior": "验证契约：L3：追加 links，未被覆盖才加一个 source；entry_path 推导且 source_id 首次分配后不重算。",
+      "first_behavior_run": "red",
+      "reason": "建链 builder 抛 NotImplementedError。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_plan_updates_manifest；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_source_coverage_uses_path_boundary",
+      "behavior": "验证契约：L3：已有数据块覆盖目标时不重复追加，路径 /a/b 不覆盖 /a/bc，source_id 碰撞拒绝。",
+      "first_behavior_run": "green",
+      "reason": "前一完整建链/新增切片已接入同一计划装配器，并复用第07张的副本生成、状态指纹和编号分配；本项验证相应变体。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_source_coverage_uses_path_boundary；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_dataset_roots_notice_and_diff",
+      "behavior": "验证契约：L1：不在 dataset_roots 内才追加，报告和 creation 差异明确列出目标及提示。",
+      "first_behavior_run": "green",
+      "reason": "前一完整建链/新增切片已接入同一计划装配器，并复用第07张的副本生成、状态指纹和编号分配；本项验证相应变体。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_dataset_roots_notice_and_diff；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_existing_different_target_rejected",
+      "behavior": "验证契约：L2 场景一：已有同名不同目标拒绝，诊断提示改走改指向。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_existing_different_target_rejected；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_same_target_without_registration_rejected",
+      "behavior": "验证契约：L2：只有同目标但未在 links[] 登记时仍拒绝，不把不一致当 noop。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_same_target_without_registration_rejected；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_registered_same_target_is_noop",
+      "behavior": "验证契约：L2：同目标且已登记返回空步骤，即使勾新格式也不写，不强迫补选格式或读取元信息，执行结果为 noop。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_registered_same_target_is_noop；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_link_selection_and_all_replicas",
+      "behavior": "验证契约：L4/L8：链接只先改规范副本；勾选入口加链接，全部已有副本按自己的 links 重生成。",
+      "first_behavior_run": "green",
+      "reason": "两种 builder 已接入 generate_format_entry 和同一目录/链接计划装配；本项验证不同副本选择或真实样本变体，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_selection_and_all_replicas；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_zero_and_multiple_format_entries",
+      "behavior": "验证契约：L4：零和多个勾选都可用，新入口父目录先创建；archives 使用原登记目录名。",
+      "first_behavior_run": "green",
+      "reason": "两种 builder 已接入 generate_format_entry 和同一目录/链接计划装配；本项验证不同副本选择或真实样本变体，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_zero_and_multiple_format_entries；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_egopro_and_alpha_replica_regression",
+      "behavior": "验证契约：L8/L9：EgoProDemo 对拍正确，alpha 不可达三块只留规范副本且预览列出遗漏。",
+      "first_behavior_run": "green",
+      "reason": "两种 builder 已接入 generate_format_entry 和同一目录/链接计划装配；本项验证不同副本选择或真实样本变体，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_egopro_and_alpha_replica_regression；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_create_dataset_full_plan",
+      "behavior": "验证契约：L5：一个计划建目录、第一链接、规范三 JSON 和来源文件，格式副本只有三 JSON。",
+      "first_behavior_run": "red",
+      "reason": "新增数据集 builder 抛 NotImplementedError。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_create_dataset_full_plan；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_information_and_subtask_skeletons",
+      "behavior": "验证契约：L5：信息 14 项按手册固定编号/名称、正文全空；子任务 tasks=[] 且 task_count=0，不补信息 schema_version。",
+      "first_behavior_run": "green",
+      "reason": "前一完整建链/新增切片已接入同一计划装配器，并复用第07张的副本生成、状态指纹和编号分配；本项验证相应变体。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_information_and_subtask_skeletons；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_provenance_actor_and_unknown_lineage",
+      "behavior": "验证契约：L5 与 ADR 0008：来源必填、真实提交人印记、UTC 时刻、采集任务 null、血缘空；未知也保留人工印记。",
+      "first_behavior_run": "green",
+      "reason": "前一完整建链/新增切片已接入同一计划装配器，并复用第07张的副本生成、状态指纹和编号分配；本项验证相应变体。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_provenance_actor_and_unknown_lineage；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_allocate_36_from_max_35",
+      "behavior": "验证契约：L6：临时导航已有 01-35 时预计 dataset-36；至少两位，移除目录最大编号参与计算且不可复用。",
+      "first_behavior_run": "green",
+      "reason": "新增数据集切片已调用第07张 allocate_dataset_id/capture_preview_state；本项验证已有编号、移除编号或坏入口，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_allocate_36_from_max_35；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_allocation_unreadable_id_rejected",
+      "behavior": "验证契约：L6：入口读不出编号或已移除命名不合约时拒绝，不猜最大编号。",
+      "first_behavior_run": "green",
+      "reason": "新增数据集切片已调用第07张 allocate_dataset_id/capture_preview_state；本项验证已有编号、移除编号或坏入口，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_allocation_unreadable_id_rejected；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_preview_captures_complete_state",
+      "behavior": "验证契约：L12：记录规范及所有格式入口的 JSON 含来源哈希、条目清单、readlink；新建记录目的不存在和最大编号。",
+      "first_behavior_run": "green",
+      "reason": "前一完整建链/新增切片已接入同一计划装配器，并复用第07张的副本生成、状态指纹和编号分配；本项验证相应变体。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_preview_captures_complete_state；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_builder_reads_consistent_preimages",
+      "behavior": "验证契约：契约：构造中 JSON/链接变化不得把旧正文和新指纹拼成计划，返回冲突或不可验证。",
+      "first_behavior_run": "green",
+      "reason": "前一完整建链/新增切片已接入同一计划装配器，并复用第07张的副本生成、状态指纹和编号分配；本项验证相应变体。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_builder_reads_consistent_preimages；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_json_unknown_keys_and_derived_fields",
+      "behavior": "验证契约：L10/L11：保留未知键和顺序，2 空格、中文、末尾换行，推导 version 显式 null，不补信息 schema_version。",
+      "first_behavior_run": "green",
+      "reason": "前一完整建链/新增切片已接入同一计划装配器，并复用第07张的副本生成、状态指纹和编号分配；本项验证相应变体。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_json_unknown_keys_and_derived_fields；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_builders.py::test_report_matches_exact_plan",
+      "behavior": "验证契约：规范 2.2/2.4：creation 路径与步骤逐一对应，计数不重算，检查范围及已知例外清楚展示，预览不写导航。",
+      "first_behavior_run": "green",
+      "reason": "前一完整建链/新增切片已接入同一计划装配器，并复用第07张的副本生成、状态指纹和编号分配；本项验证相应变体。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_report_matches_exact_plan；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_link_target_must_exist",
+      "behavior": "验证契约：L1：在线本地存储根下目标不存在时拒绝，导航和目标均不变。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_target_must_exist；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_link_target_must_be_absolute",
+      "behavior": "验证契约：L1：相对目标路径按参数错误拒绝，所有 SetLinkStep 都是绝对目标。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_target_must_be_absolute；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_link_target_must_be_registered",
+      "behavior": "验证契约：L1：原始目标不属于任何登记根时拒绝。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_target_must_be_registered；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_link_realpath_must_stay_registered",
+      "behavior": "验证契约：L1：祖先软链接使 realpath 逃出登记根时拒绝。",
+      "first_behavior_run": "green",
+      "reason": "前一建链切片已通过同一个参数模型和有界目标观察器；本项用独立输入验证该规则。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_realpath_must_stay_registered；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_link_target_outside_navigation",
+      "behavior": "验证契约：L1：目标位于导航根内部时拒绝，即使同样落在登记根下。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_target_outside_navigation；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_link_target_not_symlink",
+      "behavior": "验证契约：L1：目标自身是软链接时拒绝，不能链到链接。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_target_not_symlink；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_link_destination_stays_in_views",
+      "behavior": "验证契约：L1：禁止格式、版本或名称穿越，所有目的都在两个视图的入口下。",
+      "first_behavior_run": "green",
+      "reason": "前一建链切片已通过同一个参数模型和有界目标观察器；本项用独立输入验证该规则。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_destination_stays_in_views；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_link_name_no_slash",
+      "behavior": "验证契约：L1：链接名含 / 时拒绝，不产生多层路径。",
+      "first_behavior_run": "red",
+      "reason": "名称校验函数抛 NotImplementedError。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_name_no_slash；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_link_name_no_dot_prefix",
+      "behavior": "验证契约：L1：链接名以 . 开头时拒绝，包括 . 和 ..。",
+      "first_behavior_run": "green",
+      "reason": "名称校验垂直切片已实现 validate_entry_name；本项通过相同公开模型验证不同拒绝输入，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_name_no_dot_prefix；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_link_name_no_reserved_json",
+      "behavior": "验证契约：L1：四份 JSON 保留名逐个拒绝，不覆盖事实文件。",
+      "first_behavior_run": "green",
+      "reason": "名称校验垂直切片已实现 validate_entry_name；本项通过相同公开模型验证不同拒绝输入，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_link_name_no_reserved_json；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_names_reject_empty_and_nul",
+      "behavior": "验证契约：执行线名称规则：空名及 NUL 无法作为目录分量，模型拒绝。",
+      "first_behavior_run": "green",
+      "reason": "名称校验垂直切片已实现 validate_entry_name；本项通过相同公开模型验证不同拒绝输入，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_names_reject_empty_and_nul；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_dataset_name_uses_link_rules",
+      "behavior": "验证契约：最后 Comment：数据集名共用不含 /、不以 . 开头及保留名规则。",
+      "first_behavior_run": "green",
+      "reason": "名称校验垂直切片已实现 validate_entry_name；本项通过相同公开模型验证不同拒绝输入，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_dataset_name_uses_link_rules；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_dataset_name_cannot_collide",
+      "behavior": "验证契约：最后 Comment：按任务下同名目录、文件、链接或断链均拒绝。",
+      "first_behavior_run": "green",
+      "reason": "名称校验垂直切片已实现 validate_entry_name；本项通过相同公开模型验证不同拒绝输入，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_dataset_name_cannot_collide；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_readonly_local_root_is_allowed",
+      "behavior": "验证契约：L1 与 ADR 0006：只读本地存储根可作为链接目标，整个操作不改目标。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_readonly_local_root_is_allowed；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_root_offline_identity_timeout",
+      "behavior": "验证契约：ADR 0006：根未挂载和UUID身份不符分别以外部失败结束，不伪装成路径缺失；超时由构造控制用例覆盖。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_root_offline_identity_timeout；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_nas_is_out_of_scope",
+      "behavior": "验证契约：工单不做项：NAS 目标明确拒绝，不自行批准 1B。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_nas_is_out_of_scope；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_meta_info_is_authoritative",
+      "behavior": "验证契约：L3 与最后 Comment：有元信息时用其格式/版本，不被 fallback_format 覆盖；v3.0 映射到格式版本 3.0。",
+      "first_behavior_run": "green",
+      "reason": "完整建链切片已实现 _create_read 中的有界元信息读取和明确回退规则；本项独立验证文件存在、缺失或损坏的对应分支，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_meta_info_is_authoritative；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_missing_meta_uses_selected_format",
+      "behavior": "验证契约：最后 Comment：mcap/tar 无元信息时用登记格式选择，sources[].version 明确 null。",
+      "first_behavior_run": "green",
+      "reason": "完整建链切片已实现 _create_read 中的有界元信息读取和明确回退规则；本项独立验证文件存在、缺失或损坏的对应分支，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_missing_meta_uses_selected_format；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_missing_meta_requires_selection",
+      "behavior": "验证契约：最后 Comment：缺元信息且未选择格式时拒绝，不猜格式。",
+      "first_behavior_run": "green",
+      "reason": "完整建链切片已实现 _create_read 中的有界元信息读取和明确回退规则；本项独立验证文件存在、缺失或损坏的对应分支，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_missing_meta_requires_selection；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_bad_meta_is_not_missing",
+      "behavior": "验证契约：契约：损坏、越界、超预算或不可读元信息不能静默降级为缺文件。",
+      "first_behavior_run": "green",
+      "reason": "完整建链切片已实现 _create_read 中的有界元信息读取和明确回退规则；本项独立验证文件存在、缺失或损坏的对应分支，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_bad_meta_is_not_missing；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_format_registry_and_version_layer",
+      "behavior": "验证契约：ADR 0006：拒绝未登记格式；lerobot 必填版本，mcap/archives 不接收版本。",
+      "first_behavior_run": "red",
+      "reason": "登记格式/版本层校验抛 NotImplementedError。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_format_registry_and_version_layer；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_format_selection_no_duplicates",
+      "behavior": "验证契约：契约：重复格式位置拒绝，不能悄悄去重后预览。",
+      "first_behavior_run": "red",
+      "reason": "重复格式选择未触发 ValidationError；加入共享参数校验后转绿。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_format_selection_no_duplicates；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_origin_required_and_registered",
+      "behavior": "验证契约：L5：数据来源必填且来自 DATA_ORIGINS，显式未知可用，英文筛选键不可用。",
+      "first_behavior_run": "red",
+      "reason": "数据来源校验抛 NotImplementedError。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_origin_required_and_registered；单个pytest worker；随后全量make check"
+    },
+    {
+      "test": "test_creation_validation.py::test_budgets_and_control_checkpoints",
+      "behavior": "验证契约：规范 2.7：构造取消检查点立即退出，存储访问超时归外部失败且导航不变；参数预算由接口用例覆盖。",
+      "first_behavior_run": "green",
+      "reason": "建链切片已接入目标观察器及现有 StorageAccessChecker；本项验证对应路径、根身份、只读、取消或超时契约，没有新增第二套逻辑，因此首次通过。",
+      "verification": "make check；PYTEST_ADDOPTS=-k test_budgets_and_control_checkpoints；单个pytest worker；随后全量make check"
+    }
+  ],
+  "test_harness_corrections": [
+    "test_submitter_and_storage_failures 的数据库故障替身补齐 sqlite_errorcode=SQLITE_IOERR，使其符合真实驱动契约；没有修改生产异常映射。",
+    "未把格式、类型注解或测试夹具错误计为业务红灯。"
+  ]
+}

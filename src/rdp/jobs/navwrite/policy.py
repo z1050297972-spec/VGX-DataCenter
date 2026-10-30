@@ -2,6 +2,9 @@
 
 from typing import Final
 
+# Web 提交和 worker 登记共用的写入类型键；参数只引用持久预览。
+NAV_APPLY_TYPE: Final = "nav_write_apply"
+
 # 状态目录下三个子目录名；ADR 0009 与运维手册 4.4 的固定名字，不可由配置改写。
 NAV_JOURNAL_DIRNAME: Final = "nav-journal"
 NAV_CHANGES_DIRNAME: Final = "nav-changes"

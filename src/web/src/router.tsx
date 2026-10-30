@@ -37,7 +37,16 @@ const SubmitCountJobPage = lazyRouteComponent(() => import("./jobs/Pages"), "Sub
 import type { JobSearch } from "./api/jobs";
 import { validateJobSearch } from "./jobs/search";
 import { validateDatasetSearch } from "./datasets/search";
+import { validateCreationSearch } from "./datasets/creationState";
 const DatasetsPage = lazyRouteComponent(() => import("./datasets/Pages"), "DatasetsPage");
+const CreateLinkPage = lazyRouteComponent(
+  () => import("./datasets/CreationPages"),
+  "CreateLinkPage",
+);
+const CreateDatasetPage = lazyRouteComponent(
+  () => import("./datasets/CreationPages"),
+  "CreateDatasetPage",
+);
 const StorageRootsPage = lazyRouteComponent(() => import("./storage/Pages"), "StorageRootsPage");
 const NavigationRecoveryPage = lazyRouteComponent(
   () => import("./navigation/Pages"),
@@ -166,6 +175,18 @@ export function createAppRouter(options: AppRouterOptions) {
     validateSearch: validateDatasetSearch,
     component: DatasetsPage,
   });
+  const createLink = createRoute({
+    getParentRoute: () => root,
+    path: "/datasets/links/new",
+    validateSearch: validateCreationSearch,
+    component: CreateLinkPage,
+  });
+  const createDataset = createRoute({
+    getParentRoute: () => root,
+    path: "/datasets/new",
+    validateSearch: validateCreationSearch,
+    component: CreateDatasetPage,
+  });
   const instance = createRouter({
     routeTree: root.addChildren([
       index,
@@ -181,6 +202,8 @@ export function createAppRouter(options: AppRouterOptions) {
       resources,
       storageRoots,
       datasets,
+      createLink,
+      createDataset,
       navigationRecovery,
     ]),
     history: options.history,

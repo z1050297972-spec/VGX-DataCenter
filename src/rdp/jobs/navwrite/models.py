@@ -12,6 +12,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from rdp.jobs.datasets.fingerprint import DatasetFingerprint
+from rdp.jobs.navwrite.create_details import CreationDetails
 
 _FROZEN = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
 
@@ -296,6 +297,7 @@ class PlanReport(BaseModel):
         listed_total: 应逐处列出的总数，≥ len(listed_changes)；总数始终完整。
         checks: 预览做了哪些检查及其范围。
         notices: 提醒与例外，例如"将把 X 加进 dataset_roots"、alpha 少 3 个数据块。
+        creation: 建链和新增数据集的结构化差异；其他操作及历史预览为 None。
     """
 
     model_config = _FROZEN
@@ -307,6 +309,7 @@ class PlanReport(BaseModel):
     listed_total: int = Field(ge=0)
     checks: tuple[CheckNote, ...]
     notices: tuple[PreviewNotice, ...]
+    creation: CreationDetails | None = None
 
 
 class NavPreview(BaseModel):
@@ -344,7 +347,8 @@ class ApplyResult(BaseModel):
         file_count: 实际写入的文件数。
         link_count: 实际建或改的链接数。
         reindexed_dataset_ids: 已更新索引的数据集；回滚或 noop 时为空。
-        sizing_job_ids: 随后提交的统计大小作业编号，每个数据集一个；回滚或 noop 时为空。
+        sizing_job_ids: 随后提交的统计大小作业编号，每个仍存在的数据集一个；回滚或 noop 时为空。
+        sizing_skipped_dataset_ids: 写入或撤回后入口已删除、因此没有提交统计的数据集编号，顺序同计划。
     """
 
     model_config = _FROZEN
@@ -356,6 +360,7 @@ class ApplyResult(BaseModel):
     link_count: int = Field(ge=0)
     reindexed_dataset_ids: tuple[str, ...]
     sizing_job_ids: tuple[int, ...]
+    sizing_skipped_dataset_ids: tuple[str, ...] = ()
 
 
 class MismatchItem(BaseModel):

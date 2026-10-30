@@ -15,6 +15,7 @@ import {
 } from "./queries";
 import type { JobTiming } from "./progress";
 import { jobStatusLabel, useJobTiming, isJobTerminal } from "./progress";
+
 const jobsRoute = getRouteApi("/jobs");
 
 /**
