@@ -21,6 +21,8 @@ JOURNAL_IMAGES_DIRNAME: Final = "images"
 # 临时文件命名：同目录、点号开头，再带作业编号和步骤序号，恢复时能按名字找到并清理。
 TEMP_NAME_TEMPLATE: Final = ".{name}.rdp-{job_id}-{index}.tmp"
 
+# 预览文件保留天数：预览只服务"看过再确认"，7 天足够；新建预览时顺手清理更早的（M1-07 执行线定的第 5 点）。
+PREVIEW_RETENTION_DAYS: Final = 7
 # 变更记录里"全文存进 JSON"的单文件上限，单位字节。M1-07 工单：1 MiB 以下存修改前后的全文。
 CHANGE_INLINE_MAX_BYTES: Final = 1024 * 1024
 # 恢复失败标记里最多保存的对不上的项，防止一次大批量改写把数据库行撑大；总数另存。

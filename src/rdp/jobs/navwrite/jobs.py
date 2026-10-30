@@ -14,13 +14,20 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
+from rdp.infra.diagnostics import DefectError
 from rdp.jobs.execution import ExecutionContext
+from rdp.jobs.navwrite.changes import plan_revert, read_change_record
+from rdp.jobs.navwrite.errors import nav_input_error
 from rdp.jobs.navwrite.models import NavPreview, NavWritePlan, PlanReport
-from rdp.jobs.navwrite.pipeline import NavWriteDependencies
+from rdp.jobs.navwrite.pipeline import NavWriteDependencies, run_write_plan
+from rdp.jobs.navwrite.previews import preview_path, write_preview
 from rdp.jobs.registry import JobDefinition
+from rdp.jobs.types import ExecutionMode, RecoveryMode
 
 # 稳定的作业类型键，写进持久化的作业记录，不复用历史含义。
 NAV_APPLY_TYPE = "nav_write_apply"
@@ -100,7 +107,27 @@ def run_preview(
         正常 1 到 2 秒，与 ADR 0005 估计的单条建链耗时一致；访问存储根的超时取登记值，超时按离线。
         预览状态不是原子快照，写入作业会在写锁下重新核对（规范 2.3）。
     """
-    raise NotImplementedError
+    paths = dependencies.paths
+    preview_path(paths, context.job_id).unlink(missing_ok=True)  # 重跑：先删上一次的结果
+    build = builder(context.reporter.check_cancelled)
+    unverifiable = [f.dataset_id for f in build.plan.state.datasets if not f.verifiable]
+    if unverifiable:
+        problem = nav_input_error(
+            "NAV_PREVIEW_JOB",
+            "计划里有不可验证的指纹，执行前无法证明导航层没变，拒绝生成预览",
+            objects=tuple((f"dataset_{n}", str(d)) for n, d in enumerate(unverifiable[:5], 1)),
+        )
+        raise problem
+    preview = NavPreview(
+        preview_job_id=context.job_id,
+        created_at=context.clock.now(),
+        parameters=build.parameters,
+        plan=build.plan,
+        report=build.report,
+    )
+    context.reporter.check_cancelled()  # 写文件之前最后一次响应取消；之后的写入是原子的
+    write_preview(paths, preview)
+    return preview
 
 
 def execute_apply(dependencies: NavWriteDependencies | None, context: ExecutionContext) -> None:
@@ -128,7 +155,11 @@ def execute_apply(dependencies: NavWriteDependencies | None, context: ExecutionC
         同 run_write_plan。恢复方式为标记中断：worker 中断后由 recover_navigation_writes 退回，
         不会自动重新执行。
     """
-    raise NotImplementedError
+    if dependencies is None or not isinstance(context.parameters, NavApplyParameters):
+        raise DefectError()
+    if context.mode is not ExecutionMode.FRESH:
+        raise DefectError()
+    run_write_plan(context, dependencies, context.parameters.preview_job_id)
 
 
 def execute_revert_preview(
@@ -157,7 +188,20 @@ def execute_revert_preview(
     Time Semantics:
         同 run_preview。无论操作日志是否已按保留期（30 天）清掉，只要变更记录在就能预览（场景三）。
     """
-    raise NotImplementedError
+    if dependencies is None or not isinstance(context.parameters, NavRevertPreviewParameters):
+        raise DefectError()
+    if context.mode not in (ExecutionMode.FRESH, ExecutionMode.RESTART):
+        raise DefectError()
+    target = context.parameters.target_job_id
+
+    def build(checkpoint: Callable[[], None]) -> PreviewBuild:
+        record = read_change_record(dependencies.paths, target)
+        plan, report = plan_revert(
+            Path(dependencies.rescan.nav_root), dependencies.paths, record, checkpoint=checkpoint
+        )
+        return PreviewBuild(plan, report, {"target_job_id": target})
+
+    run_preview(context, dependencies, build)
 
 
 def build_navwrite_definitions(
@@ -182,4 +226,25 @@ def build_navwrite_definitions(
     Time Semantics:
         Web 与 worker 各在启动登记期构造一次；参数模型和恢复方式不受提交人覆盖。
     """
-    raise NotImplementedError
+    if dependencies is not None and (
+        not dependencies.rescan.engine.get_execution_options().get("rdp_managed")
+        or not dependencies.rescan.nav_root.is_absolute()
+    ):
+        raise DefectError()
+    return (
+        JobDefinition(
+            NAV_APPLY_TYPE,
+            NAV_APPLY_NAME,
+            NavApplyParameters,
+            RecoveryMode.INTERRUPT,
+            partial(execute_apply, dependencies),
+            writes_navigation=True,
+        ),
+        JobDefinition(
+            NAV_REVERT_PREVIEW_TYPE,
+            NAV_REVERT_PREVIEW_NAME,
+            NavRevertPreviewParameters,
+            RecoveryMode.RESTART,
+            partial(execute_revert_preview, dependencies),
+        ),
+    )

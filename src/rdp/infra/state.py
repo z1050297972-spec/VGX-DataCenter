@@ -135,7 +135,7 @@ def initialize_state(paths: StatePaths) -> tuple[DirectoryPermissionWarning, ...
             使用本地可信状态位置；调用期间不允许其他主体替换路径。
 
     Returns:
-        不可变的宽权限目录快照元组，按 root、logs、job_logs 输入顺序排列；
+        不可变的宽权限目录快照元组，按 root、logs、job_logs、nav-journal、nav-changes、nav-previews 顺序排列；
         仅包含调用前已存在且 mode & 0o077 非零的目标目录，不含祖先或本次新建目录；
         无宽权限目录时为空。成功后所有目标目录存在且可写、可搜索；
         已有内容和权限不改动，不主动更改时间戳。
@@ -147,7 +147,7 @@ def initialize_state(paths: StatePaths) -> tuple[DirectoryPermissionWarning, ...
         OSError: 其他目录检查或创建失败，例如磁盘满；保留路径和原始原因。
 
     Side Effects:
-        从外到内创建缺失祖先、root、logs、job_logs，新建目录最终权限为 0700，
+        从外到内创建缺失祖先、root、logs、job_logs，以及 nav-journal、nav-changes、nav-previews（M1-07），新建目录最终权限为 0700，
         即使 umask 更严格也只纠正本次新建目录；不改进程 umask、不 chmod 已有目录。
         不创建数据库、锁文件或任何日志文件；不通过试写探测已有目录的权限。
         失败时保留已建空目录，不回滚、不删除任何既有对象，修正原因后可安全重试。
@@ -160,7 +160,14 @@ def initialize_state(paths: StatePaths) -> tuple[DirectoryPermissionWarning, ...
         并发初始化时，若其他进程抢先创建目录，则重新核验后按既有目录处理，不修改其权限。
         权限检查只代表调用时刻，不承诺抵御并发恶意路径替换。
     """
-    directories = (paths.root, paths.logs, *(path for _, path in paths.job_logs))
+    directories = (
+        paths.root,
+        paths.logs,
+        *(path for _, path in paths.job_logs),
+        paths.nav_journal,
+        paths.nav_changes,
+        paths.nav_previews,
+    )
     warnings: list[DirectoryPermissionWarning] = []
     for directory in directories:
         # 只对平台直接管理的目标拒绝软链接；祖先属于调用方选择的可信本地路径。

@@ -5,7 +5,17 @@
 只负责把改完的对象写成约定的字节。
 """
 
-from rdp.jobs.datasets.types import EntryLocation, JsonObject
+import json
+from collections.abc import Mapping
+from pathlib import PurePosixPath
+from typing import cast
+
+from rdp.jobs.datasets.catalog import MAX_DOCUMENT_BYTES
+from rdp.jobs.datasets.reading import derive_source_entry_path
+from rdp.jobs.datasets.types import EntryLocation, JsonObject, JsonValue, Link
+from rdp.jobs.navwrite.errors import nav_input_error
+
+_RULE = "NAV_JSON"
 
 
 def load_navigation_json(content: bytes) -> JsonObject:
@@ -26,7 +36,20 @@ def load_navigation_json(content: bytes) -> JsonObject:
     Time Semantics:
         同步纯函数，无时钟、无 I/O。
     """
-    raise NotImplementedError
+    if len(content) > MAX_DOCUMENT_BYTES:
+        problem = nav_input_error(_RULE, "文件超过大小上限，无法读取")
+        raise problem
+    try:
+        text = content.decode("utf-8")
+        loaded = json.loads(text, parse_constant=_reject_constant)
+    except (UnicodeDecodeError, ValueError) as error:
+        # 不回显正文：解析错误文字会带上文件片段。
+        problem = nav_input_error(_RULE, "文件不是合法的 UTF-8 JSON，无法读取")
+        raise problem from error
+    if not isinstance(loaded, dict):
+        problem = nav_input_error(_RULE, "文件顶层不是 JSON 对象，无法读取")
+        raise problem
+    return cast(JsonObject, loaded)
 
 
 def dump_navigation_json(payload: JsonObject) -> bytes:
@@ -48,7 +71,12 @@ def dump_navigation_json(payload: JsonObject) -> bytes:
     Time Semantics:
         同步纯函数，无时钟、无 I/O。
     """
-    raise NotImplementedError
+    try:
+        text = json.dumps(payload, indent=2, ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError) as error:
+        problem = nav_input_error(_RULE, "内容含非有限数字或不可序列化的值，无法写出")
+        raise problem from error
+    return (text + "\n").encode("utf-8")
 
 
 def regenerate_derived_fields(payload: JsonObject, location: EntryLocation) -> JsonObject:
@@ -73,4 +101,50 @@ def regenerate_derived_fields(payload: JsonObject, location: EntryLocation) -> J
     Time Semantics:
         同步纯函数，无时钟、无 I/O。
     """
-    raise NotImplementedError
+    result: JsonObject = dict(payload)
+    result["view"] = location.view.value
+    result["format"] = location.format
+    result["version"] = location.version
+    if "links" not in payload and "sources" not in payload:
+        return result
+    raw_links = _objects(payload.get("links"), "links")
+    raw_sources = _objects(payload.get("sources"), "sources")
+    links: list[JsonObject] = []
+    typed: list[Link] = []
+    for item in raw_links:
+        name, target = item.get("name"), item.get("source_path")
+        if not isinstance(name, str) or not name or not isinstance(target, str):
+            problem = nav_input_error(_RULE, "links[] 的项缺少 name 或 source_path")
+            raise problem
+        entry_path = str(PurePosixPath(location.path) / name)
+        links.append({**item, "entry_path": entry_path})
+        typed.append(Link(name, target, str(item.get("source_type", "")), entry_path))
+    sources: list[JsonObject] = []
+    for item in raw_sources:
+        direct = item.get("direct_path")
+        if not isinstance(direct, str):
+            problem = nav_input_error(_RULE, "sources[] 的项缺少 direct_path")
+            raise problem
+        sources.append(
+            {**item, "entry_path": derive_source_entry_path(location, direct, tuple(typed))}
+        )
+    if "links" in payload:
+        result["links"] = cast(JsonValue, links)
+    if "sources" in payload:
+        result["sources"] = cast(JsonValue, sources)
+    return result
+
+
+def _reject_constant(name: str) -> object:
+    """标准库 json 默认接受 NaN/Infinity，这里拒绝：它们不是合法 JSON。"""
+    raise ValueError(name)
+
+
+def _objects(value: JsonValue | None, name: str) -> list[JsonObject]:
+    """要求值是对象数组，缺省视为空；类型不对报输入错误。"""
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(isinstance(item, Mapping) for item in value):
+        problem = nav_input_error(_RULE, f"{name} 不是对象数组")
+        raise problem
+    return cast(list[JsonObject], value)

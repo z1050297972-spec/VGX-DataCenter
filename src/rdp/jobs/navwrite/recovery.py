@@ -8,13 +8,36 @@ recover_navigation_writes → 之后才领取任何作业。恢复期间还没�
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 
 from sqlalchemy import Engine
 
+from rdp.audit.records import append_operation
+from rdp.audit.types import OPS_AUDIT_CONTEXT, OperationEvent, OperationResult, OperationType
+from rdp.infra.actors import SYSTEM_ACTOR
+from rdp.infra.db.connection import session_scope
+from rdp.infra.diagnostics import DiagnosticCategory, InputError
 from rdp.infra.state import StatePaths
-from rdp.jobs.navwrite.journal import JournalLocation
+from rdp.jobs.navwrite.atomic import rollback_journal
+from rdp.jobs.navwrite.audit import NavigationAuditFacts, navigation_operation_event
+from rdp.jobs.navwrite.changes import (
+    ArchiveRequest,
+    ChangeOutcome,
+    archive_journal,
+    change_record_path,
+    read_change_record,
+)
+from rdp.jobs.navwrite.errors import nav_input_error
+from rdp.jobs.navwrite.journal import (
+    Journal,
+    JournalLocation,
+    discard_journal,
+    list_journals,
+    read_journal,
+)
+from rdp.jobs.navwrite.marker import is_navigation_write_blocked, record_recovery_block
 from rdp.jobs.navwrite.models import MismatchItem
 from rdp.jobs.types import JobClock
 
@@ -110,7 +133,20 @@ def recover_navigation_writes(
         只在 worker 启动、作业循环领取之前调用一次；不拿导航层写锁（此时没有别的写者，单实例锁已持有）。
         每份日志用 dependencies.clock.now() 取墙钟（UTC）。重启 worker 不会清除标记。
     """
-    raise NotImplementedError
+    results: list[JournalRecovery] = []
+    for location in list_journals(dependencies.paths):
+        checkpoint()
+        result = recover_journal(dependencies, location, checkpoint=checkpoint)
+        results.append(result)
+    now = dependencies.clock.now()
+    mismatches = tuple(item for result in results for item in result.mismatches)
+    with session_scope(dependencies.engine) as session:
+        if mismatches:
+            record_recovery_block(session, mismatches, now=now)
+        for result in results:
+            append_operation(session, _audit_event(dependencies, result, now))
+        blocked = is_navigation_write_blocked(session)
+    return RecoveryReport(tuple(results), blocked)
 
 
 def recover_journal(
@@ -141,4 +177,102 @@ def recover_journal(
     Time Semantics:
         同 recover_navigation_writes；幂等，崩溃在任何一步之后重新运行得到同样的结论。
     """
-    raise NotImplementedError
+    directory = location.directory
+    if not location.complete:
+        discard_journal(directory)
+        return JournalRecovery(location.job_id, JournalFate.INCOMPLETE_DISCARDED, 0, ())
+    try:
+        journal = read_journal(directory)
+    except InputError:
+        return _unreadable(location, "日志损坏，无法回滚")
+    if journal.nav_root != str(dependencies.nav_root):
+        problem = nav_input_error(
+            "NAV_RECOVERY",
+            "写入日志属于另一个导航根，拒绝回滚",
+            objects=(("job_id", str(journal.job_id)), ("journal_nav_root", journal.nav_root)),
+        )
+        raise problem
+    if _already_committed(dependencies, journal):
+        discard_journal(directory)
+        return JournalRecovery(journal.job_id, JournalFate.ALREADY_COMMITTED, 0, ())
+    try:
+        outcome = rollback_journal(dependencies.nav_root, directory, journal, checkpoint=checkpoint)
+    except InputError:
+        return _unreadable(location, "前像文件损坏，无法回滚")
+    if outcome.mismatches:
+        return JournalRecovery(
+            journal.job_id, JournalFate.MISMATCH, len(outcome.restored_steps), outcome.mismatches
+        )
+    archive_journal(
+        dependencies.paths,
+        directory,
+        journal,
+        ArchiveRequest(
+            outcome=ChangeOutcome.ROLLED_BACK_BY_RECOVERY,
+            actor_id=None,
+            actor_name=SYSTEM_ACTOR.name,
+            preview_job_id=None,
+            started_at=journal.created_at,
+            finished_at=dependencies.clock.now(),
+            plan=None,
+            report=None,
+            mismatches=(),
+        ),
+    )
+    discard_journal(directory)
+    return JournalRecovery(journal.job_id, JournalFate.ROLLED_BACK, len(outcome.restored_steps), ())
+
+
+def _unreadable(location: JournalLocation, reason: str) -> JournalRecovery:
+    """日志本身读不了：不能自动回滚，按对不上的项保留供管理员核对。"""
+    item = MismatchItem(
+        job_id=location.job_id,
+        step_index=0,
+        path=f"nav-journal/{location.job_id}",
+        expected_before="日志可读",
+        expected_after="日志可读",
+        actual=reason,
+    )
+    return JournalRecovery(location.job_id, JournalFate.MISMATCH, 0, (item,))
+
+
+def _already_committed(dependencies: RecoveryDependencies, journal: Journal) -> bool:
+    """变更记录已存在且是已提交：写完了，崩在删日志之前。"""
+    if not change_record_path(dependencies.paths, journal.job_id).exists():
+        return False
+    try:
+        record = read_change_record(dependencies.paths, journal.job_id)
+    except InputError:
+        return False
+    return record.outcome is ChangeOutcome.COMMITTED
+
+
+def _audit_event(
+    dependencies: RecoveryDependencies, result: JournalRecovery, now: datetime
+) -> OperationEvent:
+    """每份日志一条 rollback_navigation_write 操作日志，系统身份。"""
+    failed = result.fate is JournalFate.MISMATCH
+    has_record = change_record_path(dependencies.paths, result.job_id).exists()
+    files = links = 0
+    if has_record and not failed:
+        # 摘要里的计数是这份日志涉及的文件数和链接数（含本来就等于前像、没有动的步骤）。
+        steps = read_change_record(dependencies.paths, result.job_id).steps
+        files = sum(step.op == "write_file" for step in steps)
+        links = sum(step.op == "set_link" for step in steps)
+    return navigation_operation_event(
+        NavigationAuditFacts(
+            operation=OperationType.ROLLBACK_NAVIGATION_WRITE,
+            job_id=result.job_id,
+            actor=SYSTEM_ACTOR,
+            context=OPS_AUDIT_CONTEXT,
+            occurred_at=now,
+            result=OperationResult.FAILURE if failed else OperationResult.SUCCESS,
+            failure_category=DiagnosticCategory.CONFLICT if failed else None,
+            dataset_ids=(),
+            dataset_count=0,
+            file_count=files,
+            link_count=links,
+            change_record_id=str(result.job_id) if has_record and not failed else None,
+            reverts_job_id=None,
+        )
+    )

@@ -2,6 +2,7 @@
 import type { HealthClient } from "../api/client";
 import { VersionFooter } from "../VersionFooter";
 import { WorkerStatusBanner } from "../jobs/Pages";
+import { RecoveryBlockBanner } from "../navigation/Pages";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Card, Form, Input, Button, Typography, Alert, Table, Modal, Select, Space } from "antd";
@@ -565,6 +566,7 @@ export function AccountLayout(): ReactElement {
     <div style={{ padding: 24 }}>
       <AccountMenu />
       <WorkerStatusBanner />
+      <RecoveryBlockBanner />
       {new URLSearchParams(location.searchStr).get("permission") === "denied" && (
         <Alert type="warning" title="需要管理员权限" />
       )}

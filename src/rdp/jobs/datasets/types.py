@@ -21,6 +21,20 @@ class View(StrEnum):
     FORMAT = "format"
 
 
+class ProvenanceState(StrEnum):
+    """来源.json 的读取结果种类（三态）；读取与校验由 navwrite.provenance 负责。
+
+    Attributes:
+        ABSENT: absent，文件不存在，按"未知"处理。
+        VALID: valid，解析并通过校验。
+        INVALID: invalid，存在但无法解析、不是普通文件或版本不认识；写入作业必须拒绝覆盖。
+    """
+
+    ABSENT = "absent"
+    VALID = "valid"
+    INVALID = "invalid"
+
+
 class PanelSeverity(StrEnum):
     """面板两级；不等同作业成功失败计数（11 Q14）。"""
 
@@ -174,6 +188,8 @@ class EntrySnapshot:
         provenance_present: 来源.json 的目录项存在性，包括不可读/软链接；不解析内容。
         recorded_size_bytes: 第4项首个全角（N B；中的非负整数字节数；没有有效记录为 None。
         findings: 读取和记录值提取发现，空表示这两个步骤无发现。
+        provenance_state: 来源.json 的三态（M1-07）：不存在、可读、无法读取；与
+            provenance_present 并存，后者仍只表示目录项有无。默认 ABSENT，只加不改。
     """
 
     location: EntryLocation
@@ -185,3 +201,4 @@ class EntrySnapshot:
     provenance_present: bool
     recorded_size_bytes: int | None
     findings: tuple[Finding, ...]
+    provenance_state: ProvenanceState = ProvenanceState.ABSENT

@@ -13,6 +13,7 @@ from rdp.infra.diagnostics import DefectError
 from rdp.infra.storage import StorageAccessChecker, read_storage_root
 from rdp.jobs.datasets.triggers import RescanTrigger
 from rdp.jobs.execution import ExecutorDependencies
+from rdp.jobs.navwrite.wiring import build_navigation_callbacks
 from rdp.jobs.scheduling import WorkerScheduling
 from rdp.jobs.service import JobService
 from rdp.ops.runtime import RuntimeInputs, ServiceRuntime, resolve_nvidia_smi
@@ -84,6 +85,9 @@ def start_worker(
             config.errors.retention_days,
         )
         storage = StorageAccessChecker(runtime.inspector, config.storage, read_storage_root)
+        recover, blocked = build_navigation_callbacks(
+            runtime.engine, runtime.paths, config.nav_root, inputs.clock
+        )
         dependencies = ExecutorDependencies(
             runtime.engine,
             runtime.registry,
@@ -95,6 +99,8 @@ def start_worker(
             poll_submissions=RescanTrigger(
                 JobService(runtime.engine, runtime.registry), inputs.clock
             ).poll,
+            recover_navigation=recover,
+            navigation_blocked=blocked,
         )
         stop = Event()
         with signals(stop):

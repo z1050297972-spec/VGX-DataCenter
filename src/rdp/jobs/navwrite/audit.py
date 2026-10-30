@@ -12,9 +12,23 @@ from datetime import datetime
 
 from sqlalchemy import Engine
 
-from rdp.audit.types import AuditContext, OperationEvent, OperationResult, OperationType
+from rdp.audit import _validation as validate
+from rdp.audit.policy import AUDIT_SHORT_LOCK_TIMEOUT_MS
+from rdp.audit.records import append_operation
+from rdp.audit.types import (
+    NAVIGATION_OPERATIONS,
+    AuditContext,
+    AuditValues,
+    ObjectRef,
+    OperationDetails,
+    OperationEvent,
+    OperationResult,
+    OperationType,
+)
 from rdp.infra.actors import ActorRef
+from rdp.infra.db.connection import session_scope_with_lock_timeout
 from rdp.infra.diagnostics import DiagnosticCategory
+from rdp.jobs.navwrite.policy import AUDIT_DATASET_ID_LIMIT
 
 
 @dataclass(frozen=True)
@@ -62,7 +76,8 @@ def navigation_operation_event(facts: NavigationAuditFacts) -> OperationEvent:
     Returns:
         OperationEvent：对象为 ObjectRef("navigation_write", str(job_id), "写导航层 #<job_id>")，
         details.before 为空，details.after 含数据集编号、个数、文件数、链接数、变更记录编号等白名单字段；
-        失败事件的 after 仍含已确认的计数，但 change_record_id 取决于是否真的写了变更记录。
+        失败事件的 after 按 M0 的操作日志约定必须为空（不暗示失败的改动生效），所以摘要字段放在 before；
+        change_record_id 取决于是否真的写了变更记录。
 
     Raises:
         AuditInputError: 事实不合约（计数为负、成功却带失败类别、数据集编号超出上限而未给总数等）。
@@ -73,7 +88,40 @@ def navigation_operation_event(facts: NavigationAuditFacts) -> OperationEvent:
     Time Semantics:
         同步纯函数；occurred_at 由调用方的注入时钟给出。
     """
-    raise NotImplementedError
+    if facts.operation not in NAVIGATION_OPERATIONS:
+        problem = validate.invalid("operation")
+        raise problem
+    ok = facts.result is OperationResult.SUCCESS
+    if (
+        facts.job_id < 1
+        or min(facts.file_count, facts.link_count, facts.dataset_count) < 0
+        or facts.dataset_count < len(facts.dataset_ids)
+        or len(facts.dataset_ids) > AUDIT_DATASET_ID_LIMIT
+        or ok != (facts.failure_category is None)
+    ):
+        problem = validate.invalid("details")
+        raise problem
+    values = AuditValues(
+        dataset_ids=facts.dataset_ids,
+        dataset_count=facts.dataset_count,
+        file_count=facts.file_count,
+        link_count=facts.link_count,
+        change_record_id=facts.change_record_id,
+        reverts_job_id=None if facts.reverts_job_id is None else str(facts.reverts_job_id),
+    )
+    return OperationEvent(
+        occurred_at=facts.occurred_at,
+        actor=facts.actor,
+        operation=facts.operation,
+        target=ObjectRef("navigation_write", str(facts.job_id), f"写导航层 #{facts.job_id}"),
+        result=facts.result,
+        failure_category=facts.failure_category,
+        context=facts.context,
+        details=OperationDetails(
+            before=AuditValues() if ok else values,
+            after=values if ok else AuditValues(),
+        ),
+    )
 
 
 def append_navigation_audit(engine: Engine, event: OperationEvent) -> int:
@@ -99,4 +147,8 @@ def append_navigation_audit(engine: Engine, event: OperationEvent) -> int:
         短事务，BEGIN 最多等 AUDIT_SHORT_LOCK_TIMEOUT_MS=100 毫秒，不重试；操作日志保留 30 天后被清除，
         变更记录不受影响。
     """
-    raise NotImplementedError
+    event = validate.operation(event)
+    with session_scope_with_lock_timeout(
+        engine, busy_timeout_ms=AUDIT_SHORT_LOCK_TIMEOUT_MS
+    ) as session:
+        return append_operation(session, event)

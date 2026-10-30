@@ -6,14 +6,21 @@
 本模块负责内存里的模型和纯函数；写盘走 NavWritePlan 的 WriteFileStep，不另开写路径。
 """
 
+import hashlib
+import json
+import os
+import stat
 from dataclasses import dataclass
-from enum import StrEnum
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-from rdp.jobs.datasets.types import JsonObject
+from rdp.jobs.datasets import _io
+from rdp.jobs.datasets.catalog import MAX_DOCUMENT_BYTES, PROVENANCE_DOCUMENT
+from rdp.jobs.datasets.types import JsonObject, ProvenanceState
+from rdp.jobs.navwrite.errors import nav_external_error, nav_input_error
+from rdp.jobs.navwrite.policy import DATA_ORIGINS, PROVENANCE_FORMAT_VERSION
 
 _FROZEN = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
 
@@ -54,7 +61,7 @@ class LineageRecord(BaseModel):
         job_id: 产生它的作业编号，≥ 1；未知为 None。
         started_at: UTC 开始时刻文本；未知为 None。
         finished_at: UTC 结束时刻文本；未知为 None。
-        ingest_check: 入库检查的结果与警告数；未做为 None。
+        ingest_check: 入库检查的结果与警告数；未做或旧记录没有这个键时为 None（默认值）。
         recorded_by: 记录人印记。
     """
 
@@ -72,7 +79,7 @@ class LineageRecord(BaseModel):
     job_id: int | None = Field(ge=1)
     started_at: str | None
     finished_at: str | None
-    ingest_check: dict[str, str | int] | None
+    ingest_check: dict[str, str | int] | None = None
     recorded_by: ActorStamp
 
 
@@ -100,19 +107,13 @@ class ProvenanceDocument(BaseModel):
     collection_task_id: str | None
     lineage: tuple[LineageRecord, ...]
 
-
-class ProvenanceState(StrEnum):
-    """读一份来源.json 的结果种类。
-
-    Attributes:
-        ABSENT: absent，文件不存在，按"未知"处理。
-        VALID: valid，解析并通过校验。
-        INVALID: invalid，存在但无法解析或版本不认识；写入作业必须拒绝覆盖。
-    """
-
-    ABSENT = "absent"
-    VALID = "valid"
-    INVALID = "invalid"
+    @field_validator("data_origin")
+    @classmethod
+    def _known_origin(cls, value: str) -> str:
+        """数据来源必须是登记的取值之一。"""
+        if value not in DATA_ORIGINS:
+            raise ValueError("data_origin 不在取值表里")
+        return value
 
 
 @dataclass(frozen=True)
@@ -151,7 +152,14 @@ def read_provenance(entry_dir: Path) -> ProvenanceRead:
     Time Semantics:
         同步读取，单个文件有大小上限；不读墙钟。
     """
-    raise NotImplementedError
+    try:
+        with _io.directory(entry_dir) as descriptor:
+            return _read_in(descriptor)
+    except OSError as error:
+        problem = nav_external_error(
+            "NAV_PROVENANCE", "入口目录无法访问", objects=(("entry_path", entry_dir.name),)
+        )
+        raise problem from error
 
 
 def new_provenance(
@@ -177,7 +185,18 @@ def new_provenance(
     Time Semantics:
         同步纯函数；时刻由调用方放进 set_by.at，函数本身不读时钟。
     """
-    raise NotImplementedError
+    _check_origin(origin)
+    if origin != "未知" and set_by is None:
+        problem = nav_input_error("NAV_PROVENANCE", "数据来源不是未知，必须记下是谁设置的")
+        raise problem
+    return ProvenanceDocument(
+        dataset_id=dataset_id,
+        dataset_name=dataset_name,
+        data_origin=origin,
+        data_origin_set_by=set_by,
+        collection_task_id=None,
+        lineage=(),
+    )
 
 
 def with_data_origin(
@@ -203,7 +222,11 @@ def with_data_origin(
     Time Semantics:
         同步纯函数；set_by.at 由调用方的注入时钟生成。
     """
-    raise NotImplementedError
+    _check_origin(origin)
+    if set_by.kind not in ("人工标注", "人工补录"):
+        problem = nav_input_error("NAV_PROVENANCE", "修改数据来源的印记必须是人工标注或人工补录")
+        raise problem
+    return document.model_copy(update={"data_origin": origin, "data_origin_set_by": set_by})
 
 
 def with_lineage_record(document: ProvenanceDocument, record: LineageRecord) -> ProvenanceDocument:
@@ -225,7 +248,16 @@ def with_lineage_record(document: ProvenanceDocument, record: LineageRecord) -> 
     Time Semantics:
         同步纯函数，无时钟、无 I/O。
     """
-    raise NotImplementedError
+    expected = max((item.record_id for item in document.lineage), default=0) + 1
+    if record.record_id != expected:
+        problem = nav_input_error(
+            "NAV_PROVENANCE",
+            "血缘记录编号不是下一个编号",
+            expected=str(expected),
+            objects=(("record_id", str(record.record_id)),),
+        )
+        raise problem
+    return document.model_copy(update={"lineage": (*document.lineage, record)})
 
 
 def dump_provenance(document: ProvenanceDocument) -> JsonObject:
@@ -247,4 +279,73 @@ def dump_provenance(document: ProvenanceDocument) -> JsonObject:
     Time Semantics:
         同步纯函数，无时钟、无 I/O。
     """
-    raise NotImplementedError
+    return cast(JsonObject, document.model_dump(mode="json"))
+
+
+def _check_origin(origin: str) -> None:
+    """数据来源必须在取值表里。"""
+    if origin not in DATA_ORIGINS:
+        problem = nav_input_error(
+            "NAV_PROVENANCE", "数据来源不在取值表里", expected="、".join(DATA_ORIGINS)
+        )
+        raise problem
+
+
+def _invalid(reason: str, digest: str | None = None) -> ProvenanceRead:
+    """文件存在但不可用；不替换成空文档。"""
+    return ProvenanceRead(ProvenanceState.INVALID, None, digest, reason)
+
+
+def _read_in(descriptor: int) -> ProvenanceRead:
+    """在已打开的入口目录里读来源.json，不跟随软链接。"""
+    try:
+        fd = os.open(
+            PROVENANCE_DOCUMENT, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor
+        )
+    except FileNotFoundError:
+        return ProvenanceRead(ProvenanceState.ABSENT, None, None, None)
+    except OSError as error:
+        reason = "来源.json 是软链接，不读取" if error.errno == 40 else "来源.json 无法打开"
+        return _invalid(reason)
+    try:
+        content = _read_regular(fd)
+    except (OSError, _Unusable) as error:
+        return _invalid(str(error) if isinstance(error, _Unusable) else "来源.json 读取失败")
+    finally:
+        os.close(fd)
+    return _parse(content)
+
+
+class _Unusable(Exception):  # noqa: N818  # 理由：文件级问题的内部信号，只在本模块捕获并转成 INVALID。
+    """来源.json 不是可读的普通文件或超过大小上限；消息就是给人看的原因。"""
+
+
+def _read_regular(fd: int) -> bytes:
+    """读普通文件原字节，有大小上限。"""
+    if not stat.S_ISREG(os.fstat(fd).st_mode):
+        raise _Unusable("来源.json 不是普通文件")
+    content = b""
+    while len(content) <= MAX_DOCUMENT_BYTES:
+        block = os.read(fd, 1024 * 1024)
+        if not block:
+            return content
+        content += block
+    raise _Unusable("来源.json 超过大小上限")
+
+
+def _parse(content: bytes) -> ProvenanceRead:
+    """解析并校验第 1 版格式；任何一步不合格都是 INVALID，不替换成空文档。"""
+    digest = hashlib.sha256(content).hexdigest()
+    try:
+        loaded = json.loads(content.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return _invalid("来源.json 不是合法的 UTF-8 JSON", digest)
+    if not isinstance(loaded, dict):
+        return _invalid("来源.json 顶层不是对象", digest)
+    if cast(JsonObject, loaded).get("schema_version") != PROVENANCE_FORMAT_VERSION:
+        return _invalid("来源.json 的 schema_version 不认识", digest)
+    try:
+        document = ProvenanceDocument.model_validate(loaded)
+    except ValidationError:
+        return _invalid("来源.json 的字段不符合第 1 版格式", digest)
+    return ProvenanceRead(ProvenanceState.VALID, document, digest, None)

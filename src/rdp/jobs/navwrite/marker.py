@@ -12,14 +12,34 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
+from pydantic import ValidationError
 from sqlalchemy import Engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from rdp.audit.types import AuditContext
+from rdp.audit.records import append_operation
+from rdp.audit.types import AuditContext, OperationResult, OperationType
 from rdp.infra.actors import ActorRef
+from rdp.infra.db.connection import session_scope
+from rdp.infra.diagnostics import InputError
 from rdp.infra.state import StatePaths
+from rdp.jobs.navwrite.audit import NavigationAuditFacts, navigation_operation_event
+from rdp.jobs.navwrite.changes import (
+    ArchiveRequest,
+    ChangeOutcome,
+    archive_journal,
+    change_record_path,
+)
+from rdp.jobs.navwrite.errors import nav_conflict_error, nav_input_error
+from rdp.jobs.navwrite.journal import discard_journal, journal_directory, read_journal
 from rdp.jobs.navwrite.models import MismatchItem
+from rdp.jobs.navwrite.policy import MARKER_ITEM_SAMPLE_LIMIT
+from rdp.jobs.navwrite.rows import NavRecoveryFailureRow
+
+_RULE = "NAV_RECOVERY_MARKER"
+_SINGLETON_ID = 1
 
 
 @dataclass(frozen=True)
@@ -85,7 +105,16 @@ def read_recovery_block(session: Session) -> RecoveryBlock | None:
     Time Semantics:
         读取当前已提交的状态；Web 页面顶部提示每次轮询作业列表时读一次，worker 每轮领取前读一次，不缓存。
     """
-    raise NotImplementedError
+    row = session.get(NavRecoveryFailureRow, _SINGLETON_ID)
+    if row is None:
+        return None
+    try:
+        items = tuple(MismatchItem.model_validate(item) for item in row.items)
+        job_ids = tuple(int(job_id) for job_id in row.job_ids)
+    except (ValidationError, TypeError, ValueError) as error:
+        problem = nav_input_error(_RULE, "恢复失败标记里的项无法解析")
+        raise problem from error
+    return RecoveryBlock(row.set_at, job_ids, items, row.total_items)
 
 
 def is_navigation_write_blocked(session: Session) -> bool:
@@ -106,7 +135,7 @@ def is_navigation_write_blocked(session: Session) -> bool:
     Time Semantics:
         每轮领取之前读取（约 1 秒一次，WORKER_POLL_INTERVAL_S）；标记被确认后下一轮即放行，不需要重启 worker。
     """
-    raise NotImplementedError
+    return session.get(NavRecoveryFailureRow, _SINGLETON_ID) is not None
 
 
 def record_recovery_block(
@@ -132,7 +161,35 @@ def record_recovery_block(
     Time Semantics:
         在恢复流程的一个短写事务内完成；同一次启动里先于任何作业领取。
     """
-    raise NotImplementedError
+    if not items:
+        problem = nav_input_error(_RULE, "设置恢复失败标记时必须带对不上的项")
+        raise problem
+    existing = read_recovery_block(session)
+    known = {} if existing is None else {_key(i): i for i in existing.items}
+    fresh = {_key(i): i for i in items if _key(i) not in known}
+    merged = sorted({**known, **fresh}.values(), key=lambda i: (i.job_id, i.step_index, i.path))
+    total = (0 if existing is None else existing.total_items) + len(fresh)
+    job_ids = sorted({i.job_id for i in items} | set(() if existing is None else existing.job_ids))
+    kept = merged[:MARKER_ITEM_SAMPLE_LIMIT]
+    payload = [item.model_dump(mode="json") for item in kept]
+    try:
+        row = session.get(NavRecoveryFailureRow, _SINGLETON_ID)
+        if row is None:
+            row = NavRecoveryFailureRow(
+                singleton_id=_SINGLETON_ID,
+                set_at=now,
+                job_ids=job_ids,
+                items=payload,
+                total_items=total,
+            )
+            session.add(row)
+        else:
+            row.job_ids, row.items, row.total_items = job_ids, payload, total
+        session.flush()
+    except IntegrityError as error:
+        problem = nav_conflict_error(_RULE, "设置恢复失败标记时遇到约束冲突")
+        raise problem from error
+    return RecoveryBlock(row.set_at, tuple(job_ids), tuple(kept), total)
 
 
 def acknowledge_recovery_block(
@@ -157,10 +214,85 @@ def acknowledge_recovery_block(
         对标记里每个作业：把写入日志归档进 nav-changes（outcome 为 manually_confirmed，记下确认时对不上的项），
         再删除日志目录；然后在一个数据库事务里追加 confirm_navigation_recovery 操作日志并删除标记行。
         失败时标记保留，已归档的日志再确认一次是幂等的（归档先写临时文件再 rename，重复写入同样内容）。
+        日志本身已损坏、读不出来的，无法归档，直接删除以放行（损坏的日志不能用于任何回滚）。
         不碰导航层。由 Web 调用，因为管理员在页面上确认；这里写的是状态目录，不是导航层。
 
     Time Semantics:
         同步；顺序固定：先归档并删日志，最后清标记。崩在中间时标记还在，写操作继续被挡住，
         宁可多挡也不提前放行。确认之后下一轮作业领取（约 1 秒）即放行排队的写作业。
     """
-    raise NotImplementedError
+    if request.actor.account_id is None:
+        problem = nav_input_error(_RULE, "只能由管理员账号在页面上确认，运维命令不能解除")
+        raise problem
+    with session_scope(engine, read_only=True) as session:
+        block = read_recovery_block(session)
+    if block is None:
+        problem = nav_conflict_error(_RULE, "当前没有恢复失败标记，可能已被别人确认")
+        raise problem
+    cleared: list[int] = []
+    for job_id in block.job_ids:
+        directory = journal_directory(paths, job_id)
+        if directory.exists():
+            _archive_confirmed(paths, directory, block, job_id, request)
+            discard_journal(directory)
+        cleared.append(job_id)
+    event = navigation_operation_event(
+        NavigationAuditFacts(
+            operation=OperationType.CONFIRM_NAVIGATION_RECOVERY,
+            job_id=min(cleared),
+            actor=request.actor,
+            context=request.context,
+            occurred_at=request.now,
+            result=OperationResult.SUCCESS,
+            failure_category=None,
+            dataset_ids=(),
+            dataset_count=0,
+            file_count=0,
+            link_count=0,
+            change_record_id=str(min(cleared))
+            if change_record_path(paths, min(cleared)).exists()
+            else None,
+            reverts_job_id=None,
+        )
+    )
+    with session_scope(engine) as session:
+        log_id = append_operation(session, event)
+        row = session.get(NavRecoveryFailureRow, _SINGLETON_ID)
+        if row is not None:
+            session.delete(row)
+    return AcknowledgeResult(tuple(cleared), log_id)
+
+
+def _key(item: MismatchItem) -> tuple[int, int, str]:
+    """对不上的项的去重键。"""
+    return (item.job_id, item.step_index, item.path)
+
+
+def _archive_confirmed(
+    paths: StatePaths,
+    directory: Path,
+    block: RecoveryBlock,
+    job_id: int,
+    request: AcknowledgeRequest,
+) -> None:
+    """把一份日志归档为人工确认；日志本身损坏时无法归档，仍由调用方删除以放行。"""
+    try:
+        journal = read_journal(directory)
+    except InputError:
+        return
+    archive_journal(
+        paths,
+        directory,
+        journal,
+        ArchiveRequest(
+            outcome=ChangeOutcome.MANUALLY_CONFIRMED,
+            actor_id=request.actor.account_id,
+            actor_name=request.actor.name,
+            preview_job_id=None,
+            started_at=journal.created_at,
+            finished_at=request.now,
+            plan=None,
+            report=None,
+            mismatches=tuple(i for i in block.items if i.job_id == job_id),
+        ),
+    )

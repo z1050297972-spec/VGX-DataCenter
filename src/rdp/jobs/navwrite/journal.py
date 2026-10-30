@@ -10,15 +10,34 @@ journal.json 一出现就是完整的；没有它（只有 .tmp 或空目录）�
 日志不抄后像正文，只记后像哈希；正文在预览文件里。作业收尾时由 changes.archive_journal 归档后删除。
 """
 
+import hashlib
+import os
+import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from rdp.infra.state import StatePaths
-from rdp.jobs.navwrite.models import FileImage, NavOperation, NavWritePlan
+from rdp.jobs.navwrite.errors import nav_conflict_error, nav_external_error, nav_input_error
+from rdp.jobs.navwrite.models import (
+    FileImage,
+    MakeDirStep,
+    MovePathStep,
+    NavOperation,
+    NavWritePlan,
+    RemovePathStep,
+    SetLinkStep,
+    WriteFileStep,
+)
+from rdp.jobs.navwrite.policy import (
+    JOURNAL_FILENAME,
+    JOURNAL_FORMAT_VERSION,
+    JOURNAL_IMAGES_DIRNAME,
+    NAV_JOURNAL_DIRNAME,
+)
 
 _FROZEN = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
 
@@ -113,7 +132,8 @@ def journal_directory(paths: StatePaths, job_id: int) -> Path:
     Time Semantics:
         无；纯路径计算。
     """
-    raise NotImplementedError
+    _check_job_id(job_id)
+    return paths.nav_journal / str(job_id)
 
 
 def write_journal(
@@ -149,7 +169,50 @@ def write_journal(
         调用方必须已持有导航层写锁，且已通过预览状态核对。journal.json 的 rename 是"计划生效"的时刻；
         在此之前断电，恢复时只会看到不完整的目录并直接删除。
     """
-    raise NotImplementedError
+    _check_job_id(job_id)
+    steps = _journal_steps(plan)
+    _check_before_images(steps, before_images)
+    directory = journal_directory(paths, job_id)
+    journal = Journal(
+        job_id=job_id,
+        operation=plan.operation,
+        nav_root=plan.state.nav_root,
+        created_at=created_at,
+        dataset_ids=plan.dataset_ids,
+        reverts_job_id=plan.reverts_job_id,
+        steps=steps,
+    )
+    try:
+        directory.mkdir()
+    except FileExistsError as error:
+        problem = nav_conflict_error(
+            "NAV_JOURNAL", "该作业的写入日志已经存在", objects=(("job_id", str(job_id)),)
+        )
+        raise problem from error
+    except OSError as error:
+        problem = nav_external_error(
+            "NAV_JOURNAL", "无法创建写入日志目录", objects=(("job_id", str(job_id)),)
+        )
+        raise problem from error
+    try:
+        (directory / JOURNAL_IMAGES_DIRNAME).mkdir()
+        for index, content in before_images.items():
+            _write_durable(directory / JOURNAL_IMAGES_DIRNAME / f"{index}.before", content)
+        encoded = journal.model_dump_json().encode("utf-8")
+        temporary = directory / (JOURNAL_FILENAME + ".tmp")
+        _write_durable(temporary, encoded)
+        temporary.replace(directory / JOURNAL_FILENAME)
+        _fsync_directory(directory)
+        _fsync_directory(directory.parent)
+    except OSError as error:
+        shutil.rmtree(directory, ignore_errors=True)
+        problem = nav_external_error(
+            "NAV_JOURNAL",
+            "写入日志落盘失败，已清理，导航层未动",
+            objects=(("job_id", str(job_id)),),
+        )
+        raise problem from error
+    return journal
 
 
 def read_journal(directory: Path) -> Journal:
@@ -172,7 +235,29 @@ def read_journal(directory: Path) -> Journal:
     Time Semantics:
         同步读取；不读墙钟。
     """
-    raise NotImplementedError
+    path = directory / JOURNAL_FILENAME
+    try:
+        content = path.read_bytes()
+    except FileNotFoundError as error:
+        problem = nav_input_error(
+            "NAV_JOURNAL", "写入日志不完整或不存在", objects=(("directory", directory.name),)
+        )
+        raise problem from error
+    except OSError as error:
+        problem = nav_external_error(
+            "NAV_JOURNAL", "读取写入日志失败", objects=(("directory", directory.name),)
+        )
+        raise problem from error
+    try:
+        return Journal.model_validate_json(content)
+    except ValidationError as error:
+        problem = nav_input_error(
+            "NAV_JOURNAL",
+            "写入日志损坏或版本不认识",
+            expected=f"format_version={JOURNAL_FORMAT_VERSION}",
+            objects=(("directory", directory.name),),
+        )
+        raise problem from error
 
 
 def read_before_image(directory: Path, step: JournalStep) -> bytes:
@@ -195,7 +280,32 @@ def read_before_image(directory: Path, step: JournalStep) -> bytes:
     Time Semantics:
         同步读取；单个文件可达 14 MB 量级，不分块的一次读取是有意的，回滚需要整份内容。
     """
-    raise NotImplementedError
+    if step.before_blob is None or step.before_file is None or step.before_file.sha256 is None:
+        problem = nav_input_error(
+            "NAV_JOURNAL", "这一步没有前像文件", objects=(("step_index", str(step.index)),)
+        )
+        raise problem
+    path = directory / step.before_blob
+    try:
+        content = path.read_bytes()
+    except FileNotFoundError as error:
+        problem = nav_input_error(
+            "NAV_JOURNAL", "前像文件丢失", objects=(("step_index", str(step.index)),)
+        )
+        raise problem from error
+    except OSError as error:
+        problem = nav_external_error(
+            "NAV_JOURNAL", "读取前像文件失败", objects=(("step_index", str(step.index)),)
+        )
+        raise problem from error
+    if hashlib.sha256(content).hexdigest() != step.before_file.sha256:
+        problem = nav_input_error(
+            "NAV_JOURNAL",
+            "前像文件的哈希与日志记录不符，日志已损坏",
+            objects=(("step_index", str(step.index)),),
+        )
+        raise problem
+    return content
 
 
 def list_journals(paths: StatePaths) -> tuple[JournalLocation, ...]:
@@ -217,7 +327,24 @@ def list_journals(paths: StatePaths) -> tuple[JournalLocation, ...]:
     Time Semantics:
         同步；worker 启动时恢复流程调用一次，运行期间也供页面显示"有没有没收尾的写入"。
     """
-    raise NotImplementedError
+    try:
+        names = sorted(entry.name for entry in paths.nav_journal.iterdir())
+    except FileNotFoundError:
+        return ()
+    except OSError as error:
+        problem = nav_external_error("NAV_JOURNAL", "无法枚举写入日志目录")
+        raise problem from error
+    found: list[JournalLocation] = []
+    for name in names:
+        directory = paths.nav_journal / name
+        if not (name.isascii() and name.isdecimal() and str(int(name)) == name and int(name) >= 1):
+            continue
+        if directory.is_symlink() or not directory.is_dir():
+            continue
+        found.append(
+            JournalLocation(int(name), directory, (directory / JOURNAL_FILENAME).is_file())
+        )
+    return tuple(sorted(found, key=lambda item: item.job_id))
 
 
 def discard_journal(directory: Path) -> None:
@@ -239,4 +366,127 @@ def discard_journal(directory: Path) -> None:
     Time Semantics:
         同步；是作业收尾的提交点之一，崩溃恢复遵守 recovery.recover_journal 对"变更记录与日志并存"的规则。
     """
-    raise NotImplementedError
+    if directory.parent.name != NAV_JOURNAL_DIRNAME or not directory.name.isdecimal():
+        problem = nav_input_error(
+            "NAV_JOURNAL",
+            "只能删除 nav-journal 下的写入日志",
+            objects=(("directory", directory.name),),
+        )
+        raise problem
+    try:
+        (directory / JOURNAL_FILENAME).unlink(missing_ok=True)
+        if directory.exists():
+            shutil.rmtree(directory)
+    except OSError as error:
+        problem = nav_external_error(
+            "NAV_JOURNAL",
+            "删除写入日志失败，残余日志仍会被恢复流程看到",
+            objects=(("directory", directory.name),),
+        )
+        raise problem from error
+
+
+def _check_job_id(job_id: int) -> None:
+    """作业编号必须是 ≥ 1 的整数（拒绝 bool）。"""
+    if type(job_id) is not int or job_id < 1:
+        problem = nav_input_error("NAV_JOURNAL", "作业编号必须是不小于 1 的整数")
+        raise problem
+
+
+def _write_durable(path: Path, content: bytes) -> None:
+    """写文件并 fsync；文件必须尚不存在。"""
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        view = memoryview(content)
+        while view:
+            written = os.write(descriptor, view)
+            view = view[written:]
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _fsync_directory(directory: Path) -> None:
+    """对目录做 fsync，让里面的新建和改名落盘。"""
+    descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _journal_steps(plan: NavWritePlan) -> tuple[JournalStep, ...]:
+    """把计划步骤摊平成日志步骤；不抄后像正文。"""
+    steps: list[JournalStep] = []
+    for index, step in enumerate(plan.steps):
+        blob = f"{JOURNAL_IMAGES_DIRNAME}/{index}.before"
+        match step:
+            case WriteFileStep():
+                steps.append(
+                    JournalStep(
+                        index=index,
+                        op="write_file",
+                        path=step.path,
+                        before_file=step.before,
+                        after_file=step.after,
+                        before_blob=blob if step.before.exists else None,
+                    )
+                )
+            case SetLinkStep():
+                steps.append(
+                    JournalStep(
+                        index=index,
+                        op="set_link",
+                        path=step.path,
+                        before_target=step.before_target,
+                        after_target=step.after_target,
+                    )
+                )
+            case MakeDirStep():
+                steps.append(JournalStep(index=index, op="make_dir", path=step.path))
+            case MovePathStep():
+                steps.append(
+                    JournalStep(
+                        index=index,
+                        op="move_path",
+                        path=step.path,
+                        to_path=step.to_path,
+                        entry_kind=step.entry_kind,
+                    )
+                )
+            case RemovePathStep():
+                steps.append(
+                    JournalStep(
+                        index=index,
+                        op="remove_path",
+                        path=step.path,
+                        entry_kind=step.entry_kind,
+                        before_file=step.before_file,
+                        before_target=step.before_target,
+                        before_blob=blob
+                        if step.before_file is not None and step.before_file.exists
+                        else None,
+                    )
+                )
+    return tuple(steps)
+
+
+def _check_before_images(steps: tuple[JournalStep, ...], before_images: dict[int, bytes]) -> None:
+    """前像字节必须正好覆盖需要前像文件的步骤，且哈希与计划相符。"""
+    needed = {step.index: step for step in steps if step.before_blob is not None}
+    if set(before_images) != set(needed):
+        problem = nav_input_error(
+            "NAV_JOURNAL",
+            "前像字节与计划不符：缺项或多项",
+            expected="、".join(str(i) for i in sorted(needed)) or "无",
+            objects=(("given", "、".join(str(i) for i in sorted(before_images)) or "无"),),
+        )
+        raise problem
+    for index, step in needed.items():
+        image = step.before_file
+        digest = hashlib.sha256(before_images[index]).hexdigest()
+        if image is None or image.sha256 != digest or image.size_bytes != len(before_images[index]):
+            problem = nav_input_error(
+                "NAV_JOURNAL", "前像字节的哈希与计划不符", objects=(("step_index", str(index)),)
+            )
+            raise problem

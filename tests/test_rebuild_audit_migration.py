@@ -27,6 +27,7 @@ def test_upgrade_preserves_audit_history_and_sequence(
     historical = tmp_path / "old-package/migrations"
     shutil.copytree(source, historical)
     (historical / "versions/v0009_rebuild_index_audit.py").unlink()
+    (historical / "versions/v0010_nav_write_foundation.py").unlink()
     with monkeypatch.context() as patch:
         patch.setattr("rdp.infra.db.migration.__file__", str(historical.parent / "migration.py"))
         inputs = runtime_inputs(tmp_path / "runtime")
@@ -44,7 +45,8 @@ def test_upgrade_preserves_audit_history_and_sequence(
             )
         result = migrate(paths, now=NOW)
         assert result.previous_revision == "0008_dataset_layout"
-        assert result.current_revision == "0009_rebuild_index_audit"
+        # 历史包缺 0009 和 0010，真实升级入口一次走完两步；0009 的对象种类扩展与历史行保留由此覆盖。
+        assert result.current_revision == "0010_nav_write_foundation"
         assert result.backup is not None
         with session_scope(engine, read_only=True) as session:
             assert (

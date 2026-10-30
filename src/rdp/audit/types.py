@@ -159,6 +159,18 @@ OPERATION_DETAIL_FIELDS: dict[OperationType, frozenset[str]] = {
     OperationType.CANCEL_JOB: frozenset({"job_id", "job_type", "job_state"}),
     OperationType.REBUILD_INDEX: frozenset(),
 }
+# M1-07：对象是 navigation_write 的七个操作码；校验时两者必须一一对应。
+NAVIGATION_OPERATIONS = frozenset(
+    {
+        OperationType.CREATE_LINK,
+        OperationType.CREATE_DATASET,
+        OperationType.REPOINT_DATASET,
+        OperationType.SET_DATA_ORIGIN,
+        OperationType.REVERT_CHANGE,
+        OperationType.ROLLBACK_NAVIGATION_WRITE,
+        OperationType.CONFIRM_NAVIGATION_RECOVERY,
+    }
+)
 # M1-07：写导航层各操作码共用同一组摘要字段（L15），撤回另有 reverts_job_id。
 _NAVIGATION_DETAIL_FIELDS = frozenset(
     {"dataset_ids", "dataset_count", "file_count", "link_count", "change_record_id"}

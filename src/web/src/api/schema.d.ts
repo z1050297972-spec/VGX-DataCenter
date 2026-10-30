@@ -1470,6 +1470,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/navigation/recovery-block": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Recovery Block
+         * @description 读取“导航层恢复失败”标记，供所有页面顶部提示和详情页使用。
+         *
+         *     Args:
+         *         request: 当前请求，只读 app.state 的数据库装配。
+         *         context: 全局认证上下文，成员与管理员相同。
+         *
+         *     Returns:
+         *         HTTP 200；没有标记时 {"blocked": false}，有标记时带 set_at、job_ids、items 样例和完整 total_items。
+         *
+         *     Raises:
+         *         AuthenticationError: 未登录，401。
+         *         PasswordChangeRequiredError: 必须改口令，403。
+         *         InputError: 标记行损坏，400。
+         *         ConflictError: 只读锁冲突，409。
+         *         ExternalError: 依赖未装配或读取失败，502。
+         *         DefectError: 装配或转换缺陷，500。
+         *
+         *     Side Effects:
+         *         只读数据库；不读导航层，不写操作日志。
+         *
+         *     Time Semantics:
+         *         每次读取当前已提交状态，不缓存；前端约每秒轮询一次，接口无等待。
+         */
+        get: operations["get_navigation_recovery_block"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/navigation/recovery-block/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Acknowledge Block
+         * @description 管理员人工处理后确认：归档日志、记 confirm_navigation_recovery 操作日志、清标记。
+         *
+         *     Args:
+         *         request: 当前请求，只读 app.state 的数据库与状态目录装配。
+         *         context: 全局认证的管理员上下文；成员为 403，且先于其他检查。
+         *
+         *     Returns:
+         *         HTTP 200，已清理的作业编号（文本，升序）；下一轮作业领取即放行排队的写作业。
+         *
+         *     Raises:
+         *         AuthenticationError: 未登录，401。
+         *         AuthorizationError: Origin 不合法或不是管理员，403。
+         *         PasswordChangeRequiredError: 必须改口令，403。
+         *         ConflictError: 当前没有标记（已被别人确认），409。
+         *         InputError: 标记损坏，400。
+         *         ExternalError: 归档、删日志或数据库写入失败，502；标记保留。
+         *         DefectError: 装配或时钟缺陷，500。
+         *
+         *     Side Effects:
+         *         写状态目录（归档变更记录、删写入日志）和数据库（操作日志与清标记）；不写导航层，不调用 recovery、atomic。
+         *         操作日志的操作人是当前管理员，来源与请求编号取自服务端。
+         *
+         *     Time Semantics:
+         *         使用请求唯一 UTC 时刻；同步完成，不重试；崩在中途时标记保留、写操作继续被挡。
+         */
+        post: operations["acknowledge_navigation_recovery_block"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/storage-roots": {
         parameters: {
             query?: never;
@@ -1691,6 +1775,17 @@ export interface components {
          * @enum {string}
          */
         AccountStatus: "enabled" | "disabled";
+        /**
+         * AcknowledgeResponse
+         * @description 管理员确认的结果。
+         *
+         *     Attributes:
+         *         cleared_job_ids: 已归档并清掉日志的作业编号（文本，升序）。
+         */
+        AcknowledgeResponse: {
+            /** Cleared Job Ids */
+            cleared_job_ids: string[];
+        };
         /**
          * ActorResponse
          * @description 历史操作者的安全 JSON 表达。
@@ -2698,6 +2793,32 @@ export interface components {
          */
         LoginResult: "success" | "wrong_password" | "disabled" | "waiting" | "account_missing" | "failure";
         /**
+         * MismatchItemResponse
+         * @description 一项对不上的步骤。
+         *
+         *     Attributes:
+         *         job_id: 所属写入作业编号，规范十进制文本。
+         *         step_index: 在写入日志里的步骤序号，从 0 起。
+         *         path: 相对导航层根的路径。
+         *         expected_before: 前像的文字描述（哈希、链接目标或“不存在”）。
+         *         expected_after: 后像的文字描述。
+         *         actual: 磁盘现状的文字描述；读不了时写原因，不含文件正文。
+         */
+        MismatchItemResponse: {
+            /** Actual */
+            actual: string;
+            /** Expected After */
+            expected_after: string;
+            /** Expected Before */
+            expected_before: string;
+            /** Job Id */
+            job_id: string;
+            /** Path */
+            path: string;
+            /** Step Index */
+            step_index: number;
+        };
+        /**
          * NavigationDocument
          * @description 导航文件原文；非UTF-8或不可读时content为空并附诊断，坏JSON文本仍可查看。
          */
@@ -2899,6 +3020,29 @@ export interface components {
              * @constant
              */
             type: "about:blank";
+        };
+        /**
+         * RecoveryBlockResponse
+         * @description 当前标记；没有标记时只有 blocked=false，其余字段省略。
+         *
+         *     Attributes:
+         *         blocked: 写导航层的作业是否被挡住。
+         *         set_at: 第一次设置的 UTC 时刻；blocked=false 时省略。
+         *         job_ids: 留有对不上项的写入作业编号（文本，升序）；blocked=false 时省略。
+         *         items: 对不上的项样例，至多 MARKER_ITEM_SAMPLE_LIMIT 条；blocked=false 时省略。
+         *         total_items: 对不上的项总数，≥ len(items)；blocked=false 时省略。
+         */
+        RecoveryBlockResponse: {
+            /** Blocked */
+            blocked: boolean;
+            /** Items */
+            items?: components["schemas"]["MismatchItemResponse"][] | null;
+            /** Job Ids */
+            job_ids?: string[] | null;
+            /** Set At */
+            set_at?: string | null;
+            /** Total Items */
+            total_items?: number | null;
         };
         /**
          * RecoveryMode
@@ -6878,6 +7022,208 @@ export interface operations {
                 };
             };
             /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_navigation_recovery_block: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryBlockResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    acknowledge_navigation_recovery_block: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcknowledgeResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;

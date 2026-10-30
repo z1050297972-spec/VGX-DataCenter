@@ -181,7 +181,12 @@ def operation_event(row: OperationLogRow) -> OperationEvent:
             ActorRef(row.actor_id, row.actor_name),
             OperationType(row.operation),
             ObjectRef(
-                cast(Literal["account", "audit_settings", "job"], row.object_kind),
+                cast(
+                    Literal[
+                        "account", "audit_settings", "job", "dataset_index", "navigation_write"
+                    ],
+                    row.object_kind,
+                ),
                 row.object_id,
                 row.object_name,
             ),

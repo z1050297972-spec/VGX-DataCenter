@@ -23,7 +23,7 @@ from rdp.jobs.models import JobRow
 def test_active_head() -> None:
     """验证0008成为唯一活动head，历史0007仍在图中且所有活动迁移来自versions。"""
     config = migration_config()
-    assert ScriptDirectory.from_config(config).get_current_head() == "0009_rebuild_index_audit"
+    assert ScriptDirectory.from_config(config).get_current_head() == "0010_nav_write_foundation"
     location = config.get_main_option("script_location")
     assert location is not None
     # 后续工单可以声明pending；真正的保护是Alembic只加载versions，不提前激活新revision。
@@ -47,7 +47,7 @@ def test_upgrade_empty_and_history(tmp_path: Path) -> None:
                 before = connection.execute(text("SELECT * FROM jobs")).mappings().all()
             result = migrate(paths, now=NOW)
             assert result.previous_revision == "0005_job_scheduling"
-            assert result.current_revision == "0009_rebuild_index_audit"
+            assert result.current_revision == "0010_nav_write_foundation"
             assert result.backup is not None and result.backup.is_file()
             with engine.connect() as connection:
                 after = connection.execute(text("SELECT * FROM jobs")).mappings().all()
@@ -59,7 +59,7 @@ def test_fresh_latest(tmp_path: Path) -> None:
     paths = state_paths(PlatformConfig(state_dir=tmp_path), ())
     initialize_state(paths)
     result = migrate(paths, now=NOW)
-    assert result.current_revision == "0009_rebuild_index_audit"
+    assert result.current_revision == "0010_nav_write_foundation"
     check_database_version(paths.database)
     engine = create_database_engine(paths.database)
     try:

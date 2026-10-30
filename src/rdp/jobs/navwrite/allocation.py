@@ -4,7 +4,25 @@
 本模块自己不拿锁，也不记录"已分配"的账本（ADR 0009 放弃了编号账本，编号从目录里推出来）。
 """
 
-from pathlib import Path
+import os
+import re
+import stat
+from pathlib import Path, PurePosixPath
+
+from rdp.jobs.datasets.catalog import MAX_ENTRY_MEMBERS
+from rdp.jobs.datasets.reading import read_entry
+from rdp.jobs.datasets.types import EntryLocation, View
+from rdp.jobs.navwrite.errors import Advice, nav_external_error, nav_input_error
+from rdp.jobs.navwrite.policy import (
+    DATASET_ID_PREFIX,
+    DATASET_NUMBER_MIN_DIGITS,
+    REMOVED_DIRNAME,
+    TASK_VIEW_DIRNAME,
+)
+
+_ID_PATTERN = re.compile(rf"^{re.escape(DATASET_ID_PREFIX)}([0-9]+)$")
+_REMOVED_PATTERN = re.compile(rf"^{re.escape(DATASET_ID_PREFIX)}([0-9]+)_")
+_RULE = "NAV_ALLOCATION"
 
 
 def scan_max_dataset_number(nav_root: Path) -> int:
@@ -30,7 +48,36 @@ def scan_max_dataset_number(nav_root: Path) -> int:
         同步；目录项数受 MAX_ENTRY_MEMBERS 限制。结果只在调用方持有写锁期间有效；
         预览时算出的值记进 NewDatasetState.max_number，执行时重算比对。
     """
-    raise NotImplementedError
+    highest = 0
+    for name in _subdirectories(nav_root / TASK_VIEW_DIRNAME):
+        location = EntryLocation(
+            PurePosixPath(TASK_VIEW_DIRNAME, name), View.TASK, None, None, name
+        )
+        dataset_id = read_entry(nav_root, location, checkpoint=_no_checkpoint).dataset_id
+        if dataset_id is None:
+            problem = nav_input_error(
+                _RULE,
+                "有入口的三份 JSON 都读不出 dataset_id，无法保证新编号不重复",
+                advice=Advice("这次写入没有开始，导航层一行都没写", "先修好该入口，再重新预览"),
+                objects=(("entry_path", str(location.path)),),
+            )
+            raise problem
+        matched = _ID_PATTERN.match(dataset_id)
+        if matched:
+            highest = max(highest, int(matched[1]))
+    for name in _subdirectories(nav_root / REMOVED_DIRNAME):
+        matched = _REMOVED_PATTERN.match(name)
+        if matched is None:
+            problem = nav_input_error(
+                _RULE,
+                "已移除目录下有不带编号前缀的目录，无法保证新编号不重复",
+                expected=f"{DATASET_ID_PREFIX}<编号>_<名称>",
+                advice=Advice("这次写入没有开始，导航层一行都没写", "先改好该目录名，再重新预览"),
+                objects=(("directory", f"{REMOVED_DIRNAME}/{name}"),),
+            )
+            raise problem
+        highest = max(highest, int(matched[1]))
+    return highest
 
 
 def allocate_dataset_id(nav_root: Path) -> str:
@@ -53,4 +100,32 @@ def allocate_dataset_id(nav_root: Path) -> str:
     Time Semantics:
         调用方必须已持有导航层写锁，且在落写入日志之前调用；预览时可无锁调用，得到的是"预计编号"。
     """
-    raise NotImplementedError
+    number = scan_max_dataset_number(nav_root) + 1
+    return f"{DATASET_ID_PREFIX}{number:0{DATASET_NUMBER_MIN_DIGITS}d}"
+
+
+def _no_checkpoint() -> None:
+    """分配编号是短扫描，调用方已持锁或在预览里，没有需要响应的取消点。"""
+
+
+def _subdirectories(directory: Path) -> tuple[str, ...]:
+    """列出直接子目录名（不跟随链接）；目录本身不存在视为空，其余枚举失败是外部失败。"""
+    names: list[str] = []
+    try:
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                if len(names) >= MAX_ENTRY_MEMBERS:
+                    problem = nav_input_error(
+                        _RULE, "目录项超过预算", objects=(("directory", directory.name),)
+                    )
+                    raise problem
+                if stat.S_ISDIR(entry.stat(follow_symlinks=False).st_mode):
+                    names.append(entry.name)
+    except FileNotFoundError:
+        return ()
+    except OSError as error:
+        problem = nav_external_error(
+            _RULE, "目录无法枚举", objects=(("directory", directory.name),)
+        )
+        raise problem from error
+    return tuple(sorted(names))

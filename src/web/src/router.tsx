@@ -28,6 +28,7 @@ import { JobsPage, JobDetailPage, SubmitCountJobPage } from "./jobs/Pages";
 import type { JobSearch } from "./api/jobs";
 import { validateJobSearch } from "./jobs/search";
 import { StorageRootsPage } from "./storage/Pages";
+import { NavigationRecoveryPage } from "./navigation/Pages";
 
 /** 路由装配输入；测试使用内存 history 与注入传输，不启动服务器。 */
 interface AppRouterOptions {
@@ -140,6 +141,11 @@ export function createAppRouter(options: AppRouterOptions) {
     path: "/storage-roots",
     component: StorageRootsPage,
   });
+  const navigationRecovery = createRoute({
+    getParentRoute: () => root,
+    path: "/navigation/recovery",
+    component: NavigationRecoveryPage,
+  });
   const instance = createRouter({
     routeTree: root.addChildren([
       index,
@@ -154,6 +160,7 @@ export function createAppRouter(options: AppRouterOptions) {
       scheduling,
       resources,
       storageRoots,
+      navigationRecovery,
     ]),
     history: options.history,
     defaultPreload: false,

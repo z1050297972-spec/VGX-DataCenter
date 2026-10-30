@@ -6,16 +6,61 @@
 只写 nav_root 和状态目录，从不写存储根。import 本模块的只能是 worker 一侧（import-linter 合约）。
 """
 
-from dataclasses import dataclass
+import logging
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 from datetime import datetime
+from pathlib import Path
 
+from rdp.audit.types import OPS_AUDIT_CONTEXT, OperationResult, OperationType
 from rdp.infra.actors import ActorRef
+from rdp.infra.db.connection import session_scope
+from rdp.infra.diagnostics import (
+    ConflictError,
+    DefectError,
+    Diagnostic,
+    DiagnosticCategory,
+    DiagnosticLevel,
+    ExternalError,
+    InputError,
+)
 from rdp.infra.state import StatePaths
-from rdp.jobs.datasets.rescan import RescanDependencies
+from rdp.jobs.datasets.catalog import SIZING_TYPE
+from rdp.jobs.datasets.rescan import (
+    RescanDependencies,
+    RescanParameters,
+    publish_scan,
+    scan_navigation,
+    scan_storage,
+)
 from rdp.jobs.execution import ExecutionContext
-from rdp.jobs.navwrite.journal import Journal
-from rdp.jobs.navwrite.models import ApplyResult, NavPreview
+from rdp.jobs.navwrite.atomic import apply_plan, capture_before_images, rollback_journal
+from rdp.jobs.navwrite.audit import (
+    NavigationAuditFacts,
+    append_navigation_audit,
+    navigation_operation_event,
+)
+from rdp.jobs.navwrite.changes import ArchiveRequest, ChangeOutcome, archive_journal
+from rdp.jobs.navwrite.errors import nav_input_error
+from rdp.jobs.navwrite.journal import (
+    Journal,
+    discard_journal,
+    journal_directory,
+    write_journal,
+)
+from rdp.jobs.navwrite.marker import record_recovery_block
+from rdp.jobs.navwrite.models import ApplyResult, MismatchItem, NavPreview, NavWritePlan
+from rdp.jobs.navwrite.policy import AUDIT_DATASET_ID_LIMIT
+from rdp.jobs.navwrite.preview_state import verify_preview_state
+from rdp.jobs.navwrite.previews import read_preview
+from rdp.jobs.records import find_job
 from rdp.jobs.service import JobService
+from rdp.jobs.types import JobProgress, JobState
+
+logger = logging.getLogger(__name__)
+_RULE = "NAV_PIPELINE"
+# 写入作业的五个阶段，进度按阶段上报（ADR 0009 的"一个作业的阶段"）。
+STAGES = ("核对并写入", "更新索引", "提交统计大小", "记操作日志")
 
 
 @dataclass(frozen=True)
@@ -92,7 +137,41 @@ def write_plan_locked(
         写锁等待上限 NAVIGATION_LOCK_TIMEOUT_S=300 秒；持锁段在 worker 30 秒停止预算内完成。
         顺序固定：核对 → 落日志 → 写入 → 归档 → 删日志；不能颠倒（规范 2.3，ADR 0005）。
     """
-    raise NotImplementedError
+    plan = preview.plan
+    nav_root = Path(plan.state.nav_root)
+    paths = dependencies.paths
+    job_id = context.job_id
+
+    def verify() -> None:
+        # 持写锁之后、落日志之前再核对一次预览状态；取消和停止在保护段内被框架延后，检查点不抛。
+        verify_preview_state(nav_root, plan.state, checkpoint=_no_checkpoint)
+
+    def write() -> LockedWrite:
+        started = context.clock.now()
+        if not plan.steps:
+            return LockedWrite(None, 0, 0, True, started, started)
+        images = capture_before_images(nav_root, plan)
+        journal = write_journal(paths, plan, images, job_id, started)
+        current = _InFlight(
+            context,
+            dependencies,
+            preview,
+            actor,
+            journal,
+            journal_directory(paths, job_id),
+            started,
+        )
+        try:
+            apply_plan(nav_root, plan, job_id, checkpoint=_no_checkpoint)
+            finished = context.clock.now()
+            current.archive(ChangeOutcome.COMMITTED, finished)
+        except Exception:
+            current.roll_back()
+            raise
+        _discard_after_commit(current.directory)
+        return LockedWrite(journal, *_counts(plan), False, started, finished)
+
+    return context.write_navigation(verify, write)
 
 
 def reindex_after_write(
@@ -123,7 +202,14 @@ def reindex_after_write(
     Time Semantics:
         在 write_plan_locked 返回、写锁已释放之后调用；是 ADR 0009 阶段 4。第二段访问存储根有超时并按离线处理。
     """
-    raise NotImplementedError
+    done: list[str] = []
+    for dataset_id in dataset_ids:
+        scoped = replace(context, parameters=RescanParameters(dataset_id=dataset_id))
+        navigation = scan_navigation(scoped, rescan)
+        storage = scan_storage(navigation, rescan, checkpoint=context.reporter.check_cancelled)
+        publish_scan(scoped, rescan, navigation, storage)
+        done.append(dataset_id)
+    return tuple(done)
 
 
 def submit_sizing_jobs(
@@ -150,7 +236,10 @@ def submit_sizing_jobs(
     Time Semantics:
         写入和重建索引之后调用；统计本身在后台作业里完成，本调用只提交。
     """
-    raise NotImplementedError
+    return tuple(
+        service.submit_system(SIZING_TYPE, {"dataset_id": dataset_id}, now=now).job_id
+        for dataset_id in dataset_ids
+    )
 
 
 def run_write_plan(
@@ -179,13 +268,310 @@ def run_write_plan(
         DefectError: 作业类型或参数不对。
 
     Side Effects:
-        五个阶段：1 核对预览状态并落写入日志（持写锁）→ 2 逐步写入（同一次持锁）→ 3 更新索引 →
-        4 提交统计大小 → 5 记操作日志。成功和失败都追加一条操作日志，带变更记录编号；
-        写变更记录在阶段 2 的提交点完成。进度每阶段上报一次，单位"阶段"，阶段 2 的条目单位为"文件"。
+        四个进度阶段：1 核对预览状态、落写入日志并逐步写入（同一次持锁，细节见 write_plan_locked）→
+        2 更新索引 → 3 提交统计大小 → 4 记操作日志。成功和失败都追加一条操作日志，带变更记录编号；
+        写变更记录在阶段 1 的提交点完成。进度每阶段上报一次，单位"阶段"；提交之后的失败累计进作业的警告数。
         不直接给作业结果赋值，作业结果由 M0 的 calculate_outcome 按计数算出。
 
     Time Semantics:
         锁等待与持锁时长见 write_plan_locked；阶段 3 起不持锁。取消在阶段之间响应；
         进入阶段 2 之后不可打断，直到提交或退回完成。
     """
-    raise NotImplementedError
+    engine = dependencies.rescan.engine
+    preview = _load_preview(dependencies, preview_job_id)
+    plan = preview.plan
+    with session_scope(engine, read_only=True) as session:
+        submitter = find_job(session, context.job_id).submitted_by
+    progress = _Progress(context)
+    progress.stage(1)
+    try:
+        locked = write_plan_locked(context, dependencies, preview, submitter)
+    except Exception as error:
+        _audit_failure(dependencies, context, preview, submitter, error)
+        raise
+    reindexed: tuple[str, ...] = ()
+    sizing: tuple[int, ...] = ()
+    if not locked.noop:
+        progress.stage(2)
+        reindexed = _after_commit(
+            progress,
+            "更新索引",
+            lambda: reindex_after_write(context, dependencies.rescan, plan.dataset_ids),
+            (),
+        )
+        progress.stage(3)
+        sizing = _after_commit(
+            progress,
+            "提交统计大小",
+            lambda: submit_sizing_jobs(
+                dependencies.service, plan.dataset_ids, now=context.clock.now()
+            ),
+            (),
+        )
+    progress.stage(4)
+    result = ApplyResult(
+        job_id=context.job_id,
+        operation=plan.operation,
+        outcome="noop" if locked.noop else "committed",
+        dataset_ids=plan.dataset_ids,
+        file_count=locked.file_count,
+        link_count=locked.link_count,
+        reindexed_dataset_ids=reindexed,
+        sizing_job_ids=sizing,
+    )
+    _after_commit(
+        progress,
+        "记操作日志",
+        lambda: _audit_success(dependencies, context, submitter, result, bool(plan.steps)),
+        None,
+    )
+    progress.finish()
+    return result
+
+
+def _no_checkpoint() -> None:
+    """写锁保护段内的检查点：框架已延后取消和停止，这里什么都不抛。"""
+
+
+def _counts(plan: NavWritePlan) -> tuple[int, int]:
+    """计划里写（或删）的文件数、建或改的链接数。"""
+    files = sum(
+        step.op == "write_file" or (step.op == "remove_path" and step.entry_kind == "file")
+        for step in plan.steps
+    )
+    links = sum(
+        step.op == "set_link" or (step.op == "remove_path" and step.entry_kind == "symlink")
+        for step in plan.steps
+    )
+    return files, links
+
+
+def _discard_after_commit(directory: Path) -> None:
+    """提交点已过：删日志失败只记警告，恢复流程见到"已提交"的记录会补删，不能回滚已提交的写入。"""
+    try:
+        discard_journal(directory)
+    except ExternalError:
+        logger.warning("变更记录已落盘，但删除写入日志失败：%s", directory.name, exc_info=True)
+
+
+@dataclass(frozen=True)
+class _InFlight:
+    """持锁写入中的一次作业：归档和退回需要的全部上下文。
+
+    Attributes:
+        context: 当前写入作业的执行上下文。
+        dependencies: 写入依赖。
+        preview: 预览作业保存的结果，其 plan 是正在执行的计划。
+        actor: 提交人身份快照，写进变更记录。
+        journal: 已落盘的写入日志内容。
+        directory: 写入日志目录。
+        started: 开始写入的 UTC 时刻。
+    """
+
+    context: ExecutionContext
+    dependencies: NavWriteDependencies
+    preview: NavPreview
+    actor: ActorRef
+    journal: Journal
+    directory: Path
+    started: datetime
+
+    def archive(self, outcome: ChangeOutcome, finished: datetime) -> None:
+        """归档写入日志；只有提交才带计划（后像）。"""
+        committed = outcome is ChangeOutcome.COMMITTED
+        archive_journal(
+            self.dependencies.paths,
+            self.directory,
+            self.journal,
+            ArchiveRequest(
+                outcome=outcome,
+                actor_id=self.actor.account_id,
+                actor_name=self.actor.name,
+                preview_job_id=self.preview.preview_job_id,
+                started_at=self.started,
+                finished_at=finished,
+                plan=self.preview.plan if committed else None,
+                report=self.preview.report,
+                mismatches=(),
+            ),
+        )
+
+    def roll_back(self) -> None:
+        """同一次持锁内按前像退回；退不回的设恢复失败标记并保留日志。"""
+        nav_root = Path(self.preview.plan.state.nav_root)
+        try:
+            stuck = rollback_journal(
+                nav_root, self.directory, self.journal, checkpoint=_no_checkpoint
+            ).mismatches
+        except (InputError, ExternalError):
+            stuck = (
+                MismatchItem(
+                    job_id=self.journal.job_id,
+                    step_index=0,
+                    path=f"nav-journal/{self.journal.job_id}",
+                    expected_before="日志可用于回滚",
+                    expected_after="日志可用于回滚",
+                    actual="回滚时读取日志或前像失败",
+                ),
+            )
+        if stuck:
+            with session_scope(self.dependencies.rescan.engine) as session:
+                record_recovery_block(session, stuck, now=self.context.clock.now())
+            return
+        self.archive(ChangeOutcome.ROLLED_BACK, self.context.clock.now())
+        _discard_after_commit(self.directory)
+
+
+class _Progress:
+    """阶段进度与累计警告；提交之后的失败只计警告。"""
+
+    def __init__(self, context: ExecutionContext) -> None:
+        """绑定上下文。"""
+        self.context = context
+        self.warnings = 0
+
+    def stage(self, index: int) -> None:
+        """进入第 index 个阶段（1 起），上报一次进度。"""
+        self.context.reporter.report(
+            JobProgress(
+                stage_index=index,
+                stage_count=len(STAGES),
+                stage_name=STAGES[index - 1],
+                done=0,
+                total=1,
+                unit="阶段",
+                warning_count=self.warnings,
+                failed_items=0,
+                total_items=index - 1,
+            )
+        )
+
+    def finish(self) -> None:
+        """全部阶段完成：把累计警告数连同最后一阶段的完成上报一次。"""
+        self.context.reporter.report(
+            JobProgress(
+                stage_index=len(STAGES),
+                stage_count=len(STAGES),
+                stage_name=STAGES[-1],
+                done=1,
+                total=1,
+                unit="阶段",
+                warning_count=self.warnings,
+                failed_items=0,
+                total_items=len(STAGES),
+            )
+        )
+
+    def warn(self, stage: str, error: Exception) -> None:
+        """提交之后的失败：记一条警告诊断并累计，不回滚导航层。"""
+        self.warnings += 1
+        logger.warning(
+            "写导航层作业 #%s 的%s失败，导航层已写好", self.context.job_id, stage, exc_info=True
+        )
+        self.context.reporter.diagnostic(
+            Diagnostic(
+                level=DiagnosticLevel.WARNING,
+                category=DiagnosticCategory.EXTERNAL,
+                stage=stage,
+                source="平台",
+                objects=(),
+                rule="NAV_POST_COMMIT_FAILED",
+                actual=f"{stage}失败：{type(error).__name__}",
+                expected=None,
+                consequence="导航层已经写好并有变更记录；索引或统计稍后由定时重新扫描补上",
+                next_step="无需处理；若长期不更新，查看 worker 日志",
+            )
+        )
+
+
+def _after_commit[T](progress: _Progress, stage: str, action: Callable[[], T], fallback: T) -> T:
+    """提交之后的阶段：失败只记警告，返回回退值。"""
+    try:
+        return action()
+    except (ConflictError, ExternalError, InputError, DefectError) as error:
+        progress.warn(stage, error)
+        return fallback
+
+
+def _load_preview(dependencies: NavWriteDependencies, preview_job_id: int) -> NavPreview:
+    """读预览并核对它属于当前导航根、预览作业成功结束。"""
+    preview = read_preview(dependencies.paths, preview_job_id)
+    if preview.plan.state.nav_root != str(dependencies.rescan.nav_root):
+        problem = nav_input_error(
+            _RULE,
+            "预览属于另一个导航根，不能执行",
+            objects=(("preview_job_id", str(preview_job_id)),),
+        )
+        raise problem
+    with session_scope(dependencies.rescan.engine, read_only=True) as session:
+        state = find_job(session, preview_job_id).state
+    if state is not JobState.COMPLETED:
+        problem = nav_input_error(
+            _RULE,
+            "预览作业没有成功结束，不能执行",
+            objects=(("preview_job_id", str(preview_job_id)),),
+        )
+        raise problem
+    return preview
+
+
+def _audit_success(
+    dependencies: NavWriteDependencies,
+    context: ExecutionContext,
+    submitter: ActorRef,
+    result: ApplyResult,
+    has_record: bool,
+) -> None:
+    """成功（含无事可做）的操作日志，带变更记录编号。"""
+    event = navigation_operation_event(
+        NavigationAuditFacts(
+            operation=OperationType(result.operation.value),
+            job_id=result.job_id,
+            actor=submitter,
+            context=OPS_AUDIT_CONTEXT,
+            occurred_at=context.clock.now(),
+            result=OperationResult.SUCCESS,
+            failure_category=None,
+            dataset_ids=result.dataset_ids[:AUDIT_DATASET_ID_LIMIT],
+            dataset_count=len(result.dataset_ids),
+            file_count=result.file_count,
+            link_count=result.link_count,
+            change_record_id=str(result.job_id) if has_record else None,
+            reverts_job_id=None,
+        )
+    )
+    append_navigation_audit(dependencies.rescan.engine, event)
+
+
+def _audit_failure(
+    dependencies: NavWriteDependencies,
+    context: ExecutionContext,
+    preview: NavPreview,
+    submitter: ActorRef,
+    error: Exception,
+) -> None:
+    """写入失败（冲突或已退回）也留一条失败的操作日志；补记失败不掩盖原异常。"""
+    category = getattr(error, "category", DiagnosticCategory.EXTERNAL)
+    plan = preview.plan
+    has_record = (dependencies.paths.nav_changes / f"{context.job_id}.json.gz").exists()
+    try:
+        event = navigation_operation_event(
+            NavigationAuditFacts(
+                operation=OperationType(plan.operation.value),
+                job_id=context.job_id,
+                actor=submitter,
+                context=OPS_AUDIT_CONTEXT,
+                occurred_at=context.clock.now(),
+                result=OperationResult.FAILURE,
+                failure_category=category,
+                dataset_ids=plan.dataset_ids[:AUDIT_DATASET_ID_LIMIT],
+                dataset_count=len(plan.dataset_ids),
+                file_count=0,
+                link_count=0,
+                change_record_id=str(context.job_id) if has_record else None,
+                reverts_job_id=plan.reverts_job_id,
+            )
+        )
+        append_navigation_audit(dependencies.rescan.engine, event)
+    except Exception:
+        logger.error("写导航层失败的操作日志补记失败 job_id=%s", context.job_id, exc_info=True)

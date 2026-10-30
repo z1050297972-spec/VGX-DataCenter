@@ -12,6 +12,7 @@ from rdp.audit.errors import AuditInputError
 from rdp.audit.job_contracts import validate_job_operation
 from rdp.audit.policy import MAX_DETAILS_BYTES
 from rdp.audit.types import (
+    NAVIGATION_OPERATIONS,
     OPERATION_DETAIL_FIELDS,
     AuditValues,
     LoginEvent,
@@ -76,6 +77,7 @@ def target(value: object) -> None:
         "audit_settings",
         "job",
         "dataset_index",
+        "navigation_write",
     }:
         raise invalid("target")
     name(value.name)
@@ -96,6 +98,10 @@ def target(value: object) -> None:
         ):
             raise invalid("target")
         identifier(int(key))
+        if value.kind == "navigation_write" and value.name != f"写导航层 #{key}":
+            raise invalid("target")
+    elif value.kind == "navigation_write":
+        raise invalid("target")
 
 
 def details(value: object, operation: OperationType) -> OperationDetails:
@@ -156,6 +162,8 @@ def operation_shape(value: OperationEvent, checked: OperationDetails) -> None:
         ):
             raise invalid("target")
         return
+    if (value.operation in NAVIGATION_OPERATIONS) != (value.target.kind == "navigation_write"):
+        raise invalid("target")
     creating = value.operation in {OperationType.CREATE_ACCOUNT, OperationType.CREATE_FIRST_ADMIN}
     if creating and checked.before.model_dump(exclude_none=True):
         raise invalid("before")

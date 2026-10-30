@@ -5,9 +5,17 @@
 本模块只实现一遍规则，建链、新增数据集、改指向、撤回都调用它，不各自重算（规范 2.2）。
 """
 
+import copy
 from dataclasses import dataclass
+from pathlib import PurePosixPath
+from typing import cast
 
-from rdp.jobs.datasets.types import EntryLocation, EntrySnapshot, JsonObject
+from rdp.jobs.datasets.catalog import REQUIRED_DOCUMENTS
+from rdp.jobs.datasets.types import EntryLocation, EntrySnapshot, JsonObject, JsonValue, View
+from rdp.jobs.navwrite.errors import nav_input_error
+from rdp.jobs.navwrite.jsonio import dump_navigation_json, regenerate_derived_fields
+
+_RULE = "NAV_REPLICA"
 
 
 @dataclass(frozen=True)
@@ -54,7 +62,7 @@ def select_reachable_sources(
 
     Returns:
         (够得着, 够不着)：够得着的是 `direct_path` 等于某个链接目标，或位于其下（前缀后紧跟 `/`）的数据块；
-        两组各自保持输入顺序，彼此不重叠，合起来等于输入。`/mnt/a/b` 不覆盖 `/mnt/a/bc`。
+        两组各自保持输入顺序，彼此不重叠，合起来等于输入。`/a/b` 不覆盖 `/a/bc`。
 
     Raises:
         InputError: 某项没有字符串类型的 `direct_path`，或链接目标不是绝对路径。
@@ -65,7 +73,22 @@ def select_reachable_sources(
     Time Semantics:
         同步纯函数，无时钟、无 I/O。
     """
-    raise NotImplementedError
+    for target in link_targets:
+        if not PurePosixPath(target).is_absolute():
+            problem = nav_input_error(_RULE, "链接目标不是绝对路径", objects=(("target", target),))
+            raise problem
+    reached: list[JsonObject] = []
+    unreached: list[JsonObject] = []
+    for source in sources:
+        direct = source.get("direct_path")
+        if not isinstance(direct, str):
+            problem = nav_input_error(_RULE, "数据块没有字符串类型的 direct_path")
+            raise problem
+        if any(_is_under(direct, target) for target in link_targets):
+            reached.append(source)
+        else:
+            unreached.append(source)
+    return tuple(reached), tuple(unreached)
 
 
 def filter_subtasks(
@@ -80,7 +103,8 @@ def filter_subtasks(
     Returns:
         (新对象, 被筛掉的引用条数, 整体去掉的任务的 task_key)。任务的 `sources[]` 筛完为空则整个任务去掉；
         `task_count` 随之重算，其余键（含 `shared_source_roots`）原样保留，未知键不丢。
-        没有 `source_id` 的引用项如何处理，以真实样本的对拍结果为准（验收 1）。
+        没有 `source_id` 的引用项判断不了该不该留，保守起见保留、不计入被筛掉的条数；
+        该规则是否合适，以验收 1 的真实样本对拍结果为准。
 
     Raises:
         InputError: tasks 或其 sources 的结构不是约定的数组。
@@ -91,7 +115,34 @@ def filter_subtasks(
     Time Semantics:
         同步纯函数，无时钟、无 I/O。
     """
-    raise NotImplementedError
+    tasks = subtasks.get("tasks")
+    if not isinstance(tasks, list) or not all(isinstance(task, dict) for task in tasks):
+        problem = nav_input_error(_RULE, "子任务.json 的 tasks 不是对象数组")
+        raise problem
+    result: JsonObject = dict(subtasks)
+    kept_tasks: list[JsonValue] = []
+    omitted = 0
+    dropped: list[str] = []
+    for task in cast(list[JsonObject], tasks):
+        references = task.get("sources")
+        if not isinstance(references, list) or not all(isinstance(ref, dict) for ref in references):
+            problem = nav_input_error(_RULE, "子任务的 sources 不是对象数组")
+            raise problem
+        kept_refs: list[JsonValue] = []
+        for reference in cast(list[JsonObject], references):
+            source_id = reference.get("source_id")
+            # 没有 source_id 的引用判断不了该不该留，保守起见保留，不凭空丢数据。
+            if not isinstance(source_id, str) or source_id in kept_source_ids:
+                kept_refs.append(copy.deepcopy(reference))
+            else:
+                omitted += 1
+        if references and not kept_refs:
+            dropped.append(str(task.get("task_key")))
+            continue
+        kept_tasks.append({**copy.deepcopy(task), "sources": kept_refs})
+    result["tasks"] = kept_tasks
+    result["task_count"] = len(kept_tasks)
+    return result, omitted, tuple(dropped)
 
 
 def generate_format_entry(canonical: EntrySnapshot, current: EntrySnapshot) -> GeneratedEntry:
@@ -118,4 +169,82 @@ def generate_format_entry(canonical: EntrySnapshot, current: EntrySnapshot) -> G
     Time Semantics:
         同步纯函数，无时钟、无 I/O；结果只反映传入快照那一刻的内容。
     """
-    raise NotImplementedError
+    if current.location.view is not View.FORMAT:
+        problem = nav_input_error(_RULE, "current 不是按格式入口", objects=_where(current))
+        raise problem
+    if canonical.location.view is not View.TASK:
+        problem = nav_input_error(_RULE, "canonical 不是按任务入口", objects=_where(canonical))
+        raise problem
+    if canonical.dataset_id is None or canonical.dataset_id != current.dataset_id:
+        problem = nav_input_error(
+            _RULE,
+            "规范副本与按格式入口的 dataset_id 不同",
+            objects=(("canonical_entry", str(canonical.location.path)), *_where(current)),
+        )
+        raise problem
+    manifest = _payload(canonical, 0)
+    information = _payload(canonical, 1)
+    subtasks = _payload(canonical, 2)
+    current_manifest = _payload(current, 0)
+    links = copy.deepcopy(current_manifest.get("links"))
+    if not isinstance(links, list):
+        problem = nav_input_error(_RULE, "按格式入口没有可用的 links[]", objects=_where(current))
+        raise problem
+    targets = tuple(
+        str(cast(JsonObject, link).get("source_path")) for link in cast(list[JsonValue], links)
+    )
+    source_list = manifest.get("sources")
+    if not isinstance(source_list, list):
+        problem = nav_input_error(_RULE, "规范副本的 sources 不是数组", objects=_where(canonical))
+        raise problem
+    reached, unreached = select_reachable_sources(
+        tuple(copy.deepcopy(cast(list[JsonObject], source_list))), targets
+    )
+    generated_manifest: JsonObject = copy.deepcopy(manifest)
+    generated_manifest["links"] = links
+    generated_manifest["sources"] = list(cast(tuple[JsonValue, ...], reached))
+    kept_ids = frozenset(
+        str(source["source_id"]) for source in reached if isinstance(source.get("source_id"), str)
+    )
+    filtered, omitted_refs, dropped = filter_subtasks(subtasks, kept_ids)
+    return GeneratedEntry(
+        location=current.location,
+        files=(
+            GeneratedFile(
+                REQUIRED_DOCUMENTS[0],
+                dump_navigation_json(
+                    regenerate_derived_fields(generated_manifest, current.location)
+                ),
+            ),
+            GeneratedFile(REQUIRED_DOCUMENTS[1], dump_navigation_json(information)),
+            GeneratedFile(
+                REQUIRED_DOCUMENTS[2],
+                dump_navigation_json(regenerate_derived_fields(filtered, current.location)),
+            ),
+        ),
+        omitted_source_ids=tuple(str(source.get("source_id")) for source in unreached),
+        omitted_task_references=omitted_refs,
+        dropped_task_keys=dropped,
+    )
+
+
+def _is_under(path: str, target: str) -> bool:
+    """路径等于 target，或位于其下（前缀后紧跟 /）；按字符串判断，不 resolve。"""
+    base = target.rstrip("/") or "/"
+    return path == base or path.startswith(base.rstrip("/") + "/")
+
+
+def _where(snapshot: EntrySnapshot) -> tuple[tuple[str, str], ...]:
+    """诊断里的入口位置。"""
+    return (("entry_path", str(snapshot.location.path)),)
+
+
+def _payload(snapshot: EntrySnapshot, index: int) -> JsonObject:
+    """取入口某份文档的内容；不可用就报输入错误，不用空对象顶替。"""
+    document = snapshot.documents[index]
+    if document.payload is None:
+        problem = nav_input_error(
+            _RULE, f"{document.name} 不可用，无法生成按格式入口", objects=_where(snapshot)
+        )
+        raise problem
+    return document.payload
