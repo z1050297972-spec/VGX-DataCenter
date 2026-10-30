@@ -112,3 +112,4 @@ Status: in-progress
 
 - 2026-10-28，起草（Claude，主会话）。依据 12 的 1A（同日已决）和 M1 spec（同日 accepted）。Status 定为 `needs-info`：「待负责人确认」第 1、2 条是 1A 和 spec 都没覆盖的缺口，定了以后改成 `ready-for-agent`；开票还要等第 07 张合并。
 - 2026-10-30 00:15 执行线按负责人授权定下"待负责人确认"三条，全部按建议：(1) 数据集名和链接名用同一套规则（不含 `/`、不以 `.` 开头），并且不能和 `按任务/` 下已有入口重名；(2) 有 `meta/info.json` 就用它的 format/version；没有的（mcap、tar 类），由提交人在预览里从格式目录登记表里选格式，version 写 null；(3) 前端不拆票，本票分两次派工。Status 改为 in-progress。实现改用 Codex gpt-6.1-sol（high）。和第 10 张并行，第 09 张等本票合并后再开。
+- 2026-10-30 00:16 派工 A（Codex gpt-6.1-sol high，新会话 `01a18b73-1cd9-71f2-80b3-d79c90592840`，提示 `assets/08-link-create-new-dataset/prompt-A.md`）。

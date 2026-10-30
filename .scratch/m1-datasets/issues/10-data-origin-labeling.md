@@ -80,3 +80,4 @@ Status: in-progress
 
 - 2026-10-28，起草（Claude，主会话）。Status 定为 `ready-for-agent`：第 07、05 张合并以后才能开票。
 - 2026-10-30 00:15 开票（执行线，负责人授权）。第 07 张已合并（141d4b6）。Status 改为 in-progress。直做，派给 Codex gpt-6.1-sol（high）。和第 08 张并行。
+- 2026-10-30 00:16 派工 B（Codex gpt-6.1-sol high，新会话 `01a18b73-1cd8-7193-971c-ef5d93728820`，提示 `assets/10-data-origin-labeling/prompt-B.md`），分两段交：后端交检查点后，执行线做副本演练，然后做前端。
