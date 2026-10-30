@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from dataset_api_support import ENTRY, FORMAT_ENTRY, browser_case, set_meta
+from datasets_execution_support import dataset_case
 from nav_manifest import FakeNavigation
 
 
@@ -928,7 +929,7 @@ def test_layout_migration_matches_model_and_preserves_existing_data(
     from accounts_support import NOW
     from alembic.autogenerate import compare_metadata
     from alembic.runtime.migration import MigrationContext
-    from dataset_api_support import historical_migrations
+    from dataset_api_support import historical_migrations, seed_historical_index
     from sqlalchemy import inspect, text
     from sqlalchemy.exc import IntegrityError
 
@@ -942,12 +943,12 @@ def test_layout_migration_matches_model_and_preserves_existing_data(
     state = tmp_path / "state"
     with monkeypatch.context() as patch:
         patch.setattr("rdp.infra.db.migration.__file__", str(historical.parent / "migration.py"))
-        with browser_case(state, fake_nav) as case:
-            assert case.client.get("/api/datasets").json()["total"] == 5
+        with dataset_case(state, fake_nav) as case:
+            seed_historical_index(case.engine, fake_nav, tmp_path / "current", monkeypatch)
     result = migrate(state_paths(PlatformConfig(state_dir=state), ()), now=NOW)
     assert (result.previous_revision, result.current_revision) == (
         "0007_dataset_index",
-        "0011_data_origin",
+        "0012_scene_task_index",
     )
     assert result.backup is not None and result.backup.is_file()
     from rdp.infra.db.migrations.versions.v0008_dataset_layout import downgrade
@@ -1161,7 +1162,7 @@ def test_production_entry_configures_dataset_queries(tmp_path: Path) -> None:
             )
             response = client.get("/api/datasets/trees")
             assert response.status_code == 200, response.text
-            assert [node["entry_count"] for node in response.json()["nodes"]] == [0, 0]
+            assert [node["entry_count"] for node in response.json()["nodes"]] == [0, 0, 0]
 
     assert run_web(runtime, inputs=inputs, runner=runner) == 0
 

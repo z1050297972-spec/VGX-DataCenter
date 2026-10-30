@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import cast
 
+import pytest
 from account_api_support import ApiCase, Clock
 from accounts_support import EXAMPLE_SECRET, NOW
 from argon2 import PasswordHasher
@@ -13,6 +14,7 @@ from fastapi.testclient import TestClient
 from httpx import Client
 from jobs_scheduling_support import catalog_fixture
 from nav_manifest import FakeNavigation
+from sqlalchemy import Engine
 
 from rdp.accounts.security import PasswordCodec
 from rdp.accounts.service import AccountService
@@ -110,3 +112,30 @@ def historical_migrations(root: Path) -> Path:
         if script.name < "v0008":
             shutil.copyfile(script, target / "versions" / script.name)
     return target
+
+
+def seed_historical_index(
+    engine: Engine, nav: FakeNavigation, current_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """用独立现版扫描准备样本，只复制旧库实际存在的列，避免新版 ORM 访问旧版未新增的列。"""
+    from sqlalchemy import MetaData, select
+
+    # 旧库仍由真实历史迁移建表；现版扫描只在另一个临时库运行。
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            "rdp.infra.db.migration.__file__",
+            str(Path(__file__).parents[1] / "src/rdp/infra/db/migration.py"),
+        )
+        with browser_case(current_root, nav) as current:
+            destination = MetaData()
+            destination.reflect(bind=engine)
+            source = MetaData()
+            source.reflect(bind=current.engine)
+            with current.engine.connect() as reader, engine.begin() as writer:
+                for table in destination.sorted_tables:
+                    if table.name == "alembic_version":
+                        continue
+                    columns = [source.tables[table.name].c[column.name] for column in table.columns]
+                    rows = [dict(row) for row in reader.execute(select(*columns)).mappings()]
+                    if rows:
+                        writer.execute(table.insert(), rows)

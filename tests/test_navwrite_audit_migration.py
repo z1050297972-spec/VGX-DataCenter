@@ -224,7 +224,7 @@ def test_old_rows_unchanged_by_0010(tmp_path: Path, monkeypatch: pytest.MonkeyPa
                 }
             result = migrate(paths, now=NOW)
             assert result.previous_revision == "0009_rebuild_index_audit"
-            assert result.current_revision == "0011_data_origin"
+            assert result.current_revision == "0012_scene_task_index"
             with session_scope(engine, read_only=True) as session:
                 after = query_operations(
                     session, OperationQuery(LogQuery()), lambda _s, _i: frozenset()

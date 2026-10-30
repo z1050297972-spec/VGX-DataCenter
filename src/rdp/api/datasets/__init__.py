@@ -123,11 +123,11 @@ DatasetContext = Annotated[DatasetApiContext, Depends(get_dataset_context)]
 def get_dataset_trees(
     context: DatasetContext, filters: Annotated[DatasetFilters, Query()]
 ) -> DatasetTreesResponse:
-    """返回共用筛选条件的按任务/按格式两棵树。
+    """返回共用筛选条件的按任务、按格式和按场景三棵树。
 
     Args:
         context: 当前已登录且完成改密的账号及浏览服务。
-        filters: 型号、原标签、整数FPS/unknown、来源和视图路径筛选；未提供表示不限。
+        filters: 型号、原标签、整数FPS/unknown、来源、场景、任务交集和视图路径筛选；未提供表示不限。
 
     Returns:
         200，nodes平铺节点及indexed_at；每节点含数量、大小来源计数和原统计时间范围。
@@ -189,7 +189,8 @@ def get_dataset_filters(context: DatasetContext) -> DatasetFilterOptions:
         context: 全局安全检查通过的账号上下文与浏览服务。
 
     Returns:
-        200，robot_models_registered、default_robot_filter及型号/标签/FPS/来源候选。
+        200，robot_models_registered、default_robot_filter及型号/标签/FPS/来源/场景/任务候选。
+        scene_vocabulary/task_vocabulary 提供编辑器用的受控编码与中文名。
         空目录默认robot_type，登记后默认robot_model；每类unknown项独立且保留零计数。
 
     Raises:

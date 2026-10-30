@@ -1,4 +1,5 @@
 // 共用筛选栏（16、M1-04）；筛选实际含义由后端决定，页面不从 Markdown 提取值。
+import { UNLABELED_FILTER } from "./classificationLabels";
 import { useState, type ReactElement } from "react";
 import { Button, Select } from "antd";
 import type { DatasetFilters } from "../api/datasets";
@@ -99,6 +100,7 @@ export function DatasetFilterBar(props: FilterProps): ReactElement {
           }}
         />
       </label>
+      <ClassificationFilters {...props} />
       {byModel && (
         <Button
           aria-expanded={more}
@@ -110,5 +112,57 @@ export function DatasetFilterBar(props: FilterProps): ReactElement {
         </Button>
       )}
     </div>
+  );
+}
+
+// 两个分类维度共用候选计数，但未标注与具体任务互斥，避免发出不可能满足的交集。
+function ClassificationFilters(props: FilterProps): ReactElement {
+  return (
+    <>
+      <label>
+        场景
+        <Select<string>
+          aria-label="筛选场景"
+          allowClear
+          virtual={false}
+          style={{ width: 210, maxWidth: "100%" }}
+          value={props.search.scene ?? undefined}
+          options={props.options.scenes.map((item) => ({
+            value: item.value,
+            label: `${item.label}（${String(item.count)}）`,
+          }))}
+          onChange={(value: string | undefined) => {
+            props.onChange({ ...props.search, scene: value, offset: undefined });
+          }}
+        />
+      </label>
+      <label>
+        任务
+        <Select<string[]>
+          mode="multiple"
+          aria-label="筛选任务"
+          allowClear
+          virtual={false}
+          style={{ width: 280, maxWidth: "100%" }}
+          value={props.search.tasks ?? []}
+          options={props.options.tasks.map((item) => ({
+            value: item.value,
+            label: `${item.label}（${String(item.count)}）`,
+          }))}
+          onChange={(values: string[]) => {
+            const last = values.at(-1);
+            const tasks =
+              last === UNLABELED_FILTER
+                ? [last]
+                : values.filter((value) => value !== UNLABELED_FILTER);
+            props.onChange({
+              ...props.search,
+              tasks: tasks.length ? tasks : undefined,
+              offset: undefined,
+            });
+          }}
+        />
+      </label>
+    </>
   );
 }

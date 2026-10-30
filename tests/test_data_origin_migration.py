@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from dataset_api_support import seed_historical_index
 from datasets_execution_support import dataset_case
 from jobs_storage_support import NOW
 from nav_manifest import FakeNavigation
@@ -22,11 +23,11 @@ def test_migration_preserves_populated_index_and_expands_origins(
     source = migration_config().get_main_option("script_location")
     assert source is not None
     historical = tmp_path / "old/migrations"
-    shutil.copytree(source, historical, ignore=shutil.ignore_patterns("v0011*"))
+    shutil.copytree(source, historical, ignore=shutil.ignore_patterns("v0011*", "v0012*"))
     with monkeypatch.context() as patch:
         patch.setattr("rdp.infra.db.migration.__file__", str(historical.parent / "migration.py"))
         with dataset_case(tmp_path / "state", fake_nav) as case:
-            case.run()
+            seed_historical_index(case.engine, fake_nav, tmp_path / "current", monkeypatch)
             with session_scope(case.engine, read_only=True) as session:
                 tables = tuple(
                     session.scalars(
@@ -51,7 +52,7 @@ def test_migration_preserves_populated_index_and_expands_origins(
                     str(Path(__file__).parents[1] / "src/rdp/infra/db/migration.py"),
                 )
                 result = migrate(paths, now=NOW)
-                assert result.changed and result.current_revision == "0011_data_origin"
+                assert result.changed and result.current_revision == "0012_scene_task_index"
                 with session_scope(engine, read_only=True) as session:
                     after = {
                         table: session.execute(
@@ -61,7 +62,11 @@ def test_migration_preserves_populated_index_and_expands_origins(
                         ).all()
                         for table in tables
                     }
-                    assert after == before
+                    assert {
+                        key: [tuple(row[:-3]) for row in rows] if key == "datasets" else rows
+                        for key, rows in after.items()
+                    } == before
+                    assert all(tuple(row[-3:]) == (None, "[]", None) for row in after["datasets"])
                     assert session.execute(text("PRAGMA foreign_key_check")).all() == []
                 for origin in ("real", "umi", "ego", "simulation", "open_source", "unknown"):
                     with session_scope(engine) as session:

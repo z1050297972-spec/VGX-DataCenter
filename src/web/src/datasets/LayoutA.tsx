@@ -45,13 +45,15 @@ function TreeColumn({ query }: { query: BrowserQuery }): ReactElement {
   return (
     <aside aria-label="视图树">
       <Tabs
+        aria-label="浏览视图"
         activeKey={search.tree_view ?? "format"}
         onChange={(value) => {
-          actions.setView(value === "task" ? "task" : "format");
+          actions.setView(value === "scene" ? "scene" : value === "task" ? "task" : "format");
         }}
         items={[
           { key: "format", label: "按格式" },
           { key: "task", label: "按任务" },
+          { key: "scene", label: "按场景" },
         ]}
       />
       {query.trees.error && <DiagnosticCard failure={toFailureView(query.trees.error)} />}

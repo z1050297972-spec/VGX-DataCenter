@@ -54,6 +54,8 @@ function BrowserContent(): ReactElement {
     robot_type: search.robot_type,
     robot_model_id: search.robot_model_id,
     data_origin: search.data_origin,
+    scene: search.scene,
+    tasks: search.tasks,
     fps: search.fps,
     offset: search.offset,
     entry_path: search.entry_path,

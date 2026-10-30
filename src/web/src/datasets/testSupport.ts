@@ -39,6 +39,9 @@ export const datasets: Schema["DatasetListResponse"] = {
       robot_model_ids: [],
       fps: [20],
       data_origin: "unknown",
+      scene: "tabletop",
+      tasks: ["pick_place", "tidy"],
+      robot_model: "Franka",
       indexed_at: "2026-10-29T12:00:00Z",
       size,
     },
@@ -53,6 +56,9 @@ export const datasets: Schema["DatasetListResponse"] = {
       robot_model_ids: [],
       fps: [30],
       data_origin: "unknown",
+      scene: null,
+      tasks: [],
+      robot_model: null,
       indexed_at: "2026-10-29T12:00:00Z",
       size,
     },
@@ -113,6 +119,47 @@ export const trees: Schema["DatasetTreesResponse"] = {
     })),
   ],
 };
+// 虚拟树仍跳到规范入口；独立样本用一组场景验证三种布局共享同一路径契约。
+trees.nodes.push(
+  {
+    path: "按场景",
+    parent_path: null,
+    name: "按场景",
+    kind: "view",
+    view: "scene",
+    format: null,
+    version: null,
+    dataset_id: null,
+    entry_path: null,
+    dataset_count: 1,
+    entry_count: 1,
+    size: treeSize,
+  },
+  {
+    path: "按场景/tabletop",
+    parent_path: "按场景",
+    name: "桌面",
+    kind: "scene",
+    view: "scene",
+    format: null,
+    version: null,
+    dataset_id: null,
+    entry_path: null,
+    dataset_count: 1,
+    entry_count: 1,
+    size: treeSize,
+  },
+  {
+    ...taskEntry,
+    path: "按场景/tabletop/libero_10",
+    parent_path: "按场景/tabletop",
+    kind: "entry",
+    view: "scene",
+    dataset_count: 1,
+    entry_count: 1,
+    size: treeSize,
+  },
+);
 export const filters: Schema["DatasetFilterOptions"] = {
   robot_models_registered: false,
   default_robot_filter: "robot_type",
@@ -129,6 +176,23 @@ export const filters: Schema["DatasetFilterOptions"] = {
     { value: "unknown", label: "未知", count: 0 },
   ],
   data_origins: [{ value: "unknown", label: "未知", count: 2 }],
+  scenes: [
+    { value: "tabletop", label: "桌面", count: 1 },
+    { value: "unlabeled", label: "未标注", count: 1 },
+  ],
+  tasks: [
+    { value: "pick_place", label: "抓取放置", count: 1 },
+    { value: "tidy", label: "收纳整理", count: 1 },
+    { value: "unlabeled", label: "未标注", count: 1 },
+  ],
+  scene_vocabulary: [
+    { code: "kitchen", name: "家居-厨房" },
+    { code: "tabletop", name: "桌面" },
+  ],
+  task_vocabulary: [
+    { code: "pick_place", name: "抓取放置" },
+    { code: "tidy", name: "收纳整理" },
+  ],
 };
 export const detail: Schema["DatasetDetailResponse"] = {
   provenance: { state: "absent", data_origin: "未知", data_origin_set_by: null },

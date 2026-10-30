@@ -7,6 +7,9 @@ import type { DatasetList, DatasetTrees } from "../api/datasets";
 import { exactBytes, formatBytes } from "./formatBytes";
 import { formatDateTime } from "../time";
 
+import { useDatasetFilterOptions } from "./queries";
+import { classificationName, classificationTasks } from "./classificationLabels";
+
 type Size = components["schemas"]["DatasetSize"];
 
 /**
@@ -65,7 +68,7 @@ export function TreeNodeMeta(props: { node: TreeNode }): ReactElement {
 
 interface TreeProps {
   /** 接口返回的全部树节点。 */ data: DatasetTrees;
-  /** 当前显示的视图。 */ view: components["schemas"]["View"];
+  /** 当前显示的视图。 */ view: components["schemas"]["DatasetTreeNode"]["view"];
   /** 用户选择节点路径的回调。 */ onSelect: (path: string) => void;
   /** 当前选中的入口或目录路径。 */ selected?: string;
 }
@@ -101,7 +104,9 @@ export function DatasetTree(props: TreeProps): ReactElement {
       defaultExpandAll
       blockNode
       treeData={children(null)}
-      selectedKeys={props.selected ? [props.selected] : []}
+      selectedKeys={nodes
+        .filter((node) => node.path === props.selected || node.entry_path === props.selected)
+        .map((node) => node.path)}
       onSelect={(keys) => {
         const path = keys[0];
         if (typeof path === "string") props.onSelect(path);
@@ -118,12 +123,13 @@ interface ListProps {
 /**
  * 显示去重数据集列表及有界分页。
  * @param props - 列表、打开入口和翻页回调。
- * @returns 名称、大小、型号标签和 FPS 表格。
+ * @returns 名称、中文场景与任务、导航型号、大小、原文件型号标签和 FPS 表格。
  * @throws 无。
  * @sideEffects 点击通过回调改变路由，不自动预加载详情。
  * @timeSemantics 仅展示服务端索引快照。
  */
 export function DatasetListTable(props: ListProps): ReactElement {
+  const vocabulary = useDatasetFilterOptions().data;
   return (
     <section aria-label="数据集列表">
       <p>共 {props.data.total} 个数据集</p>
@@ -137,16 +143,23 @@ export function DatasetListTable(props: ListProps): ReactElement {
             title: "数据集",
             key: "name",
             render: (_, item) => (
-              <Button
-                type="link"
-                aria-label={`打开 ${item.name}`}
-                onClick={() => {
-                  const path = item.canonical_entry_path ?? item.entries[0]?.entry_path;
-                  if (path) props.onOpen(path);
-                }}
-              >
-                {item.name}
-              </Button>
+              <div>
+                <Button
+                  type="link"
+                  aria-label={`打开 ${item.name}`}
+                  onClick={() => {
+                    const path = item.canonical_entry_path ?? item.entries[0]?.entry_path;
+                    if (path) props.onOpen(path);
+                  }}
+                >
+                  {item.name}
+                </Button>
+                <div className="dataset-classification">
+                  <span>场景：{classificationName(item.scene, vocabulary?.scene_vocabulary)}</span>
+                  <span>任务：{classificationTasks(item.tasks, vocabulary?.task_vocabulary)}</span>
+                  <span>机器人型号：{item.robot_model || "未填写"}</span>
+                </div>
+              </div>
             ),
           },
           {

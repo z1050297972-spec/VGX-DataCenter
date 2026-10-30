@@ -71,6 +71,8 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
 }
 .dataset-layout-a main {
   min-width: 0;
@@ -102,7 +104,7 @@
 .dataset-row-selected > td {
   background: #e6f4ff;
 }
-/* C：左边目录分栏在自己的容器里横向滚动，右边预览占剩余宽度。 */
+/* C：每一级目录等分左侧宽度，长名省略；1280px 下目录与页面均不产生横向滚动。 */
 .dataset-miller-workspace {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
@@ -110,14 +112,15 @@
   align-items: start;
 }
 .dataset-miller-scroll {
-  display: flex;
-  overflow-x: auto;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  overflow-x: hidden;
   border: 1px solid #eee;
   border-radius: 8px;
   min-width: 0;
 }
 .dataset-miller-column {
-  flex: 0 0 240px;
   min-width: 0;
   padding: 8px;
   border-right: 1px solid #eee;
@@ -169,4 +172,14 @@
   .dataset-miller-workspace {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* 分类文字允许换行，长任务列表不能撑宽页面或挤占相邻列。 */
+.dataset-classification {
+  display: grid;
+  max-width: 24rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  color: #666;
 }

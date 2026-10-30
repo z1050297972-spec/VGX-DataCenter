@@ -39,7 +39,7 @@ export function listDatasets(input: AccountCall<DatasetQuery>): Promise<DatasetL
 }
 
 /**
- * 读取共享筛选下的两棵视图树。
+ * 读取共享筛选下的三棵浏览树。
  * @param input - 客户端、筛选与取消信号；分页值不影响树。
  * @returns 平铺节点及扫描时间，父路径由接口决定。
  * @throws Error 传输失败、超时、取消或响应缺失。

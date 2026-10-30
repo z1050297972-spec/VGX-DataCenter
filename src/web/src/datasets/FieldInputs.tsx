@@ -1,6 +1,10 @@
 // M1.5-02 分页表单投影；只把编辑值交回会话，不发请求、不解析原文件。
 import type { ReactElement } from "react";
 import { Alert, Button, Input, Select } from "antd";
+import { useDatasetFilterOptions } from "./queries";
+import type { DatasetFilters } from "../api/datasets";
+import { DiagnosticCard } from "../DiagnosticCard";
+import { toFailureView } from "../api/problems";
 import type { EditablePage } from "../api/fieldEditing";
 import type { FieldChange, FieldEditingState } from "./fieldEditingState";
 
@@ -9,6 +13,7 @@ type Value = FieldChange["value"];
 interface InputProps {
   /** 服务端白名单投影中的字段。 */ field: Field;
   /** 当前局部草稿值，未改时为原值。 */ value: Value;
+  /** 服务端分类词表；未加载时分类控件不可改。 */ vocabulary?: DatasetFilters;
   /** 提交中或基线过期时禁用。 */ disabled: boolean;
   /** 将新值交给会话，不直接提交。 */ onChange: (value: Value) => void;
 }
@@ -27,6 +32,7 @@ export function FieldInputs(props: {
   /** 当前页。 */ data: EditablePage;
 }): ReactElement {
   const { state, data } = props;
+  const vocabulary = useDatasetFilterOptions();
   return (
     <>
       <p>
@@ -35,10 +41,12 @@ export function FieldInputs(props: {
       {state.document === "数据集信息.json" && (
         <ModelReference data={data} changes={state.changes} />
       )}
+      {vocabulary.error && <DiagnosticCard failure={toFailureView(vocabulary.error)} />}
       {data.fields.map((field) => (
         <FieldInput
           key={JSON.stringify(field.path)}
           field={field}
+          vocabulary={vocabulary.data}
           value={state.changes[JSON.stringify([state.document, field.path])]?.value ?? field.value}
           disabled={state.busy || state.stale}
           onChange={(value) => {
@@ -74,7 +82,8 @@ export function FieldInputs(props: {
 
 function FieldInput(props: InputProps): ReactElement {
   const { field, value, disabled, onChange } = props;
-  if (field.path.length === 1 && field.path[0] === "scene") return <SceneInput {...props} />;
+  if (field.path.length === 1 && (field.path[0] === "scene" || field.path[0] === "tasks"))
+    return <ClassificationInput {...props} />;
   return (
     <label className="field-input">
       <span>{field.label}</span>
@@ -102,27 +111,50 @@ function FieldInput(props: InputProps): ReactElement {
     </label>
   );
 }
-function SceneInput({ field, value, disabled, onChange }: InputProps): ReactElement {
-  const scene = text(value);
+// 只限制新选择；原有词表外值作为已选项保留，编辑其他字段不会清掉人工历史值。
+function ClassificationInput({
+  field,
+  value,
+  disabled,
+  onChange,
+  vocabulary,
+}: InputProps): ReactElement {
+  const multiple = field.path[0] === "tasks";
+  const selected = multiple ? list(value) : text(value) ? [text(value)] : [];
+  const terms = multiple ? vocabulary?.task_vocabulary : vocabulary?.scene_vocabulary;
+  const options = classificationOptions(terms, selected);
   return (
     <label className="field-input">
       <span>{field.label}</span>
-      <Select<string[]>
-        mode="tags"
-        maxCount={1}
+      <Select<string | string[]>
+        mode={multiple ? "multiple" : undefined}
         allowClear
-        aria-label="场景"
-        placeholder="选择或输入一个场景"
-        value={scene ? [scene] : []}
-        disabled={disabled}
+        virtual={false}
+        aria-label={field.label}
+        placeholder={multiple ? "选择任务（可多选）" : "选择场景"}
+        value={multiple ? selected : selected[0]}
+        disabled={disabled || !vocabulary}
+        loading={!vocabulary}
         getPopupContainer={popupContainer}
-        onChange={(values) => {
-          onChange(values.at(-1) ?? "");
+        options={options}
+        onChange={(next: string | string[] | undefined) => {
+          onChange(next ?? (multiple ? [] : ""));
         }}
-        options={scene ? [{ value: scene, label: scene }] : []}
       />
     </label>
   );
+}
+// 新值必须来自服务端，已存的未知值仍留在选中项里供显式清空。
+function classificationOptions(
+  terms: DatasetFilters["scene_vocabulary"] | undefined,
+  selected: string[],
+) {
+  return [
+    ...(terms?.map((term) => ({ value: term.code, label: term.name })) ?? []),
+    ...selected
+      .filter((code) => !terms?.some((term) => term.code === code))
+      .map((code) => ({ value: code, label: `${code}（不在词表）`, disabled: true })),
+  ];
 }
 function ModelReference({
   data,

@@ -132,6 +132,10 @@ class DatasetRow(Base):
         recorded_size_bytes: 规范副本第4项记录字节数，非负；无记录或无规范副本为None。
         size_bytes: 链接目标表观字节数，非负；尚未统计为None。
         size_checked_at: UTC大小统计时刻，与size_bytes同空同非空。
+        scene: 规范副本数据集信息.json 的场景原值；未填写或无唯一规范副本为None（M1.5-03）。
+            不校验是否在词表，词表外的值保留。
+        tasks: 规范副本的任务原值数组，去重保序；未填写为空数组，永不为NULL。
+        robot_model: 规范副本的机器人型号原值；未填写为None。
     """
 
     __tablename__ = "datasets"
@@ -161,6 +165,10 @@ class DatasetRow(Base):
     recorded_size_bytes: Mapped[int | None] = mapped_column(Integer)
     size_bytes: Mapped[int | None] = mapped_column(Integer)
     size_checked_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    scene: Mapped[str | None] = mapped_column(Text)
+    # server_default 让 0012 迁移给旧行补空数组；下一次扫描按导航层内容重写。
+    tasks: Mapped[list[str]] = mapped_column(JSON, server_default=text("'[]'"))
+    robot_model: Mapped[str | None] = mapped_column(Text)
 
 
 class EntryRow(Base):

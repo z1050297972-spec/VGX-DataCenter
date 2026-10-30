@@ -1000,7 +1000,7 @@
       },
       "DatasetFilterOptions": {
         "additionalProperties": false,
-        "description": "未应用当前筛选的全局候选；所有列表按值排序，未知项固定最后且即使零项也保留。",
+        "description": "未应用当前筛选的全局候选。\n\n型号等候选按值排序；分类候选按词表顺序、词表外原值排序，未标注固定最后；零计数词表项保留。",
         "properties": {
           "data_origins": {
             "items": {
@@ -1049,6 +1049,34 @@
             },
             "title": "Robot Types",
             "type": "array"
+          },
+          "scene_vocabulary": {
+            "items": {
+              "$ref": "#/components/schemas/VocabularyTerm"
+            },
+            "title": "Scene Vocabulary",
+            "type": "array"
+          },
+          "scenes": {
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            },
+            "title": "Scenes",
+            "type": "array"
+          },
+          "task_vocabulary": {
+            "items": {
+              "$ref": "#/components/schemas/VocabularyTerm"
+            },
+            "title": "Task Vocabulary",
+            "type": "array"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            },
+            "title": "Tasks",
+            "type": "array"
           }
         },
         "required": [
@@ -1058,7 +1086,11 @@
           "robot_model_options",
           "robot_types",
           "fps",
-          "data_origins"
+          "data_origins",
+          "scenes",
+          "tasks",
+          "scene_vocabulary",
+          "task_vocabulary"
         ],
         "title": "DatasetFilterOptions",
         "type": "object"
@@ -1236,6 +1268,17 @@
             "title": "Name",
             "type": "string"
           },
+          "robot_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Robot Model"
+          },
           "robot_model_ids": {
             "items": {
               "type": "string"
@@ -1257,9 +1300,28 @@
             "title": "Robot Types",
             "type": "array"
           },
+          "scene": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene"
+          },
           "size": {
             "$ref": "#/components/schemas/DatasetSize",
             "description": "数据集取按任务入口；无唯一规范入口时未知，不叠加格式副本"
+          },
+          "tasks": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Tasks",
+            "type": "array"
           }
         },
         "required": [
@@ -1650,6 +1712,7 @@
               "view",
               "format",
               "version",
+              "scene",
               "entry"
             ],
             "title": "Kind",
@@ -1689,7 +1752,16 @@
             "title": "Version"
           },
           "view": {
-            "$ref": "#/components/schemas/View"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View"
+              },
+              {
+                "const": "scene",
+                "type": "string"
+              }
+            ],
+            "title": "View"
           }
         },
         "required": [
@@ -1711,7 +1783,7 @@
       },
       "DatasetTreesResponse": {
         "additionalProperties": false,
-        "description": "两棵树各保留一个视图根，空索引仍可浏览；最多 MAX_SCAN_ENTRIES 个入口。",
+        "description": "按任务、按格式及按场景各保留一个根，空索引仍可浏览。\n\n真实入口受 MAX_SCAN_ENTRIES 预算约束；场景叶只引用规范入口，不增加扫描。",
         "properties": {
           "indexed_at": {
             "anyOf": [
@@ -4800,6 +4872,26 @@
         "title": "View",
         "type": "string"
       },
+      "VocabularyTerm": {
+        "additionalProperties": false,
+        "description": "受控编码及中文名，只由服务端词表生成，不含筛选专用项。",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "VocabularyTerm",
+        "type": "object"
+      },
       "WaitReason": {
         "description": "资源等待不增加作业状态；无等待用 None，终态必须清空。",
         "enum": [
@@ -7063,6 +7155,41 @@
             }
           },
           {
+            "description": "场景原编码；unlabeled 表示未标注",
+            "in": "query",
+            "name": "scene",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "场景原编码；unlabeled 表示未标注",
+              "title": "Scene"
+            }
+          },
+          {
+            "description": "重复 tasks 参数；全部任务取交集；unlabeled 必须单独使用",
+            "in": "query",
+            "name": "tasks",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "重复 tasks 参数；全部任务取交集；unlabeled 必须单独使用",
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "title": "Tasks",
+              "type": "array"
+            }
+          },
+          {
             "in": "query",
             "name": "data_origin",
             "required": false,
@@ -7922,7 +8049,7 @@
     },
     "/api/datasets/filters": {
       "get": {
-        "description": "返回筛选选项及型号空目录时的前端降级提示。\n\nArgs:\n    context: 全局安全检查通过的账号上下文与浏览服务。\n\nReturns:\n    200，robot_models_registered、default_robot_filter及型号/标签/FPS/来源候选。\n    空目录默认robot_type，登记后默认robot_model；每类unknown项独立且保留零计数。\n\nRaises:\n    AuthenticationError: 查询阶段会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    InputError: 元信息索引损坏，400。\n    ConflictError: 候选读取竞争，409。\n    ExternalError: 型号读取器或数据库失败，502。\n    DefectError: 型号重复、响应形状非法，500。\n\nSide Effects:\n    只读全索引候选及型号投影；不读取meta文件、不登记新型号。\n\nTime Semantics:\n    每次请求读取最新已提交目录，不缓存空型号表；无轮询等待。",
+        "description": "返回筛选选项及型号空目录时的前端降级提示。\n\nArgs:\n    context: 全局安全检查通过的账号上下文与浏览服务。\n\nReturns:\n    200，robot_models_registered、default_robot_filter及型号/标签/FPS/来源/场景/任务候选。\n    scene_vocabulary/task_vocabulary 提供编辑器用的受控编码与中文名。\n    空目录默认robot_type，登记后默认robot_model；每类unknown项独立且保留零计数。\n\nRaises:\n    AuthenticationError: 查询阶段会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    InputError: 元信息索引损坏，400。\n    ConflictError: 候选读取竞争，409。\n    ExternalError: 型号读取器或数据库失败，502。\n    DefectError: 型号重复、响应形状非法，500。\n\nSide Effects:\n    只读全索引候选及型号投影；不读取meta文件、不登记新型号。\n\nTime Semantics:\n    每次请求读取最新已提交目录，不缓存空型号表；无轮询等待。",
         "operationId": "get_dataset_filters",
         "responses": {
           "200": {
@@ -8975,7 +9102,7 @@
     },
     "/api/datasets/trees": {
       "get": {
-        "description": "返回共用筛选条件的按任务/按格式两棵树。\n\nArgs:\n    context: 当前已登录且完成改密的账号及浏览服务。\n    filters: 型号、原标签、整数FPS/unknown、来源和视图路径筛选；未提供表示不限。\n\nReturns:\n    200，nodes平铺节点及indexed_at；每节点含数量、大小来源计数和原统计时间范围。\n\nRaises:\n    DatasetQueryError: 路径、FPS或筛选组合非法，422。\n    InputError: 索引损坏或树超过扫描预算，400。\n    AuthenticationError: 读事务重验失败，401。\n    PasswordChangeRequiredError: 账号须改密，403。\n    ConflictError: 树读取锁超时，409。\n    ExternalError: 数据库或型号目录不可读，502。\n    DefectError: 聚合或响应模型非法，500；状态映射以规范6.2为准。\n\nSide Effects:\n    只调用service.trees，不读导航或挂载表，不在请求中测量大小。\n\nTime Semantics:\n    同步查询在工作线程；单次事务快照，数据库等待使用BUSY_TIMEOUT_MS。",
+        "description": "返回共用筛选条件的按任务、按格式和按场景三棵树。\n\nArgs:\n    context: 当前已登录且完成改密的账号及浏览服务。\n    filters: 型号、原标签、整数FPS/unknown、来源、场景、任务交集和视图路径筛选；未提供表示不限。\n\nReturns:\n    200，nodes平铺节点及indexed_at；每节点含数量、大小来源计数和原统计时间范围。\n\nRaises:\n    DatasetQueryError: 路径、FPS或筛选组合非法，422。\n    InputError: 索引损坏或树超过扫描预算，400。\n    AuthenticationError: 读事务重验失败，401。\n    PasswordChangeRequiredError: 账号须改密，403。\n    ConflictError: 树读取锁超时，409。\n    ExternalError: 数据库或型号目录不可读，502。\n    DefectError: 聚合或响应模型非法，500；状态映射以规范6.2为准。\n\nSide Effects:\n    只调用service.trees，不读导航或挂载表，不在请求中测量大小。\n\nTime Semantics:\n    同步查询在工作线程；单次事务快照，数据库等待使用BUSY_TIMEOUT_MS。",
         "operationId": "get_dataset_trees",
         "parameters": [
           {
@@ -9037,6 +9164,41 @@
               ],
               "description": "四舍五入后非负整数帧/秒或 unknown",
               "title": "Fps"
+            }
+          },
+          {
+            "description": "场景原编码；unlabeled 表示未标注",
+            "in": "query",
+            "name": "scene",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "场景原编码；unlabeled 表示未标注",
+              "title": "Scene"
+            }
+          },
+          {
+            "description": "重复 tasks 参数；全部任务取交集；unlabeled 必须单独使用",
+            "in": "query",
+            "name": "tasks",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "重复 tasks 参数；全部任务取交集；unlabeled 必须单独使用",
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "title": "Tasks",
+              "type": "array"
             }
           },
           {

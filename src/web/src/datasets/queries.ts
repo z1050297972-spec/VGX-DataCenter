@@ -17,7 +17,7 @@ import {
 } from "../api/datasets";
 
 /**
- * 订阅同一筛选下的列表及两棵树。
+ * 订阅同一筛选下的列表及三棵浏览树。
  * @param filters - 生成接口类型约束的筛选及分页。
  * @returns 列表、树、候选和面板四个独立查询，任一失败仍可展示其他项。
  * @throws Error 缺少账号 Provider；请求错误保留在查询 error。
@@ -37,6 +37,8 @@ export function useDatasetBrowser(filters: DatasetQuery) {
     robot_type: filters.robot_type,
     robot_model_id: filters.robot_model_id,
     data_origin: filters.data_origin,
+    scene: filters.scene,
+    tasks: filters.tasks,
     fps: filters.fps,
     // 不传 entry_path：目录选择只筛列表。树若按目录收窄，另一个视图和上级目录的数量会变成 0，无法再走回去。
   };
@@ -46,11 +48,7 @@ export function useDatasetBrowser(filters: DatasetQuery) {
       queryKey: ["datasets", identity.data?.account_id, "panel"],
       queryFn: ({ signal }) => getDatasetPanel({ client, payload: undefined, signal }),
     }),
-    filters: useQuery({
-      ...options,
-      queryKey: ["datasets", identity.data?.account_id, "filters"],
-      queryFn: ({ signal }) => getDatasetFilters({ client, payload: undefined, signal }),
-    }),
+    filters: useDatasetFilterOptions(),
     list: useQuery({
       ...options,
       queryKey: ["datasets", identity.data?.account_id, "list", filters],
@@ -123,4 +121,24 @@ export function useDatasetLayout() {
       save.mutate(layout);
     },
   };
+}
+
+/**
+ * 共用服务端词表与筛选候选，编辑器和显示名称使用同一查询缓存。
+ * @returns 词表加载状态；失败保留 error，不用本地词表替代。
+ * @throws Error 缺少账号 Provider；请求失败在 error 中返回。
+ * @sideEffects 发 GET /api/datasets/filters，按账号隔离，与浏览筛选共享缓存。
+ * @timeSemantics 不轮询、不重试；离页清除，重新挂载可读取新词表。
+ */
+export function useDatasetFilterOptions() {
+  const client = useAccountClient();
+  const account = useCurrentAccount();
+  return useQuery({
+    queryKey: ["datasets", account.data?.account_id, "filters"],
+    queryFn: ({ signal }) => getDatasetFilters({ client, payload: undefined, signal }),
+    retry: false,
+    staleTime: DATASET_STALE_TIME_MS,
+    gcTime: DATASET_GC_TIME_MS,
+    refetchOnWindowFocus: false,
+  });
 }

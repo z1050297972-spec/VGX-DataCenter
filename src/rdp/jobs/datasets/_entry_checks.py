@@ -1,6 +1,6 @@
 """单入口①组比较；原载荷与投影分开，不重复生成读取层已经报告的文件失败。"""
 
-from rdp.jobs.datasets import _json
+from rdp.jobs.datasets import _json, vocabulary
 from rdp.jobs.datasets._panel_issue import difference
 from rdp.jobs.datasets.panel import NavigationRule
 from rdp.jobs.datasets.types import EntrySnapshot, Finding, JsonObject, View
@@ -48,10 +48,37 @@ def check(entry: EntrySnapshot) -> tuple[Finding, ...]:
                 notice=True,
             )
         )
+    if entry.location.view is View.TASK:
+        issues.extend(_vocabulary(entry))
     issues.extend(_derived(entry))
     return tuple(
         sorted(issues, key=lambda item: (item.diagnostic.rule, item.diagnostic.objects[-1].value))
     )
+
+
+def _vocabulary(entry: EntrySnapshot) -> tuple[Finding, ...]:
+    """分类字段的词表外取值只提示不拦截：值照样保留，筛选里按原值出现（M1.5-03）。"""
+    issues: list[Finding] = []
+    if entry.scene is not None and vocabulary.scene_name(entry.scene) is None:
+        issues.append(
+            difference(
+                entry,
+                NavigationRule.VOCABULARY_UNKNOWN,
+                ("数据集信息.json.scene", f"不在词表：{entry.scene}", "场景词表内的编码"),
+                notice=True,
+            )
+        )
+    unknown = [code for code in entry.tasks if vocabulary.task_name(code) is None]
+    if unknown:
+        issues.append(
+            difference(
+                entry,
+                NavigationRule.VOCABULARY_UNKNOWN,
+                ("数据集信息.json.tasks", f"不在词表：{'、'.join(unknown)}", "任务词表内的编码"),
+                notice=True,
+            )
+        )
+    return tuple(issues)
 
 
 def _derived(entry: EntrySnapshot) -> tuple[Finding, ...]:
