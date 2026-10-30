@@ -13,8 +13,6 @@ import { formatDateTime } from "../time";
 import { jobStatusLabel } from "../jobs/progress";
 
 interface Props {
-  /** 默认审阅字段编辑；撤回沿用同一报告与门禁。 */ operation?:
-    "edit_dataset_fields" | "revert_change";
   /** 预览作业编号，十进制文本。 */ jobId: string;
   /** 恢复状态允许写且提交未失败时为true。 */ allowed: boolean;
   /** 确认在途状态，阻止双击。 */ pending: boolean;
@@ -64,7 +62,7 @@ function ReportContent({
   preview: NavigationPreview | undefined;
   options: Props;
 }): ReactElement {
-  if (!preview || preview.operation !== (options.operation ?? "edit_dataset_fields")) return <></>;
+  if (!preview || preview.operation !== "edit_dataset_fields") return <></>;
   return (
     <>
       <p>
@@ -104,7 +102,7 @@ function ReportContent({
       )}
       <Button
         type="primary"
-        aria-label={options.operation === "revert_change" ? "确认撤回导航改动" : "确认字段写入"}
+        aria-label="确认字段写入"
         loading={options.pending}
         disabled={!options.allowed || options.pending || preview.report.file_count === 0}
         onClick={() => {

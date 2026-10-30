@@ -12,14 +12,11 @@ from sqlalchemy import Engine, select
 
 from rdp.accounts.service import authorize_job_actor
 from rdp.infra.db.connection import session_scope
-from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import DefectError
 from rdp.infra.state import StatePaths
-from rdp.jobs import _storage
 from rdp.jobs.dataset_browser import _scope
 from rdp.jobs.datasets.catalog import FORMAT_DIRECTORIES, MAX_SCAN_ENTRIES
 from rdp.jobs.datasets.models import EntryRow
-from rdp.jobs.errors import JobInputError
 from rdp.jobs.navwrite import _create_query as query
 from rdp.jobs.navwrite.create_details import CreationDetails
 from rdp.jobs.navwrite.create_models import (
@@ -34,7 +31,7 @@ from rdp.jobs.navwrite.create_views import (
     CreationOptions,
     CreationPreviewView,
 )
-from rdp.jobs.navwrite.errors import Advice, nav_conflict_error, nav_input_error
+from rdp.jobs.navwrite.errors import nav_input_error
 from rdp.jobs.navwrite.policy import DATA_ORIGINS, NAV_APPLY_TYPE
 from rdp.jobs.service import JobRequest, JobService
 from rdp.jobs.types import JobRecord
@@ -271,29 +268,9 @@ def submit_creation_write(
         提醒是提交前数据库快照，快照之后新来的作业仍靠写锁内 L12 复核保护；
         不把两个 JobService 事务嵌套为一个长事务。POST 不自动重试，进度转到 M0 作业页。
     """
-    acknowledged = tuple(_storage.identifier(value) for value in acknowledged_queue_job_ids)
-    if len(acknowledged) != len(set(acknowledged)):
-        problem = JobInputError(
-            invalid_field("acknowledged_queue_job_ids", "不重复的正整数编号").diagnostics
-        )
-        raise problem
+    query.validate_queue_ids(acknowledged_queue_job_ids)
     preview, _parameters = query.load(access, request, preview_job_id)
-    waiting = query.queued(access, request, preview.plan.dataset_ids)
-    unseen = tuple(item for item in waiting if int(item.job_id) not in acknowledged)
-    if unseen:
-        problem = nav_conflict_error(
-            "NAV_CREATE_QUEUE_CONFIRMATION",
-            "已有尚未确认的排队写作业",
-            expected="用户确认这些作业后再次提交",
-            objects=tuple(
-                (f"queued_job_id_{index}", item.job_id) for index, item in enumerate(unseen, 1)
-            ),
-            advice=Advice(
-                "本次写入作业尚未提交，导航层未改变",
-                "查看这些作业，确认后带 acknowledged_queue_job_ids 再次提交",
-            ),
-        )
-        raise problem
+    query.confirm_queue(access, request, preview.plan.dataset_ids, acknowledged_queue_job_ids)
     return access.jobs.submit(request, NAV_APPLY_TYPE, {"preview_job_id": preview_job_id})
 
 

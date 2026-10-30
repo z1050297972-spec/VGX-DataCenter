@@ -1064,6 +1064,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/datasets/repoint-previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Repoint Preview
+         * @description 提交单个数据集的只读改指向预览。
+         *
+         *     Args:
+         *         context: 认证成员或管理员、请求时刻及最小服务依赖，Origin 由全局边界先验。
+         *         body: dataset_id、old_prefix、new_prefix；额外字段和不合约前缀按 422 拒绝。
+         *
+         *     Returns:
+         *         201，nav_repoint_preview 的完整排队作业；不等待目标检查。
+         *
+         *     Raises:
+         *         DatasetNotFoundError: 数据集不存在，404。
+         *         JobInputError: 参数或类型登记不合法，422。
+         *         AuthenticationError: 会话失效，401。
+         *         AuthorizationError: 写请求不同源，403。
+         *         PasswordChangeRequiredError: 账号必须改密，403。
+         *         InputError: 索引数据损坏，400。
+         *         ConflictError: 提交事务竞争，409。
+         *         ExternalError: 数据库提交失败，502。
+         *         DefectError: 应用依赖或响应映射违约，500。
+         *
+         *     Side Effects:
+         *         只新增作业和提交日志，不读导航或数据盘；L19 在 worker 中核对。
+         *
+         *     Time Semantics:
+         *         使用认证上下文唯一 UTC 时刻；立即返回，客户端轮询 M0 作业接口。
+         */
+        post: operations["submit_dataset_repoint_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/datasets/sizing": {
         parameters: {
             query?: never;
@@ -1819,6 +1863,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs/{target_job_id}/revert-previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Revert Preview
+         * @description 提交指定写导航层作业的撤回预览。
+         *
+         *     Args:
+         *         context: 当前确认者的认证及审计来源，无管理员角色限制。
+         *         target_job_id: 目标作业的规范十进制文本，数值 1 至 MAX_SQLITE_INTEGER。
+         *
+         *     Returns:
+         *         201，nav_revert_preview 排队记录；worker 检查永久变更记录并列出后像差异。
+         *
+         *     Raises:
+         *         JobNotFoundError: 目标作业不存在，404。
+         *         JobInputError: 编号非法，422。
+         *         InputError: 目标不是写导航层作业，400。
+         *         AuthenticationError: 提交会话失效，401。
+         *         AuthorizationError: Origin 检查失败，403。
+         *         PasswordChangeRequiredError: 提交者必须改密，403。
+         *         ConflictError: 提交竞争，409。
+         *         ExternalError: 数据库读取或提交失败，502。
+         *         DefectError: 作业服务装配违约，500。
+         *
+         *     Side Effects:
+         *         新增只读撤回预览及提交日志；不读取目标前后像或执行撤回。
+         *
+         *     Time Semantics:
+         *         不受操作日志 30 天保留期约束，失败预览不自动提交写入。
+         */
+        post: operations["submit_navigation_revert_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/navigation/data-origin/preview": {
         parameters: {
             query?: never;
@@ -2068,6 +2156,50 @@ export interface paths {
          *         使用请求唯一 UTC 时刻；同步完成，不重试；崩在中途时标记保留、写操作继续被挡。
          */
         post: operations["acknowledge_navigation_recovery_block"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/navigation/writes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Navigation Write
+         * @description 确认改指向或撤回预览，统一提交 nav_write_apply。
+         *
+         *     Args:
+         *         context: 本次确认者身份、唯一请求时刻及审计上下文。
+         *         body: preview_job_id 与已确认排队编号；不能夹带前缀或执行计划。
+         *
+         *     Returns:
+         *         201，nav_write_apply 排队记录；未确认新排队项返回 409 并列出编号。
+         *
+         *     Raises:
+         *         JobNotFoundError: 预览作业不存在，404。
+         *         JobInputError: 参数、编号重复或类型未登记，422。
+         *         InputError: 预览不合法或过期，400。
+         *         AuthenticationError: 提交事务内会话失效，401。
+         *         AuthorizationError: 写请求不同源，403。
+         *         PasswordChangeRequiredError: 确认者必须改密，403。
+         *         ConflictError: 未确认队列项或提交竞争，409。
+         *         ExternalError: 读取预览或持久化失败，502。
+         *         DefectError: 服务装配或响应映射非法，500。
+         *
+         *     Side Effects:
+         *         成功只提交作业及操作日志；worker 在写锁内核对，冲突时导航一行不写。
+         *
+         *     Time Semantics:
+         *         提交前刷新队列提醒；不自动重试 POST，不等待执行结束。
+         */
+        post: operations["confirm_navigation_write"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3904,8 +4036,17 @@ export interface components {
          *         operation: 写导航层的稳定操作码。
          *         dataset_ids: 受影响数据集编号，升序。
          *         report: 与执行计划共同生成的报告，包含旧值、新值与检查范围。
+         *         reverts_job_id: 撤回目标的文本编号，其他操作为 None。
+         *         changes: 改指向与撤回的步骤前后像摘要；旧预览默认为空。
+         *         queued_jobs: 改指向与撤回的当前同数据集排队提醒；其他预览默认为空。
+         *         reversal: 原永久报告的反向替换片段，非撤回或缺原报告时为 None。
          */
         NavigationPreviewResponse: {
+            /**
+             * Changes
+             * @default []
+             */
+            changes: components["schemas"]["ListedChange"][];
             /**
              * Created At
              * Format: date-time
@@ -3920,7 +4061,15 @@ export interface components {
             };
             /** Preview Job Id */
             preview_job_id: string;
+            /**
+             * Queued Jobs
+             * @default []
+             */
+            queued_jobs: components["schemas"]["QueuedNavigationJob"][];
             report: components["schemas"]["PlanReport"];
+            reversal?: components["schemas"]["ReversalDetails"] | null;
+            /** Reverts Job Id */
+            reverts_job_id?: string | null;
         };
         /**
          * ObjectResponse
@@ -4058,6 +4207,8 @@ export interface components {
          *         checks: 预览做了哪些检查及其范围。
          *         notices: 提醒与例外，例如"将把 X 加进 dataset_roots"、alpha 少 3 个数据块。
          *         creation: 建链和新增数据集的结构化差异；其他操作及历史预览为 None。
+         *         repoint_changes: 改指向的完整 Markdown/notes 逐处差异，至多 REPOINT_LISTED_CHANGE_LIMIT；
+         *             历史及其他操作为 None，通用 listed_changes 仍只给前500条样例。
          */
         PlanReport: {
             /** Checks */
@@ -4077,6 +4228,8 @@ export interface components {
             listed_total: number;
             /** Notices */
             notices: components["schemas"]["PreviewNotice"][];
+            /** Repoint Changes */
+            repoint_changes?: components["schemas"]["ListedChange"][] | null;
         };
         /**
          * PreviewNotice
@@ -4192,6 +4345,23 @@ export interface components {
          */
         RecoveryMode: "resume" | "restart" | "interrupt";
         /**
+         * RepointParameters
+         * @description 一次一个数据集的前缀替换输入。
+         *
+         *     Attributes:
+         *         dataset_id: 索引中的永久数据集编号。
+         *         old_prefix: 不带结尾斜杠的绝对旧前缀，无 NUL 或父目录跳转。
+         *         new_prefix: 同样约束的新前缀；worker 核对本地登记根及路径存在性。
+         */
+        RepointParameters: {
+            /** Dataset Id */
+            dataset_id: string;
+            /** New Prefix */
+            new_prefix: string;
+            /** Old Prefix */
+            old_prefix: string;
+        };
+        /**
          * RescanParameters
          * @description 扫描范围参数，不能指定导航路径、存储根或提交人。
          *
@@ -4227,6 +4397,23 @@ export interface components {
         RetentionPayload: {
             /** Days */
             days: number;
+        };
+        /**
+         * ReversalDetails
+         * @description 原变更报告的反向投影，永久变更记录为唯一来源。
+         *
+         *     Attributes:
+         *         field_counts: 原作业按文件字段的替换数，反向操作保持相同数量。
+         *         listed_changes: 原报告逐处替换的 before/after 对调；改指向取全量，历史报告取其样例。
+         *         listed_total: 应展示总处数，改指向全量受 REPOINT_LISTED_CHANGE_LIMIT 约束。
+         */
+        ReversalDetails: {
+            /** Field Counts */
+            field_counts: components["schemas"]["FieldChangeCount"][];
+            /** Listed Changes */
+            listed_changes: components["schemas"]["ListedChange"][];
+            /** Listed Total */
+            listed_total: number;
         };
         /**
          * RobotModelOption
@@ -7189,6 +7376,111 @@ export interface operations {
             };
         };
     };
+    submit_dataset_repoint_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepointParameters"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
     submit_dataset_sizing: {
         parameters: {
             query?: never;
@@ -9106,6 +9398,109 @@ export interface operations {
             };
         };
     };
+    submit_navigation_revert_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
     preview_data_origin: {
         parameters: {
             query?: never;
@@ -9687,6 +10082,111 @@ export interface operations {
                 };
             };
             /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    confirm_navigation_write: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmCreationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
             422: {
                 headers: {
                     [name: string]: unknown;

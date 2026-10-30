@@ -11,6 +11,8 @@ export const originPreview: components["schemas"]["NavigationPreviewResponse"] =
   parameters: { dataset_id: "dataset-14", data_origin: "开源下载" },
   operation: "set_data_origin",
   dataset_ids: ["dataset-14"],
+  changes: [],
+  queued_jobs: [],
   report: {
     file_count: 1,
     link_count: 0,

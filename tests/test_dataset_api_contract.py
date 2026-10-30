@@ -1103,8 +1103,8 @@ def test_openapi_and_generated_types_are_current() -> None:
         if path.startswith("/api/datasets")
         for operation in methods.values()
     ]
-    # M1-08 五个创建入口、M1.5-01 两个只读查看接口和 M1.5-02 编辑页同样逐项核对认证边界。
-    assert len(operations) == 18
+    # M1-08 五个创建入口、M1-09 改指向预览、M1.5-01 两个只读查看接口和 M1.5-02 编辑页逐项核对认证边界。
+    assert len(operations) == 19
     assert all(operation["security"] == [{"SessionCookie": []}] for operation in operations)
     response = schema["paths"]["/api/datasets/subtasks"]["get"]["responses"]["200"]
     assert response["content"]["text/plain"]["schema"]["type"] == "string"

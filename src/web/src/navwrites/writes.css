@@ -1,0 +1,32 @@
+/* 所有宽表格和路径只在自身容器滚动，不能撑开详情抽屉或页面网格。 */
+.navigation-write {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.navigation-write .ant-table-wrapper {
+  min-width: 0;
+  max-width: 100%;
+  overflow: auto;
+}
+.navigation-write .ant-table-cell {
+  overflow-wrap: anywhere;
+}
+.navigation-write-scroll {
+  min-width: 0;
+  max-width: 100%;
+  max-height: 360px;
+  overflow: auto;
+}
+.navigation-write .ant-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.navigation-write .ant-select-selection-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.navigation-write .ant-btn {
+  max-width: 100%;
+}

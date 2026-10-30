@@ -10,9 +10,11 @@ from sqlalchemy import select
 
 from rdp.accounts.service import authorize_job_actor
 from rdp.infra.db.connection import session_scope
+from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import DefectError
 from rdp.jobs import _storage
 from rdp.jobs.datasets.catalog import MAX_SCAN_ENTRIES
+from rdp.jobs.errors import JobInputError
 from rdp.jobs.models import JobRow
 from rdp.jobs.navwrite.create_models import (
     DATASET_PREVIEW_TYPE,
@@ -21,7 +23,7 @@ from rdp.jobs.navwrite.create_models import (
     LinkPreviewParameters,
 )
 from rdp.jobs.navwrite.create_views import QueuedNavigationJob
-from rdp.jobs.navwrite.errors import nav_input_error
+from rdp.jobs.navwrite.errors import Advice, nav_conflict_error, nav_input_error
 from rdp.jobs.navwrite.models import (
     MakeDirStep,
     NavOperation,
@@ -141,3 +143,38 @@ def queued(
         if overlap:
             found.append(QueuedNavigationJob(job_id=str(job_id), dataset_ids=overlap))
     return tuple(found)
+
+
+def confirm_queue(
+    access: CreationAccess,
+    request: JobRequest,
+    dataset_ids: tuple[str, ...],
+    acknowledged_queue_job_ids: tuple[int, ...],
+) -> None:
+    """统一创建、改指向和撤回的排队确认规则，提醒不代替写锁内核对。"""
+    acknowledged = validate_queue_ids(acknowledged_queue_job_ids)
+    waiting = queued(access, request, dataset_ids)
+    unseen = tuple(item for item in waiting if int(item.job_id) not in acknowledged)
+    if unseen:
+        problem = nav_conflict_error(
+            "NAV_CREATE_QUEUE_CONFIRMATION",
+            "已有尚未确认的排队写作业",
+            expected="用户确认这些作业后再次提交",
+            objects=tuple(
+                (f"queued_job_id_{index}", item.job_id) for index, item in enumerate(unseen, 1)
+            ),
+            advice=Advice(
+                "本次写入作业尚未提交，导航层未改变",
+                "查看这些作业，确认后带 acknowledged_queue_job_ids 再次提交",
+            ),
+        )
+        raise problem
+
+
+def validate_queue_ids(values: tuple[int, ...]) -> tuple[int, ...]:
+    """在读取预览之前也可校验编号，保留创建接口原有的参数错误优先级。"""
+    acknowledged = tuple(_storage.identifier(value) for value in values)
+    if len(acknowledged) != len(set(acknowledged)):
+        problem = JobInputError(invalid_field("values", "不重复的正整数编号").diagnostics)
+        raise problem
+    return acknowledged

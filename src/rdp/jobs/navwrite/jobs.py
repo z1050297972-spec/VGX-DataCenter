@@ -26,13 +26,13 @@ from rdp.jobs.navwrite.errors import nav_input_error
 from rdp.jobs.navwrite.models import NavPreview, NavWritePlan, PlanReport
 from rdp.jobs.navwrite.pipeline import NavWriteDependencies, run_write_plan
 from rdp.jobs.navwrite.policy import NAV_APPLY_TYPE as NAV_APPLY_TYPE
+from rdp.jobs.navwrite.policy import NAV_REVERT_PREVIEW_TYPE as NAV_REVERT_PREVIEW_TYPE
 from rdp.jobs.navwrite.previews import preview_path, write_preview
 from rdp.jobs.registry import JobDefinition
 from rdp.jobs.types import ExecutionMode, RecoveryMode
 
 # 稳定的作业类型键，写进持久化的作业记录，不复用历史含义。
 NAV_APPLY_NAME = "写导航层"
-NAV_REVERT_PREVIEW_TYPE = "nav_revert_preview"
 NAV_REVERT_PREVIEW_NAME = "预览撤回"
 
 

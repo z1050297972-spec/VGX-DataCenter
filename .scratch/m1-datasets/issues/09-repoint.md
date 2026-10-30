@@ -1,6 +1,6 @@
 # 改指向
 
-Status: in-progress
+Status: done
 
 分级：骨架关卡。理由：这张票新增改指向作业。它的前缀替换规则会改三种 JSON 里成千上万处路径，属于数据契约；还要在页面上接上第 07 张的撤回作业（3.0 第 1 条）。
 
@@ -100,3 +100,5 @@ Status: in-progress
 - 2026-10-28，起草（Claude，主会话）。依据 12 的 1A（同日已决）和 M1 spec（同日 accepted）。Status 定为 `ready-for-agent`：第 07、08 张合并以后才能开票。一个作业改多个数据集（N2）和 NAS 部分写进"不做（等 12 的 1B）"。
 - 2026-10-30 03:39 开票（执行线，负责人授权）。第 08 张已合并（51ee830）。Status 改为 in-progress。负责人要求加快速度，写入底座和确认模式也都有现成的了，所以分级从"骨架关卡"改为"直做"，分两段交（后端检查点后做副本演练，再做前端）。派工 B（Codex gpt-6.1-sol high，新会话 `01a18c2d-4273-7c12-98e5-436f4d60fbc9`，提示 `assets/09-repoint/prompt-B.md`）。
 - 2026-10-30 04:30 后端检查点交回（快照 `refs/rdp/m1-09/B-out1`），日志审计 0 条，Codex 自报 make check 全绿（2589 passed；前端 4 项保留跳过）。只加不改的扩展（`PlanReport.repoint_changes`，最多 30,000 处，超过就整批拒绝；预览响应加 reverts_job_id、changes、queued_jobs、reversal；3 个新 POST）批准。**副本演练**（`repoint-drill.sh` → `repoint-drill-run.log`）：(反例) EgoProStandard 从 /mnt/dataset1 改到 /mnt/dataset2：worker 预览以 NAV_REPOINT_TARGET"旧位置存在，但新位置缺失，整批拒绝"失败，一行都没写；(正例) libero_10 改指向 /mnt/dataset1/libero_v3/libero_goal（结构相同的 LeRobot 3.0 目录）：预览 succeeded，写入作业 7 completed，规范入口和按格式入口的链接都改到 libero_goal，原始路径.json 里替换了 3 处，original_path 保持旧值（L18）；撤回：撤回预览 9 → 写入 10 completed，链接回到 libero_10，三份 JSON 和真实导航层逐字节相同。操作日志有 repoint_dataset 和 revert_change。/mnt 清单逐字节相同，两块盘写入扇区数不变。非阻塞：预期的输入拒绝（反例作业 5）在 worker.log 里记成带堆栈的 ERROR，噪音大，记为遗留，和 M0 的 401 噪音一起处理。派第二段（前端）。
+- 2026-10-30 05:34 前端第二段时 Codex 因上游 504 中断，由 Sonnet 接手补齐：修了"按格式详情读不到旧前缀默认值"（改读规范入口），ESLint 清零。合进 main（含 M1.5 第 01、02 张）时有 6 个冲突，由 Sonnet 解决，同时**统一了撤回**：删掉 M1.5 第 02 张专给字段编辑做的撤回（FieldUndo、previewFieldUndo），所有写导航层作业都走通用的"撤回导航写入"→ /jobs/$id/revert；操作日志的"撤回导航作业"链接对 edit_dataset_fields 也显示。执行线提交合并（钩子全绿：2608 passed，Vitest 365）。**浏览器演练**（`repoint-browser-drill.*` → `repoint-browser-drill-run.log`、`drill/m109-*.png`，在副本上做）：libero_10 详情 → 改指向（旧前缀自动带出 /mnt/dataset1/libero_v3/libero_10）→ 新前缀 libero_goal → 预览差异（文件 6 个、链接 2 条，按字段列出替换数量）→ 确认 → 作业 6 completed → 作业页"撤回导航写入"→"预览撤回"→ 确认 → 撤回作业 9 completed；操作日志里有"撤回导航作业 9""撤回导航作业 6"；撤回后两份原始路径.json 和改动前逐字节相同；1280×900 下没有溢出；/mnt 和两块盘都没有写入。验收全部满足，按负责人授权合并。M1 全部 10 张完成。
+- 2026-10-30 05:36 合并 `e7db19f`（钩子全绿）。工作目录、分支、快照已删除。

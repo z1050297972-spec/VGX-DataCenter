@@ -75,25 +75,3 @@ export function confirmFieldEdits(input: AccountCall<string>): Promise<Job> {
     return result.data;
   });
 }
-
-/**
- * 提交一个已完成导航写作业的撤回预览。
- * @param input - 目标作业编号文本与取消信号。
- * @returns queued 的 nav_revert_preview，反向计划由既有worker生成。
- * @throws Error 编号不能无损转成JSON整数，或传输/权限失败。
- * @sideEffects 一次POST /api/jobs，只生成预览，不直接撤回。
- * @timeSemantics 最多JOB_REQUEST_TIMEOUT_MS，不重试；确认前不执行反向写入。
- */
-export function previewFieldUndo(input: AccountCall<string>): Promise<Job> {
-  const identifier = Number(input.payload);
-  if (!/^[1-9][0-9]*$/.test(input.payload) || !Number.isSafeInteger(identifier))
-    return Promise.reject(new Error("作业编号超出浏览器安全整数范围。"));
-  return boundedRequest(input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
-    const result = await input.client.POST("/api/jobs", {
-      body: { type_name: "nav_revert_preview", parameters: { target_job_id: identifier } },
-      signal,
-    });
-    if (!result.data) throw new Error("撤回预览未返回作业");
-    return result.data;
-  });
-}

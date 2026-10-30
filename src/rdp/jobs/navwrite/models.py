@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from rdp.jobs.datasets.fingerprint import DatasetFingerprint
 from rdp.jobs.navwrite.create_details import CreationDetails
+from rdp.jobs.navwrite.policy import REPOINT_LISTED_CHANGE_LIMIT
 
 _FROZEN = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
 
@@ -300,6 +301,8 @@ class PlanReport(BaseModel):
         checks: 预览做了哪些检查及其范围。
         notices: 提醒与例外，例如"将把 X 加进 dataset_roots"、alpha 少 3 个数据块。
         creation: 建链和新增数据集的结构化差异；其他操作及历史预览为 None。
+        repoint_changes: 改指向的完整 Markdown/notes 逐处差异，至多 REPOINT_LISTED_CHANGE_LIMIT；
+            历史及其他操作为 None，通用 listed_changes 仍只给前500条样例。
     """
 
     model_config = _FROZEN
@@ -312,6 +315,9 @@ class PlanReport(BaseModel):
     checks: tuple[CheckNote, ...]
     notices: tuple[PreviewNotice, ...]
     creation: CreationDetails | None = None
+    repoint_changes: tuple[ListedChange, ...] | None = Field(
+        default=None, max_length=REPOINT_LISTED_CHANGE_LIMIT
+    )
 
 
 class NavPreview(BaseModel):
