@@ -61,6 +61,7 @@ M0 的 11 张票用了 6.5 天。时间主要花在：每张票都走完整骨�
 4. **加快检查。** 加开发依赖 `pytest-xdist`，`make check` 里的 pytest 改成多进程运行（负责人 2026-10-28 批准这项依赖）。M0 合并后的第一张票顺带做，并确认测试在并行下没有共享状态（临时目录、端口、环境变量）。
 5. **Codex 不可用时临时换人。** Codex 网关连续不可用超过 30 分钟（第 9 节第 2 步也失败），实现工作由 Claude 子 agent 接手。规则和 Codex 一样：只在工作目录写，不提交，同样受 3.5 评审。Comments 里写明哪一轮由谁做的。Codex 恢复以后，后续派工切回 Codex。
    - 2026-10-29 负责人："能否让sonnet 5.5去执行任务，我的gpt额度用光了"。从这一天起，新派的工都用 Claude Sonnet 5.5 子 agent（Agent 工具，`model: sonnet`）做；已经在跑的 Codex 会话跑完为止，失败了就由 Sonnet 接着它的工作区继续。Sonnet 子 agent 不在 Codex 的沙箱里，下面这些边界只能靠提示和事后核查来守：不 git add、不提交、不安装、不联网、不读不写 `/mnt`、不碰真实部署。核查办法：看工作区的 `git status`；比对 `/mnt/datasets` 清单和两块盘的写入扇区数；看子 agent 的最终报告。评审标准不变：变异抽查、真实演练都照做。
+   - 2026-10-30 负责人："直接替换模型吧，我希望速度再快"。实现改回 Codex，模型 `gpt-6.1-sol`、`model_reasoning_effort="high"`（命令里把 `-m gpt-6-astra` 换成 `-m gpt-6.1-sol`）。这个模型不支持 `service_tier="fast"`（Codex 会提示后忽略），不用再传。走本机 CC Switch 代理（127.0.0.1:15721），派工前先确认代理在监听。Codex 不可用时，仍由 Sonnet 子 agent 顶上。
 
 另外：真实环境演练（含 systemd、真实端口）尽量排在实现票前半段做，不留到最后。M0 第 11 张的 `WorkingDirectory` 引号缺陷，就是到真实安装时才发现的。
 
