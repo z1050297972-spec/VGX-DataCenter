@@ -190,6 +190,7 @@ class EntrySnapshot:
         findings: 读取和记录值提取发现，空表示这两个步骤无发现。
         provenance_state: 来源.json 的三态（M1-07）：不存在、可读、无法读取；与
             provenance_present 并存，后者仍只表示目录项有无。默认 ABSENT，只加不改。
+        data_origin: 来源文件有效且身份与入口一致时的筛选编码；其余为 unknown（M1-10）。
     """
 
     location: EntryLocation
@@ -202,3 +203,4 @@ class EntrySnapshot:
     recorded_size_bytes: int | None
     findings: tuple[Finding, ...]
     provenance_state: ProvenanceState = ProvenanceState.ABSENT
+    data_origin: str = "unknown"

@@ -31,13 +31,13 @@ from rdp.jobs.types import JobState
 
 
 def test_active_declarations() -> None:
-    """迁移激活：作业/心跳共用 MetaData，0008 为唯一 head，版本链保留全部历史版本。"""
+    """迁移激活：作业/心跳共用 MetaData，当前版本为唯一 head，版本链保留全部历史版本。"""
     for row in (JobRow, WorkerHeartbeatRow):
         assert "__abstract__" not in row.__dict__
         assert row.metadata is metadata
         assert row.__table__ is metadata.tables[row.__tablename__]
     config = migration_config()
-    assert ScriptDirectory.from_config(config).get_current_head() == "0010_nav_write_foundation"
+    assert ScriptDirectory.from_config(config).get_current_head() == "0011_data_origin"
     directory = config.get_main_option("script_location")
     assert directory is not None
     assert {item.revision for item in ScriptDirectory.from_config(config).walk_revisions()} == {
@@ -51,6 +51,7 @@ def test_active_declarations() -> None:
         "0008_dataset_layout",
         "0009_rebuild_index_audit",
         "0010_nav_write_foundation",
+        "0011_data_origin",
     }
 
 
@@ -60,7 +61,7 @@ def test_schema_v4(tmp_path: Path) -> None:
     paths = state_paths(PlatformConfig(state_dir=tmp_path / "state"), ())
     initialize_state(paths)
     result = migrate(paths, now=datetime(2026, 10, 26, tzinfo=UTC))
-    assert result.current_revision == "0010_nav_write_foundation"
+    assert result.current_revision == "0011_data_origin"
     engine = create_database_engine(paths.database)
     try:
         with engine.connect() as connection:

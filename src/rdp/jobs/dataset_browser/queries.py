@@ -230,7 +230,7 @@ class DatasetQueries:
         Returns:
             全索引的型号、标签、FPS、来源选项和计数，每种未知项即使为零也保留。
             型号空目录时registered=False且默认robot_type；非空时默认robot_model。
-            FPS用整数十进制文本传候选，标签保持原始大小写；M1来源计数仅unknown非零。
+            FPS用整数十进制文本传候选，标签保持原始大小写；来源按索引中的稳定编码计数。
 
         Raises:
             AuthenticationError: 身份失效，不能提供索引统计。
@@ -262,7 +262,7 @@ class DatasetQueries:
                 FilterOption(
                     value=origin.value,
                     label=label,
-                    count=len(index.datasets) if origin is DataOrigin.UNKNOWN else 0,
+                    count=sum(row.data_origin == origin.value for row in index.datasets),
                 )
                 for origin, label in zip(
                     DataOrigin,
@@ -317,6 +317,7 @@ class DatasetQueries:
             选中入口原始路径/信息的原文、独立规范信息、当前原文的数据块推导值与核验标签；
             原文保留未知字段和空白，解析失败仍可查看文本，缺失/非普通文件带五段诊断。
             规范副本不可用时不静默换用格式副本；子任务仅返回请求定位，不含正文。
+            provenance 返回规范入口当前来源和标注印记，缺文件与坏文件分态表达。
             links与大小来自索引。用第01张L12指纹比较全部入口；差异、不可验证或本次原文
             摘要不等于观察指纹均标index_stale=True，不以mtime判断，不更新索引。
 
@@ -378,6 +379,7 @@ class DatasetQueries:
             )
         )
         return DatasetDetailResponse(
+            provenance=_documents.provenance(self.nav_root, canonical_row),
             entry=_listing.entry(row),
             entries=item.entries,
             canonical_entry_path=item.canonical_entry_path,

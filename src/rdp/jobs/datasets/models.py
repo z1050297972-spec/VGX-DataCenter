@@ -128,7 +128,7 @@ class DatasetRow(Base):
         canonical_entry_path: 唯一按任务入口相对路径；缺失或重复时None，不设循环外键。
         scan_id: 最后发布此数据集的代次外键；跳过的数据集保留旧代次。
         fingerprint: DatasetFingerprint 的JSON值；无法完整观察时仍存 verifiable=False。
-        data_origin: 固定unknown；来源文件格式不由本票解释。
+        data_origin: 六种稳定来源编码；缺失、坏文件或规范入口不唯一时 unknown。
         recorded_size_bytes: 规范副本第4项记录字节数，非负；无记录或无规范副本为None。
         size_bytes: 链接目标表观字节数，非负；尚未统计为None。
         size_checked_at: UTC大小统计时刻，与size_bytes同空同非空。
@@ -137,7 +137,10 @@ class DatasetRow(Base):
     __tablename__ = "datasets"
     __table_args__ = (
         CheckConstraint("length(dataset_id) > 0 AND length(name) > 0", name="identity"),
-        CheckConstraint("data_origin = 'unknown'", name="origin"),
+        CheckConstraint(
+            "data_origin IN ('real','umi','ego','simulation','open_source','unknown')",
+            name="origin",
+        ),
         CheckConstraint(
             "recorded_size_bytes IS NULL OR recorded_size_bytes >= 0", name="recorded_size"
         ),

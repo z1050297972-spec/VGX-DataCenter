@@ -253,7 +253,8 @@ def get_dataset_detail(
 
     Returns:
         200，原始路径与信息原文、规范信息、推导数据块、索引链接/大小和index_stale；
-        子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看。
+        子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看；
+        provenance 返回规范入口当前来源、文件状态和标注人/UTC时刻。
 
     Raises:
         DatasetNotFoundError: 入口不在索引，404。
