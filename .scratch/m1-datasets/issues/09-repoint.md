@@ -1,6 +1,6 @@
 # 改指向
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：骨架关卡。理由：这张票新增改指向作业。它的前缀替换规则会改三种 JSON 里成千上万处路径，属于数据契约；还要在页面上接上第 07 张的撤回作业（3.0 第 1 条）。
 
@@ -98,3 +98,5 @@ Status: ready-for-agent
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。依据 12 的 1A（同日已决）和 M1 spec（同日 accepted）。Status 定为 `ready-for-agent`：第 07、08 张合并以后才能开票。一个作业改多个数据集（N2）和 NAS 部分写进"不做（等 12 的 1B）"。
+- 2026-10-30 03:39 开票（执行线，负责人授权）。第 08 张已合并（51ee830）。Status 改为 in-progress。负责人要求加快速度，写入底座和确认模式也都有现成的了，所以分级从"骨架关卡"改为"直做"，分两段交（后端检查点后做副本演练，再做前端）。派工 B（Codex gpt-6.1-sol high，新会话 `01a18c2d-4273-7c12-98e5-436f4d60fbc9`，提示 `assets/09-repoint/prompt-B.md`）。
+- 2026-10-30 04:30 后端检查点交回（快照 `refs/rdp/m1-09/B-out1`），日志审计 0 条，Codex 自报 make check 全绿（2589 passed；前端 4 项保留跳过）。只加不改的扩展（`PlanReport.repoint_changes`，最多 30,000 处，超过就整批拒绝；预览响应加 reverts_job_id、changes、queued_jobs、reversal；3 个新 POST）批准。**副本演练**（`repoint-drill.sh` → `repoint-drill-run.log`）：(反例) EgoProStandard 从 /mnt/dataset1 改到 /mnt/dataset2：worker 预览以 NAV_REPOINT_TARGET"旧位置存在，但新位置缺失，整批拒绝"失败，一行都没写；(正例) libero_10 改指向 /mnt/dataset1/libero_v3/libero_goal（结构相同的 LeRobot 3.0 目录）：预览 succeeded，写入作业 7 completed，规范入口和按格式入口的链接都改到 libero_goal，原始路径.json 里替换了 3 处，original_path 保持旧值（L18）；撤回：撤回预览 9 → 写入 10 completed，链接回到 libero_10，三份 JSON 和真实导航层逐字节相同。操作日志有 repoint_dataset 和 revert_change。/mnt 清单逐字节相同，两块盘写入扇区数不变。非阻塞：预期的输入拒绝（反例作业 5）在 worker.log 里记成带堆栈的 ERROR，噪音大，记为遗留，和 M0 的 401 噪音一起处理。派第二段（前端）。

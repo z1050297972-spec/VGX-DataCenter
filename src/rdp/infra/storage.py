@@ -1,7 +1,7 @@
 """存储根身份与只读访问契约（基础层，10、ADR 0006），不写数据、不决定作业结果。
 
-Linux 系统读取、mountinfo 纯解析、挂载身份比较与 worker 访问预算分开；Web 仅持有
-MountInspector，没有访问数据目录的回调。pathlib/stat/os 提供文件和设备号能力，
+Linux系统读取、mountinfo纯解析、挂载身份比较与访问预算分开；常规Web查询仅持有
+MountInspector。M1.5-01的独立原文件查看器可复用访问预算，只读已登记链接目标。pathlib/stat/os 提供文件和设备号能力，
 标准库及已批准依赖没有 mountinfo 解析器，只实现内核字段和四种转义的有限解析。
 线程使用标准库 threading，设为 daemon；超时不无限 join，也无法强行结束卡死的 NFS 读取。
 反复超时可能累积存活线程，待 NAS 挂载事实明确后另定进程隔离或挂载策略。
@@ -484,7 +484,7 @@ def read_storage_root(path: Path) -> None:
 
 @dataclass(frozen=True)
 class StorageAccessChecker:
-    """worker 专用访问检查依赖，与 Web 的挂载表查询隔开。
+    """worker与原文件查看器的有界访问依赖，与普通Web挂载表查询隔开。
 
     Attributes:
         mounts: 已冻结根列表和系统读取回调；作业只检查声明的根。

@@ -25,6 +25,7 @@ class NavOperation(StrEnum):
         CREATE_LINK: create_link，建链（M1-08，L1-L4）。
         CREATE_DATASET: create_dataset，新增数据集（M1-08，L5、L6）。
         REPOINT_DATASET: repoint_dataset，改指向（M1-09，L17-L19）。
+        EDIT_DATASET_FIELDS: edit_dataset_fields，编辑导航层字段（M1.5-02）。
         SET_DATA_ORIGIN: set_data_origin，数据来源标注（M1-10，只改来源.json）。
         REVERT_CHANGE: revert_change，撤回某个已完成作业（L16，本票）。
     """
@@ -32,6 +33,7 @@ class NavOperation(StrEnum):
     CREATE_LINK = "create_link"
     CREATE_DATASET = "create_dataset"
     REPOINT_DATASET = "repoint_dataset"
+    EDIT_DATASET_FIELDS = "edit_dataset_fields"
     SET_DATA_ORIGIN = "set_data_origin"
     REVERT_CHANGE = "revert_change"
 

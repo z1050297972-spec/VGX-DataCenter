@@ -119,6 +119,23 @@ describe("改指向与撤回的页面契约", () => {
                 source_ip: null,
                 details: { version: 1, before: {}, after: { change_record_id: "401" } },
               },
+              {
+                log_id: "12",
+                occurred_at: "2026-10-30T07:00:00Z",
+                actor: { account_id: "1", name: "甲", deleted: false },
+                target: {
+                  kind: "navigation_write",
+                  object_id: "402",
+                  name: "写导航层 #402",
+                  deleted: false,
+                },
+                operation: "edit_dataset_fields",
+                result: "success",
+                failure_category: null,
+                request_id: null,
+                source_ip: null,
+                details: { version: 1, before: {}, after: { change_record_id: "402" } },
+              },
             ],
             next_cursor: null,
           });
@@ -128,6 +145,9 @@ describe("改指向与撤回的页面契约", () => {
     try {
       const link = await screen.findByRole("link", { name: "撤回导航作业 401" });
       expect(link.getAttribute("href")).toBe("/jobs/401/revert");
+      // 字段编辑（edit_dataset_fields）同属 navigation_write，同样显示通用撤回链接。
+      const fieldLink = await screen.findByRole("link", { name: "撤回导航作业 402" });
+      expect(fieldLink.getAttribute("href")).toBe("/jobs/402/revert");
       fireEvent.click(link);
       expect(await screen.findByRole("heading", { name: "撤回作业 #401" })).toBeTruthy();
     } finally {

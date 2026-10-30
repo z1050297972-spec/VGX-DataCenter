@@ -161,6 +161,7 @@ def test_production_types() -> None:
         ("nav_create_dataset_preview", "预览新增数据集", "restart", 1, False),
         ("nav_create_link_preview", "预览建链", "restart", 1, False),
         ("nav_data_origin_preview", "预览改数据来源", "restart", 1, False),
+        ("nav_fields_preview", "预览编辑字段", "restart", 1, False),
         ("nav_repoint_preview", "预览改指向", "restart", 1, False),
         ("nav_revert_preview", "预览撤回", "restart", 1, False),
         ("nav_write_apply", "写导航层", "interrupt", 1, False),

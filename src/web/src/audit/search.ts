@@ -58,6 +58,7 @@ export const OPERATION_LABELS = {
   create_link: "建链",
   create_dataset: "新增数据集",
   repoint_dataset: "改指向",
+  edit_dataset_fields: "编辑数据集字段",
   set_data_origin: "标注数据来源",
   revert_change: "撤回改动",
   rollback_navigation_write: "回滚中断的写入",

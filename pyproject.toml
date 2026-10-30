@@ -158,6 +158,8 @@ forbidden_modules = [
     "rdp.jobs.navwrite.recovery",
     "rdp.jobs.navwrite.pipeline",
     "rdp.jobs.navwrite.jobs",
+    # M1.5-02：编辑预览仅在 worker 执行，Web 只能导入参数和只读表单/确认服务。
+    "rdp.jobs.navwrite.field_jobs",
 ]
 allow_indirect_imports = true
 
@@ -169,6 +171,7 @@ addopts = "-ra --strict-config --strict-markers"
 tmp_path_retention_policy = "failed"
 
 # M1-03关卡决定 / ADR 0006：允许复用导航reading和fingerprint，禁止存储访问及作业执行能力。
+# M1.5-01：独立file_viewer可带超时只读存储根，其余查询不能经查看器绕过本禁入契约。
 # 查询与schema检查全部间接依赖；提交模块经M0服务插作业行，由不可读假根测试验证运行边界。
 # 实际调用及路径不跟随链接的边界由不可读假存储根和换链测试验证，不以此合约冒充I/O沙箱。
 [[tool.importlinter.contracts]]
@@ -176,6 +179,7 @@ name = "数据集接口不得依赖存储根访问"
 type = "forbidden"
 source_modules = ["rdp.jobs.dataset_browser.queries", "rdp.jobs.dataset_browser.schemas"]
 forbidden_modules = [
+    "rdp.jobs.file_viewer",
     "rdp.jobs.storage",
     "rdp.infra.storage",
     "rdp.jobs.execution",

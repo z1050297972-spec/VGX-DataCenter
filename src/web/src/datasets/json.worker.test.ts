@@ -48,3 +48,28 @@ it("Worker 对坏 JSON 保留原文并标记无效", async () => {
     valid: false,
   });
 });
+
+// M1.5契约：可选格式化在Worker内进行，分页保留大整数、指数和字符串内容；原文模式仍不变。
+it("原文件JSON格式化保留数字原词法并分页", async () => {
+  const scope = {
+    onmessage: null as ((event: MessageEvent<JsonRequest>) => void) | null,
+    postMessage: vi.fn<(value: JsonPage) => void>(),
+  };
+  vi.stubGlobal("self", scope);
+  await import("./json.worker");
+  scope.onmessage?.(
+    new MessageEvent("message", {
+      data: {
+        type: "load",
+        text: '{"n":9007199254740993,"e":1e30,"s":"a,b","empty":[]}',
+        format: true,
+      },
+    }),
+  );
+  expect(scope.postMessage).toHaveBeenCalledWith({
+    text: '{\n  "n": 9007199254740993,\n  "e": 1e30,\n  "s": "a,b",\n  "empty": []\n}',
+    page: 0,
+    totalPages: 1,
+    valid: true,
+  });
+});
