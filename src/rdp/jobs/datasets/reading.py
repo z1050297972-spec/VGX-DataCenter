@@ -17,6 +17,7 @@ from rdp.jobs.datasets import _io, _json
 from rdp.jobs.datasets._discovery import discover
 from rdp.jobs.datasets._issues import external_error, finding, input_error
 from rdp.jobs.datasets.catalog import MAX_DOCUMENT_BYTES, REQUIRED_DOCUMENTS
+from rdp.jobs.datasets.origins import ORIGIN_CODES
 from rdp.jobs.datasets.types import (
     EntryLocation,
     EntrySnapshot,
@@ -123,7 +124,8 @@ def read_entry(
     Returns:
         EntrySnapshot，三份文件缺失、打不开、非普通文件或 parse_document 拒绝时逐份记录发现。
         一份失败不丢弃其余文件；全部失败仍返回按目录名可展示的入口，dataset_id=None。
-        links/source.entry_path 由位置推导，JSON 原值留给面板核对；来源.json 只看目录项有无。
+        links/source.entry_path 由位置推导，JSON 原值留给面板核对；来源.json 读取三态，
+        有效且身份匹配时投影来源筛选编码，否则 unknown，不从按格式副本猜测规范来源。
         第4项取不出记录值时 recorded_size_bytes=None 并添加 RECORDED_SIZE_MISSING 提示。
 
     Raises:
@@ -169,6 +171,16 @@ def read_entry(
         if manifest
         else ()
     )
+    provenance = read_provenance(nav_root / location.path) if "来源.json" in names else None
+    source = provenance.document if provenance else None
+    origin = (
+        ORIGIN_CODES[source.data_origin]
+        if source is not None
+        and source.dataset_id == identity
+        and source.dataset_name == location.dataset_name
+        and location.view.value == "task"
+        else "unknown"
+    )
     return EntrySnapshot(
         location,
         documents,
@@ -179,9 +191,8 @@ def read_entry(
         "来源.json" in names,
         size,
         issues,
-        read_provenance(nav_root / location.path).state
-        if "来源.json" in names
-        else ProvenanceState.ABSENT,
+        provenance.state if provenance else ProvenanceState.ABSENT,
+        origin,
     )
 
 

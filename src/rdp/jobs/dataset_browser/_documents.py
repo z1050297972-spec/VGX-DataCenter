@@ -11,13 +11,20 @@ from rdp.infra.db.validation import invalid_field
 from rdp.infra.diagnostics import Diagnostic, DiagnosticCategory, ExternalError, InputError
 from rdp.jobs.dataset_browser import _index, _listing
 from rdp.jobs.dataset_browser.errors import DatasetNotFoundError
-from rdp.jobs.dataset_browser.schemas import DatasetLink, DatasetSource, NavigationDocument
+from rdp.jobs.dataset_browser.schemas import (
+    DataOriginAttribution,
+    DatasetLink,
+    DatasetProvenance,
+    DatasetSource,
+    NavigationDocument,
+)
 from rdp.jobs.datasets import _io, reading
 from rdp.jobs.datasets._issues import finding as navigation_finding
 from rdp.jobs.datasets._issues import input_error as navigation_input_error
 from rdp.jobs.datasets.fingerprint import DatasetFingerprint, EntryFingerprint, fingerprint_dataset
 from rdp.jobs.datasets.models import EntryRow, LinkRow
-from rdp.jobs.datasets.types import EntryLocation, View
+from rdp.jobs.datasets.types import EntryLocation, ProvenanceState, View
+from rdp.jobs.navwrite.provenance import read_provenance
 
 # 手册第5节的历史标签，不能被本次路径检查改写。
 VALIDATION_STATUS_LABELS = {
@@ -27,6 +34,32 @@ VALIDATION_STATUS_LABELS = {
     "attention_required": "需要关注",
     "download_state_only": "只有下载控制文件",
 }
+
+
+def provenance(root: Path, row: EntryRow | None) -> DatasetProvenance | None:
+    """只读取已索引的唯一规范入口来源，坏文件或身份不符不伪装成未标注。"""
+    if row is None:
+        return None
+    try:
+        read = read_provenance(root / row.path)
+    except ExternalError:
+        return DatasetProvenance(state=ProvenanceState.INVALID)
+    document = read.document
+    if read.state is ProvenanceState.ABSENT:
+        return DatasetProvenance(state=ProvenanceState.ABSENT)
+    if document is None or (document.dataset_id, document.dataset_name) != (
+        row.dataset_id,
+        row.name,
+    ):
+        return DatasetProvenance(state=ProvenanceState.INVALID)
+    stamp = document.data_origin_set_by
+    return DatasetProvenance(
+        state=ProvenanceState.VALID,
+        data_origin=document.data_origin,
+        data_origin_set_by=DataOriginAttribution(account_name=stamp.account_name, at=stamp.at)
+        if stamp is not None
+        else None,
+    )
 
 
 def checkpoint() -> None:

@@ -116,6 +116,8 @@ export function LayoutB({ query }: { query: BrowserQuery }): ReactElement {
         />
       </section>
       <Drawer
+        // 抽屉入场时内容会平移到视口外；根容器裁掉这段溢出，宽表仍在各自容器内滚动。
+        rootStyle={{ overflow: "hidden" }}
         open={Boolean(search.selected)}
         onClose={actions.close}
         title="入口详情"

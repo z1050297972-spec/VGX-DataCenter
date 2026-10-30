@@ -11,7 +11,8 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from rdp.infra.diagnostics import Diagnostic
 from rdp.jobs.datasets.catalog import MAX_SCAN_ENTRIES
-from rdp.jobs.datasets.types import FindingGroup, View
+from rdp.jobs.datasets.types import FindingGroup, ProvenanceState, View
+from rdp.jobs.navwrite.policy import DATA_ORIGINS
 
 # M1-03：每页最多100项，树受已有扫描入口预算限制；不截断并冒充完整树。
 BROWSER_PAGE_LIMIT = 100
@@ -29,7 +30,7 @@ class BrowserValue(BaseModel):
 
 
 class DataOrigin(StrEnum):
-    """13 Q5 的六种来源；M1 只读段索引仅提供 unknown。"""
+    """13 Q5 的六种来源编码；来源文件中文值由扫描映射到这些稳定编码。"""
 
     REAL = "real"
     UMI = "umi"
@@ -265,6 +266,21 @@ class DatasetSource(BrowserValue):
     )
 
 
+class DataOriginAttribution(BrowserValue):
+    """最近一次标注的公开印记，不暴露无需展示的账号内部编号。"""
+
+    account_name: str | None = Field(description="标注时的账号名快照；平台自动设置时可为空")
+    at: str = Field(description="来源文件中的 UTC ISO 8601 秒精度时刻，不使用文件 mtime")
+
+
+class DatasetProvenance(BrowserValue):
+    """规范入口的当前来源观察，缺文件与坏文件保持不同状态。"""
+
+    state: ProvenanceState
+    data_origin: str = Field(default="未知", json_schema_extra={"enum": list(DATA_ORIGINS)})
+    data_origin_set_by: DataOriginAttribution | None = None
+
+
 class DatasetDetailResponse(BrowserValue):
     """入口详情保留原文和规范信息，子任务正文只由独立接口提供。"""
 
@@ -288,6 +304,9 @@ class DatasetDetailResponse(BrowserValue):
         description="服务端本次请求UTC时刻，不伪装为全文件原子快照时间"
     )
     diagnostics: tuple[Diagnostic, ...]
+    provenance: DatasetProvenance | None = Field(
+        default=None, description="本次只读规范入口来源文件的来源与标注印记；无唯一规范入口时不可用"
+    )
 
 
 class LayoutRequest(BrowserValue):

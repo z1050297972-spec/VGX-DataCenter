@@ -183,7 +183,9 @@ def _historical_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Sta
     assert source is not None
     historical = tmp_path / "old-package/migrations"
     shutil.copytree(source, historical)
-    (historical / "versions/v0010_nav_write_foundation.py").unlink()
+    for script in (historical / "versions").glob("v*.py"):
+        if script.name >= "v0010":
+            script.unlink()
     with monkeypatch.context() as patch:
         patch.setattr("rdp.infra.db.migration.__file__", str(historical.parent / "migration.py"))
         inputs = runtime_inputs(tmp_path / "runtime")
@@ -221,7 +223,7 @@ def test_old_rows_unchanged_by_0010(tmp_path: Path, monkeypatch: pytest.MonkeyPa
                 }
             result = migrate(paths, now=NOW)
             assert result.previous_revision == "0009_rebuild_index_audit"
-            assert result.current_revision == "0010_nav_write_foundation"
+            assert result.current_revision == "0011_data_origin"
             with session_scope(engine, read_only=True) as session:
                 after = query_operations(
                     session, OperationQuery(LogQuery()), lambda _s, _i: frozenset()
