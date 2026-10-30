@@ -1,6 +1,6 @@
 # 原文件只读查看器（含视频）
 
-Status: in-progress
+Status: done
 
 分级：直做。理由：只读，不写导航层，也不写数据盘；接口和页面照第 03–05 张的写法做。
 
@@ -37,3 +37,4 @@ Status: in-progress
 ## Comments
 
 - 2026-10-30 开票（执行线）。负责人要求一小时内完成 M1 和 M1.5，执行线说明做不到，改成全部并行。本票和 M1 第 09 张、M1.5 第 02 张同时做。
+- 2026-10-30 04:48 交回（Codex gpt-6.1-sol），日志审计 0 条，Codex 自报 make check 全绿（2561 passed，Vitest 353）。新增两个 GET 接口和 `WebRuntime.storage_options` 等只加不改的扩展，批准；ADR 0006 加了修订段（Web 只读存储根的唯一例外）。**真实演练**（`viewer-drill.sh`、`viewer-browser-drill.mjs` → `viewer-drill-run.log`、`drill/m151-*.png`；直接读真实导航层和数据盘，临时状态目录；执行线自己的读取放在基线之前）：列 meta 目录 200；读 libero_10 的 meta/info.json，和原文件逐字节相同；越界路径（`../libero_goal/...`、`/etc/passwd`、`meta/../../`）都返回 422；视频 Range：0-1023 返回 206，带 Content-Range 和 video/mp4，尾部 100 字节 206，越界 416，首 1024 字节相同；浏览器里选链接 → meta → info.json 格式化显示（含 robot_type、codebase_version）；videos → file-000.mp4 能播放（256×256，时长 4271 秒），2.5 秒后拖到 60% 处，readyState=4，没有报错；1280×900 下没有横向溢出。平台读取期间两块数据盘写入扇区数不变，/mnt/datasets 清单逐字节相同。web.log 的 4 条 ERROR 是执行线故意发的 3 个越界请求，加上登录页的 401 噪音（遗留）。非阻塞：链接选择用的是原生 select，和第 08 张一样记作风格统一的遗留。按负责人授权合并。
