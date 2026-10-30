@@ -9,12 +9,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 
+from rdp.api._account_context import identity
+from rdp.api._job_views import response as job_response
 from rdp.api.account_auth import AccountRequestContext, get_authenticated_context
-from rdp.api.datasets.creation_schemas import ConfirmCreationRequest, CreationSubmitResponse
+from rdp.api.datasets.creation_schemas import ConfirmCreationRequest
 from rdp.api.job_schemas import JobResponse
+from rdp.api.jobs import get_job_context
+from rdp.jobs.navwrite import create_service as service
 from rdp.jobs.navwrite.create_models import DatasetPreviewParameters, LinkPreviewParameters
 from rdp.jobs.navwrite.create_service import CreationAccess
 from rdp.jobs.navwrite.create_views import CreationJobId, CreationOptions, CreationPreviewView
+from rdp.jobs.service import JobRequest
 
 router = APIRouter(prefix="/api/datasets", tags=["dataset-creation"])
 
@@ -58,7 +63,10 @@ def get_creation_context(
     Time Semantics:
         复用 account.now；无锁等待、目标检查或后台任务。
     """
-    raise NotImplementedError
+    jobs = get_job_context(request, account)
+    return CreationApiContext(
+        account, CreationAccess(jobs.service.engine, jobs.paths, jobs.service)
+    )
 
 
 CreationContext = Annotated[CreationApiContext, Depends(get_creation_context)]
@@ -90,7 +98,7 @@ def get_creation_options(context: CreationContext) -> CreationOptions:
     Time Semantics:
         同步短查询，数据库预算沿用 M0；前端离页清理缓存，不轮询候选。
     """
-    raise NotImplementedError
+    return service.read_creation_options(context.access, _request(context))
 
 
 @router.post(
@@ -128,7 +136,7 @@ def submit_link_preview(context: CreationContext, body: LinkPreviewParameters) -
     Time Semantics:
         使用请求唯一提交时刻；客户端按 JOB_POLL_INTERVAL_MS 轮询作业状态，无 POST 重试。
     """
-    raise NotImplementedError
+    return job_response(service.submit_link_preview(context.access, _request(context), body))
 
 
 @router.post(
@@ -163,7 +171,7 @@ def submit_dataset_preview(context: CreationContext, body: DatasetPreviewParamet
     Time Semantics:
         排队立即返回；HTTP 超时不证明提交失败，页面不盲目重发。
     """
-    raise NotImplementedError
+    return job_response(service.submit_dataset_preview(context.access, _request(context), body))
 
 
 @router.get(
@@ -200,17 +208,16 @@ def get_creation_preview(
     Time Semantics:
         created_at 不刷新；预览沿用七天保留期，过期提示重新预览；不等待运行中的预览结束。
     """
-    raise NotImplementedError
+    return service.read_creation_preview(context.access, _request(context), int(preview_job_id))
 
 
 @router.post(
     "/creation-writes",
-    response_model=CreationSubmitResponse,
+    response_model=JobResponse,
+    status_code=201,
     operation_id="confirm_dataset_creation_write",
 )
-def confirm_creation_write(
-    context: CreationContext, body: ConfirmCreationRequest
-) -> CreationSubmitResponse:
+def confirm_creation_write(context: CreationContext, body: ConfirmCreationRequest) -> JobResponse:
     """确认保存的创建预览并提交通用写入作业，出现新排队提醒时要求再次确认。
 
     Args:
@@ -218,8 +225,8 @@ def confirm_creation_write(
         body: preview_job_id 与 acknowledged_queue_job_ids；不接受其他参数或 plan。
 
     Returns:
-        200，confirmation_required=True 时 job=null、queued_jobs 非空，尚未提交；
-        False 时 job 为已提交的 nav_write_apply 完整记录，parameters 只有整数 preview_job_id。
+        201，已提交的 nav_write_apply 完整 JobResponse，parameters 只有整数 preview_job_id。
+        有未确认的新排队作业时抛 409，五段诊断的 queued_job_id_N 对象列出作业编号。
 
     Raises:
         JobNotFoundError: 预览作业不存在，404。
@@ -228,16 +235,27 @@ def confirm_creation_write(
         AuthorizationError: 同源写请求检查失败，403。
         PasswordChangeRequiredError: 确认者必须先改密，403。
         InputError: 预览类型/成功状态/文件不合约，400。
-        ConflictError: 提交事务竞争，409；实际导航冲突在写入作业诊断中展示。
+        ConflictError: 有未确认的新排队写作业或提交事务竞争，409；实际导航冲突在写入作业诊断中展示。
         ExternalError: 读取预览或持久化作业/日志失败，502。
         DefectError: 领域结果或依赖违反契约，500。
 
     Side Effects:
-        委托 submit_creation_write；提醒分支不提交，正常分支只写作业及提交日志，
+        委托 submit_creation_write；未确认排队项返回冲突且不提交，成功时只写作业及提交日志，
         HTTP 不执行计划。恢复失败时作业仍可排队，由既有门禁保护导航写入。
 
     Time Semantics:
         确认前刷新队列快照；作业入队后立即返回，页面转 /jobs/$jobId；不重试 POST。
         导航变化由 worker 在写锁内核对，冲突提示列出差异并要求重新预览。
     """
-    raise NotImplementedError
+    record = service.submit_creation_write(
+        context.access,
+        _request(context),
+        int(body.preview_job_id),
+        tuple(int(value) for value in body.acknowledged_queue_job_ids),
+    )
+    return job_response(record)
+
+
+def _request(context: CreationApiContext) -> JobRequest:
+    """沿用同一次认证结果、唯一时刻和审计来源，不为必填上下文提供默认值。"""
+    return JobRequest(identity(context.account), context.account.now, context.account.audit)

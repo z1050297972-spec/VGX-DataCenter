@@ -9,6 +9,7 @@ from rdp.jobs.datasets.catalog import MAX_SCAN_ENTRIES
 from rdp.jobs.navwrite.create_models import (
     CreationValue,
     DatasetPreviewParameters,
+    FormatEntrySelection,
     LinkPreviewParameters,
 )
 from rdp.jobs.navwrite.models import PlanReport
@@ -68,6 +69,7 @@ class CreationPreviewView(CreationValue):
         parameters: 原样回显已校验参数，不能在确认时覆盖。
         report: 第 07 张报告，creation 必须非空；差异、计数、检查范围与提示来自同一计划。
         queued_jobs: 当前数据库里同编号的排队写作业，升序，完整且有上界；仅作提醒。
+        format_entry_options: 预览阶段可勾选的登记格式入口，含已索引及本目标元信息中的版本。
     """
 
     preview_job_id: CreationJobId
@@ -78,6 +80,8 @@ class CreationPreviewView(CreationValue):
     parameters: LinkPreviewParameters | DatasetPreviewParameters
     report: PlanReport
     queued_jobs: tuple[QueuedNavigationJob, ...] = Field(max_length=MAX_SCAN_ENTRIES)
+
+    format_entry_options: tuple[FormatEntrySelection, ...] = ()
 
     @model_validator(mode="after")
     def validate_creation_report(self) -> Self:
@@ -98,4 +102,20 @@ class CreationPreviewView(CreationValue):
         Time Semantics:
             展示模型构造时校验，不刷新预览时刻或排队列表。
         """
-        raise NotImplementedError
+        details = self.report.creation
+        if details is None or (
+            (self.operation == "create_link") != isinstance(self.parameters, LinkPreviewParameters)
+        ):
+            raise ValueError("创建预览差异或参数种类不一致")
+        if details.noop and (
+            self.report.file_count
+            or self.report.link_count
+            or self.report.directory_count
+            or details.file_paths
+            or details.directory_paths
+            or details.links
+            or details.sources_added
+            or details.dataset_roots_added
+        ):
+            raise ValueError("无变化预览不能包含写入差异")
+        return self

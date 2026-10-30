@@ -7,6 +7,22 @@ import type {
   LinkPreviewInput,
   QueuedNavigationJob,
 } from "../api/datasetCreation";
+import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
+import { isJobTerminal as terminal } from "../jobs/progress";
+import { useJobAction } from "../jobs/_actions";
+import { useRecoveryBlock } from "../navigation/queries";
+import { getJob, JOB_POLL_INTERVAL_MS, JOB_GC_TIME_MS, JOB_STALE_TIME_MS } from "../api/jobs";
+import {
+  getCreationOptions,
+  getCreationPreview,
+  submitLinkPreview,
+  submitDatasetPreview,
+  confirmCreation,
+  type FormatSelection,
+} from "../api/datasetCreation";
+import { toFailureView } from "../api/problems";
 import type { Job } from "../api/jobs";
 import type { RequestFailureView } from "../api/problems";
 
@@ -28,11 +44,19 @@ export interface CreationSearch {
  * @sideEffects 无；不解析 URLSearchParams、不写浏览器存储。
  * @timeSemantics 同步纯转换，不发请求。
  */
-export function validateCreationSearch(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 保留完整调用契约；读取参数后移除此豁免。
-  _input: Record<string, unknown>,
-): CreationSearch {
-  throw new Error("NotImplementedError");
+export function validateCreationSearch(_input: Record<string, unknown>): CreationSearch {
+  const dataset = _input.dataset_id;
+  const preview = _input.preview_job_id;
+  if (
+    (dataset !== undefined &&
+      (typeof dataset !== "string" || dataset.length > 256 || !/^[^/\\\s\x00]+$/.test(dataset))) ||
+    (preview !== undefined && !decimalId(preview))
+  )
+    return { invalidCreationSearch: true };
+  return {
+    dataset_id: typeof dataset === "string" ? dataset : undefined,
+    preview_job_id: typeof preview === "string" ? preview : undefined,
+  };
 }
 
 /** 页面局部阶段；服务端响应仍使用生成类型。 */
@@ -50,6 +74,12 @@ export interface CreationFlow {
   previewJob: Job | undefined;
   /** 排队提醒，空表示当前快照没有同数据集排队写作业。 */
   queuedJobs: QueuedNavigationJob[];
+  /** 服务端预览返回的入口候选；首次预览前为空。 */
+  formatEntryOptions: FormatSelection[];
+  /** 恢复失败、状态未确认或读取失败时禁止提交。 */
+  blocked: boolean;
+  /** 禁止提交的原因；正常可提交时为 undefined。 */
+  blockedReason: string | undefined;
   /** 当前统一诊断；冲突保留对象、实际、期望、后果与下一步。 */
   failure: RequestFailureView | undefined;
   /** 提交任一种预览，参数类型由当前页面区分。 */
@@ -80,9 +110,199 @@ export interface CreationFlowInput {
  * @sideEffects 用 TanStack Query 和统一客户端读候选、提交预览、轮询 M0 作业、读取保存结果及确认；成功入队后刷新 datasets/jobs 缓存并导航。
  * @timeSemantics 预览作业按 JOB_POLL_INTERVAL_MS 轮询且终态停止，使用 JOB_STALE_TIME_MS/JOB_GC_TIME_MS；离页取消读请求，所有 POST 不重试。
  */
-export function useCreationFlow(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 保留完整调用契约；读取参数后移除此豁免。
-  _input: CreationFlowInput,
-): CreationFlow {
-  throw new Error("NotImplementedError");
+export function useCreationFlow(_input: CreationFlowInput): CreationFlow {
+  const client = useAccountClient();
+  const account = useCurrentAccount();
+  const recovery = useRecoveryBlock();
+  const [activeId, setActiveId] = useState(_input.previewJobId);
+  const [invalidated, setInvalidated] = useState(false);
+  const notified = useRef<string | undefined>(undefined);
+  const acknowledged = useRef<string[]>([]);
+  const previewAction = useJobAction<LinkPreviewInput | DatasetPreviewInput>(
+    (payload, signal) =>
+      "dataset_id" in payload
+        ? submitLinkPreview({ client, payload, signal })
+        : submitDatasetPreview({ client, payload, signal }),
+    false,
+  );
+  const applyAction = useJobAction<ConfirmCreationInput>(
+    (payload, signal) => confirmCreation({ client, payload, signal }),
+    false,
+  );
+  const { options, job, result, successful } = usePreviewQueries(
+    client,
+    account.data?.account_id,
+    activeId,
+    invalidated,
+  );
+  const view = matchingPreview(result.data, activeId, _input.operation, successful && !invalidated);
+  const valid = !!view;
+  const onPreviewed = _input.onPreviewed;
+  useEffect(() => {
+    if (valid && result.data && notified.current !== result.data.preview_job_id) {
+      notified.current = result.data.preview_job_id;
+      onPreviewed(result.data);
+    }
+  }, [valid, result.data, onPreviewed]);
+  const failure = failureOf([
+    applyAction.error,
+    previewAction.error,
+    result.error,
+    job.error,
+    options.error,
+    recovery.error,
+  ]);
+  const blockedReason = recoveryReason(recovery);
+  const stage = creationStage(
+    previewAction.isPending,
+    applyAction.isPending,
+    previewRunning(activeId, invalidated, job.data),
+    valid,
+  );
+  return {
+    stage,
+    options: options.data,
+    preview: view,
+    previewJob: job.data,
+    queuedJobs: queueJobs(failure, result.data?.dataset_id),
+    failure,
+    formatEntryOptions: entryOptions(result.data),
+    blocked: !!blockedReason,
+    blockedReason,
+    previewParameters: (parameters) => {
+      if (blockedReason || stage === "previewing" || stage === "submitting") return;
+      setInvalidated(true);
+      applyAction.reset();
+      acknowledged.current = [];
+      previewAction.mutate(parameters, {
+        onSuccess: (record) => {
+          setActiveId(record.job_id);
+          setInvalidated(false);
+        },
+      });
+    },
+    confirm: (parameters) => {
+      if (!valid || blockedReason || applyAction.isPending) return;
+      acknowledged.current = [
+        ...new Set([...acknowledged.current, ...parameters.acknowledged_queue_job_ids]),
+      ];
+      applyAction.mutate(
+        { ...parameters, acknowledged_queue_job_ids: acknowledged.current },
+        { onSuccess: _input.onSubmitted },
+      );
+    },
+    edit: () => {
+      setInvalidated(true);
+      previewAction.reset();
+      applyAction.reset();
+      acknowledged.current = [];
+    },
+  };
+}
+
+function decimalId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[1-9][0-9]{0,18}$/.test(value) &&
+    BigInt(value) <= 9223372036854775807n
+  );
+}
+function creationStage(
+  previewing: boolean,
+  submitting: boolean,
+  running: boolean,
+  valid: boolean,
+): CreationStage {
+  if (submitting) return "submitting";
+  if (previewing || running) return "previewing";
+  return valid ? "reviewing" : "editing";
+}
+function queueJobs(
+  failure: RequestFailureView | undefined,
+  datasetId: string | undefined,
+): QueuedNavigationJob[] {
+  if (failure?.kind !== "problem" || failure.problem.status !== 409) return [];
+  const ids = failure.problem.diagnostics
+    .filter((item) => item.rule === "NAV_CREATE_QUEUE_CONFIRMATION")
+    .flatMap((item) =>
+      item.objects
+        .filter(
+          (object) => /^queued_job_id_[1-9][0-9]*$/.test(object.key) && decimalId(object.value),
+        )
+        .map((object) => object.value),
+    );
+  return [...new Set(ids)].map((job_id) => ({ job_id, dataset_ids: datasetId ? [datasetId] : [] }));
+}
+
+function usePreviewQueries(
+  client: ReturnType<typeof useAccountClient>,
+  accountId: string | undefined,
+  activeId: string | undefined,
+  invalidated: boolean,
+) {
+  const options = useQuery({
+    queryKey: ["creation", accountId, "options"],
+    queryFn: ({ signal }) => getCreationOptions({ client, payload: undefined, signal }),
+    retry: false,
+    staleTime: JOB_STALE_TIME_MS,
+    gcTime: JOB_GC_TIME_MS,
+  });
+  const job = useQuery({
+    queryKey: ["creation", accountId, "job", activeId],
+    queryFn: ({ signal }) => getJob({ client, jobId: activeId ?? "", payload: undefined, signal }),
+    enabled: !!activeId,
+    retry: false,
+    staleTime: JOB_STALE_TIME_MS,
+    gcTime: JOB_GC_TIME_MS,
+    refetchInterval: (query) =>
+      query.state.data && terminal(query.state.data) ? false : JOB_POLL_INTERVAL_MS,
+    refetchOnWindowFocus: false,
+  });
+  const successful = isSuccessful(job.data);
+  const result = useQuery({
+    queryKey: ["creation", accountId, "preview", activeId],
+    queryFn: ({ signal }) =>
+      getCreationPreview({ client, previewJobId: activeId ?? "", payload: undefined, signal }),
+    enabled: successful && !invalidated,
+    retry: false,
+    staleTime: JOB_STALE_TIME_MS,
+    gcTime: JOB_GC_TIME_MS,
+    refetchOnWindowFocus: false,
+  });
+  return { options, job, result, successful };
+}
+function isSuccessful(job: Job | undefined): boolean {
+  return (
+    job?.state === "completed" &&
+    (job.summary?.outcome === "succeeded" || job.summary?.outcome === "succeeded_with_warnings")
+  );
+}
+function matchingPreview(
+  value: CreationPreview | undefined,
+  id: string | undefined,
+  operation: CreationPreview["operation"],
+  valid: boolean,
+): CreationPreview | undefined {
+  if (!valid || !value || value.preview_job_id !== id || value.operation !== operation)
+    return undefined;
+  return value;
+}
+function previewRunning(
+  id: string | undefined,
+  invalidated: boolean,
+  job: Job | undefined,
+): boolean {
+  return !!id && !invalidated && (!job || !terminal(job));
+}
+function recoveryReason(recovery: ReturnType<typeof useRecoveryBlock>): string | undefined {
+  if (recovery.isPending) return "正在确认导航层恢复状态";
+  if (recovery.isError) return "无法读取恢复状态，暂不能提交";
+  return recovery.data.blocked ? "恢复失败：请管理员处理后再提交" : undefined;
+}
+function failureOf(errors: unknown[]): RequestFailureView | undefined {
+  const error = errors.find((value) => value !== null && value !== undefined);
+  return error ? toFailureView(error) : undefined;
+}
+function entryOptions(preview: CreationPreview | undefined): FormatSelection[] {
+  return preview?.format_entry_options ?? [];
 }

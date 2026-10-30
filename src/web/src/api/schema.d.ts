@@ -792,8 +792,8 @@ export interface paths {
          *         body: preview_job_id 与 acknowledged_queue_job_ids；不接受其他参数或 plan。
          *
          *     Returns:
-         *         200，confirmation_required=True 时 job=null、queued_jobs 非空，尚未提交；
-         *         False 时 job 为已提交的 nav_write_apply 完整记录，parameters 只有整数 preview_job_id。
+         *         201，已提交的 nav_write_apply 完整 JobResponse，parameters 只有整数 preview_job_id。
+         *         有未确认的新排队作业时抛 409，五段诊断的 queued_job_id_N 对象列出作业编号。
          *
          *     Raises:
          *         JobNotFoundError: 预览作业不存在，404。
@@ -802,12 +802,12 @@ export interface paths {
          *         AuthorizationError: 同源写请求检查失败，403。
          *         PasswordChangeRequiredError: 确认者必须先改密，403。
          *         InputError: 预览类型/成功状态/文件不合约，400。
-         *         ConflictError: 提交事务竞争，409；实际导航冲突在写入作业诊断中展示。
+         *         ConflictError: 有未确认的新排队写作业或提交事务竞争，409；实际导航冲突在写入作业诊断中展示。
          *         ExternalError: 读取预览或持久化作业/日志失败，502。
          *         DefectError: 领域结果或依赖违反契约，500。
          *
          *     Side Effects:
-         *         委托 submit_creation_write；提醒分支不提交，正常分支只写作业及提交日志，
+         *         委托 submit_creation_write；未确认排队项返回冲突且不提交，成功时只写作业及提交日志，
          *         HTTP 不执行计划。恢复失败时作业仍可排队，由既有门禁保护导航写入。
          *
          *     Time Semantics:
@@ -2290,6 +2290,7 @@ export interface components {
          *         parameters: 原样回显已校验参数，不能在确认时覆盖。
          *         report: 第 07 张报告，creation 必须非空；差异、计数、检查范围与提示来自同一计划。
          *         queued_jobs: 当前数据库里同编号的排队写作业，升序，完整且有上界；仅作提醒。
+         *         format_entry_options: 预览阶段可勾选的登记格式入口，含已索引及本目标元信息中的版本。
          */
         CreationPreviewView: {
             /**
@@ -2302,6 +2303,11 @@ export interface components {
             /** Dataset Name */
             dataset_name: string;
             /**
+             * Format Entry Options
+             * @default []
+             */
+            format_entry_options: components["schemas"]["FormatEntrySelection"][];
+            /**
              * Operation
              * @enum {string}
              */
@@ -2313,22 +2319,6 @@ export interface components {
             /** Queued Jobs */
             queued_jobs: components["schemas"]["QueuedNavigationJob"][];
             report: components["schemas"]["PlanReport"];
-        };
-        /**
-         * CreationSubmitResponse
-         * @description 确认提交结果；HTTP 200 的提醒分支没有创建资源。
-         *
-         *     Attributes:
-         *         confirmation_required: True 时 job 必须为 None 且 queued_jobs 非空，需要用户再次确认。
-         *         job: False 分支为新 nav_write_apply 的 M0 queued 记录；不改变既有 JobResponse。
-         *         queued_jobs: 本次检查观察到的排队写作业，升序，不包含本次新作业；可以为空。
-         */
-        CreationSubmitResponse: {
-            /** Confirmation Required */
-            confirmation_required: boolean;
-            job: components["schemas"]["JobResponse"] | null;
-            /** Queued Jobs */
-            queued_jobs: components["schemas"]["QueuedNavigationJob"][];
         };
         /**
          * DataOrigin
@@ -5924,12 +5914,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CreationSubmitResponse"];
+                    "application/json": components["schemas"]["JobResponse"];
                 };
             };
             /** @description Bad Request */

@@ -6,11 +6,22 @@
 """
 
 from collections.abc import Callable
+from pathlib import PurePosixPath
 
+from rdp.jobs.datasets.catalog import REQUIRED_DOCUMENTS
+from rdp.jobs.datasets.reading import discover_entries
 from rdp.jobs.datasets.rescan import RescanDependencies
+from rdp.jobs.datasets.types import EntryLocation, View
+from rdp.jobs.navwrite import _create_plan as plans
+from rdp.jobs.navwrite import _create_read as reads
+from rdp.jobs.navwrite.allocation import allocate_dataset_id
 from rdp.jobs.navwrite.create_models import DatasetPreviewParameters, LinkPreviewParameters
+from rdp.jobs.navwrite.errors import nav_input_error
 from rdp.jobs.navwrite.jobs import PreviewBuild
-from rdp.jobs.navwrite.provenance import ActorStamp
+from rdp.jobs.navwrite.jsonio import dump_navigation_json, regenerate_derived_fields
+from rdp.jobs.navwrite.models import NavOperation, NavWritePlan
+from rdp.jobs.navwrite.preview_state import capture_preview_state, verify_preview_state
+from rdp.jobs.navwrite.provenance import ActorStamp, dump_provenance, new_provenance
 
 
 def build_link_preview(
@@ -66,7 +77,64 @@ def build_link_preview(
         取消检查间隔遵循作业框架预算。
         不读墙钟；执行时由 nav_write_apply 持锁复核同一份计划，不重新选择格式或重算规则。
     """
-    raise NotImplementedError
+    state = capture_preview_state(
+        dependencies.nav_root, (parameters.dataset_id,), None, checkpoint=checkpoint
+    )
+    paths = {item.path for dataset in state.datasets for item in dataset.entries}
+    locations = [
+        item for item in discover_entries(dependencies.nav_root).entries if str(item.path) in paths
+    ]
+    snapshots = [
+        reads.snapshot(dependencies.nav_root, item, state, checkpoint) for item in locations
+    ]
+    canonical = [item for item in snapshots if item[0].location.view is View.TASK]
+    if len(canonical) != 1:
+        problem = nav_input_error("NAV_CREATE", "数据集必须有唯一按任务规范入口")
+        raise problem
+    current, raw = canonical[0]
+    selected = plans.format_locations(current.location.dataset_name, parameters.format_entries)
+    destination = dependencies.nav_root / current.location.path / parameters.link.name
+    registered = any(
+        item.name == parameters.link.name and item.source_path == parameters.link.target_path
+        for item in current.links
+    )
+    noop = (
+        reads.present(destination)
+        and destination.is_symlink()
+        and str(destination.readlink()) == parameters.link.target_path
+        and registered
+    )
+    if reads.present(destination) and not noop:
+        problem = nav_input_error("NAV_CREATE", "目的路径已存在，请改走改指向")
+        raise problem
+    target = reads.target(dependencies, parameters.link, checkpoint, metadata=not noop)
+    planning = plans.Planning(dependencies.nav_root, current)
+    formats: tuple[str, ...] = ()
+    if not noop:
+        manifest = plans.payload(current, 0)
+        planning.link(current.location, parameters.link, target, manifest)
+        planning.extend_manifest(manifest, target)
+        content = dump_navigation_json(regenerate_derived_fields(manifest, current.location))
+        planning.write(
+            str(current.location.path / REQUIRED_DOCUMENTS[0]), raw[REQUIRED_DOCUMENTS[0]], content
+        )
+        updated = plans.with_documents(
+            current, (content, raw[REQUIRED_DOCUMENTS[1]], raw[REQUIRED_DOCUMENTS[2]])
+        )
+        replicas = tuple(item for item in snapshots if item[0].location.view is View.FORMAT)
+        formats = planning.replicas(updated, replicas, selected, parameters.link, target)
+    verify_preview_state(dependencies.nav_root, state, checkpoint=checkpoint)
+    plan = NavWritePlan(
+        operation=NavOperation.CREATE_LINK,
+        dataset_ids=(parameters.dataset_id,),
+        steps=tuple(planning.steps),
+        state=state,
+    )
+    return PreviewBuild(
+        plan,
+        planning.report(plan, target, selected, formats, noop=noop),
+        parameters.model_dump(mode="json"),
+    )
 
 
 def build_dataset_preview(
@@ -116,4 +184,56 @@ def build_dataset_preview(
         变化则冲突，一行不写并要求重新预览，不把编号悄悄换成下一个。
         set_by.at 是预览记录时刻，不冒充实际写入时间；目标访问超时采用登记值。
     """
-    raise NotImplementedError
+    location = EntryLocation(
+        PurePosixPath("按任务", parameters.dataset_name),
+        View.TASK,
+        None,
+        None,
+        parameters.dataset_name,
+    )
+    destination = dependencies.nav_root / location.path
+    if reads.present(destination):
+        problem = nav_input_error("NAV_CREATE", "按任务下数据集名称已被占用")
+        raise problem
+    state = capture_preview_state(
+        dependencies.nav_root, (), str(location.path), checkpoint=checkpoint
+    )
+    identifier = allocate_dataset_id(dependencies.nav_root)
+    canonical = plans.new_snapshot(location, identifier)
+    selected = plans.format_locations(parameters.dataset_name, parameters.format_entries)
+    target = reads.target(dependencies, parameters.link, checkpoint)
+    planning = plans.Planning(dependencies.nav_root, canonical)
+    planning.ensure_directory(location.path)
+    manifest = plans.payload(canonical, 0)
+    planning.link(location, parameters.link, target, manifest)
+    planning.extend_manifest(manifest, target)
+    first = dump_navigation_json(regenerate_derived_fields(manifest, location))
+    canonical = plans.with_documents(
+        canonical,
+        (
+            first,
+            dump_navigation_json(plans.payload(canonical, 1)),
+            dump_navigation_json(plans.payload(canonical, 2)),
+        ),
+    )
+    for document in canonical.documents:
+        planning.write(
+            str(location.path / document.name),
+            None,
+            dump_navigation_json(plans.payload(canonical, REQUIRED_DOCUMENTS.index(document.name))),
+        )
+    provenance = new_provenance(identifier, parameters.dataset_name, parameters.data_origin, set_by)
+    planning.write(
+        str(location.path / "来源.json"), None, dump_navigation_json(dump_provenance(provenance))
+    )
+    formats = planning.replicas(canonical, (), selected, parameters.link, target)
+    verify_preview_state(dependencies.nav_root, state, checkpoint=checkpoint)
+    plan = NavWritePlan(
+        operation=NavOperation.CREATE_DATASET,
+        dataset_ids=(identifier,),
+        steps=tuple(planning.steps),
+        state=state,
+    )
+    return PreviewBuild(
+        plan, planning.report(plan, target, selected, formats), parameters.model_dump(mode="json")
+    )

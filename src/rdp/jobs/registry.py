@@ -244,7 +244,7 @@ def production_registry(
             执行时缺依赖属于程序缺陷。
 
     Returns:
-        新 JobRegistry：示例、维护、dataset_rescan及写导航层的 nav_write_apply、nav_revert_preview；扫描为restart，执行能力由入口显式注入。
+        新 JobRegistry：示例、维护、dataset_rescan及写导航层的 nav_write_apply、nav_revert_preview，以及两个创建预览类型；扫描为restart，执行能力由入口显式注入。
         三个示例为 interrupt，两个清除为 restart；只有 example_gpu 需要 GPU，各类默认并发 1。
 
     Raises:
@@ -261,6 +261,7 @@ def production_registry(
     from rdp.jobs.datasets.sizing import build_sizing_definition
     from rdp.jobs.example import CountParameters, execute_count
     from rdp.jobs.maintenance import PurgeParameters, execute_purge_errors, execute_purge_logs
+    from rdp.jobs.navwrite.create_jobs import build_creation_definitions
     from rdp.jobs.navwrite.jobs import build_navwrite_definitions
     from rdp.jobs.resource_examples import (
         GpuExampleParameters,
@@ -309,7 +310,10 @@ def production_registry(
         registry.register(definition)
     registry.register(build_rescan_definition(rescan_dependencies))
     registry.register(build_sizing_definition(rescan_dependencies))
-    for definition in build_navwrite_definitions(nav_write_dependencies):
+    for definition in (
+        *build_navwrite_definitions(nav_write_dependencies),
+        *build_creation_definitions(nav_write_dependencies),
+    ):
         registry.register(definition)
     return registry
 

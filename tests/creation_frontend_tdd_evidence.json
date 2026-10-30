@@ -1,0 +1,132 @@
+{
+  "backend_regressions": [
+    "撤回新建数据集后不提交已删除编号统计：先红后绿",
+    "预览返回格式入口候选：先红后绿"
+  ],
+  "frontend_tests": [
+    {
+      "test": "建链页按 填参数→预览→明确确认→作业页 完整流转，预览不触发写入",
+      "first_run": "first_runnable_green",
+      "reason": "完整流程首次验证受客户端类型检查阻挡；客户端、页面控制器及组件接通后，真实路由流程通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "新增页来源必填、首链接必填，预计编号与两个视图完整差异可见",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "预览列文件、链接、sources、dataset_roots、所选与重生成格式入口及检查范围",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "同目标已登记的 noop 预览明确显示已经是这样了且计数为零",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "没有 meta/info.json 时从登记选项选择格式，版本显示 null；archives 显示原目录名",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "任一表单参数修改使旧预览失去确认资格，格式多选拒绝重复和非法版本层",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "冲突以 DiagnosticCard 展示对象、实际、期望、后果和下一步，并允许重新预览",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "排队提醒列现有写作业链接，首次取消不提交，明确确认才携带看到的编号",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "确认时以409诊断提示新排队编号，确认后带acknowledged_queue_job_ids重提，201才跳转",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "预览失败、过期、损坏或未完成时禁用确认并保留可修正参数",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "预览作业每 JOB_POLL_INTERVAL_MS 轮询，终态停止，离页取消读取，POST 不重试",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "写入提交在途禁用重复点击，成功使用文本编号进入既有作业页",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "真实 Router 支持两个新路由、登录守卫、刷新预览定位及成员访问",
+      "first_run": "red_then_green",
+      "reason": "详情入口按钮缺失时先失败，增加独立入口组件后通过；包括刷新恢复预览。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "真实 Router search 的数字、数组或非法编号显示可修正提示，不崩溃不请求",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "2^63-1 作业编号保持文本精度，目标路径不写 URL 或浏览器持久存储",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "恢复失败沿用全局提示与恢复页链接，提交按钮禁用",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "API 默认传输兼容浏览器原生 fetch 的 this 约束，统一认证与 problem 诊断",
+      "first_run": "red_then_green",
+      "reason": "客户端函数抛未实现异常，接入类型化HTTP客户端后通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "创建候选与数据集选择支持空索引及多页，不复制来源/格式词表",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "时间沿用服务端预览时刻，使用浏览器本地时区且不伪造新统计时间",
+      "first_run": "first_runnable_green",
+      "reason": "已实现的表单、状态流程、Query生命周期或统一诊断组件覆盖本变体；单独启用后首次通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    },
+    {
+      "test": "成功后刷新 datasets/jobs 缓存，新数据集和链接可在两棵树及详情页查看",
+      "first_run": "red_then_green",
+      "reason": "终态作业没有使数据集缓存失效时先失败，增加独立终态刷新hook后通过。",
+      "verification": "make check；后端选择撤回回归且单worker，前端运行全部已启用用例；最终全量检查。"
+    }
+  ],
+  "fixture_corrections": [
+    "诊断文本匹配包含字段标签，改为匹配相应文本片段；未修改生产诊断以迎合测试。",
+    "HTTP替身读取Request.clone，保留原请求供独立参数断言；预览编号保持唯一。"
+  ]
+}

@@ -6,9 +6,11 @@
 
 from typing import Annotated, Self
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from rdp.jobs.dataset_browser.schemas import DatasetId
+from rdp.jobs.datasets.catalog import FORMAT_DIRECTORIES, PROVENANCE_DOCUMENT, REQUIRED_DOCUMENTS
+from rdp.jobs.navwrite.policy import DATA_ORIGINS
 
 # 类型键写进永久作业记录；预览不写导航层，实际写入统一使用 nav_write_apply。
 LINK_PREVIEW_TYPE = "nav_create_link_preview"
@@ -52,7 +54,15 @@ def validate_entry_name(value: str) -> str:
     Time Semantics:
         同步纯校验，不读时钟或文件系统。
     """
-    raise NotImplementedError
+    if (
+        not value
+        or "/" in value
+        or "\x00" in value
+        or value.startswith(".")
+        or value in (*REQUIRED_DOCUMENTS, PROVENANCE_DOCUMENT)
+    ):
+        raise ValueError("名称不是允许的单层目录分量")
+    return value
 
 
 def validate_registered_format(value: str) -> str:
@@ -73,7 +83,9 @@ def validate_registered_format(value: str) -> str:
     Time Semantics:
         仅查内存中的登记规则，无缓存过期或等待。
     """
-    raise NotImplementedError
+    if value not in {item.format for item in FORMAT_DIRECTORIES}:
+        raise ValueError("格式未登记")
+    return value
 
 
 def validate_data_origin(value: str) -> str:
@@ -94,7 +106,9 @@ def validate_data_origin(value: str) -> str:
     Time Semantics:
         无；不为来源生成记录时刻。
     """
-    raise NotImplementedError
+    if value not in DATA_ORIGINS:
+        raise ValueError("数据来源未登记")
+    return value
 
 
 EntryName = Annotated[str, Field(strict=True, min_length=1), AfterValidator(validate_entry_name)]
@@ -138,7 +152,10 @@ class FormatEntrySelection(CreationValue):
         Time Semantics:
             模型构造时同步校验，不读取版本目录。
         """
-        raise NotImplementedError
+        definition = next(item for item in FORMAT_DIRECTORIES if item.format == self.format)
+        if definition.has_versions != (self.version is not None):
+            raise ValueError("格式版本层与登记规则不一致")
+        return self
 
 
 class FirstLink(CreationValue):
@@ -156,7 +173,24 @@ class FirstLink(CreationValue):
     fallback_format: RegisteredFormat | None = None
 
 
-class LinkPreviewParameters(CreationValue):
+class CreationParameters(CreationValue):
+    """两种预览共用的去重格式选择，避免提交和 worker 各自维护不同规则。"""
+
+    format_entries: tuple[FormatEntrySelection, ...] = ()
+
+    @field_validator("format_entries")
+    @classmethod
+    def _unique_selections(
+        cls, values: tuple[FormatEntrySelection, ...]
+    ) -> tuple[FormatEntrySelection, ...]:
+        """相同格式和版本只能选择一次，不静默丢弃重复项。"""
+        keys = [(item.format, item.version) for item in values]
+        if len(keys) != len(set(keys)):
+            raise ValueError("格式入口选择不能重复")
+        return values
+
+
+class LinkPreviewParameters(CreationParameters):
     """给现有数据集建链的预览参数，规范入口由永久编号查找。
 
     Attributes:
@@ -168,10 +202,9 @@ class LinkPreviewParameters(CreationValue):
 
     dataset_id: DatasetId
     link: FirstLink
-    format_entries: tuple[FormatEntrySelection, ...] = ()
 
 
-class DatasetPreviewParameters(CreationValue):
+class DatasetPreviewParameters(CreationParameters):
     """新增数据集的预览参数；编号与入口路径只能由平台分配。
 
     Attributes:
@@ -184,4 +217,3 @@ class DatasetPreviewParameters(CreationValue):
     dataset_name: EntryName
     data_origin: Annotated[str, Field(strict=True), AfterValidator(validate_data_origin)]
     link: FirstLink
-    format_entries: tuple[FormatEntrySelection, ...] = ()

@@ -5,12 +5,37 @@
 """
 
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 
-from sqlalchemy import Engine
+from pydantic import ValidationError
+from sqlalchemy import Engine, select
 
+from rdp.accounts.service import authorize_job_actor
+from rdp.infra.db.connection import session_scope
+from rdp.infra.db.validation import invalid_field
+from rdp.infra.diagnostics import DefectError
 from rdp.infra.state import StatePaths
-from rdp.jobs.navwrite.create_models import DatasetPreviewParameters, LinkPreviewParameters
-from rdp.jobs.navwrite.create_views import CreationOptions, CreationPreviewView, QueuedNavigationJob
+from rdp.jobs import _storage
+from rdp.jobs.dataset_browser import _scope
+from rdp.jobs.datasets.catalog import FORMAT_DIRECTORIES, MAX_SCAN_ENTRIES
+from rdp.jobs.datasets.models import EntryRow
+from rdp.jobs.errors import JobInputError
+from rdp.jobs.navwrite import _create_query as query
+from rdp.jobs.navwrite.create_details import CreationDetails
+from rdp.jobs.navwrite.create_models import (
+    DATASET_PREVIEW_TYPE,
+    LINK_PREVIEW_TYPE,
+    DatasetPreviewParameters,
+    FormatEntrySelection,
+    LinkPreviewParameters,
+)
+from rdp.jobs.navwrite.create_views import (
+    CreationFormatOption,
+    CreationOptions,
+    CreationPreviewView,
+)
+from rdp.jobs.navwrite.errors import Advice, nav_conflict_error, nav_input_error
+from rdp.jobs.navwrite.policy import DATA_ORIGINS, NAV_APPLY_TYPE
 from rdp.jobs.service import JobRequest, JobService
 from rdp.jobs.types import JobRecord
 
@@ -28,19 +53,6 @@ class CreationAccess:
     engine: Engine
     paths: StatePaths
     jobs: JobService
-
-
-@dataclass(frozen=True)
-class CreationSubmission:
-    """写入提交的结果，排队提醒需要额外确认时不会创建作业。
-
-    Attributes:
-        job: 已提交 nav_write_apply 的 queued 记录；有未确认提醒时为 None。
-        queued_jobs: 本次提交前观察到的同数据集排队写作业，编号升序；不包含本次新作业。
-    """
-
-    job: JobRecord | None
-    queued_jobs: tuple[QueuedNavigationJob, ...]
 
 
 def read_creation_options(access: CreationAccess, request: JobRequest) -> CreationOptions:
@@ -67,7 +79,33 @@ def read_creation_options(access: CreationAccess, request: JobRequest) -> Creati
     Time Semantics:
         单次事务快照，沿用 BUSY_TIMEOUT_MS，无轮询或自动重试。
     """
-    raise NotImplementedError
+    query.validate_access(access)
+    with session_scope(access.engine, read_only=True) as session:
+        authorize_job_actor(session, request.identity, now=request.now)
+        values = session.execute(
+            select(EntryRow.format, EntryRow.version).distinct().limit(MAX_SCAN_ENTRIES + 1)
+        ).all()
+    if len(values) > MAX_SCAN_ENTRIES:
+        problem = nav_input_error("NAV_CREATE_OPTIONS", "格式版本候选超过预算")
+        raise problem
+    formats = tuple(
+        CreationFormatOption(
+            format=item.format,
+            directory=item.directory,
+            has_versions=item.has_versions,
+            versions=tuple(
+                sorted(
+                    {
+                        version
+                        for format_name, version in values
+                        if format_name == item.format and version is not None
+                    }
+                )
+            ),
+        )
+        for item in FORMAT_DIRECTORIES
+    )
+    return CreationOptions(formats=formats, data_origins=DATA_ORIGINS)
 
 
 def submit_link_preview(
@@ -100,7 +138,11 @@ def submit_link_preview(
     Time Semantics:
         使用 request.now；锁预算沿用 JobService.submit，不等待预览结束、不重试 POST。
     """
-    raise NotImplementedError
+    query.validate_access(access)
+    with session_scope(access.engine, read_only=True) as session:
+        authorize_job_actor(session, request.identity, now=request.now)
+        _scope.require_dataset(session, parameters.dataset_id)
+    return access.jobs.submit(request, LINK_PREVIEW_TYPE, parameters.model_dump(mode="json"))
 
 
 def submit_dataset_preview(
@@ -131,7 +173,8 @@ def submit_dataset_preview(
     Time Semantics:
         请求提交后立即返回；使用同一次 request.now，不因目标不可达阻塞 Web。
     """
-    raise NotImplementedError
+    query.validate_access(access)
+    return access.jobs.submit(request, DATASET_PREVIEW_TYPE, parameters.model_dump(mode="json"))
 
 
 def read_creation_preview(
@@ -167,7 +210,26 @@ def read_creation_preview(
         created_at 保留预览时刻；排队提醒反映读取时已提交状态，不是执行许可或互斥锁。
         前端在预览成功后读取一次、确认前再读一次，预览任务仍运行时只轮询 M0 作业接口。
     """
-    raise NotImplementedError
+    preview, parameters = query.load(access, request, preview_job_id)
+    details = preview.report.creation
+    if details is None:
+        raise DefectError()
+    try:
+        return CreationPreviewView(
+            preview_job_id=str(preview.preview_job_id),
+            created_at=preview.created_at,
+            operation="create_link"
+            if isinstance(parameters, LinkPreviewParameters)
+            else "create_dataset",
+            dataset_id=preview.plan.dataset_ids[0],
+            dataset_name=PurePosixPath(details.canonical_entry_path).name,
+            parameters=parameters,
+            report=preview.report,
+            queued_jobs=query.queued(access, request, preview.plan.dataset_ids),
+            format_entry_options=_format_options(read_creation_options(access, request), details),
+        )
+    except ValidationError as error:
+        raise DefectError() from error
 
 
 def submit_creation_write(
@@ -175,7 +237,7 @@ def submit_creation_write(
     request: JobRequest,
     preview_job_id: int,
     acknowledged_queue_job_ids: tuple[int, ...],
-) -> CreationSubmission:
+) -> JobRecord:
     """确认同一份创建预览后提交公共 nav_write_apply 作业。
 
     Args:
@@ -183,11 +245,11 @@ def submit_creation_write(
         request: 本次确认者身份及审计上下文，写作业提交人是确认者。
         preview_job_id: 成功的创建预览编号，整数 1 至 MAX_SQLITE_INTEGER。
         acknowledged_queue_job_ids: 用户已看到并确认的排队写作业编号，去重整数元组；
-            首次为空，有未确认的当前排队编号时先返回提醒而不提交作业。
+            首次为空，有未确认的当前排队编号时抛冲突诊断，不提交作业。
 
     Returns:
-        CreationSubmission；未确认提醒时 job=None，queued_jobs 列出当前排队项；
-        否则 JobService.submit 新建 nav_write_apply，参数只有整数 preview_job_id。
+        JobService.submit 新建的 nav_write_apply 排队记录，参数只有整数 preview_job_id。
+        未确认的排队项通过 ConflictError 的结构化对象列出，不返回空作业。
         已确认提醒不是跳过 L12 校验的授权，状态漂移由 worker 以冲突失败并列差异。
 
     Raises:
@@ -196,17 +258,59 @@ def submit_creation_write(
         InputError: 预览类型/成功状态/文件/计划不合法，规则同 read_creation_preview。
         AuthenticationError: 确认账号在实际提交事务内失效。
         PasswordChangeRequiredError: 确认账号必须改密。
-        ConflictError: M0 提交事务或提醒查询竞争，什么都不提交。
+        ConflictError: 出现未确认的新排队写作业，或 M0 提交事务/提醒查询竞争，什么都不提交。
         ExternalError: 读取预览、排队作业或作业/日志持久化失败。
         DefectError: 依赖不一致或报告/计划违反创建模型契约。
 
     Side Effects:
         先读取同一份预览并刷新提醒，再委托 JobService.submit 原子写作业与提交日志；
-        未确认分支不写业务行。导航恢复失败标记存在时仍允许排队，由既有 worker 门禁挡住执行。
+        未确认的新排队作业导致冲突，不写业务行。恢复失败时仍允许排队，由既有 worker 门禁挡住执行。
         不运行 builder、不写导航、不重新分配编号或替换目标。
 
     Time Semantics:
         提醒是提交前数据库快照，快照之后新来的作业仍靠写锁内 L12 复核保护；
         不把两个 JobService 事务嵌套为一个长事务。POST 不自动重试，进度转到 M0 作业页。
     """
-    raise NotImplementedError
+    acknowledged = tuple(_storage.identifier(value) for value in acknowledged_queue_job_ids)
+    if len(acknowledged) != len(set(acknowledged)):
+        problem = JobInputError(
+            invalid_field("acknowledged_queue_job_ids", "不重复的正整数编号").diagnostics
+        )
+        raise problem
+    preview, _parameters = query.load(access, request, preview_job_id)
+    waiting = query.queued(access, request, preview.plan.dataset_ids)
+    unseen = tuple(item for item in waiting if int(item.job_id) not in acknowledged)
+    if unseen:
+        problem = nav_conflict_error(
+            "NAV_CREATE_QUEUE_CONFIRMATION",
+            "已有尚未确认的排队写作业",
+            expected="用户确认这些作业后再次提交",
+            objects=tuple(
+                (f"queued_job_id_{index}", item.job_id) for index, item in enumerate(unseen, 1)
+            ),
+            advice=Advice(
+                "本次写入作业尚未提交，导航层未改变",
+                "查看这些作业，确认后带 acknowledged_queue_job_ids 再次提交",
+            ),
+        )
+        raise problem
+    return access.jobs.submit(request, NAV_APPLY_TYPE, {"preview_job_id": preview_job_id})
+
+
+def _format_options(
+    options: CreationOptions, details: CreationDetails
+) -> tuple[FormatEntrySelection, ...]:
+    """预览阶段的候选只来自服务端登记和已经观察到的版本，不让浏览器猜目录。"""
+    result: list[FormatEntrySelection] = []
+    for item in options.formats:
+        versions = set(item.versions)
+        if item.format == details.resolved_format and details.resolved_version is not None:
+            versions.add(details.resolved_version)
+        if item.has_versions:
+            result.extend(
+                FormatEntrySelection(format=item.format, version=version)
+                for version in sorted(versions)
+            )
+        else:
+            result.append(FormatEntrySelection(format=item.format))
+    return tuple(result)

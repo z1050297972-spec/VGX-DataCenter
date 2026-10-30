@@ -731,7 +731,7 @@
       },
       "CreationPreviewView": {
         "additionalProperties": false,
-        "description": "成功预览的页面结果；仅投影已持久保存的同一份 NavPreview。\n\nAttributes:\n    preview_job_id: 成功预览作业编号，文本，确认请求仅引用此编号。\n    created_at: 预览保存的 UTC 时刻，不是 GET 请求时刻。\n    operation: create_link 或 create_dataset；不允许拿撤回预览调用本票确认入口。\n    dataset_id: 已有编号或预计分配的新编号；后者尚未占用。\n    dataset_name: 规范入口名称。\n    parameters: 原样回显已校验参数，不能在确认时覆盖。\n    report: 第 07 张报告，creation 必须非空；差异、计数、检查范围与提示来自同一计划。\n    queued_jobs: 当前数据库里同编号的排队写作业，升序，完整且有上界；仅作提醒。",
+        "description": "成功预览的页面结果；仅投影已持久保存的同一份 NavPreview。\n\nAttributes:\n    preview_job_id: 成功预览作业编号，文本，确认请求仅引用此编号。\n    created_at: 预览保存的 UTC 时刻，不是 GET 请求时刻。\n    operation: create_link 或 create_dataset；不允许拿撤回预览调用本票确认入口。\n    dataset_id: 已有编号或预计分配的新编号；后者尚未占用。\n    dataset_name: 规范入口名称。\n    parameters: 原样回显已校验参数，不能在确认时覆盖。\n    report: 第 07 张报告，creation 必须非空；差异、计数、检查范围与提示来自同一计划。\n    queued_jobs: 当前数据库里同编号的排队写作业，升序，完整且有上界；仅作提醒。\n    format_entry_options: 预览阶段可勾选的登记格式入口，含已索引及本目标元信息中的版本。",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -745,6 +745,14 @@
           "dataset_name": {
             "title": "Dataset Name",
             "type": "string"
+          },
+          "format_entry_options": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FormatEntrySelection"
+            },
+            "title": "Format Entry Options",
+            "type": "array"
           },
           "operation": {
             "enum": [
@@ -793,41 +801,6 @@
           "queued_jobs"
         ],
         "title": "CreationPreviewView",
-        "type": "object"
-      },
-      "CreationSubmitResponse": {
-        "additionalProperties": false,
-        "description": "确认提交结果；HTTP 200 的提醒分支没有创建资源。\n\nAttributes:\n    confirmation_required: True 时 job 必须为 None 且 queued_jobs 非空，需要用户再次确认。\n    job: False 分支为新 nav_write_apply 的 M0 queued 记录；不改变既有 JobResponse。\n    queued_jobs: 本次检查观察到的排队写作业，升序，不包含本次新作业；可以为空。",
-        "properties": {
-          "confirmation_required": {
-            "title": "Confirmation Required",
-            "type": "boolean"
-          },
-          "job": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/JobResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "queued_jobs": {
-            "items": {
-              "$ref": "#/components/schemas/QueuedNavigationJob"
-            },
-            "maxItems": 10000,
-            "title": "Queued Jobs",
-            "type": "array"
-          }
-        },
-        "required": [
-          "confirmation_required",
-          "job",
-          "queued_jobs"
-        ],
-        "title": "CreationSubmitResponse",
         "type": "object"
       },
       "DataOrigin": {
@@ -7143,7 +7116,7 @@
     },
     "/api/datasets/creation-writes": {
       "post": {
-        "description": "确认保存的创建预览并提交通用写入作业，出现新排队提醒时要求再次确认。\n\nArgs:\n    context: 本次确认者身份，作业和操作日志用该身份而非预览作者。\n    body: preview_job_id 与 acknowledged_queue_job_ids；不接受其他参数或 plan。\n\nReturns:\n    200，confirmation_required=True 时 job=null、queued_jobs 非空，尚未提交；\n    False 时 job 为已提交的 nav_write_apply 完整记录，parameters 只有整数 preview_job_id。\n\nRaises:\n    JobNotFoundError: 预览作业不存在，404。\n    JobInputError: 非法/重复编号、额外字段或类型未登记，422。\n    AuthenticationError: 提交事务中确认者会话失效，401。\n    AuthorizationError: 同源写请求检查失败，403。\n    PasswordChangeRequiredError: 确认者必须先改密，403。\n    InputError: 预览类型/成功状态/文件不合约，400。\n    ConflictError: 提交事务竞争，409；实际导航冲突在写入作业诊断中展示。\n    ExternalError: 读取预览或持久化作业/日志失败，502。\n    DefectError: 领域结果或依赖违反契约，500。\n\nSide Effects:\n    委托 submit_creation_write；提醒分支不提交，正常分支只写作业及提交日志，\n    HTTP 不执行计划。恢复失败时作业仍可排队，由既有门禁保护导航写入。\n\nTime Semantics:\n    确认前刷新队列快照；作业入队后立即返回，页面转 /jobs/$jobId；不重试 POST。\n    导航变化由 worker 在写锁内核对，冲突提示列出差异并要求重新预览。",
+        "description": "确认保存的创建预览并提交通用写入作业，出现新排队提醒时要求再次确认。\n\nArgs:\n    context: 本次确认者身份，作业和操作日志用该身份而非预览作者。\n    body: preview_job_id 与 acknowledged_queue_job_ids；不接受其他参数或 plan。\n\nReturns:\n    201，已提交的 nav_write_apply 完整 JobResponse，parameters 只有整数 preview_job_id。\n    有未确认的新排队作业时抛 409，五段诊断的 queued_job_id_N 对象列出作业编号。\n\nRaises:\n    JobNotFoundError: 预览作业不存在，404。\n    JobInputError: 非法/重复编号、额外字段或类型未登记，422。\n    AuthenticationError: 提交事务中确认者会话失效，401。\n    AuthorizationError: 同源写请求检查失败，403。\n    PasswordChangeRequiredError: 确认者必须先改密，403。\n    InputError: 预览类型/成功状态/文件不合约，400。\n    ConflictError: 有未确认的新排队写作业或提交事务竞争，409；实际导航冲突在写入作业诊断中展示。\n    ExternalError: 读取预览或持久化作业/日志失败，502。\n    DefectError: 领域结果或依赖违反契约，500。\n\nSide Effects:\n    委托 submit_creation_write；未确认排队项返回冲突且不提交，成功时只写作业及提交日志，\n    HTTP 不执行计划。恢复失败时作业仍可排队，由既有门禁保护导航写入。\n\nTime Semantics:\n    确认前刷新队列快照；作业入队后立即返回，页面转 /jobs/$jobId；不重试 POST。\n    导航变化由 worker 在写锁内核对，冲突提示列出差异并要求重新预览。",
         "operationId": "confirm_dataset_creation_write",
         "requestBody": {
           "content": {
@@ -7156,11 +7129,11 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreationSubmitResponse"
+                  "$ref": "#/components/schemas/JobResponse"
                 }
               }
             },

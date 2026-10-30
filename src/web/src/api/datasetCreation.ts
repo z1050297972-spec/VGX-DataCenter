@@ -1,4 +1,7 @@
 // M1-08 创建操作的 HTTP 边界；载荷全部来自 OpenAPI，复用账号客户端及既有请求超时。
+import { boundedRequest } from "./_request";
+import { JOB_REQUEST_TIMEOUT_MS } from "./jobs";
+import { toFailureView } from "./problems";
 import type { AccountCall } from "./accounts";
 import type { Job } from "./jobs";
 import type { components } from "./schema";
@@ -13,8 +16,8 @@ export type CreationOptions = components["schemas"]["CreationOptions"];
 export type CreationPreview = components["schemas"]["CreationPreviewView"];
 /** 确认载荷只引用预览和已确认的排队编号。 */
 export type ConfirmCreationInput = components["schemas"]["ConfirmCreationRequest"];
-/** 可能要求再次确认排队提醒的提交结果。 */
-export type CreationSubmit = components["schemas"]["CreationSubmitResponse"];
+/** 确认成功返回的写入作业；未确认的新排队项通过 409 五段诊断返回。 */
+export type CreationSubmit = components["schemas"]["JobResponse"];
 /** 格式选择同时用于两种表单，不另维护版本层规则。 */
 export type FormatSelection = components["schemas"]["FormatEntrySelection"];
 /** 同数据集排队提醒。 */
@@ -34,11 +37,11 @@ export interface CreationPreviewCall extends AccountCall {
  * @sideEffects 一次同源 GET；不改 URL 或持久保存候选。
  * @timeSemantics 使用 JOB_REQUEST_TIMEOUT_MS，无重试，无后台轮询。
  */
-export function getCreationOptions(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 保留完整调用契约；读取参数后移除此豁免。
-  _input: AccountCall,
-): Promise<CreationOptions> {
-  throw new Error("NotImplementedError");
+export function getCreationOptions(_input: AccountCall): Promise<CreationOptions> {
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.GET("/api/datasets/creation-options", { signal });
+    return required(response.data);
+  });
 }
 
 /**
@@ -49,11 +52,14 @@ export function getCreationOptions(
  * @sideEffects 一次同源 POST，服务端只写预览作业及提交日志。
  * @timeSemantics JOB_REQUEST_TIMEOUT_MS，不重试 POST；取消 HTTP 不等于取消已提交作业。
  */
-export function submitLinkPreview(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 保留完整调用契约；读取参数后移除此豁免。
-  _input: AccountCall<LinkPreviewInput>,
-): Promise<Job> {
-  throw new Error("NotImplementedError");
+export function submitLinkPreview(_input: AccountCall<LinkPreviewInput>): Promise<Job> {
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.POST("/api/datasets/link-previews", {
+      body: _input.payload,
+      signal,
+    });
+    return required(response.data);
+  });
 }
 
 /**
@@ -64,11 +70,14 @@ export function submitLinkPreview(
  * @sideEffects 一次 POST，不在浏览器内创建入口或推测下一个编号。
  * @timeSemantics 请求上限 JOB_REQUEST_TIMEOUT_MS，无重试；等待预览走作业轮询节奏。
  */
-export function submitDatasetPreview(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 保留完整调用契约；读取参数后移除此豁免。
-  _input: AccountCall<DatasetPreviewInput>,
-): Promise<Job> {
-  throw new Error("NotImplementedError");
+export function submitDatasetPreview(_input: AccountCall<DatasetPreviewInput>): Promise<Job> {
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.POST("/api/datasets/creation-previews", {
+      body: _input.payload,
+      signal,
+    });
+    return required(response.data);
+  });
 }
 
 /**
@@ -79,24 +88,57 @@ export function submitDatasetPreview(
  * @sideEffects 一次 GET，只读已保存计划投影；不重新计算预览或写导航。
  * @timeSemantics 保留 created_at；使用 JOB_REQUEST_TIMEOUT_MS，确认前再读取，不自动轮询此接口。
  */
-export function getCreationPreview(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 保留完整调用契约；读取参数后移除此豁免。
-  _input: CreationPreviewCall,
-): Promise<CreationPreview> {
-  throw new Error("NotImplementedError");
+export function getCreationPreview(_input: CreationPreviewCall): Promise<CreationPreview> {
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.GET("/api/datasets/creation-previews/{preview_job_id}", {
+      params: { path: { preview_job_id: _input.previewJobId } },
+      signal,
+    });
+    const value = required(response.data);
+    // 客户端的可写类型会把固定二元组展开成数组，边界核对长度后恢复协议中的键值对。
+    return {
+      ...value,
+      report: {
+        ...value.report,
+        notices: value.report.notices.map((notice) => ({
+          ...notice,
+          objects: notice.objects.map(objectPair),
+        })),
+      },
+    };
+  });
 }
 
 /**
- * 确认同一份预览，提交写入或返回新增的排队提醒。
+ * 确认同一份预览，提交写入；新增排队提醒通过 409 返回。
  * @param _input - 生成的确认载荷，只含预览编号和用户已确认的排队编号。
- * @returns POST /api/datasets/creation-writes 的 200 结果；confirmation_required 时不跳转，否则跳转 job.job_id。
- * @throws Error 类型/过期/认证/请求失败交统一诊断；HTTP 409 与作业内冲突都要求重新预览。
+ * @returns POST /api/datasets/creation-writes 的 201 作业记录，按 job_id 跳转作业页。
+ * @throws Error 类型/过期/认证/请求失败交统一诊断；队列提醒 409 从 queued_job_id_N 诊断对象取编号，用户确认后带 acknowledged_queue_job_ids 重提；导航冲突需重新预览。
  * @sideEffects 一次 POST；用户重复点击在 Mutation pending 时禁用，不修改已保存预览。
  * @timeSemantics JOB_REQUEST_TIMEOUT_MS，不重试不确定的提交；worker 写锁内复核并异步执行。
  */
 export function confirmCreation(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 保留完整调用契约；读取参数后移除此豁免。
   _input: AccountCall<ConfirmCreationInput>,
 ): Promise<CreationSubmit> {
-  throw new Error("NotImplementedError");
+  return boundedRequest(_input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await _input.client.POST("/api/datasets/creation-writes", {
+      body: _input.payload,
+      signal,
+    });
+    return required(response.data);
+  });
+}
+
+function required<T>(value: T | undefined): T {
+  if (value === undefined || value === null)
+    throw new Error("请求失败", { cause: toFailureView(null) });
+  return value;
+}
+
+function objectPair(value: string[]): [string, string] {
+  const key = value[0],
+    item = value[1];
+  if (value.length !== 2 || key === undefined || item === undefined)
+    throw new Error("请求失败", { cause: toFailureView(null) });
+  return [key, item];
 }
