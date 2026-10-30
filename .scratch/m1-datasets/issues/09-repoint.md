@@ -1,6 +1,6 @@
 # 改指向
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：骨架关卡。理由：这张票新增改指向作业。它的前缀替换规则会改三种 JSON 里成千上万处路径，属于数据契约；还要在页面上接上第 07 张的撤回作业（3.0 第 1 条）。
 
@@ -98,3 +98,4 @@ Status: ready-for-agent
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。依据 12 的 1A（同日已决）和 M1 spec（同日 accepted）。Status 定为 `ready-for-agent`：第 07、08 张合并以后才能开票。一个作业改多个数据集（N2）和 NAS 部分写进"不做（等 12 的 1B）"。
+- 2026-10-30 03:39 开票（执行线，负责人授权）。第 08 张已合并（51ee830）。Status 改为 in-progress。负责人要求加快速度，写入底座和确认模式也都有现成的了，所以分级从"骨架关卡"改为"直做"，分两段交（后端检查点后做副本演练，再做前端）。派工 B（Codex gpt-6.1-sol high，新会话 `01a18c2d-4273-7c12-98e5-436f4d60fbc9`，提示 `assets/09-repoint/prompt-B.md`）。
