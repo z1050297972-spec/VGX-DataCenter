@@ -1197,6 +1197,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/datasets/{dataset_id}/editable-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Editable Fields
+         * @description 读取规范副本的编辑表单页。
+         *
+         *     Args:
+         *         context: 已认证数据集服务上下文。
+         *         dataset_id: 永久编号，不接受文件路径。
+         *         document: 三份基础 JSON 文件名。
+         *         offset: 非负条目偏移。
+         *         limit: 每页 1 至 FIELD_PAGE_LIMIT 个条目。
+         *
+         *     Returns:
+         *         HTTP 200，当前页字段及原字节哈希。
+         *
+         *     Raises:
+         *         InputError: 文件、规范入口或字段不可用，400；参数非法为 422。
+         *         AuthenticationError: 会话失效，401。
+         *         PasswordChangeRequiredError: 必须改密，403。
+         *         ExternalError: 导航或数据库读取失败，502。
+         *         ConflictError: 授权竞争，409。
+         *
+         *     Side Effects:
+         *         只读导航层和账号，不访问存储根或写操作日志。
+         *
+         *     Time Semantics:
+         *         单次读取不轮询；跨页通过原字节哈希识别变化。
+         */
+        get: operations["get_editable_fields"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/datasets/{dataset_id}/file": {
         parameters: {
             query?: never;
@@ -1812,6 +1855,91 @@ export interface paths {
          *         复用请求唯一 UTC 时刻；提交不等待 worker，不重试写请求。
          */
         post: operations["preview_data_origin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/navigation/fields/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Field Edits
+         * @description 提交编辑字段的只读预览作业。
+         *
+         *     Args:
+         *         context: 全局认证及同源检查通过的作业上下文。
+         *         body: 数据集编号及改动项，含表单原字节哈希，不接收操作者。
+         *
+         *     Returns:
+         *         HTTP 201，queued 的 nav_fields_preview；确认沿用 nav_write_apply。
+         *
+         *     Raises:
+         *         JobInputError: 参数、条数或 16 KiB 参数预算不合格，422。
+         *         AuthenticationError: 会话失效，401。
+         *         AuthorizationError: 非同源请求，403。
+         *         PasswordChangeRequiredError: 必须改密，403。
+         *         ConflictError: 提交事务竞争，409。
+         *         ExternalError: 提交服务或数据库失败，502。
+         *
+         *     Side Effects:
+         *         新增作业和提交日志；不读取文件、不写导航层。
+         *
+         *     Time Semantics:
+         *         使用请求唯一 UTC 时刻；不等待 worker 或重试。
+         */
+        post: operations["preview_field_edits"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/navigation/fields/previews/{job_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Field Edits
+         * @description 核对字段预览后确认提交；过期状态返回 409，要求重新预览。
+         *
+         *     Args:
+         *         context: 当前认证账号与作业服务。
+         *         datasets: 同一应用的数据集只读导航配置。
+         *         job_id: 1 至 2^63-1 的规范十进制文本。
+         *
+         *     Returns:
+         *         HTTP 201，queued 的 nav_write_apply；不表示已经写入。
+         *
+         *     Raises:
+         *         JobInputError: 编号不合格，422。
+         *         JobNotFoundError: 作业不存在，404。
+         *         InputError: 预览未成功、关联不符或过期，400。
+         *         ConflictError: 导航变化或提交竞争，409。
+         *         AuthenticationError: 会话失效，401。
+         *         AuthorizationError: 非同源，403。
+         *         PasswordChangeRequiredError: 必须改密，403。
+         *         ExternalError: 预览、导航或提交依赖失败，502。
+         *
+         *     Side Effects:
+         *         只读核对后新增写作业及提交日志；冲突不提交、不写导航。
+         *
+         *     Time Semantics:
+         *         使用请求 UTC 时刻，不等待 worker；写入时仍执行锁内复核。
+         */
+        post: operations["confirm_field_edits"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2952,6 +3080,66 @@ export interface components {
             value: components["schemas"]["DiagnosticText"];
         };
         DiagnosticText: string;
+        /** @enum {string} */
+        EditableDocument: "数据集信息.json" | "子任务.json" | "原始路径.json";
+        /**
+         * EditableField
+         * @description 表单中的一项可编辑值。
+         *
+         *     Attributes:
+         *         path: 与提交参数一致的 JSON 定位路径。
+         *         label: 中文标签，包含编号或任务身份。
+         *         value: 当前文本或多选值；缺省结构化字段显示为空。
+         *         multiple: 是否使用字符串多选输入。
+         */
+        EditableField: {
+            /** Label */
+            label: string;
+            /**
+             * Multiple
+             * @default false
+             */
+            multiple: boolean;
+            path: components["schemas"]["FieldPath-Output"];
+            value: components["schemas"]["FieldValue"];
+        };
+        /**
+         * EditableFieldsPage
+         * @description 规范副本编辑页；大数组只返回请求页。
+         *
+         *     Attributes:
+         *         dataset_id: 请求的永久编号。
+         *         entry_path: 唯一按任务入口的导航相对路径。
+         *         document: 本次读取的 JSON 文件名。
+         *         sha256: 本页所依据的完整文件原字节摘要。
+         *         offset: 条目起始位置，非负；信息文件只有一组。
+         *         limit: 每页条目数，1 至 FIELD_PAGE_LIMIT。
+         *         total: 完整条目数，信息文件为 1。
+         *         fields: 当前页的可编辑项，按文件原顺序。
+         *         original_robot_types: 原文件 robot_type 的索引参考值，去重排序；空表示未读到有效值。
+         */
+        EditableFieldsPage: {
+            /** Dataset Id */
+            dataset_id: string;
+            document: components["schemas"]["EditableDocument"];
+            /** Entry Path */
+            entry_path: string;
+            /** Fields */
+            fields: components["schemas"]["EditableField"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /**
+             * Original Robot Types
+             * @default []
+             */
+            original_robot_types: string[];
+            /** Sha256 */
+            sha256: string;
+            /** Total */
+            total: number;
+        };
         /**
          * EntrySummary
          * @description 跨视图定位及列表大小；路径只作导航标识，不能由浏览器直接打开存储根。
@@ -3022,6 +3210,40 @@ export interface components {
             /** File */
             file: string;
         };
+        /**
+         * FieldEdit
+         * @description 一项字段改动。
+         *
+         *     Attributes:
+         *         document: 三份基础 JSON 之一；来源使用现有专用流程。
+         *         expected_sha256: 表单读取的原字节摘要，防止预览覆盖填表期间的改动。
+         *         path: 字段路径，最多三层；不接受文件系统路径。
+         *         value: 新文本或字符串数组；空值表示清空，不表示删除键。
+         */
+        FieldEdit: {
+            document: components["schemas"]["EditableDocument"];
+            /** Expected Sha256 */
+            expected_sha256: string;
+            path: components["schemas"]["FieldPath-Input"];
+            value: components["schemas"]["FieldValue"];
+        };
+        /**
+         * FieldEditParameters
+         * @description 一个数据集的一批编辑，沿用通用预览和确认流水线。
+         *
+         *     Attributes:
+         *         dataset_id: 已分配的永久数据集编号。
+         *         changes: 1 至 MAX_FIELD_CHANGES 项；只发送改动项，不发送完整文档。
+         */
+        FieldEditParameters: {
+            /** Changes */
+            changes: components["schemas"]["FieldEdit"][];
+            /** Dataset Id */
+            dataset_id: string;
+        };
+        "FieldPath-Input": (string | number)[];
+        "FieldPath-Output": (string | number)[];
+        FieldValue: string | string[];
         /**
          * FileItem
          * @description 直接目录项；大小为字节，修改时刻为UTC，不把软链接当可直接预览的文件。
@@ -3597,11 +3819,12 @@ export interface components {
          *         CREATE_LINK: create_link，建链（M1-08，L1-L4）。
          *         CREATE_DATASET: create_dataset，新增数据集（M1-08，L5、L6）。
          *         REPOINT_DATASET: repoint_dataset，改指向（M1-09，L17-L19）。
+         *         EDIT_DATASET_FIELDS: edit_dataset_fields，编辑导航层字段（M1.5-02）。
          *         SET_DATA_ORIGIN: set_data_origin，数据来源标注（M1-10，只改来源.json）。
          *         REVERT_CHANGE: revert_change，撤回某个已完成作业（L16，本票）。
          * @enum {string}
          */
-        NavOperation: "create_link" | "create_dataset" | "repoint_dataset" | "set_data_origin" | "revert_change";
+        NavOperation: "create_link" | "create_dataset" | "repoint_dataset" | "edit_dataset_fields" | "set_data_origin" | "revert_change";
         /**
          * NavigationDocument
          * @description 导航文件原文；非UTF-8或不可读时content为空并附诊断，坏JSON文本仍可查看。
@@ -3784,7 +4007,7 @@ export interface components {
          * @description 稳定的操作码；新增操作用新增枚举值，不改历史值（第 8 张可增加作业操作）。
          * @enum {string}
          */
-        OperationType: "create_account" | "set_role" | "disable_account" | "enable_account" | "reset_password" | "reset_password_from_ops" | "delete_account" | "change_password" | "create_first_admin" | "set_retention" | "submit_job" | "cancel_job" | "rebuild_index" | "create_link" | "create_dataset" | "repoint_dataset" | "set_data_origin" | "revert_change" | "rollback_navigation_write" | "confirm_navigation_recovery";
+        OperationType: "create_account" | "set_role" | "disable_account" | "enable_account" | "reset_password" | "reset_password_from_ops" | "delete_account" | "change_password" | "create_first_admin" | "set_retention" | "submit_job" | "cancel_job" | "rebuild_index" | "create_link" | "create_dataset" | "repoint_dataset" | "edit_dataset_fields" | "set_data_origin" | "revert_change" | "rollback_navigation_write" | "confirm_navigation_recovery";
         /**
          * PanelGroup
          * @description 面板四组；存储相关两组由扫描第二段提供。
@@ -7259,6 +7482,113 @@ export interface operations {
             };
         };
     };
+    get_editable_fields: {
+        parameters: {
+            query: {
+                document: "数据集信息.json" | "子任务.json" | "原始路径.json";
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditableFieldsPage"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
     read_dataset_file: {
         parameters: {
             query: {
@@ -8747,6 +9077,214 @@ export interface operations {
                 "application/json": components["schemas"]["DataOriginParameters"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    preview_field_edits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FieldEditParameters"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    confirm_field_edits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             201: {

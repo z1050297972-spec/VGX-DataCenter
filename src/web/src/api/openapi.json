@@ -1895,6 +1895,102 @@
         "pattern": "\\S",
         "type": "string"
       },
+      "EditableDocument": {
+        "enum": [
+          "数据集信息.json",
+          "子任务.json",
+          "原始路径.json"
+        ],
+        "type": "string"
+      },
+      "EditableField": {
+        "additionalProperties": false,
+        "description": "表单中的一项可编辑值。\n\nAttributes:\n    path: 与提交参数一致的 JSON 定位路径。\n    label: 中文标签，包含编号或任务身份。\n    value: 当前文本或多选值；缺省结构化字段显示为空。\n    multiple: 是否使用字符串多选输入。",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "multiple": {
+            "default": false,
+            "title": "Multiple",
+            "type": "boolean"
+          },
+          "path": {
+            "$ref": "#/components/schemas/FieldPath-Output"
+          },
+          "value": {
+            "$ref": "#/components/schemas/FieldValue"
+          }
+        },
+        "required": [
+          "path",
+          "label",
+          "value"
+        ],
+        "title": "EditableField",
+        "type": "object"
+      },
+      "EditableFieldsPage": {
+        "additionalProperties": false,
+        "description": "规范副本编辑页；大数组只返回请求页。\n\nAttributes:\n    dataset_id: 请求的永久编号。\n    entry_path: 唯一按任务入口的导航相对路径。\n    document: 本次读取的 JSON 文件名。\n    sha256: 本页所依据的完整文件原字节摘要。\n    offset: 条目起始位置，非负；信息文件只有一组。\n    limit: 每页条目数，1 至 FIELD_PAGE_LIMIT。\n    total: 完整条目数，信息文件为 1。\n    fields: 当前页的可编辑项，按文件原顺序。\n    original_robot_types: 原文件 robot_type 的索引参考值，去重排序；空表示未读到有效值。",
+        "properties": {
+          "dataset_id": {
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "document": {
+            "$ref": "#/components/schemas/EditableDocument"
+          },
+          "entry_path": {
+            "title": "Entry Path",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/EditableField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "original_robot_types": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Original Robot Types",
+            "type": "array"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "entry_path",
+          "document",
+          "sha256",
+          "offset",
+          "limit",
+          "total",
+          "fields"
+        ],
+        "title": "EditableFieldsPage",
+        "type": "object"
+      },
       "EntrySummary": {
         "additionalProperties": false,
         "description": "跨视图定位及列表大小；路径只作导航标识，不能由浏览器直接打开存储根。",
@@ -2038,6 +2134,105 @@
         ],
         "title": "FieldChangeCount",
         "type": "object"
+      },
+      "FieldEdit": {
+        "additionalProperties": false,
+        "description": "一项字段改动。\n\nAttributes:\n    document: 三份基础 JSON 之一；来源使用现有专用流程。\n    expected_sha256: 表单读取的原字节摘要，防止预览覆盖填表期间的改动。\n    path: 字段路径，最多三层；不接受文件系统路径。\n    value: 新文本或字符串数组；空值表示清空，不表示删除键。",
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/EditableDocument"
+          },
+          "expected_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Sha256",
+            "type": "string"
+          },
+          "path": {
+            "$ref": "#/components/schemas/FieldPath-Input"
+          },
+          "value": {
+            "$ref": "#/components/schemas/FieldValue"
+          }
+        },
+        "required": [
+          "document",
+          "expected_sha256",
+          "path",
+          "value"
+        ],
+        "title": "FieldEdit",
+        "type": "object"
+      },
+      "FieldEditParameters": {
+        "additionalProperties": false,
+        "description": "一个数据集的一批编辑，沿用通用预览和确认流水线。\n\nAttributes:\n    dataset_id: 已分配的永久数据集编号。\n    changes: 1 至 MAX_FIELD_CHANGES 项；只发送改动项，不发送完整文档。",
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/FieldEdit"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Changes",
+            "type": "array"
+          },
+          "dataset_id": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^/\\\\\\s\\x00]+$",
+            "title": "Dataset Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "changes"
+        ],
+        "title": "FieldEditParameters",
+        "type": "object"
+      },
+      "FieldPath-Input": {
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          ]
+        },
+        "maxItems": 3,
+        "minItems": 1,
+        "type": "array"
+      },
+      "FieldPath-Output": {
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          ]
+        },
+        "type": "array"
+      },
+      "FieldValue": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        ]
       },
       "FileItem": {
         "description": "直接目录项；大小为字节，修改时刻为UTC，不把软链接当可直接预览的文件。",
@@ -3237,11 +3432,12 @@
         "type": "object"
       },
       "NavOperation": {
-        "description": "写导航层的操作种类，是预览、变更记录和操作日志共用的稳定码。\n\nAttributes:\n    CREATE_LINK: create_link，建链（M1-08，L1-L4）。\n    CREATE_DATASET: create_dataset，新增数据集（M1-08，L5、L6）。\n    REPOINT_DATASET: repoint_dataset，改指向（M1-09，L17-L19）。\n    SET_DATA_ORIGIN: set_data_origin，数据来源标注（M1-10，只改来源.json）。\n    REVERT_CHANGE: revert_change，撤回某个已完成作业（L16，本票）。",
+        "description": "写导航层的操作种类，是预览、变更记录和操作日志共用的稳定码。\n\nAttributes:\n    CREATE_LINK: create_link，建链（M1-08，L1-L4）。\n    CREATE_DATASET: create_dataset，新增数据集（M1-08，L5、L6）。\n    REPOINT_DATASET: repoint_dataset，改指向（M1-09，L17-L19）。\n    EDIT_DATASET_FIELDS: edit_dataset_fields，编辑导航层字段（M1.5-02）。\n    SET_DATA_ORIGIN: set_data_origin，数据来源标注（M1-10，只改来源.json）。\n    REVERT_CHANGE: revert_change，撤回某个已完成作业（L16，本票）。",
         "enum": [
           "create_link",
           "create_dataset",
           "repoint_dataset",
+          "edit_dataset_fields",
           "set_data_origin",
           "revert_change"
         ],
@@ -3605,6 +3801,7 @@
           "create_link",
           "create_dataset",
           "repoint_dataset",
+          "edit_dataset_fields",
           "set_data_origin",
           "revert_change",
           "rollback_navigation_write",
@@ -8804,6 +9001,174 @@
         ]
       }
     },
+    "/api/datasets/{dataset_id}/editable-fields": {
+      "get": {
+        "description": "读取规范副本的编辑表单页。\n\nArgs:\n    context: 已认证数据集服务上下文。\n    dataset_id: 永久编号，不接受文件路径。\n    document: 三份基础 JSON 文件名。\n    offset: 非负条目偏移。\n    limit: 每页 1 至 FIELD_PAGE_LIMIT 个条目。\n\nReturns:\n    HTTP 200，当前页字段及原字节哈希。\n\nRaises:\n    InputError: 文件、规范入口或字段不可用，400；参数非法为 422。\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    ExternalError: 导航或数据库读取失败，502。\n    ConflictError: 授权竞争，409。\n\nSide Effects:\n    只读导航层和账号，不访问存储根或写操作日志。\n\nTime Semantics:\n    单次读取不轮询；跨页通过原字节哈希识别变化。",
+        "operationId": "get_editable_fields",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^/\\\\\\s\\x00]+$",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "document",
+            "required": true,
+            "schema": {
+              "enum": [
+                "数据集信息.json",
+                "子任务.json",
+                "原始路径.json"
+              ],
+              "title": "Document",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditableFieldsPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Editable Fields",
+        "tags": [
+          "datasets"
+        ]
+      }
+    },
     "/api/datasets/{dataset_id}/file": {
       "get": {
         "description": "返回登记链接目标内普通文件的原字节。\n\nArgs:\n    request: 当前请求，读取应用级查看器。\n    account: 任意已登录且完成改密的账号。\n    dataset_id: 永久编号。\n    query: 单分量链接名和目标内相对文件路径。\n\nReturns:\n    200原字节或206单段Range，提供Content-Length、Accept-Ranges和Content-Range；\n    不可满足或不支持的Range返回416及bytes */总长。禁止缓存和MIME嗅探。\n\nRaises:\n    DatasetQueryError: 越界、非文件或太大，422。\n    DatasetNotFoundError: 数据集没有规范入口，404。\n    ExternalError: 离线或超时，502；认证失败沿用全局边界。\n    DefectError: 服务未正确装配，500。\n\nSide Effects:\n    只读文件，每块逐段安全打开并核对同一文件身份，不写存储。\n\nTime Semantics:\n    预检和每个1MiB块各受M0预算控制；首块失败仍返回502五段诊断。\n    响应开始后存储失败只能中止流，不能更改已发送状态码；无重试。",
@@ -10848,6 +11213,261 @@
         "summary": "Preview Data Origin",
         "tags": [
           "navigation"
+        ]
+      }
+    },
+    "/api/navigation/fields/preview": {
+      "post": {
+        "description": "提交编辑字段的只读预览作业。\n\nArgs:\n    context: 全局认证及同源检查通过的作业上下文。\n    body: 数据集编号及改动项，含表单原字节哈希，不接收操作者。\n\nReturns:\n    HTTP 201，queued 的 nav_fields_preview；确认沿用 nav_write_apply。\n\nRaises:\n    JobInputError: 参数、条数或 16 KiB 参数预算不合格，422。\n    AuthenticationError: 会话失效，401。\n    AuthorizationError: 非同源请求，403。\n    PasswordChangeRequiredError: 必须改密，403。\n    ConflictError: 提交事务竞争，409。\n    ExternalError: 提交服务或数据库失败，502。\n\nSide Effects:\n    新增作业和提交日志；不读取文件、不写导航层。\n\nTime Semantics:\n    使用请求唯一 UTC 时刻；不等待 worker 或重试。",
+        "operationId": "preview_field_edits",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldEditParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Preview Field Edits",
+        "tags": [
+          "datasets"
+        ]
+      }
+    },
+    "/api/navigation/fields/previews/{job_id}/apply": {
+      "post": {
+        "description": "核对字段预览后确认提交；过期状态返回 409，要求重新预览。\n\nArgs:\n    context: 当前认证账号与作业服务。\n    datasets: 同一应用的数据集只读导航配置。\n    job_id: 1 至 2^63-1 的规范十进制文本。\n\nReturns:\n    HTTP 201，queued 的 nav_write_apply；不表示已经写入。\n\nRaises:\n    JobInputError: 编号不合格，422。\n    JobNotFoundError: 作业不存在，404。\n    InputError: 预览未成功、关联不符或过期，400。\n    ConflictError: 导航变化或提交竞争，409。\n    AuthenticationError: 会话失效，401。\n    AuthorizationError: 非同源，403。\n    PasswordChangeRequiredError: 必须改密，403。\n    ExternalError: 预览、导航或提交依赖失败，502。\n\nSide Effects:\n    只读核对后新增写作业及提交日志；冲突不提交、不写导航。\n\nTime Semantics:\n    使用请求 UTC 时刻，不等待 worker；写入时仍执行锁内复核。",
+        "operationId": "confirm_field_edits",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Confirm Field Edits",
+        "tags": [
+          "datasets"
         ]
       }
     },

@@ -1,5 +1,5 @@
 // 作业页面契约（08）：Ant Design 与统一 DiagnosticCard；不直接 fetch、不计算后端结果。
-import { useState, type ReactElement } from "react";
+import { lazy, Suspense, useState, type ReactElement } from "react";
 import { Alert, Button, Select, Table, Typography, Progress, Form, Input } from "antd";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import type { Job, JobSearch, CountInput } from "../api/jobs";
@@ -15,6 +15,11 @@ import {
 } from "./queries";
 import type { JobTiming } from "./progress";
 import { jobStatusLabel, useJobTiming, isJobTerminal } from "./progress";
+
+// 撤回工具按需分块，避免通用作业页拉入编辑表单。
+const FieldUndo = lazy(async () => ({
+  default: (await import("../datasets/FieldUndo")).FieldUndo,
+}));
 
 const jobsRoute = getRouteApi("/jobs");
 
@@ -72,6 +77,11 @@ export function JobDetailPage(): ReactElement {
         </Link>
       )}
       <JobActions key={job.job_id} job={job} />
+      {job.type_name === "nav_write_apply" && (
+        <Suspense fallback={<p>正在加载撤回工具…</p>}>
+          <FieldUndo key={job.job_id} job={job} />
+        </Suspense>
+      )}
       <JobDiagnosticCard job={job} />
       <JobLogPanel job={job} />
     </section>
