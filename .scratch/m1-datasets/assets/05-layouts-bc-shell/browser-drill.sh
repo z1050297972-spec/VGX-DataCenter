@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# 第 04 张验收 1：临时状态目录、真实导航层和两块数据盘（只读），起 Web 和 worker，用无头浏览器走一遍布局 A。
+# 第 05 张演练（A、B、C 三种布局）：临时状态目录、真实导航层和两块数据盘（只读），起 Web 和 worker，用无头浏览器走一遍布局 A。
 set -uo pipefail
-WT=/home/shawn/桌面/robot-data-platform.wt/m1-04-browser-widgets-layout-a
-AS=/home/shawn/桌面/robot-data-platform/.scratch/m1-datasets/assets/04-browser-widgets-layout-a
+WT=/home/shawn/桌面/robot-data-platform.wt/m1-05-layouts-bc-shell
+AS=/home/shawn/桌面/robot-data-platform/.scratch/m1-datasets/assets/05-layouts-bc-shell
 FEED=/home/shawn/桌面/robot-data-platform/.scratch/m0-foundation/assets/11-ops-entry-systemd/feedpw.py
-D=$HOME/.cache/rdp-dispatch/m1-04/drill
+D=$HOME/.cache/rdp-dispatch/m1-05/drill
 REAL_HOME=$HOME; NODE=$REAL_HOME/.local/bin/node
 rm -rf "$D"; mkdir -p "$D/home/.config/rdp" "$AS/drill"
 export HOME=$D/home
 PY=$WT/.venv/bin/python
-B=http://127.0.0.1:8619
+B=http://127.0.0.1:8620
 cat > "$HOME/.config/rdp/config.toml" <<CFG
 nav_root = "/mnt/datasets"
 [web]
 host = "127.0.0.1"
-port = 8619
+port = 8620
 [jobs]
 gpus = []
 [[storage_roots]]

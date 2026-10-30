@@ -79,6 +79,31 @@ try {
   await p.wait("/^\\/jobs\\/\\d+$/.test(location.pathname)", 15000); const job = await p.ev("location.pathname"); log("重新检查 → 作业页", job);
   for (let i = 0; i < 60; i++) { const s = await p.ev(`fetch('/api${job}').then(r=>r.json()).then(d=>d.state)`); if (["completed","failed"].includes(s)) { log("作业状态", s); break; } await sleep(1000); }
   await sleep(1200); await p.shot("m104-7-rescan-job");
+  // —— 第 05 张：布局 B、C，外壳，偏好记忆 ——
+  const pick = async (name) => { const r = await p.ev(`(() => { const g = document.querySelector('[aria-label="布局切换"]'); if (!g) return 'no group'; const els = [...g.querySelectorAll('*')].filter(e => (e.innerText || '').trim() === '${name}'); if (!els.length) return 'no ' + JSON.stringify((g.innerText || '').slice(0, 80)); (els.find(e => e.tagName === 'LABEL') || els[els.length - 1]).click(); return 'ok'; })()`); if (r !== 'ok') throw new Error('布局切换失败：' + r); await sleep(1500); };
+  const ovf = async (tag) => log(`横向溢出 ${tag}：`, await p.ev("(() => { const d = document.documentElement; return JSON.stringify({ scrollWidth: d.scrollWidth, clientWidth: d.clientWidth }); })()"));
+  await p.go("/datasets"); await p.wait("!!document.querySelector('[aria-label=\"布局切换\"]')", 15000); await sleep(800);
+  log("主菜单：", await p.ev("!!document.querySelector('nav[aria-label=\"主菜单\"]')"));
+  await pick("布局 B"); await p.wait("!!document.querySelector('section[aria-label=\"树形表格\"]')", 15000); await sleep(800);
+  await ovf("布局 B"); await p.shot("m105-1-layout-b");
+  const bOpen = await p.ev("(() => { const b = [...document.querySelectorAll('section[aria-label=\"树形表格\"] [aria-label^=\"打开 \"]')]; if (!b.length) return 'none'; const l = b[0].getAttribute('aria-label'); b[0].click(); return l; })()");
+  await p.wait("!!document.querySelector('[role=dialog] section[aria-label=\"数据集详情\"]')", 15000); await sleep(1200); log("布局 B 抽屉打开：", bOpen); await p.shot("m105-2-layout-b-drawer");
+  await p.ev("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); true"); await sleep(800);
+  await p.go("/datasets"); await p.wait("!!document.querySelector('[aria-label=\"布局切换\"]')", 15000); await sleep(800);
+  await pick("布局 C"); await p.wait("!!document.querySelector('section[aria-label=\"目录分栏\"]')", 15000); await sleep(800);
+  await p.ev("(() => { const b = [...document.querySelectorAll('[aria-label^=\"进入 \"]')].find(x => x.getAttribute('aria-label') === '进入 按任务'); if (!b) throw new Error('no 进入 按任务'); b.click(); return true; })()"); await sleep(1200);
+  await p.ev("(() => { const b = [...document.querySelectorAll('[aria-label^=\"打开 \"]')].find(x => x.getAttribute('aria-label') === '打开 libero_10'); if (!b) throw new Error('no 打开 libero_10 in C'); b.click(); return true; })()");
+  await p.wait("!!document.querySelector('section[aria-label=\"文件预览\"] section[aria-label=\"数据集详情\"]') || document.body.innerText.includes('libero_10')", 15000); await sleep(1500);
+  await ovf("布局 C"); await p.shot("m105-3-layout-c");
+  log("C 根列按格式：", await p.ev("(() => { const b = [...document.querySelectorAll('[aria-label=\"进入 按格式\"]')][0]; return b ? b.innerText.replace(/\\s+/g,' ') : 'none'; })()"));
+  for (const name of ["按格式", "lerobot", "3.0"]) { await p.ev(`(() => { const b = [...document.querySelectorAll('[aria-label="进入 ${name}"]')].pop(); if (!b) throw new Error('no 进入 ${name}'); b.click(); return true; })()`); await sleep(1500); }
+  await p.ev("(() => { const b = [...document.querySelectorAll('[aria-label=\"打开 libero_10\"]')].pop(); if (!b) throw new Error('no 打开 libero_10 under 按格式'); b.click(); return true; })()"); await sleep(2000);
+  log("C 按格式路径打开：", decodeURIComponent(await p.ev("location.search"))); await p.shot("m105-3b-layout-c-format");
+  await p.go("/datasets"); await sleep(2500);
+  log("刷新后仍是布局 C：", await p.ev("!!document.querySelector('section[aria-label=\"目录分栏\"]')"));
+  await pick("布局 A"); await p.wait("!!document.querySelector('aside[aria-label=\"视图树\"]')", 15000); await sleep(800); await ovf("布局 A");
+  for (const path of ["/accounts", "/audit/operations", "/storage-roots"]) { await p.go(path); await sleep(2000); await ovf(path); }
+  await p.shot("m105-4-storage-roots");
   log("DRILL PASS");
 } catch (e) { log("DRILL FAIL:", e.message); process.exitCode = 1; }
 finally { chrome.kill("SIGKILL"); ws.close(); }
