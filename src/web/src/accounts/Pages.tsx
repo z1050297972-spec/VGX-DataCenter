@@ -1,7 +1,7 @@
 // 账号页面（06）：采用 antd 与 TanStack Router/Query；错误统一用 DiagnosticCard，秘密只在表单内存。
 import type { HealthClient } from "../api/client";
 import { VersionFooter } from "../VersionFooter";
-import { WorkerStatusBanner } from "../jobs/Pages";
+import { WorkerStatusBanner } from "../jobs/WorkerStatusBanner";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Card, Form, Input, Button, Typography, Alert, Table, Modal, Select, Space } from "antd";
@@ -504,6 +504,7 @@ export function AccountMenu(): ReactElement {
       <Link to="/change-password">修改口令</Link>
       <Link to="/jobs">作业</Link>
       <Link to="/scheduling">调度</Link>
+      <Link to="/datasets">数据集</Link>
       <Link to="/storage-roots">存储根</Link>
       {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
       {identity.data.role === "administrator" && (

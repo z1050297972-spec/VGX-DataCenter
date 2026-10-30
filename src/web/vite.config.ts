@@ -4,6 +4,28 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
+  // M1-04：路由动态导入后，React 和 Ant Design 仍被多个页面共同引用。
+  // UI 依赖作为整组保留：按大小切开 rc-util 会产生循环块并破坏 KeyCode 初始化顺序。
+  // 工单只限制主入口低于 500 kB，较大的 vendor 块保留构建警告，不提高全局阈值。
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: "react-runtime",
+              test: /node_modules\/(react|react-dom|scheduler)\//,
+              priority: 20,
+            },
+            {
+              name: "ui",
+              test: /node_modules\/(antd|@ant-design|@rc-component|rc-[^/]+)\//,
+            },
+          ],
+        },
+      },
+    },
+  },
   // 构建和测试缓存都放入已忽略的依赖目录，检查不能弄脏工作区。
   cacheDir: "node_modules/.vite",
   server: {
