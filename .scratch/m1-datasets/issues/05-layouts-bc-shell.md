@@ -1,6 +1,6 @@
 # 布局 B、C 与切换；页面外壳统一
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：直做。理由：这是页面。B、C 只是排布不同，部件全部复用第 04 张做好的（3.0 第 1 条）。
 
@@ -70,3 +70,4 @@ A、B、C 三种布局都能用，切换时不丢状态，换个浏览器登录�
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。Status 定为 `ready-for-agent`：第 04 张合并后才能开票，可以和第 06 张并行。
+- 2026-10-29 18:02 开票（执行线，负责人授权）。第 04 张已合并（0a4b195）。Status 改为 in-progress。直做，派给 Sonnet 子 agent。工作目录 `~/桌面/robot-data-platform.wt/m1-05-layouts-bc-shell`。浏览器演练脚本从第 04 张复制到 `assets/05-layouts-bc-shell/`，交回后改成走 B、C 两种布局。和第 07 张并行。
