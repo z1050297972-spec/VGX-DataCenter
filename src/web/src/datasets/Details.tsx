@@ -12,6 +12,7 @@ import { DatasetSizeSummary } from "./Sizes";
 import { DatasetInformation } from "./Information";
 import { DatasetLinks, DatasetSources } from "./Entries";
 import { useDatasetDetail } from "./queries";
+import { formatDateTime } from "../time";
 
 interface DetailProps {
   /** 当前相对入口路径。 */ entryPath: string;
@@ -77,8 +78,8 @@ function DetailContent({
       <Typography.Title level={3}>{detail.entry.name}</Typography.Title>
       <p>{detail.entry.dataset_id ?? "身份未知"}</p>
       <p>{detail.entry.entry_path}</p>
-      <p>索引时间：{new Date(detail.indexed_at).toLocaleString()}</p>
-      <p>本次读取：{new Date(detail.observed_at).toLocaleString()}</p>
+      <p>索引时间：{formatDateTime(detail.indexed_at)}</p>
+      <p>本次读取：{formatDateTime(detail.observed_at)}</p>
       <Card title="跨视图跳转">
         {detail.entries
           .filter((entry) => entry.entry_path !== detail.entry.entry_path)

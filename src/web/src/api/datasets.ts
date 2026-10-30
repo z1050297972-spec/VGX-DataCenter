@@ -9,6 +9,7 @@ export type DatasetTrees = components["schemas"]["DatasetTreesResponse"];
 export type DatasetFilters = components["schemas"]["DatasetFilterOptions"];
 export type DatasetDetail = components["schemas"]["DatasetDetailResponse"];
 export type DatasetPanel = components["schemas"]["DatasetPanelResponse"];
+export type DatasetLayout = components["schemas"]["LayoutResponse"]["layout"];
 export type DatasetQuery = NonNullable<operations["list_datasets"]["parameters"]["query"]>;
 /** 导航文件含约 14 MB 原文，单次请求最多等待 60 秒；重试必须由用户发起。 */
 export const DATASET_REQUEST_TIMEOUT_MS = 60_000;
@@ -174,5 +175,38 @@ export function sizeDataset(
       signal,
     });
     return required(result.data);
+  });
+}
+
+/**
+ * 读取当前账号上次选的数据集布局。
+ * @param input - 账号客户端与取消信号，payload 为 undefined；账号由会话决定，不能指定。
+ * @returns A、B 或 C；没有保存过时服务端给 A。
+ * @throws Error 传输失败、超时、取消、HTTP 错误或响应缺失，由页面降级为 A 并展示诊断。
+ * @sideEffects 发一次 GET /api/datasets/layout，服务端不创建记录。
+ * @timeSemantics 最多 DATASET_REQUEST_TIMEOUT_MS，无重试。
+ */
+export async function getDatasetLayout(input: AccountCall): Promise<DatasetLayout> {
+  return boundedRequest(input.signal, DATASET_REQUEST_TIMEOUT_MS, async (signal) => {
+    const result = await input.client.GET("/api/datasets/layout", { signal });
+    return required(result.data).layout;
+  });
+}
+
+/**
+ * 保存当前账号选择的数据集布局。
+ * @param input - 账号客户端、布局取值与取消信号；请求体只含 layout，不含账号编号。
+ * @returns 服务端已保存的布局。
+ * @throws Error 传输失败、超时、取消、422 或其他 HTTP 错误；失败时旧偏好保持不变。
+ * @sideEffects 发一次 PUT /api/datasets/layout，只改当前账号的偏好行。
+ * @timeSemantics 最多 DATASET_REQUEST_TIMEOUT_MS，不重试；多次保存以最后一次到达服务端的为准。
+ */
+export async function setDatasetLayout(input: AccountCall<DatasetLayout>): Promise<DatasetLayout> {
+  return boundedRequest(input.signal, DATASET_REQUEST_TIMEOUT_MS, async (signal) => {
+    const result = await input.client.PUT("/api/datasets/layout", {
+      body: { layout: input.payload },
+      signal,
+    });
+    return required(result.data).layout;
   });
 }

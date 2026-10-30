@@ -1,4 +1,5 @@
 // 工单 05 详情请求与回调契约测试；传输注入内存替身，不发真实请求。
+import { formatDateTime } from "../time";
 import { it, expect, vi, afterEach } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 import { createElement } from "react";
@@ -273,13 +274,12 @@ it("验证契约：不同客户端/编号查询隔离，结束后不长期缓存
   expect(cache.getQueryCache().getAll()).toHaveLength(0);
 });
 it("验证契约：返回纯文本包含本地时间和时区、类别、摘要、来源编号，report 段逐字不变", async () => {
-  vi.spyOn(Date.prototype, "toLocaleString").mockReturnValue("2026 本地时间 UTC");
   const transport = vi.fn<FetchImplementation>().mockResolvedValue(Response.json(details()));
   const value = await createErrorDetailsLoader(createHealthClient(transport), queryClient())(
     id,
     new AbortController().signal,
   );
-  expect(value).toContain("发生时间：2026 本地时间 UTC");
+  expect(value).toContain(`发生时间：${formatDateTime(details().occurred_at)}`);
   expect(value).toContain("类别：defect");
   expect(value).toContain("摘要：安全摘要");
   expect(value).toContain("来源：request " + id);

@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { Card, Typography } from "antd";
 import type { DatasetPanel } from "../api/datasets";
 import { DiagnosticEntries } from "../DiagnosticCard";
+import { formatDateTime } from "../time";
 
 const GROUP_LABELS = {
   json: "JSON 本身",
@@ -28,7 +29,7 @@ export function ConsistencyPanel(props: {
     <section aria-label="一致性面板">
       <p>
         扫描时间：
-        {props.data.indexed_at ? new Date(props.data.indexed_at).toLocaleString() : "未扫描"}
+        {props.data.indexed_at ? formatDateTime(props.data.indexed_at) : "未扫描"}
       </p>
       {Object.entries(GROUP_LABELS).map(([group, label]) => (
         <section key={group}>

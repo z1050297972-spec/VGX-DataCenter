@@ -1,10 +1,14 @@
 // 数据集查询状态（M1-04）；使用现有 Query 的取消与账号生命周期，不维护第二套缓存。
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import {
   DATASET_STALE_TIME_MS,
   DATASET_GC_TIME_MS,
+  getDatasetLayout,
   getDatasetPanel,
+  setDatasetLayout,
+  type DatasetLayout,
   getDatasetDetail,
   getDatasetFilters,
   getDatasetTrees,
@@ -34,7 +38,7 @@ export function useDatasetBrowser(filters: DatasetQuery) {
     robot_model_id: filters.robot_model_id,
     data_origin: filters.data_origin,
     fps: filters.fps,
-    entry_path: filters.entry_path,
+    // 不传 entry_path：目录选择只筛列表。树若按目录收窄，另一个视图和上级目录的数量会变成 0，无法再走回去。
   };
   return {
     panel: useQuery({
@@ -80,4 +84,43 @@ export function useDatasetDetail(entryPath: string) {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+}
+
+/** 读取失败或尚未读到时使用的布局，与服务端“无偏好行”时的返回一致。 */
+export const DEFAULT_DATASET_LAYOUT: DatasetLayout = "A";
+
+/**
+ * 读取并保存当前账号的数据集布局偏好。
+ * @returns layout 当前应显示的布局；pending 表示尚未读到偏好；loadError、saveError 分别是读取和保存的失败；choose 切换并保存。
+ * @throws Error 缺少账号 Provider；请求错误保留在 loadError、saveError，不抛出。
+ * @sideEffects 挂载时 GET 一次；choose 立即切换显示并 PUT 保存，保存失败不回退本次选择。
+ * @timeSemantics 读取立即失效、离页清除，不轮询、不重试；会话内本地选择优先于已读到的值，避免保存往返期间界面跳回；保存请求不随卸载取消，页面离开后仍会到达服务端。
+ */
+export function useDatasetLayout() {
+  const client = useAccountClient();
+  const identity = useCurrentAccount();
+  const [chosen, setChosen] = useState<DatasetLayout | undefined>(undefined);
+  const load = useQuery({
+    queryKey: ["datasets", identity.data?.account_id, "layout"],
+    queryFn: ({ signal }) => getDatasetLayout({ client, payload: undefined, signal }),
+    retry: false,
+    staleTime: DATASET_STALE_TIME_MS,
+    gcTime: DATASET_GC_TIME_MS,
+    refetchOnWindowFocus: false,
+  });
+  const save = useMutation({
+    mutationFn: (layout: DatasetLayout) =>
+      setDatasetLayout({ client, payload: layout, signal: new AbortController().signal }),
+    retry: false,
+  });
+  return {
+    layout: chosen ?? load.data ?? DEFAULT_DATASET_LAYOUT,
+    pending: chosen === undefined && load.isPending,
+    loadError: chosen === undefined ? load.error : null,
+    saveError: save.error,
+    choose: (layout: DatasetLayout) => {
+      setChosen(layout);
+      save.mutate(layout);
+    },
+  };
 }

@@ -6,6 +6,7 @@ import type { components } from "./schema";
 import type { DiagnosticCardProps } from "../DiagnosticCard";
 import apiSchema from "./openapi.json";
 import { toFailureView } from "./problems";
+import { formatDateTime } from "../time";
 
 /** 报错详情结构只引用 OpenAPI；编号包含请求 uuid4 hex 或作业规范整数文本。 */
 export type ErrorDetails = components["schemas"]["ErrorRecord"];
@@ -160,8 +161,6 @@ const clientKeys = new WeakMap<HealthClient, number>();
 let nextClientKey = 0;
 
 function detailsText(details: ErrorDetails): string {
-  const localTime = new Date(details.occurred_at).toLocaleString(undefined, {
-    timeZoneName: "short",
-  });
+  const localTime = formatDateTime(details.occurred_at);
   return `发生时间：${localTime}\n类别：${details.category}\n摘要：${details.summary}\n来源：${details.source_kind} ${details.error_id}\n\n${details.report}`;
 }

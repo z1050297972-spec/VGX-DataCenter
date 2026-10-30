@@ -1,27 +1,27 @@
-// 数据集布局 A（M1-04）：装配共享部件，不承担索引计算或导航层写入。
+// 数据集页面（M1-04、M1-05）：装配共用状态与部件，在布局 A、B、C 之间切换；不承担索引计算或导航层写入。
 import type { ReactElement } from "react";
 import { getRouteApi } from "@tanstack/react-router";
-import { Alert, Button, Tabs, Typography } from "antd";
+import { Alert, Button, Segmented, Typography } from "antd";
 import { DATASET_PAGE_SIZE } from "../api/datasets";
 import { DiagnosticCard } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
 import { StorageWarnings } from "./StorageWarnings";
-import { ConsistencyPanel } from "./Consistency";
-import { DatasetDetails } from "./Details";
-import { DatasetFilterBar } from "./Filters";
-import { useDatasetBrowser } from "./queries";
-import { DatasetTree, DatasetListTable } from "./BrowserParts";
+import { useDatasetBrowser, useDatasetLayout } from "./queries";
+import { BrowserFilters } from "./browserState";
+import { LayoutA } from "./LayoutA";
+import { LayoutB } from "./LayoutB";
+import { LayoutC } from "./LayoutC";
+import type { DatasetLayout } from "../api/datasets";
 import "./browser.css";
 
 const route = getRouteApi("/datasets");
-type BrowserQuery = ReturnType<typeof useDatasetBrowser>;
 
 /**
- * 显示登录账号的数据集视图树、筛选、列表、详情和一致性面板。
- * @returns 三栏布局 A；非法 URL 显示可修正提示，不发数据请求。
+ * 显示登录账号的数据集浏览页：筛选、布局切换，以及布局 A、B 或 C。
+ * @returns 账号上次选的布局（读不到时为 A）；非法 URL 显示可修正提示，不发数据请求。
  * @throws 无；HTTP 错误通过 DiagnosticCard 展示。
- * @sideEffects 经共用查询读取索引及所选入口，所有筛选、选中入口、页签写入 URL。
- * @timeSemantics 索引读取不轮询；离页取消请求，大小沿用服务端统计时刻。
+ * @sideEffects 经共用查询读取索引及所选入口；筛选、选中入口、视图、面板写入 URL；切换布局向 /api/datasets/layout 保存。
+ * @timeSemantics 索引读取不轮询；离页取消请求，大小沿用服务端统计时刻；切换布局不重新请求索引。
  */
 export function DatasetsPage(): ReactElement {
   const search = route.useSearch();
@@ -44,9 +44,10 @@ export function DatasetsPage(): ReactElement {
 }
 
 // 列表、树、面板各自保留错误，单个请求失败不能遮住其他可用内容。
+// 查询放在这一层，切换布局只换排布，不重新请求，也不丢 URL 里的筛选和选中项。
 function BrowserContent(): ReactElement {
   const search = route.useSearch();
-  const navigate = route.useNavigate();
+  const layout = useDatasetLayout();
   const query = useDatasetBrowser({
     robot_type: search.robot_type,
     robot_model_id: search.robot_model_id,
@@ -60,144 +61,51 @@ function BrowserContent(): ReactElement {
     <section>
       <Typography.Title level={2}>数据集浏览</Typography.Title>
       {query.panel.data && <StorageWarnings roots={query.panel.data.storage_roots} />}
-      <Button
-        onClick={() => {
-          void navigate({ search: { ...search, panel: !search.panel } });
-        }}
-      >
-        {search.panel ? "返回数据集" : "一致性面板"}
-      </Button>
-      <BrowserFilters query={query} />
-      {query.panel.error && <DiagnosticCard failure={toFailureView(query.panel.error)} />}
-      {search.panel ? (
-        <BrowserPanel query={query} />
+      {layout.loadError && (
+        <>
+          <Alert
+            type="warning"
+            title="布局偏好未能读取"
+            description="已使用布局 A，可手动选择其他布局。"
+          />
+          <DiagnosticCard failure={toFailureView(layout.loadError)} />
+        </>
+      )}
+      {layout.saveError && (
+        <>
+          <Alert
+            type="warning"
+            title="布局偏好未能保存"
+            description="本次会话仍使用所选布局，下次登录可能恢复为之前保存的布局。"
+          />
+          <DiagnosticCard failure={toFailureView(layout.saveError)} />
+        </>
+      )}
+      {layout.pending ? (
+        <p role="status">正在读取布局偏好</p>
       ) : (
-        <div className="dataset-layout-a">
-          <BrowserTree query={query} />
-          <main>
-            <BrowserMain query={query} />
-          </main>
-          <aside>按任务入口代表完整数据集，按格式入口代表对应格式下可使用的部分。</aside>
-        </div>
+        <>
+          <Segmented<DatasetLayout>
+            aria-label="布局切换"
+            name="dataset-layout"
+            value={layout.layout}
+            onChange={layout.choose}
+            options={[
+              { value: "A", label: "布局 A" },
+              { value: "B", label: "布局 B" },
+              { value: "C", label: "布局 C" },
+            ]}
+          />
+          <BrowserFilters query={query} />
+          {layout.layout === "B" ? (
+            <LayoutB query={query} />
+          ) : layout.layout === "C" ? (
+            <LayoutC query={query} />
+          ) : (
+            <LayoutA query={query} />
+          )}
+        </>
       )}
     </section>
-  );
-}
-
-// 全局候选不随当前筛选缩小，避免用户无法解除或更换筛选。
-function BrowserFilters({ query }: { query: BrowserQuery }): ReactElement {
-  const search = route.useSearch();
-  const navigate = route.useNavigate();
-  return (
-    <>
-      {query.filters.error && <DiagnosticCard failure={toFailureView(query.filters.error)} />}
-      {query.filters.data && (
-        <DatasetFilterBar
-          options={query.filters.data}
-          search={search}
-          onChange={(next) => {
-            void navigate({ search: next });
-          }}
-        />
-      )}
-    </>
-  );
-}
-
-// 面板只显示最近索引发现；不能把加载中或失败伪装成无问题。
-function BrowserPanel({ query }: { query: BrowserQuery }): ReactElement {
-  return (
-    <>
-      {query.panel.isPending && <p role="status">正在加载面板</p>}
-      {query.panel.data && <ConsistencyPanel data={query.panel.data} />}
-    </>
-  );
-}
-
-// 节点路径是导航标识；目录选择只筛列表，叶节点选择打开现场详情。
-function BrowserTree({ query }: { query: BrowserQuery }): ReactElement {
-  const search = route.useSearch();
-  const navigate = route.useNavigate();
-  return (
-    <aside aria-label="视图树">
-      <Tabs
-        activeKey={search.tree_view ?? "format"}
-        onChange={(value) => {
-          void navigate({
-            search: {
-              ...search,
-              tree_view: value === "task" ? "task" : "format",
-              entry_path: undefined,
-              offset: undefined,
-            },
-          });
-        }}
-        items={[
-          { key: "format", label: "按格式" },
-          { key: "task", label: "按任务" },
-        ]}
-      />
-      {query.trees.error && <DiagnosticCard failure={toFailureView(query.trees.error)} />}
-      {query.trees.data && (
-        <DatasetTree
-          data={query.trees.data}
-          view={search.tree_view ?? "format"}
-          selected={search.selected ?? search.entry_path ?? undefined}
-          onSelect={(path) => {
-            const node = query.trees.data?.nodes.find((item) => item.path === path);
-            if (node?.entry_path)
-              void navigate({ search: { ...search, selected: node.entry_path } });
-            else
-              void navigate({
-                search: { ...search, selected: undefined, entry_path: path, offset: undefined },
-              });
-          }}
-        />
-      )}
-    </aside>
-  );
-}
-
-// 连续详情替换列表，与确认原型 A 一致；返回和跨视图不丢失筛选。
-function BrowserMain({ query }: { query: BrowserQuery }): ReactElement {
-  const search = route.useSearch();
-  const navigate = route.useNavigate();
-  if (search.selected)
-    return (
-      <DatasetDetails
-        key={search.selected}
-        entryPath={search.selected}
-        onClose={() => {
-          void navigate({ search: { ...search, selected: undefined } });
-        }}
-        onJump={(entry) => {
-          void navigate({
-            search: {
-              ...search,
-              selected: entry.entry_path,
-              tree_view: entry.view,
-              entry_path: undefined,
-              offset: undefined,
-            },
-          });
-        }}
-      />
-    );
-  return (
-    <>
-      {query.list.error && <DiagnosticCard failure={toFailureView(query.list.error)} />}
-      {query.list.isPending && <p role="status">正在加载数据集</p>}
-      {query.list.data && (
-        <DatasetListTable
-          data={query.list.data}
-          onOpen={(selected) => {
-            void navigate({ search: { ...search, selected } });
-          }}
-          onPage={(offset) => {
-            void navigate({ search: { ...search, offset } });
-          }}
-        />
-      )}
-    </>
   );
 }

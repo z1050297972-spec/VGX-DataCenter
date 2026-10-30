@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { Card } from "antd";
 import type { DatasetDetail } from "../api/datasets";
 import { exactBytes, formatBytes } from "./formatBytes";
+import { formatDateTime } from "../time";
 interface Props {
   /** 按任务入口的数据集大小快照，单位字节。 */ size: DatasetDetail["dataset_size"];
 }
@@ -23,7 +24,7 @@ export function DatasetSizeSummary(props: Props): ReactElement {
       </p>
       <p>
         统计时间：
-        {size.size_checked_at ? new Date(size.size_checked_at).toLocaleString() : "未统计"}
+        {size.size_checked_at ? formatDateTime(size.size_checked_at) : "未统计"}
       </p>
       <p title={exactBytes(size.recorded_size_bytes)}>
         10-12 记录：

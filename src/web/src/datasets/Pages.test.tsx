@@ -12,7 +12,8 @@ describe("数据集布局 A", () => {
     try {
       fireEvent.click(await screen.findByRole("link", { name: "数据集" }));
       expect(await screen.findByRole("heading", { name: "数据集浏览" })).toBeTruthy();
-      expect(screen.getByRole("tab", { name: "按格式" })).toBeTruthy();
+      // 先读布局偏好再画布局，页面标题出现时树还没出现。
+      expect(await screen.findByRole("tab", { name: "按格式" })).toBeTruthy();
       expect(screen.getByRole("tab", { name: "按任务" })).toBeTruthy();
       expect(await screen.findByText("共 2 个数据集")).toBeTruthy();
       expect(screen.getByRole("button", { name: "打开 libero_10" })).toBeTruthy();
