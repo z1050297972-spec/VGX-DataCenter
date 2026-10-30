@@ -245,7 +245,7 @@ def production_registry(
 
     Returns:
         新 JobRegistry：示例、维护、数据集扫描与统计，以及 nav_write_apply、
-        nav_revert_preview、两个创建预览和 nav_data_origin_preview；扫描与预览为 restart，
+        nav_revert_preview、两个创建预览、nav_data_origin_preview 和 nav_repoint_preview；扫描与预览为 restart，
         执行能力由入口显式注入。
         三个示例为 interrupt，两个清除为 restart；只有 example_gpu 需要 GPU，各类默认并发 1。
 
@@ -266,6 +266,7 @@ def production_registry(
     from rdp.jobs.navwrite.create_jobs import build_creation_definitions
     from rdp.jobs.navwrite.jobs import build_navwrite_definitions
     from rdp.jobs.navwrite.origin import build_data_origin_definition
+    from rdp.jobs.navwrite.repoint_jobs import build_repoint_definition
     from rdp.jobs.resource_examples import (
         GpuExampleParameters,
         NavigationExampleParameters,
@@ -319,6 +320,7 @@ def production_registry(
     ):
         registry.register(definition)
     registry.register(build_data_origin_definition(nav_write_dependencies))
+    registry.register(build_repoint_definition(nav_write_dependencies))
     return registry
 
 

@@ -32,6 +32,7 @@ const SubmitResourceJobsPage = lazyRouteComponent(
   "SubmitResourceJobsPage",
 );
 const JobsPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobsPage");
+const RevertPage = lazyRouteComponent(() => import("./navwrites/Revert"), "RevertPage");
 const JobDetailPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobDetailPage");
 const SubmitCountJobPage = lazyRouteComponent(() => import("./jobs/Pages"), "SubmitCountJobPage");
 import type { JobSearch } from "./api/jobs";
@@ -144,6 +145,11 @@ export function createAppRouter(options: AppRouterOptions) {
     path: "/jobs/$jobId",
     component: JobDetailPage,
   });
+  const revertJob = createRoute({
+    getParentRoute: () => root,
+    path: "/jobs/$jobId/revert",
+    component: RevertPage,
+  });
   const submitCount = createRoute({
     getParentRoute: () => root,
     path: "/jobs/new",
@@ -197,6 +203,7 @@ export function createAppRouter(options: AppRouterOptions) {
       loginLogs,
       jobs,
       jobDetail,
+      revertJob,
       submitCount,
       scheduling,
       resources,

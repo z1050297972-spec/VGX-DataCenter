@@ -2,8 +2,12 @@
 
 from typing import Final
 
+from rdp.jobs.datasets.catalog import MAX_SCAN_ENTRIES, REQUIRED_DOCUMENTS
+
 # Web 提交和 worker 登记共用的写入类型键；参数只引用持久预览。
 NAV_APPLY_TYPE: Final = "nav_write_apply"
+# Web 与 worker 共用撤回预览键，Web 不导入 worker 作业入口模块。
+NAV_REVERT_PREVIEW_TYPE: Final = "nav_revert_preview"
 
 # 状态目录下三个子目录名；ADR 0009 与运维手册 4.4 的固定名字，不可由配置改写。
 NAV_JOURNAL_DIRNAME: Final = "nav-journal"
@@ -32,6 +36,9 @@ CHANGE_INLINE_MAX_BYTES: Final = 1024 * 1024
 MARKER_ITEM_SAMPLE_LIMIT: Final = 200
 # 预览报告里"每一处单独列出"的 Markdown/notes 替换项上限；总数始终完整（规范 6.6）。
 PREVIEW_LISTED_CHANGE_LIMIT: Final = 500
+# M1-09 全量正文差异预算，单位处：三份 JSON 乘以既有扫描条目预算。
+# 超限整批拒绝，不让“每处展示”悄悄降级为样例；通用500条样例字段含义不变。
+REPOINT_LISTED_CHANGE_LIMIT: Final = len(REQUIRED_DOCUMENTS) * MAX_SCAN_ENTRIES
 # 操作日志明细里最多列出的数据集编号（AuditValues 限长）；更多的只记个数。
 AUDIT_DATASET_ID_LIMIT: Final = 20
 
