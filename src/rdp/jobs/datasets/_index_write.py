@@ -137,7 +137,7 @@ def _dataset(session: Session, item: DatasetObservation, scan_id: int) -> None:
             canonical_entry_path=str(selected.location.path) if selected else None,
             scan_id=scan_id,
             fingerprint=item.fingerprint.model_dump(mode="json"),
-            data_origin="unknown",
+            data_origin=selected.data_origin if selected else "unknown",
             recorded_size_bytes=selected.recorded_size_bytes if selected else None,
             size_bytes=old.size_bytes if old and same else None,
             size_checked_at=old.size_checked_at if old and same else None,

@@ -131,6 +131,7 @@ export const filters: Schema["DatasetFilterOptions"] = {
   data_origins: [{ value: "unknown", label: "未知", count: 2 }],
 };
 export const detail: Schema["DatasetDetailResponse"] = {
+  provenance: { state: "absent", data_origin: "未知", data_origin_set_by: null },
   entry: taskEntry,
   entries: [taskEntry, formatEntry],
   canonical_entry_path: taskEntry.entry_path,

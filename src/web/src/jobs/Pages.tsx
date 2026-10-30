@@ -15,7 +15,6 @@ import {
 } from "./queries";
 import type { JobTiming } from "./progress";
 import { jobStatusLabel, useJobTiming, isJobTerminal } from "./progress";
-import { useDatasetWriteRefresh } from "../datasets/useDatasetWriteRefresh";
 
 const jobsRoute = getRouteApi("/jobs");
 
@@ -54,7 +53,6 @@ export function JobDetailPage(): ReactElement {
   const { jobId } = getRouteApi("/jobs/$jobId").useParams();
   const query = useJob(jobId);
   const timing = useJobTiming(query.data);
-  useDatasetWriteRefresh(query.data);
   if (query.isError) return <DiagnosticCard failure={toFailureView(query.error)} />;
   if (!query.data) return <Typography.Text>正在读取作业…</Typography.Text>;
   const job = query.data;

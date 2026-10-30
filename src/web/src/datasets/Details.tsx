@@ -9,6 +9,7 @@ import { toFailureView } from "../api/problems";
 import { NavigationDocumentViewer } from "./Documents";
 import { SubtasksViewer } from "./Subtasks";
 import { DatasetSizeSummary } from "./Sizes";
+import { DataOriginEditor } from "./DataOrigin";
 import { DatasetInformation } from "./Information";
 import { DatasetLinks, DatasetSources } from "./Entries";
 import { CreateLinkEntry } from "./CreationEntries";
@@ -97,6 +98,9 @@ function DetailContent({
             </Button>
           ))}
       </Card>
+      {detail.entry.dataset_id && (
+        <DataOriginEditor datasetId={detail.entry.dataset_id} provenance={detail.provenance} />
+      )}
       <DatasetSizeSummary size={detail.dataset_size} />
       <Button
         disabled={!detail.entry.dataset_id || rescan.isPending}

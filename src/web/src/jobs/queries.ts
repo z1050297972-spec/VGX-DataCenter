@@ -1,6 +1,7 @@
 // 作业 Query 契约（08）；缓存按身份清理，所有请求由 useAccountClient 的统一传输发出。
 import { useQuery, type UseMutationResult, type UseQueryResult } from "@tanstack/react-query";
 import { useJobAction } from "./_actions";
+import { useDatasetWriteRefresh } from "../datasets/useDatasetWriteRefresh";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import {
   submitCountJob,
@@ -42,12 +43,12 @@ export function useJobs(_search: JobSearch): UseQueryResult<JobList> {
  * @param _jobId - 规范正整数编号文本，作为 Query key，不转换成 Number。
  * @returns Job 查询状态；cancelling 仍轮询，终态保留最后记录。
  * @throws Error Provider 缺失；服务器错误由 error 返回。
- * @sideEffects getJob 请求；页面另用 useJobTiming 维护有界十秒样本，不在Query结果中隐藏另一份采样状态。
+ * @sideEffects getJob 请求；页面另用 useJobTiming 维护有界十秒样本；导航写入作业终态使 datasets 缓存失效，刷新详情、列表、树及筛选计数，并刷新作业列表。
  * @timeSemantics 每秒一次，终态 refetchInterval=false，聚焦只在进行中刷新，无自动重试。
  */
 export function useJob(_jobId: string): UseQueryResult<Job> {
   const client = useAccountClient();
-  return useQuery({
+  const query = useQuery({
     queryKey: ["jobs", "detail", _jobId],
     queryFn: ({ signal }) => getJob({ client, jobId: _jobId, payload: undefined, signal }),
     retry: false,
@@ -57,6 +58,9 @@ export function useJob(_jobId: string): UseQueryResult<Job> {
       query.state.data && isJobTerminal(query.state.data) ? false : JOB_POLL_INTERVAL_MS,
     refetchOnWindowFocus: (query) => !query.state.data || !isJobTerminal(query.state.data),
   });
+  // 第 08、10 张共用同一终态刷新入口；失败或中断也可能已经提交导航变更。
+  useDatasetWriteRefresh(query.data);
+  return query;
 }
 
 /**

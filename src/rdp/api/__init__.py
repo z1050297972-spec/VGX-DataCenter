@@ -24,6 +24,7 @@ from rdp.api._asgi import Send as _Send
 from rdp.api.account_auth import install_account_security
 from rdp.api.accounts import router as accounts_router
 from rdp.api.audit import router as audit_router
+from rdp.api.data_origin import router as data_origin_router
 from rdp.api.database import configure_database
 from rdp.api.datasets import router as datasets_router
 from rdp.api.datasets.creation import router as dataset_creation_router
@@ -236,6 +237,7 @@ def create_app(
     app.include_router(worker_router)
     # M1-07：导航层恢复失败标记；读全员、确认仅管理员，只碰数据库和状态目录。
     app.include_router(navigation_router)
+    app.include_router(data_origin_router)
     configure_version(
         app, version=platform_version if platform_version is not None else "未知 (未知)"
     )

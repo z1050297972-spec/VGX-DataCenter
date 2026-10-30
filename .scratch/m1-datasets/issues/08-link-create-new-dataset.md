@@ -1,6 +1,6 @@
 # 建链与新增数据集
 
-Status: needs-info
+Status: in-progress
 
 分级：骨架关卡。理由：新增两种写导航层的作业，以及它们给前端用的接口契约（3.0 第 1 条"跨模块接口"）。spec 原来预计"后端骨架关卡，前端页面拆成直做票并行"，这里没有拆票：前端页面在契约提交以后，作为同一张票的第二个派工并行做，占一个并行名额（3.0 第 1 条"票可以开得大一些"）。要拆的话见「待负责人确认」第 3 条。
 
@@ -111,3 +111,7 @@ Status: needs-info
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。依据 12 的 1A（同日已决）和 M1 spec（同日 accepted）。Status 定为 `needs-info`：「待负责人确认」第 1、2 条是 1A 和 spec 都没覆盖的缺口，定了以后改成 `ready-for-agent`；开票还要等第 07 张合并。
+- 2026-10-30 00:15 执行线按负责人授权定下"待负责人确认"三条，全部按建议：(1) 数据集名和链接名用同一套规则（不含 `/`、不以 `.` 开头），并且不能和 `按任务/` 下已有入口重名；(2) 有 `meta/info.json` 就用它的 format/version；没有的（mcap、tar 类），由提交人在预览里从格式目录登记表里选格式，version 写 null；(3) 前端不拆票，本票分两次派工。Status 改为 in-progress。实现改用 Codex gpt-6.1-sol（high）。和第 10 张并行，第 09 张等本票合并后再开。
+- 2026-10-30 00:16 派工 A（Codex gpt-6.1-sol high，新会话 `01a18b73-1cd9-71f2-80b3-d79c90592840`，提示 `assets/08-link-create-new-dataset/prompt-A.md`）。
+- 2026-10-30 01:01 骨架交回：5 个接口挂在 /api/datasets 下（creation-options、link-previews、creation-previews、读预览、creation-writes），65 项后端加 20 项前端的跳过测试，日志审计 0 条。执行线按负责人授权过关卡：接口、预览结构（report.creation 列出文件、目录、链接、格式入口、数据块、dataset_roots、格式和版本的来源，不返回计划正文）、两种计划的步骤、名称规则（空名、NUL、`/`、`.` 开头、四份 JSON 的保留名都拒绝，数据集名另外查重）、页面流程，全部接受；`PlanReport.creation`（只加不改）批准。改一处：确认写入接口不用"都返回 200、job 可能是 null"的双分支，改成有新排队的写作业而请求里没确认时返回 409，五段诊断里列出这些排队作业的编号，前端据此提示，用户确认后带上 acknowledged_queue_job_ids 重新提交；确认成功返回 201 和新的写入作业。契约提交 `ab8d5fe`。
+- 2026-10-30 02:20 后端检查点交回，日志审计 0 条，Codex 自报 make check 全绿（2534 passed；前端 20 项按要求保留跳过）。**副本演练**（`create-drill.sh` → `create-drill-run.log`；日志开头被 `tee /dev/stderr` 截掉了，脚本已改，作业结果以数据库和变更记录为准）：(A) libero_10 建链 "演练链接" → /mnt/dataset1/libero_v3/libero_goal：预览 5、写入 6 completed；变更记录 6 是 create_link committed，规范入口和按格式入口各建了一条链接，并改了原始路径.json，按格式副本按 L8/L9 重新生成。(B) 新增数据集 "M1_08_演练" → /mnt/dataset1/lerobot（空目录，mcap）：分到 dataset-36；按任务和按格式/mcap 两个入口各有链接和三份 JSON，按任务入口另有来源.json（开源下载，管理员人工标注）；索引变成 36 个。(C) 两次都撤回，撤回作业都 completed，目录和链接都删掉，索引回到 35。操作日志：create_link、create_dataset、revert_change×2。/mnt 清单逐字节相同，两块盘写入扇区数不变。**发现一个小缺陷**：撤回新建数据集后，流水线仍给已不存在的 dataset-36 提交统计大小（作业 13），worker 报"数据集尚未建立索引"的 InputError。要求撤回删掉数据集以后，不再给它提交统计。派第二段（前端），这个修复一并做。

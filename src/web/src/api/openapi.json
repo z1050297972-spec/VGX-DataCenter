@@ -804,7 +804,7 @@
         "type": "object"
       },
       "DataOrigin": {
-        "description": "13 Q5 的六种来源；M1 只读段索引仅提供 unknown。",
+        "description": "13 Q5 的六种来源编码；来源文件中文值由扫描映射到这些稳定编码。",
         "enum": [
           "real",
           "umi",
@@ -815,6 +815,66 @@
         ],
         "title": "DataOrigin",
         "type": "string"
+      },
+      "DataOriginAttribution": {
+        "additionalProperties": false,
+        "description": "最近一次标注的公开印记，不暴露无需展示的账号内部编号。",
+        "properties": {
+          "account_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "标注时的账号名快照；平台自动设置时可为空",
+            "title": "Account Name"
+          },
+          "at": {
+            "description": "来源文件中的 UTC ISO 8601 秒精度时刻，不使用文件 mtime",
+            "title": "At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_name",
+          "at"
+        ],
+        "title": "DataOriginAttribution",
+        "type": "object"
+      },
+      "DataOriginParameters": {
+        "additionalProperties": false,
+        "description": "一次数据来源标注预览的输入。\n\nAttributes:\n    model_config: 冻结，拒绝多余字段，不回显不可信输入。\n    dataset_id: 永久编号，1 至 256 码点，不含路径分隔符、空白或 NUL。\n    data_origin: DATA_ORIGINS 中的中文来源值，不接受操作者或路径。",
+        "properties": {
+          "data_origin": {
+            "enum": [
+              "真机采集",
+              "UMI 采集",
+              "ego 采集",
+              "仿真生成",
+              "开源下载",
+              "未知"
+            ],
+            "title": "Data Origin",
+            "type": "string"
+          },
+          "dataset_id": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^/\\\\\\s\\x00]+$",
+            "title": "Dataset Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "data_origin"
+        ],
+        "title": "DataOriginParameters",
+        "type": "object"
       },
       "DatasetDetailResponse": {
         "additionalProperties": false,
@@ -892,6 +952,17 @@
           },
           "original_paths": {
             "$ref": "#/components/schemas/NavigationDocument"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "本次只读规范入口来源文件的来源与标注印记；无唯一规范入口时不可用"
           },
           "sources": {
             "items": {
@@ -1328,6 +1399,43 @@
           "link"
         ],
         "title": "DatasetPreviewParameters",
+        "type": "object"
+      },
+      "DatasetProvenance": {
+        "additionalProperties": false,
+        "description": "规范入口的当前来源观察，缺文件与坏文件保持不同状态。",
+        "properties": {
+          "data_origin": {
+            "default": "未知",
+            "enum": [
+              "真机采集",
+              "UMI 采集",
+              "ego 采集",
+              "仿真生成",
+              "开源下载",
+              "未知"
+            ],
+            "title": "Data Origin",
+            "type": "string"
+          },
+          "data_origin_set_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataOriginAttribution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/ProvenanceState"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "DatasetProvenance",
         "type": "object"
       },
       "DatasetSize": {
@@ -3066,6 +3174,18 @@
         "title": "MismatchItemResponse",
         "type": "object"
       },
+      "NavOperation": {
+        "description": "写导航层的操作种类，是预览、变更记录和操作日志共用的稳定码。\n\nAttributes:\n    CREATE_LINK: create_link，建链（M1-08，L1-L4）。\n    CREATE_DATASET: create_dataset，新增数据集（M1-08，L5、L6）。\n    REPOINT_DATASET: repoint_dataset，改指向（M1-09，L17-L19）。\n    SET_DATA_ORIGIN: set_data_origin，数据来源标注（M1-10，只改来源.json）。\n    REVERT_CHANGE: revert_change，撤回某个已完成作业（L16，本票）。",
+        "enum": [
+          "create_link",
+          "create_dataset",
+          "repoint_dataset",
+          "set_data_origin",
+          "revert_change"
+        ],
+        "title": "NavOperation",
+        "type": "string"
+      },
       "NavigationDocument": {
         "additionalProperties": false,
         "description": "导航文件原文；非UTF-8或不可读时content为空并附诊断，坏JSON文本仍可查看。",
@@ -3152,6 +3272,51 @@
           "expected_value"
         ],
         "title": "NavigationExampleParameters",
+        "type": "object"
+      },
+      "NavigationPreviewResponse": {
+        "additionalProperties": false,
+        "description": "确认写入前展示的预览，不把完整计划和文件正文发送给页面。\n\nAttributes:\n    model_config: 冻结并拒绝未知字段。\n    preview_job_id: 预览作业编号，十进制文本，避免浏览器丢失整数精度。\n    created_at: 预览完成的 UTC 时刻。\n    parameters: 已校验的预览参数。\n    operation: 写导航层的稳定操作码。\n    dataset_ids: 受影响数据集编号，升序。\n    report: 与执行计划共同生成的报告，包含旧值、新值与检查范围。",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dataset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dataset Ids",
+            "type": "array"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/NavOperation"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Parameters",
+            "type": "object"
+          },
+          "preview_job_id": {
+            "title": "Preview Job Id",
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/components/schemas/PlanReport"
+          }
+        },
+        "required": [
+          "preview_job_id",
+          "created_at",
+          "parameters",
+          "operation",
+          "dataset_ids",
+          "report"
+        ],
+        "title": "NavigationPreviewResponse",
         "type": "object"
       },
       "ObjectResponse": {
@@ -3570,6 +3735,16 @@
         ],
         "title": "ProblemResponse",
         "type": "object"
+      },
+      "ProvenanceState": {
+        "description": "来源.json 的读取结果种类（三态）；读取与校验由 navwrite.provenance 负责。\n\nAttributes:\n    ABSENT: absent，文件不存在，按\"未知\"处理。\n    VALID: valid，解析并通过校验。\n    INVALID: invalid，存在但无法解析、不是普通文件或版本不认识；写入作业必须拒绝覆盖。",
+        "enum": [
+          "absent",
+          "valid",
+          "invalid"
+        ],
+        "title": "ProvenanceState",
+        "type": "string"
       },
       "QueuedNavigationJob": {
         "additionalProperties": false,
@@ -7243,7 +7418,7 @@
     },
     "/api/datasets/detail": {
       "get": {
-        "description": "读取所选入口原文及规范信息，独立返回推导值和索引过期标记。\n\nArgs:\n    context: 当前账号、服务端UTC时刻及受限导航读取服务。\n    entry_path: 树/列表返回的相对入口路径；先查索引再打开，不接受任意绝对路径。\n\nReturns:\n    200，原始路径与信息原文、规范信息、推导数据块、索引链接/大小和index_stale；\n    子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看。\n\nRaises:\n    DatasetNotFoundError: 入口不在索引，404。\n    DatasetQueryError: 路径穿越或参数非法，422。\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 须改密，403。\n    InputError: 索引损坏或整体导航预算超限，400。\n    ConflictError: 索引查询锁超时，409。\n    ExternalError: 数据库或导航根整体不可读，502；单文件失败以诊断局部返回。\n    DefectError: 推导或响应字段错误，500。\n\nSide Effects:\n    只读导航普通文件和链接自身；不跟随存储目标，不修改索引，不隐藏坏JSON原文。\n\nTime Semantics:\n    SQL完成后再读文件；L12比较使用内容指纹，不用mtime，漂移时保守标过期。",
+        "description": "读取所选入口原文及规范信息，独立返回推导值和索引过期标记。\n\nArgs:\n    context: 当前账号、服务端UTC时刻及受限导航读取服务。\n    entry_path: 树/列表返回的相对入口路径；先查索引再打开，不接受任意绝对路径。\n\nReturns:\n    200，原始路径与信息原文、规范信息、推导数据块、索引链接/大小和index_stale；\n    子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看；\n    provenance 返回规范入口当前来源、文件状态和标注人/UTC时刻。\n\nRaises:\n    DatasetNotFoundError: 入口不在索引，404。\n    DatasetQueryError: 路径穿越或参数非法，422。\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 须改密，403。\n    InputError: 索引损坏或整体导航预算超限，400。\n    ConflictError: 索引查询锁超时，409。\n    ExternalError: 数据库或导航根整体不可读，502；单文件失败以诊断局部返回。\n    DefectError: 推导或响应字段错误，500。\n\nSide Effects:\n    只读导航普通文件和链接自身；不跟随存储目标，不修改索引，不隐藏坏JSON原文。\n\nTime Semantics:\n    SQL完成后再读文件；L12比较使用内容指纹，不用mtime，漂移时保守标过期。",
         "operationId": "get_dataset_detail",
         "parameters": [
           {
@@ -10115,6 +10290,261 @@
         "summary": "Resubmit Job",
         "tags": [
           "jobs"
+        ]
+      }
+    },
+    "/api/navigation/data-origin/preview": {
+      "post": {
+        "description": "提交改数据来源的只读预览作业，成员与管理员权限相同。\n\nArgs:\n    context: 全局同源、认证与改密检查通过的作业上下文。\n    body: 数据集永久编号和六选一中文来源值；不接收路径或操作者。\n\nReturns:\n    HTTP 201，新建 queued 的 nav_data_origin_preview，作业编号为文本。\n\nRaises:\n    JobInputError: 参数非法或类型未登记，422；框架参数失败同样安全返回 422。\n    AuthenticationError: 会话失效，401。\n    AuthorizationError: Origin 非本站，403。\n    PasswordChangeRequiredError: 必须改密，403。\n    InputError: 数据库记录损坏，400。\n    ConflictError: 提交事务竞争，409。\n    ExternalError: 依赖未配置、数据库或操作日志写入失败，502。\n    DefectError: 服务装配或时钟缺陷，500。\n\nSide Effects:\n    仅新增作业与提交操作日志；Web 不访问导航层，来源格式与身份校验由 worker 执行。\n\nTime Semantics:\n    复用请求唯一 UTC 时刻；提交不等待 worker，不重试写请求。",
+        "operationId": "preview_data_origin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataOriginParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Preview Data Origin",
+        "tags": [
+          "navigation"
+        ]
+      }
+    },
+    "/api/navigation/previews/{job_id}": {
+      "get": {
+        "description": "读取已完成预览的报告，供查看后确认写入或撤回。\n\nArgs:\n    context: 已认证作业上下文；允许全部登录账号。\n    job_id: 1 至 2^63-1 的规范十进制文本，不接受前导零。\n\nReturns:\n    HTTP 200，预览参数、操作、受影响编号和检查报告；不返回文件正文。\n\nRaises:\n    JobInputError: 编号形状非法，422。\n    JobNotFoundError: 作业不存在，404。\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    InputError: 作业未成功结束、预览不存在、已过七天保留期或文件损坏，400。\n    ConflictError: 读取数据库锁竞争，409。\n    ExternalError: 依赖未配置、数据库或预览读取失败，502。\n    DefectError: 响应映射缺陷，500。\n\nSide Effects:\n    只读作业记录与状态目录；不读导航层，不写操作日志。\n\nTime Semantics:\n    先完成授权查询再读文件，不持数据库事务做文件 I/O；无轮询或等待。",
+        "operationId": "get_navigation_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NavigationPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Navigation Preview",
+        "tags": [
+          "navigation"
         ]
       }
     },
