@@ -3,7 +3,8 @@
 export const JSON_PAGE_CHARS = 20_000;
 /** JSON 解析及每页响应的等待上限 60 秒，超过后终止 Worker，不回退主线程解析。 */
 export const JSON_WORKER_TIMEOUT_MS = 60_000;
-export type JsonRequest = { type: "load"; text: string } | { type: "page"; page: number };
+export type JsonRequest =
+  { type: "load"; text: string; format?: boolean } | { type: "page"; page: number };
 export interface JsonPage {
   /** 当前页的原始文本，保留未知字段及原始数值表示。 */ text: string;
   /** 从零开始的页码。 */ page: number;
