@@ -3,6 +3,7 @@ import { it, expect } from "vitest";
 import { fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { mountPage } from "../scheduling/pageTestSupport";
 import type { components } from "../api/schema";
+import { repointFetch } from "./repointTestSupport";
 import { originFetch, originUrl, originPreview, previewJob, writingJob } from "./originTestSupport";
 
 // 冷启动要加载数据集路由和编辑器两层动态模块；等待有界，与创建页的冷加载预算一致。
@@ -218,64 +219,29 @@ it("分页保留草稿并锁住过期编辑", async () => {
   }
 });
 
-// 契约：成功导航写作业可先预览撤回；用户确认前不提交反向写作业，确认只引用保存的反向预览。
-it("作业页预览并确认撤回", async () => {
+// 契约：字段编辑作业不再有自己的撤回按钮，走通用撤回页：先预览，确认只引用保存的反向预览。
+it("字段编辑作业走通用撤回流程", async () => {
   const requests: Request[] = [];
-  const page = mountPage(
-    "/jobs/302",
-    originFetch(requests, {
-      "/api/jobs/302": () =>
-        Response.json({
-          ...previewJob,
-          ...writingJob,
-          state: "completed",
-          summary: previewJob.summary,
-        }),
-      "/api/jobs/303": () =>
-        Response.json({ ...previewJob, job_id: "303", type_name: "nav_revert_preview" }),
-      "/api/jobs/304": () => Response.json({ ...writingJob, job_id: "304" }),
-      "/api/navigation/previews/303": () =>
-        Response.json({
-          ...originPreview,
-          preview_job_id: "303",
-          operation: "revert_change",
-          parameters: { target_job_id: 302 },
-        }),
-      "/api/jobs": async (request) => {
-        const body: unknown = await request.clone().json();
-        return Response.json(
-          typeof body === "object" &&
-            body !== null &&
-            "type_name" in body &&
-            body.type_name === "nav_revert_preview"
-            ? {
-                ...previewJob,
-                job_id: "303",
-                type_name: "nav_revert_preview",
-                state: "queued",
-                summary: null,
-              }
-            : { ...writingJob, job_id: "304" },
-          { status: 201 },
-        );
-      },
-    }),
-  );
+  const page = mountPage("/jobs/401", repointFetch(requests));
   try {
-    fireEvent.click(await screen.findByRole("button", { name: "预览撤回导航改动" }));
-    const confirm = await screen.findByRole("button", { name: "确认撤回导航改动" });
+    expect(screen.queryByRole("button", { name: "预览撤回导航改动" })).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: "撤回导航写入" }));
+    fireEvent.click(await screen.findByRole("button", { name: "预览撤回" }));
+    const confirm = await screen.findByRole("button", { name: "确认导航写入" });
     expect(requests.filter((r) => r.method === "POST")).toHaveLength(1);
     fireEvent.click(confirm);
     await waitFor(() => {
-      expect(page.router.state.location.pathname).toBe("/jobs/304");
+      expect(page.router.state.location.pathname).toBe("/jobs/402");
     });
-    const submitted = await Promise.all(
-      requests.filter((r) => r.method === "POST").map((r) => r.clone().json()),
-    );
-    expect(submitted).toEqual([
-      { type_name: "nav_revert_preview", parameters: { target_job_id: 302 } },
-      { type_name: "nav_write_apply", parameters: { preview_job_id: 303 } },
+    const posts = requests.filter((r) => r.method === "POST");
+    expect(posts.map((r) => new URL(r.url).pathname)).toEqual([
+      "/api/jobs/401/revert-previews",
+      "/api/navigation/writes",
     ]);
+    expect(await posts[1]?.clone().json()).toEqual({
+      preview_job_id: "302",
+      acknowledged_queue_job_ids: [],
+    });
   } finally {
     page.close();
   }

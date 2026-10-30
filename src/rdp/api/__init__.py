@@ -36,6 +36,7 @@ from rdp.api.health import HealthResponse, get_health
 from rdp.api.jobs import router as jobs_router
 from rdp.api.jobs import worker_router
 from rdp.api.navigation import router as navigation_router
+from rdp.api.navigation_writes import router as navigation_writes_router
 from rdp.api.storage import router as storage_router
 from rdp.api.version import configure_version
 from rdp.infra.db.records import ErrorRecord
@@ -235,6 +236,7 @@ def create_app(
     # 数据集路由与M0共享认证/Origin及统一诊断；必须先于API兜底登记，离线可导出类型。
     app.include_router(datasets_router)
     app.include_router(dataset_creation_router)
+    app.include_router(navigation_writes_router)
     app.include_router(file_viewer_router)
     app.include_router(storage_router)
     app.include_router(worker_router)

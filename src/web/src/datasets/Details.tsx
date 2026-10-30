@@ -9,6 +9,7 @@ import { toFailureView } from "../api/problems";
 import { NavigationDocumentViewer } from "./Documents";
 import { SubtasksViewer } from "./Subtasks";
 import { DatasetSizeSummary } from "./Sizes";
+import { RepointEditor } from "./Repoint";
 import { FileViewerEntry } from "./FileViewerEntry";
 import { DataOriginEditor } from "./DataOrigin";
 import { DatasetInformation } from "./Information";
@@ -85,6 +86,7 @@ function DetailContent({
       )}
       <Typography.Title level={3}>{detail.entry.name}</Typography.Title>
       <CreateLinkEntry datasetId={detail.entry.dataset_id} />
+      <RepointEditor detail={detail} />
       <p>{detail.entry.dataset_id ?? "身份未知"}</p>
       <p>{detail.entry.entry_path}</p>
       <p>索引时间：{formatDateTime(detail.indexed_at)}</p>
