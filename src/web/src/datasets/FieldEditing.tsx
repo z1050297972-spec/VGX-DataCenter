@@ -71,7 +71,7 @@ function FieldForm({ datasetId }: Props): ReactElement {
       <Failures errors={[state.page.error, state.preview.error, state.confirm.error]} />
       {state.stale && <Alert type="error" title="文件已变化，请取消编辑后重新加载" />}
       {state.page.data && <FieldInputs state={state} data={state.page.data} />}
-      <p>已修改 {count} 项；任务可输入多个值，回车添加。</p>
+      <p>已修改 {count} 项；场景单选、任务多选，保存词表编码。</p>
       <Button
         aria-label="预览字段改动"
         loading={state.preview.isPending}

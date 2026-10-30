@@ -37,7 +37,7 @@ def test_active_declarations() -> None:
         assert row.metadata is metadata
         assert row.__table__ is metadata.tables[row.__tablename__]
     config = migration_config()
-    assert ScriptDirectory.from_config(config).get_current_head() == "0011_data_origin"
+    assert ScriptDirectory.from_config(config).get_current_head() == "0012_scene_task_index"
     directory = config.get_main_option("script_location")
     assert directory is not None
     assert {item.revision for item in ScriptDirectory.from_config(config).walk_revisions()} == {
@@ -52,6 +52,7 @@ def test_active_declarations() -> None:
         "0009_rebuild_index_audit",
         "0010_nav_write_foundation",
         "0011_data_origin",
+        "0012_scene_task_index",
     }
 
 
@@ -61,7 +62,7 @@ def test_schema_v4(tmp_path: Path) -> None:
     paths = state_paths(PlatformConfig(state_dir=tmp_path / "state"), ())
     initialize_state(paths)
     result = migrate(paths, now=datetime(2026, 10, 26, tzinfo=UTC))
-    assert result.current_revision == "0011_data_origin"
+    assert result.current_revision == "0012_scene_task_index"
     engine = create_database_engine(paths.database)
     try:
         with engine.connect() as connection:

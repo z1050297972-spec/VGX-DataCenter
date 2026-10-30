@@ -123,14 +123,12 @@ it("型号参考和分类编辑后清除旧预览", async () => {
     expect(await screen.findByText("原文件 robot_type（索引参考）：franka")).toBeTruthy();
     expect(screen.getByText("导航型号与原文件型号不同")).toBeTruthy();
     const scene = screen.getByRole("combobox", { name: "场景" });
-    fireEvent.change(scene, { target: { value: "厨房" } });
-    fireEvent.keyDown(scene, { key: "Enter", code: "Enter", keyCode: 13, which: 13 });
+    fireEvent.mouseDown(scene);
+    fireEvent.click(await screen.findByRole("option", { name: "家居-厨房" }));
     const tasks = screen.getByRole("combobox", { name: "任务" });
-    fireEvent.change(tasks, { target: { value: "开门" } });
-    fireEvent.keyDown(tasks, { key: "Enter", code: "Enter", keyCode: 13, which: 13 });
-    fireEvent.keyUp(tasks, { key: "Enter", code: "Enter", keyCode: 13, which: 13 });
-    fireEvent.change(tasks, { target: { value: "整理" } });
-    fireEvent.keyDown(tasks, { key: "Enter", code: "Enter", keyCode: 13, which: 13 });
+    fireEvent.mouseDown(tasks);
+    fireEvent.click(await screen.findByRole("option", { name: "抓取放置" }));
+    fireEvent.click(await screen.findByRole("option", { name: "收纳整理" }));
     fireEvent.click(screen.getByRole("button", { name: "预览字段改动" }));
     await screen.findByRole("button", { name: "确认字段写入" });
     const posted = requests.find(
@@ -142,13 +140,13 @@ it("型号参考和分类编辑后清除旧预览", async () => {
           document: "数据集信息.json",
           expected_sha256: information.sha256,
           path: ["scene"],
-          value: "厨房",
+          value: "kitchen",
         },
         {
           document: "数据集信息.json",
           expected_sha256: information.sha256,
           path: ["tasks"],
-          value: ["开门", "整理"],
+          value: ["pick_place", "tidy"],
         },
       ],
     });

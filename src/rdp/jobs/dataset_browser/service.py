@@ -71,19 +71,19 @@ class DatasetBrowserService:
         self.commands = DatasetCommands(engine, jobs)
 
     def trees(self, request: JobRequest, filters: DatasetFilters) -> DatasetTreesResponse:
-        """从索引构造两棵共用筛选条件的有界目录树。
+        """从索引构造按任务、按格式与按场景的有界浏览树。
 
         Args:
             request: 当前账号会话、请求UTC时刻和审计来源，全部显式提供。
             filters: 不同维度取交集；路径按完整分量前缀，非法组合不能回退全量。
 
         Returns:
-            两个视图根加按路径升序的平铺节点；数量按已知编号去重，大小按入口相加。
+            两个真实视图根及按场景虚拟根的平铺节点；数量按已知编号去重，大小按入口相加。
             空树返回零，未知大小返回已知小计及未知入口数；无扫描时indexed_at=None。
             只显示索引已有的格式/版本目录，不扫描磁盘来补空版本目录。
 
         Raises:
-            DatasetQueryError: 非法路径前缀、负FPS、版本缺格式或task与格式筛选冲突。
+            DatasetQueryError: 非法路径前缀、负FPS、版本缺格式、task与格式筛选冲突或未标注与具体任务同选。
             InputError: 索引损坏或超过MAX_SCAN_ENTRIES，不能截断为完整树。
             AuthenticationError: 读事务中会话已失效或账号停用。
             PasswordChangeRequiredError: 事务中账号被标记须改密。
@@ -112,6 +112,8 @@ class DatasetBrowserService:
             型号映射为空时任意具体型号匹配空集；未知型号匹配无映射的数据集。
             元信息优先唯一规范入口；没有或重复规范入口则取格式入口并集，并保留面板发现。
             当前筛选匹配任一入口即入选，响应entries仍含全部位置；不返回JSON正文。
+            场景、任务、导航型号只取唯一规范副本，不从格式入口补值；场景精确匹配，任务多选取交集。
+            unlabeled 仅匹配无标注。
 
         Raises:
             DatasetQueryError: 分页或筛选组合非法；拒绝负FPS、绝对或穿越路径。
@@ -138,7 +140,7 @@ class DatasetBrowserService:
             request: 当前账号的会话、唯一UTC时刻和请求来源。
 
         Returns:
-            全索引的型号、标签、FPS、来源选项和计数，每种未知项即使为零也保留。
+            全索引的型号、标签、FPS、来源、场景、任务选项和计数，每种未知项即使为零也保留。
             型号空目录时registered=False且默认robot_type；非空时默认robot_model。
             FPS用整数十进制文本传候选，标签保持原始大小写；M1来源计数仅unknown非零。
 

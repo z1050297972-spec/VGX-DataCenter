@@ -38,7 +38,11 @@ export function LayoutC({ query }: { query: BrowserQuery }): ReactElement {
   const actions = useBrowserActions();
   const { search } = actions;
   const nodes = query.trees.data?.nodes ?? [];
-  const chain = chainTo(nodes, search.selected ?? search.entry_path ?? undefined);
+  // 规范入口在真实树和虚拟树中都有叶节点；按场景浏览时只沿该树找祖先，避免跳回按任务。
+  const chain = chainTo(
+    search.tree_view === "scene" ? nodes.filter((node) => node.view === "scene") : nodes,
+    search.selected ?? search.entry_path ?? undefined,
+  );
   const directories = chain.filter((node) => !node.entry_path);
   const roots = nodes.filter((node) => node.parent_path === null);
   const open = (node: Node): void => {

@@ -881,7 +881,8 @@ export interface paths {
          *         context: 全局安全检查通过的账号上下文与浏览服务。
          *
          *     Returns:
-         *         200，robot_models_registered、default_robot_filter及型号/标签/FPS/来源候选。
+         *         200，robot_models_registered、default_robot_filter及型号/标签/FPS/来源/场景/任务候选。
+         *         scene_vocabulary/task_vocabulary 提供编辑器用的受控编码与中文名。
          *         空目录默认robot_type，登记后默认robot_model；每类unknown项独立且保留零计数。
          *
          *     Raises:
@@ -1164,11 +1165,11 @@ export interface paths {
         };
         /**
          * Get Dataset Trees
-         * @description 返回共用筛选条件的按任务/按格式两棵树。
+         * @description 返回共用筛选条件的按任务、按格式和按场景三棵树。
          *
          *     Args:
          *         context: 当前已登录且完成改密的账号及浏览服务。
-         *         filters: 型号、原标签、整数FPS/unknown、来源和视图路径筛选；未提供表示不限。
+         *         filters: 型号、原标签、整数FPS/unknown、来源、场景、任务交集和视图路径筛选；未提供表示不限。
          *
          *     Returns:
          *         200，nodes平铺节点及indexed_at；每节点含数量、大小来源计数和原统计时间范围。
@@ -2710,7 +2711,9 @@ export interface components {
         };
         /**
          * DatasetFilterOptions
-         * @description 未应用当前筛选的全局候选；所有列表按值排序，未知项固定最后且即使零项也保留。
+         * @description 未应用当前筛选的全局候选。
+         *
+         *     型号等候选按值排序；分类候选按词表顺序、词表外原值排序，未标注固定最后；零计数词表项保留。
          */
         DatasetFilterOptions: {
             /** Data Origins */
@@ -2733,6 +2736,14 @@ export interface components {
             robot_models_registered: boolean;
             /** Robot Types */
             robot_types: components["schemas"]["FilterOption"][];
+            /** Scene Vocabulary */
+            scene_vocabulary: components["schemas"]["VocabularyTerm"][];
+            /** Scenes */
+            scenes: components["schemas"]["FilterOption"][];
+            /** Task Vocabulary */
+            task_vocabulary: components["schemas"]["VocabularyTerm"][];
+            /** Tasks */
+            tasks: components["schemas"]["FilterOption"][];
         };
         /**
          * DatasetLink
@@ -2789,12 +2800,21 @@ export interface components {
             indexed_at: string;
             /** Name */
             name: string;
+            /** Robot Model */
+            robot_model?: string | null;
             /** Robot Model Ids */
             robot_model_ids: string[];
             /** Robot Types */
             robot_types: (string | null)[];
+            /** Scene */
+            scene?: string | null;
             /** @description 数据集取按任务入口；无唯一规范入口时未知，不叠加格式副本 */
             size: components["schemas"]["DatasetSize"];
+            /**
+             * Tasks
+             * @default []
+             */
+            tasks: string[];
         };
         /**
          * DatasetListResponse
@@ -2949,7 +2969,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "view" | "format" | "version" | "entry";
+            kind: "view" | "format" | "version" | "scene" | "entry";
             /** Name */
             name: string;
             /** Parent Path */
@@ -2959,11 +2979,14 @@ export interface components {
             size: components["schemas"]["TreeSize"];
             /** Version */
             version: string | null;
-            view: components["schemas"]["View"];
+            /** View */
+            view: components["schemas"]["View"] | "scene";
         };
         /**
          * DatasetTreesResponse
-         * @description 两棵树各保留一个视图根，空索引仍可浏览；最多 MAX_SCAN_ENTRIES 个入口。
+         * @description 按任务、按格式及按场景各保留一个根，空索引仍可浏览。
+         *
+         *     真实入口受 MAX_SCAN_ENTRIES 预算约束；场景叶只引用规范入口，不增加扫描。
          */
         DatasetTreesResponse: {
             /** Indexed At */
@@ -4473,6 +4496,16 @@ export interface components {
          * @enum {string}
          */
         View: "task" | "format";
+        /**
+         * VocabularyTerm
+         * @description 受控编码及中文名，只由服务端词表生成，不含筛选专用项。
+         */
+        VocabularyTerm: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        };
         /**
          * WaitReason
          * @description 资源等待不增加作业状态；无等待用 None，终态必须清空。
@@ -6011,6 +6044,10 @@ export interface operations {
                 robot_type?: string | null;
                 /** @description 四舍五入后非负整数帧/秒或 unknown */
                 fps?: number | "unknown" | null;
+                /** @description 场景原编码；unlabeled 表示未标注 */
+                scene?: string | null;
+                /** @description 重复 tasks 参数；全部任务取交集；unlabeled 必须单独使用 */
+                tasks?: string[];
                 data_origin?: components["schemas"]["DataOrigin"] | null;
                 view?: components["schemas"]["View"] | null;
                 /** @description 格式稳定键，如 lerobot；与 view=task 同用时422 */
@@ -7375,6 +7412,10 @@ export interface operations {
                 robot_type?: string | null;
                 /** @description 四舍五入后非负整数帧/秒或 unknown */
                 fps?: number | "unknown" | null;
+                /** @description 场景原编码；unlabeled 表示未标注 */
+                scene?: string | null;
+                /** @description 重复 tasks 参数；全部任务取交集；unlabeled 必须单独使用 */
+                tasks?: string[];
                 data_origin?: components["schemas"]["DataOrigin"] | null;
                 view?: components["schemas"]["View"] | null;
                 /** @description 格式稳定键，如 lerobot；与 view=task 同用时422 */

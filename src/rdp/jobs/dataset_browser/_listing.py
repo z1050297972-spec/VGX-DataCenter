@@ -3,7 +3,7 @@
 from pathlib import PurePosixPath
 
 from rdp.infra.db.validation import invalid_field
-from rdp.jobs.dataset_browser import _index
+from rdp.jobs.dataset_browser import _classification, _index
 from rdp.jobs.dataset_browser.errors import DatasetQueryError
 from rdp.jobs.dataset_browser.schemas import (
     DataOrigin,
@@ -14,6 +14,7 @@ from rdp.jobs.dataset_browser.schemas import (
 )
 from rdp.jobs.datasets.models import DatasetRow, EntryRow
 from rdp.jobs.datasets.types import View
+from rdp.jobs.datasets.vocabulary import UNLABELED
 
 
 def size(row: DatasetRow | EntryRow | None) -> DatasetSize:
@@ -64,6 +65,9 @@ def items(index: _index.Index) -> tuple[DatasetListItem, ...]:
                 fps=fps,
                 robot_model_ids=models,
                 data_origin=DataOrigin(dataset.data_origin),
+                scene=dataset.scene,
+                tasks=tuple(dataset.tasks),
+                robot_model=dataset.robot_model,
                 size=size(dataset) if dataset.canonical_entry_path else size(None),
                 indexed_at=moments[dataset.scan_id],
             )
@@ -112,6 +116,15 @@ def matches(item: DatasetListItem, filters: DatasetFilters) -> bool:
             )
         )
         and (filters.data_origin is None or filters.data_origin == item.data_origin)
+        and (filters.scene is None or filters.scene == (item.scene or UNLABELED))
+        and all(task in (item.tasks or (UNLABELED,)) for task in filters.tasks)
+        and (
+            filters.entry_path is None
+            or not filters.entry_path.startswith("按场景/")
+            or PurePosixPath(_classification.scene_path(item.scene), item.name).is_relative_to(
+                filters.entry_path
+            )
+        )
         and any(entry_matches(row, filters) for row in item.entries)
     )
 
@@ -124,6 +137,8 @@ def entry_matches(row: EntrySummary, filters: DatasetFilters) -> bool:
         and (filters.version is None or filters.version == row.version)
         and (
             filters.entry_path is None
+            or filters.entry_path == "按场景"
+            or filters.entry_path.startswith("按场景/")
             or PurePosixPath(row.entry_path).is_relative_to(filters.entry_path)
         )
     )
@@ -140,6 +155,8 @@ def validate(filters: DatasetFilters) -> None:
         raise DatasetQueryError(
             invalid_field("filters", "版本必须附带格式，按任务不得指定格式").diagnostics
         )
+    if UNLABELED in filters.tasks and len(set(filters.tasks)) > 1:
+        raise DatasetQueryError(invalid_field("tasks", "未标注必须单独选择").diagnostics)
     if filters.entry_path is not None:
         path = filters.entry_path
         if (
