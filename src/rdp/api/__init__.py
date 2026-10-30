@@ -28,6 +28,7 @@ from rdp.api.data_origin import router as data_origin_router
 from rdp.api.database import configure_database
 from rdp.api.datasets import router as datasets_router
 from rdp.api.datasets.creation import router as dataset_creation_router
+from rdp.api.datasets.fields import router as field_edit_router
 from rdp.api.error_details import get_error_details
 from rdp.api.errors import ErrorBoundary, install_error_handlers
 from rdp.api.health import HealthResponse, get_health
@@ -238,6 +239,7 @@ def create_app(
     # M1-07：导航层恢复失败标记；读全员、确认仅管理员，只碰数据库和状态目录。
     app.include_router(navigation_router)
     app.include_router(data_origin_router)
+    app.include_router(field_edit_router)
     configure_version(
         app, version=platform_version if platform_version is not None else "未知 (未知)"
     )

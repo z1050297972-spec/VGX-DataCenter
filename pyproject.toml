@@ -158,6 +158,8 @@ forbidden_modules = [
     "rdp.jobs.navwrite.recovery",
     "rdp.jobs.navwrite.pipeline",
     "rdp.jobs.navwrite.jobs",
+    # M1.5-02：编辑预览仅在 worker 执行，Web 只能导入参数和只读表单/确认服务。
+    "rdp.jobs.navwrite.field_jobs",
 ]
 allow_indirect_imports = true
 

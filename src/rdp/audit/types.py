@@ -39,11 +39,12 @@ class OperationType(StrEnum):
     SUBMIT_JOB = "submit_job"
     CANCEL_JOB = "cancel_job"
     REBUILD_INDEX = "rebuild_index"
-    # M1-07（ADR 0009 L15）：写导航层的七个操作码。前五个对应 NavOperation，由 worker 以提交人身份追加；
+    # ADR 0009 L15：写导航层操作码（含 M1.5 字段编辑）对应 NavOperation，由 worker 以提交人身份追加；
     # 后两个是平台自己的动作：中断后的回滚恢复（系统身份）和管理员确认"导航层恢复失败"。
     CREATE_LINK = "create_link"
     CREATE_DATASET = "create_dataset"
     REPOINT_DATASET = "repoint_dataset"
+    EDIT_DATASET_FIELDS = "edit_dataset_fields"
     SET_DATA_ORIGIN = "set_data_origin"
     REVERT_CHANGE = "revert_change"
     ROLLBACK_NAVIGATION_WRITE = "rollback_navigation_write"
@@ -159,13 +160,14 @@ OPERATION_DETAIL_FIELDS: dict[OperationType, frozenset[str]] = {
     OperationType.CANCEL_JOB: frozenset({"job_id", "job_type", "job_state"}),
     OperationType.REBUILD_INDEX: frozenset(),
 }
-# M1-07：对象是 navigation_write 的七个操作码；校验时两者必须一一对应。
+# 对象是 navigation_write 的操作码；新增字段编辑后仍与对象种类一一对应。
 NAVIGATION_OPERATIONS = frozenset(
     {
         OperationType.CREATE_LINK,
         OperationType.CREATE_DATASET,
         OperationType.REPOINT_DATASET,
         OperationType.SET_DATA_ORIGIN,
+        OperationType.EDIT_DATASET_FIELDS,
         OperationType.REVERT_CHANGE,
         OperationType.ROLLBACK_NAVIGATION_WRITE,
         OperationType.CONFIRM_NAVIGATION_RECOVERY,
@@ -181,6 +183,7 @@ OPERATION_DETAIL_FIELDS.update(
         OperationType.CREATE_DATASET: _NAVIGATION_DETAIL_FIELDS,
         OperationType.REPOINT_DATASET: _NAVIGATION_DETAIL_FIELDS,
         OperationType.SET_DATA_ORIGIN: _NAVIGATION_DETAIL_FIELDS,
+        OperationType.EDIT_DATASET_FIELDS: _NAVIGATION_DETAIL_FIELDS,
         OperationType.REVERT_CHANGE: _NAVIGATION_DETAIL_FIELDS | {"reverts_job_id"},
         OperationType.ROLLBACK_NAVIGATION_WRITE: _NAVIGATION_DETAIL_FIELDS,
         OperationType.CONFIRM_NAVIGATION_RECOVERY: _NAVIGATION_DETAIL_FIELDS,
