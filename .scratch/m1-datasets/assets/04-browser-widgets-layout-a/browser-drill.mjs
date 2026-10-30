@@ -57,6 +57,7 @@ try {
   // 列表分页，libero_10 不一定在第一页；改用详情的 URL 参数 selected 直接打开（页面自己的路由）。
   await p.go("/datasets?selected=" + encodeURIComponent("按任务/libero_10"));
   await p.wait("!!document.querySelector('[aria-label=\"数据集详情\"]') && !document.body.innerText.includes('正在加载详情')", 15000); await sleep(800);
+  log("横向溢出检查：", await p.ev("(() => { const d = document.documentElement; const over = [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > d.clientWidth + 1).slice(0, 6).map(e => e.tagName + '.' + (e.className && e.className.baseVal === undefined ? String(e.className).slice(0, 60) : '') + ' right=' + Math.round(e.getBoundingClientRect().right)); return JSON.stringify({ scrollWidth: d.scrollWidth, clientWidth: d.clientWidth, over }); })()"));
   log("libero_10 详情打开，URL:", decodeURIComponent(await p.ev("location.search")));
   await p.shot("m104-3-detail-libero10");
   const jumped = await p.ev("(() => { const b = [...document.querySelectorAll('[aria-label^=\"跳转到 \"]')]; if (!b.length) return null; const l = b[0].getAttribute('aria-label'); b[0].click(); return l; })()");
