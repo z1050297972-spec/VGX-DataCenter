@@ -2039,6 +2039,68 @@
         "title": "FieldChangeCount",
         "type": "object"
       },
+      "FileItem": {
+        "description": "直接目录项；大小为字节，修改时刻为UTC，不把软链接当可直接预览的文件。",
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "modified_at": {
+            "format": "date-time",
+            "title": "Modified At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "size_bytes",
+          "modified_at"
+        ],
+        "title": "FileItem",
+        "type": "object"
+      },
+      "FilePage": {
+        "description": "最多500项的目录页；不为得到总数而全量枚举目录。",
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FileItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "offset",
+          "limit",
+          "has_more"
+        ],
+        "title": "FilePage",
+        "type": "object"
+      },
       "FilterOption": {
         "additionalProperties": false,
         "description": "筛选值及中文标签；count 是全索引中匹配的数据集数，不重复计跨视图副本。",
@@ -8739,6 +8801,375 @@
         "summary": "Get Dataset Trees",
         "tags": [
           "datasets"
+        ]
+      }
+    },
+    "/api/datasets/{dataset_id}/file": {
+      "get": {
+        "description": "返回登记链接目标内普通文件的原字节。\n\nArgs:\n    request: 当前请求，读取应用级查看器。\n    account: 任意已登录且完成改密的账号。\n    dataset_id: 永久编号。\n    query: 单分量链接名和目标内相对文件路径。\n\nReturns:\n    200原字节或206单段Range，提供Content-Length、Accept-Ranges和Content-Range；\n    不可满足或不支持的Range返回416及bytes */总长。禁止缓存和MIME嗅探。\n\nRaises:\n    DatasetQueryError: 越界、非文件或太大，422。\n    DatasetNotFoundError: 数据集没有规范入口，404。\n    ExternalError: 离线或超时，502；认证失败沿用全局边界。\n    DefectError: 服务未正确装配，500。\n\nSide Effects:\n    只读文件，每块逐段安全打开并核对同一文件身份，不写存储。\n\nTime Semantics:\n    预检和每个1MiB块各受M0预算控制；首块失败仍返回502五段诊断。\n    响应开始后存储失败只能中止流，不能更改已发送状态码；无重试。",
+        "operationId": "read_dataset_file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^/\\\\\\s\\x00]+$",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "link_name",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Link Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 4096,
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "普通文件原字节；被动媒体可内联，其他二进制附件下载"
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "单段bytes范围；Content-Range为bytes start-end/total"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "416": {
+            "description": "范围不可满足；Content-Range为bytes */total"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Read Dataset File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/datasets/{dataset_id}/files": {
+      "get": {
+        "description": "列出规范入口已登记链接目标内的一页目录项。\n\nArgs:\n    request: 当前HTTP请求，仅取本应用已装配服务。\n    account: 已登录且完成改密的任意账号。\n    dataset_id: 永久数据集编号，遵循已合并DatasetId约束。\n    query: 链接名、相对路径与分页，offset从0起，limit最大500。\n\nReturns:\n    200目录页；修改时刻UTC，大小为字节，has_more表示还能翻页。\n\nRaises:\n    DatasetQueryError: 越界路径、非登记链接或非目录，422。\n    DatasetNotFoundError: 编号没有唯一规范入口，404。\n    ExternalError: 离线、超时或I/O失败，502和五段诊断。\n    DefectError: 查看器未装配，500；认证错误沿用全局边界。\n\nSide Effects:\n    只读导航清单及选定存储目录，不提交作业或修改文件。\n\nTime Semantics:\n    同步工作线程调用；挂载和目录读取共用配置超时，跨页允许变化。",
+        "operationId": "list_dataset_files",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^/\\\\\\s\\x00]+$",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "link_name",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Link Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 4096,
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "List Dataset Files",
+        "tags": [
+          "files"
         ]
       }
     },
