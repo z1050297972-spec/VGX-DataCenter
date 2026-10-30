@@ -1,6 +1,6 @@
 # 数据来源标注
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：直做。理由：在第 07 张的写入底座上加一种只改 `来源.json` 的小作业，再加一个页面部件。`来源.json` 的格式和写入规则在第 07 张的骨架关卡定，本票不新增契约（3.0 第 1 条）。如果做的时候发现要改 `来源.json` 的格式，就升为骨架关卡。
 
@@ -79,3 +79,4 @@ Status: ready-for-agent
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。Status 定为 `ready-for-agent`：第 07、05 张合并以后才能开票。
+- 2026-10-30 00:15 开票（执行线，负责人授权）。第 07 张已合并（141d4b6）。Status 改为 in-progress。直做，派给 Codex gpt-6.1-sol（high）。和第 08 张并行。
