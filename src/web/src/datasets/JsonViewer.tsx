@@ -8,6 +8,7 @@ import { JSON_WORKER_TIMEOUT_MS, type JsonPage, type JsonRequest } from "./jsonP
 interface JsonViewerProps {
   /** API 返回的原始 UTF-8 文本解码结果，最大值受服务端限制。 */ content: string;
   /** 用于无障碍区域名称的文件名。 */ label: string;
+  /** 是否在Worker内格式化；省略保留原文，兼容导航文档。 */ format?: boolean;
 }
 /**
  * 在独立 Worker 解析 JSON 并按页显示原文。
@@ -65,7 +66,11 @@ export function JsonViewer(props: JsonViewerProps): ReactElement {
           fail();
         }
       };
-      send.current({ type: "load", text: props.content });
+      send.current(
+        props.format
+          ? { type: "load", text: props.content, format: true }
+          : { type: "load", text: props.content },
+      );
     } catch {
       fail();
     }
@@ -73,7 +78,7 @@ export function JsonViewer(props: JsonViewerProps): ReactElement {
       active = false;
       release();
     };
-  }, [props.content]);
+  }, [props.content, props.format]);
   function go(next: number): void {
     setPending(true);
     send.current?.({ type: "page", page: next });

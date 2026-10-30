@@ -1240,6 +1240,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/datasets/{dataset_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Dataset File
+         * @description 返回登记链接目标内普通文件的原字节。
+         *
+         *     Args:
+         *         request: 当前请求，读取应用级查看器。
+         *         account: 任意已登录且完成改密的账号。
+         *         dataset_id: 永久编号。
+         *         query: 单分量链接名和目标内相对文件路径。
+         *
+         *     Returns:
+         *         200原字节或206单段Range，提供Content-Length、Accept-Ranges和Content-Range；
+         *         不可满足或不支持的Range返回416及bytes *\/总长。禁止缓存和MIME嗅探。
+         *
+         *     Raises:
+         *         DatasetQueryError: 越界、非文件或太大，422。
+         *         DatasetNotFoundError: 数据集没有规范入口，404。
+         *         ExternalError: 离线或超时，502；认证失败沿用全局边界。
+         *         DefectError: 服务未正确装配，500。
+         *
+         *     Side Effects:
+         *         只读文件，每块逐段安全打开并核对同一文件身份，不写存储。
+         *
+         *     Time Semantics:
+         *         预检和每个1MiB块各受M0预算控制；首块失败仍返回502五段诊断。
+         *         响应开始后存储失败只能中止流，不能更改已发送状态码；无重试。
+         */
+        get: operations["read_dataset_file"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Dataset Files
+         * @description 列出规范入口已登记链接目标内的一页目录项。
+         *
+         *     Args:
+         *         request: 当前HTTP请求，仅取本应用已装配服务。
+         *         account: 已登录且完成改密的任意账号。
+         *         dataset_id: 永久数据集编号，遵循已合并DatasetId约束。
+         *         query: 链接名、相对路径与分页，offset从0起，limit最大500。
+         *
+         *     Returns:
+         *         200目录页；修改时刻UTC，大小为字节，has_more表示还能翻页。
+         *
+         *     Raises:
+         *         DatasetQueryError: 越界路径、非登记链接或非目录，422。
+         *         DatasetNotFoundError: 编号没有唯一规范入口，404。
+         *         ExternalError: 离线、超时或I/O失败，502和五段诊断。
+         *         DefectError: 查看器未装配，500；认证错误沿用全局边界。
+         *
+         *     Side Effects:
+         *         只读导航清单及选定存储目录，不提交作业或修改文件。
+         *
+         *     Time Semantics:
+         *         同步工作线程调用；挂载和目录读取共用配置超时，跨页允许变化。
+         */
+        get: operations["list_dataset_files"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/datasets/{dataset_id}/rescan": {
         parameters: {
             query?: never;
@@ -3160,6 +3244,37 @@ export interface components {
         "FieldPath-Input": (string | number)[];
         "FieldPath-Output": (string | number)[];
         FieldValue: string | string[];
+        /**
+         * FileItem
+         * @description 直接目录项；大小为字节，修改时刻为UTC，不把软链接当可直接预览的文件。
+         */
+        FileItem: {
+            /** Kind */
+            kind: string;
+            /**
+             * Modified At
+             * Format: date-time
+             */
+            modified_at: string;
+            /** Name */
+            name: string;
+            /** Size Bytes */
+            size_bytes: number;
+        };
+        /**
+         * FilePage
+         * @description 最多500项的目录页；不为得到总数而全量枚举目录。
+         */
+        FilePage: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["FileItem"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /**
          * FilterOption
          * @description 筛选值及中文标签；count 是全索引中匹配的数据集数，不重复计跨视图副本。
@@ -7389,6 +7504,238 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EditableFieldsPage"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    read_dataset_file: {
+        parameters: {
+            query: {
+                link_name: string;
+                path?: string;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 普通文件原字节；被动媒体可内联，其他二进制附件下载 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description 单段bytes范围；Content-Range为bytes start-end/total */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description 范围不可满足；Content-Range为bytes *\/total */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    list_dataset_files: {
+        parameters: {
+            query: {
+                link_name: string;
+                path?: string;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilePage"];
                 };
             };
             /** @description Bad Request */

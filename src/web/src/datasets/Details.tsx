@@ -9,6 +9,7 @@ import { toFailureView } from "../api/problems";
 import { NavigationDocumentViewer } from "./Documents";
 import { SubtasksViewer } from "./Subtasks";
 import { DatasetSizeSummary } from "./Sizes";
+import { FileViewerEntry } from "./FileViewerEntry";
 import { DataOriginEditor } from "./DataOrigin";
 import { DatasetInformation } from "./Information";
 import { DatasetLinks, DatasetSources } from "./Entries";
@@ -128,6 +129,11 @@ function DetailContent({
       </Button>
       {sizing.error && <DiagnosticCard failure={toFailureView(sizing.error)} />}
       {rescan.error && <DiagnosticCard failure={toFailureView(rescan.error)} />}
+      <FileViewerEntry
+        key={detail.entry.dataset_id}
+        datasetId={detail.entry.dataset_id}
+        linkNames={detail.links.map((link) => link.name)}
+      />
       <DatasetLinks links={detail.links} />
       <DatasetSources sources={detail.sources} />
       <DatasetInformation document={detail.canonical_information} />

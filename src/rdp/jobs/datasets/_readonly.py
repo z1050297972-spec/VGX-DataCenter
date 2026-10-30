@@ -12,17 +12,21 @@ from pathlib import Path
 from typing import BinaryIO
 
 
-def open_fd(path: Path, *, directory: bool = False) -> int:
-    """以只读且不跟随末级软链接的标志打开路径，描述符由调用方关闭。"""
+def open_fd(
+    path: Path, *, directory: bool = False, dir_fd: int | None = None, nonblocking: bool = False
+) -> int:
+    """只读且不跟随末级软链接；查看器可用dir_fd逐分量打开，并用nonblocking避免FIFO阻塞。"""
     flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+    if nonblocking:
+        flags |= os.O_NONBLOCK
     if directory:
         flags |= os.O_DIRECTORY
     try:
-        return os.open(path, flags | os.O_NOATIME)
+        return os.open(path, flags | os.O_NOATIME, dir_fd=dir_fd)
     except OSError as error:
         if error.errno != errno.EPERM:
             raise
-        return os.open(path, flags)
+        return os.open(path, flags, dir_fd=dir_fd)
 
 
 @contextmanager

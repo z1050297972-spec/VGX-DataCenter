@@ -1088,7 +1088,7 @@ def test_identity_revalidated_inside_business_transaction(
 
 
 def test_openapi_and_generated_types_are_current() -> None:
-    """验收7：离线OpenAPI和生成JSON一致，含创建和字段编辑入口的十六个操作声明cookie，子任务保留文本安全头。"""
+    """验收7：离线OpenAPI和生成JSON一致，含创建、字段编辑和查看器的十八个操作声明cookie，子任务保留文本安全头。"""
     import json
 
     from rdp.api import create_app
@@ -1102,8 +1102,8 @@ def test_openapi_and_generated_types_are_current() -> None:
         if path.startswith("/api/datasets")
         for operation in methods.values()
     ]
-    # M1-08 五个创建入口和 M1.5-02 编辑页同样逐项核对认证边界。
-    assert len(operations) == 16
+    # M1-08 五个创建入口、M1.5-01 两个只读查看接口和 M1.5-02 编辑页同样逐项核对认证边界。
+    assert len(operations) == 18
     assert all(operation["security"] == [{"SessionCookie": []}] for operation in operations)
     response = schema["paths"]["/api/datasets/subtasks"]["get"]["responses"]["200"]
     assert response["content"]["text/plain"]["schema"]["type"] == "string"
