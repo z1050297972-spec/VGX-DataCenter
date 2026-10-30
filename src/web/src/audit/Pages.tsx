@@ -17,6 +17,7 @@ import {
   validateOperationSearch,
   validateLoginSearch,
 } from "./search";
+import { formatDateTime } from "../time";
 
 const operationRoute = getRouteApi("/audit/operations");
 const loginRoute = getRouteApi("/audit/logins");
@@ -72,6 +73,7 @@ function OperationContent({ search }: { search: OperationSearch }): ReactElement
         <DiagnosticCard failure={toFailureView(logs.error)} />
       ) : (
         <Table
+          scroll={{ x: "max-content" }}
           rowKey="log_id"
           columns={operationColumns}
           dataSource={logs.data?.items}
@@ -134,6 +136,7 @@ function LoginContent({ search }: { search: LoginSearch }): ReactElement {
         <DiagnosticCard failure={toFailureView(logs.error)} />
       ) : (
         <Table
+          scroll={{ x: "max-content" }}
           rowKey="log_id"
           columns={loginColumns}
           dataSource={logs.data?.items}
@@ -152,7 +155,7 @@ function historical(value: { name: string; deleted: boolean }): string {
 }
 // 仅展示层使用浏览器本地时区，筛选和传输仍用 UTC。
 function localTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatDateTime(value);
 }
 // 即使响应额外夹带字段也只展示契约白名单，绝不把凭据序列化到 DOM。
 function details(value: OperationLogPage["items"][number]["details"]): string {

@@ -1,0 +1,2 @@
+边界<=1024 → KILLED（1 failed）
+JsonViewer 不用 Worker → KILLED（4 failed）

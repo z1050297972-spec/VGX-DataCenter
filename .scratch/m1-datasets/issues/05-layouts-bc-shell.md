@@ -1,6 +1,6 @@
 # 布局 B、C 与切换；页面外壳统一
 
-Status: ready-for-agent
+Status: done
 
 分级：直做。理由：这是页面。B、C 只是排布不同，部件全部复用第 04 张做好的（3.0 第 1 条）。
 
@@ -70,3 +70,6 @@ A、B、C 三种布局都能用，切换时不丢状态，换个浏览器登录�
 ## Comments
 
 - 2026-10-28，起草（Claude，主会话）。Status 定为 `ready-for-agent`：第 04 张合并后才能开票，可以和第 06 张并行。
+- 2026-10-29 18:02 开票（执行线，负责人授权）。第 04 张已合并（0a4b195）。Status 改为 in-progress。直做，派给 Sonnet 子 agent。工作目录 `~/桌面/robot-data-platform.wt/m1-05-layouts-bc-shell`。浏览器演练脚本从第 04 张复制到 `assets/05-layouts-bc-shell/`，交回后改成走 B、C 两种布局。和第 07 张并行。
+- 2026-10-29 18:31 Sonnet 交回：B（树形表格加抽屉）、C（路径栏、逐级目录分栏、右侧预览）和 A 共用状态与部件，按账号记住布局；外壳加了 nav 语义和高亮；全站时间统一用 `formatDateTime`；M0 各页的表格都改成在自己的容器里横向滚动。顺带修了一个真实缺陷：两个 Segmented 共用同一个 name。Sonnet 自己做了变异抽查，补测后 2 处都被发现。**真实浏览器演练**（`browser-drill.sh`、`browser-drill.mjs` → `browser-drill-run.log`、`drill/m105-*.png`），A 的完整流程照旧全部通过。B 能打开抽屉；C 从按任务进去打开 libero_10 正常。演练发现一个缺陷：C 根列"按格式 0 个 · 0 B"。原因是树请求带了 entry_path，服务端把树收窄了，A 也受影响。打回第 1 轮，改成树请求不带 entry_path，进目录只筛列表。修复后复演：根列按格式 35 个 · 32.53 TiB，能从"按格式 → lerobot → 3.0"一路打开 libero_10；刷新后记住布局 C；A、B、C 三种布局和 /accounts、/audit/operations、/storage-roots 在 1280×900 下 scrollWidth 都等于 clientWidth。/mnt 和两块盘都没有写入。使用手册新增第 4 节"数据集"（三种布局、两个视图、筛选、大小、详情、一致性面板，以及真实数据上会看到哪些问题），后面各节顺延；第 06 张的验收 5（使用手册部分）也一并完成。按负责人授权合并。
+- 2026-10-29 18:33 合并 `c9ce186`（钩子全绿）。工作目录和分支已删除。

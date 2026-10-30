@@ -7,28 +7,8 @@ import { useCurrentAccount } from "../accounts/runtime";
 import { DiagnosticCard } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
 import type { MismatchItem, RecoveryBlock } from "../api/navigation";
-import { formatDateTime } from "../format";
+import { formatDateTime } from "../time";
 import { useAcknowledgeRecoveryBlock, useRecoveryBlock } from "./queries";
-
-/**
- * 在每个已登录页面顶部提示写导航层的作业被挡住。
- * @returns 有标记时显示醒目的错误提示和跳到详情的链接；没有标记、首次加载或查询失败时不显示（worker 提示另行报告服务故障）。
- * @throws 无。
- * @sideEffects 由 AccountLayout 挂载并共享 useRecoveryBlock；不发写请求。
- * @timeSemantics 约每秒轮询；管理员确认后下一次轮询或确认成功后立即消失。
- */
-export function RecoveryBlockBanner(): ReactElement {
-  const query = useRecoveryBlock();
-  if (!query.data?.blocked) return <></>;
-  return (
-    <Alert
-      type="error"
-      showIcon
-      title="导航层写操作已被挡住：上次写入中断后有对不上的项，需管理员处理"
-      description={<Link to="/navigation/recovery">查看对不上的项</Link>}
-    />
-  );
-}
 
 /**
  * 列出对不上的项，管理员可确认放行。
@@ -93,14 +73,14 @@ function BlockDetails({ block }: { block: RecoveryBlock }): ReactElement {
       <Table<MismatchItem>
         rowKey={(row) => `${row.job_id}:${String(row.step_index)}:${row.path}`}
         pagination={false}
-        tableLayout="fixed"
+        scroll={{ x: "max-content" }}
         dataSource={[...(block.items ?? [])]}
         columns={[
           { title: "作业", dataIndex: "job_id", width: 110, ellipsis: true },
-          { title: "路径", dataIndex: "path", width: "28%", ellipsis: true },
-          { title: "期望前像", dataIndex: "expected_before", ellipsis: true },
-          { title: "期望后像", dataIndex: "expected_after", ellipsis: true },
-          { title: "现在的情况", dataIndex: "actual", ellipsis: true },
+          { title: "路径", dataIndex: "path", width: 360, ellipsis: true },
+          { title: "期望前像", dataIndex: "expected_before", width: 220, ellipsis: true },
+          { title: "期望后像", dataIndex: "expected_after", width: 220, ellipsis: true },
+          { title: "现在的情况", dataIndex: "actual", width: 220, ellipsis: true },
         ]}
       />
       {account.data?.role === "administrator" ? (

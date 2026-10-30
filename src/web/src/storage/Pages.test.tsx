@@ -1,4 +1,5 @@
 // 存储根页面契约清单（10、L3）；路由行为经内存history与真实router验证。
+import { formatDateTime } from "../time";
 import { describe, it, expect, vi } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { focusManager, onlineManager } from "@tanstack/react-query";
@@ -68,7 +69,7 @@ describe("存储根页面", () => {
       expect(within(rows[2] as HTMLElement).getByText("可写")).toBeTruthy();
       expect(screen.getByText("/fake/disk")).toBeTruthy();
       expect(screen.getAllByText("在线")).toHaveLength(2);
-      expect(screen.getAllByText(new Date(first.checked_at).toLocaleString())).toHaveLength(2);
+      expect(screen.getAllByText(formatDateTime(first.checked_at))).toHaveLength(2);
     } finally {
       page.close();
     }
@@ -226,11 +227,9 @@ describe("存储根页面", () => {
       fireEvent.click(button);
       expect(await screen.findByRole("alert")).toBeTruthy();
       expect(screen.getByText("disk")).toBeTruthy();
-      expect(screen.getByText(new Date("2026-10-27T12:00:00Z").toLocaleString())).toBeTruthy();
+      expect(screen.getByText(formatDateTime("2026-10-27T12:00:00Z"))).toBeTruthy();
       fireEvent.click(button);
-      expect(
-        await screen.findByText(new Date("2026-10-27T12:01:00Z").toLocaleString()),
-      ).toBeTruthy();
+      expect(await screen.findByText(formatDateTime("2026-10-27T12:01:00Z"))).toBeTruthy();
       expect(screen.queryByRole("alert")).toBeNull();
     } finally {
       page.close();

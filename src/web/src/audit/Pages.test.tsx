@@ -1,4 +1,5 @@
 // 07 前端契约清单；全部使用注入传输与内存路由，按行为逐条验证。
+import { formatDateTime } from "../time";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   act,
@@ -530,11 +531,9 @@ it("筛选契约：缺失字段保持缺失，未知键忽略；数字编号始�
   }
 });
 
-it("时间契约：显示转换浏览器本地时间，带偏移提交转UTC，测试不改全局时区或依赖本机负六时区", async () => {
-  const local = vi.spyOn(Date.prototype, "toLocaleString").mockReturnValue("浏览器本地事件时间");
+it("时间契约：显示统一的中文时间并标注时区，带偏移提交转UTC，测试不改全局时区或依赖本机负六时区", async () => {
   mount("/audit/logins");
-  expect(await screen.findByText("浏览器本地事件时间")).toBeTruthy();
-  expect(local).toHaveBeenCalled();
+  expect(await screen.findByText(formatDateTime("2026-01-02T03:04:05.000006Z"))).toBeTruthy();
   expect(validateLoginSearch({ start: "2026-01-01T08:00:00+08:00" }).start).toBe(
     "2026-01-01T00:00:00.000000Z",
   );

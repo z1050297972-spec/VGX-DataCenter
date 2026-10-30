@@ -11,8 +11,17 @@ class BrowserRequest extends NativeRequest {
   }
 }
 
+// jsdom 没有 ResizeObserver；Ant Design 表格设了 scroll 以后会用它监听容器宽度（M1-05 起所有页面表格都在自己的容器里横向滚动）。
+// 只补空实现，不模拟尺寸变化；真实浏览器自带。
+class SilentResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
 beforeEach(() => {
   vi.stubGlobal("Request", BrowserRequest);
+  vi.stubGlobal("ResizeObserver", SilentResizeObserver);
   // jsdom 无布局引擎；路由滚动不是本票的测试对象，仅补齐浏览器方法，不隐藏请求或渲染错误。
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 });

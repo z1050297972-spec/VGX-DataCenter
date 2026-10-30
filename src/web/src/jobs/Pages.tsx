@@ -7,7 +7,6 @@ import { toFailureView } from "../api/problems";
 import { DiagnosticCard, JobDiagnosticCard } from "../DiagnosticCard";
 import {
   useJobs,
-  useWorkerStatus,
   useJob,
   useJobLog,
   useCancelJob,
@@ -186,19 +185,8 @@ export function SubmitCountJobPage(): ReactElement {
   );
 }
 
-/**
- * 在每个已登录页面顶部提示 worker 离线。
- * @returns online=false 显示“worker 没在运行”，重启心跳后消失；首次加载不误报，查询失败显示统一诊断；不按管理员隐藏。
- * @throws 无；网络或服务器故障由 DiagnosticCard 展示，不伪装离线。
- * @sideEffects 由 AccountLayout 挂载并共享 useWorkerStatus；登录页、身份未知及必须改口令时不发 worker 请求。
- * @timeSemantics 每秒查询服务端 15 秒阈值判定，作业终态不影响横幅；卸载/登出停止查询并清缓存。
- */
-export function WorkerStatusBanner(): ReactElement {
-  const query = useWorkerStatus();
-  if (query.isError) return <DiagnosticCard failure={toFailureView(query.error)} />;
-  if (query.data?.online === false) return <Alert type="warning" title="worker 没在运行" />;
-  return <></>;
-}
+// 保持已有组件导出路径；应用外壳直接引用独立模块，以便作业页按路由拆包。
+export { WorkerStatusBanner } from "./WorkerStatusBanner";
 
 function JobFilters({ search }: { search: JobSearch }): ReactElement {
   const [state, setState] = useState<JobSearch["state"]>(search.state);
@@ -237,6 +225,7 @@ function JobListContent({ search }: { search: JobSearch }): ReactElement {
   return (
     <>
       <Table<Job>
+        scroll={{ x: "max-content" }}
         rowKey="job_id"
         pagination={false}
         loading={query.isPending}

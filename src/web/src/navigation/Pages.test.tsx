@@ -7,7 +7,7 @@ import { account } from "../accounts/testSupport";
 import type { FetchImplementation } from "../api/client";
 import type { RecoveryBlock } from "../api/navigation";
 import { onlineWorker } from "../jobs/testSupport";
-import { formatDateTime } from "../format";
+import { formatDateTime } from "../time";
 import { createAppRouter } from "../router";
 
 const BANNER = "导航层写操作已被挡住：上次写入中断后有对不上的项，需管理员处理";
@@ -116,6 +116,8 @@ it("成员看得到对不上的项但没有放行按钮", async () => {
     expect(screen.getByText(formatDateTime(blocked.set_at ?? ""))).toBeTruthy();
     const cell = screen.getByText(LONG_PATH);
     expect(cell.getAttribute("title")).toBe(LONG_PATH);
+    const scroller = document.querySelector<HTMLElement>(".ant-table-content");
+    expect(scroller?.style.overflowX).toBe("auto");
   } finally {
     view.close();
   }

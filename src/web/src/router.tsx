@@ -2,12 +2,14 @@
 import { QueryClient } from "@tanstack/react-query";
 import {
   createRootRoute,
+  lazyRouteComponent,
   createRoute,
   createRouter,
   Outlet,
   useLocation,
   type RouterHistory,
 } from "@tanstack/react-router";
+// M1-04：鉴权外壳和轻量首页保持同步，业务页面按路由加载，离开页面时立即释放查询。
 import { AccountLayout, AccountsPage, LoginPage, PasswordPage } from "./accounts/Pages";
 import { AccountClientProvider } from "./accounts/runtime";
 import {
@@ -15,7 +17,8 @@ import {
   guardAccountRoute,
   handleUnauthorized,
 } from "./accounts/navigation";
-import { LoginLogsPage, OperationLogsPage } from "./audit/Pages";
+const LoginLogsPage = lazyRouteComponent(() => import("./audit/Pages"), "LoginLogsPage");
+const OperationLogsPage = lazyRouteComponent(() => import("./audit/Pages"), "OperationLogsPage");
 import { validateLoginSearch, validateOperationSearch } from "./audit/search";
 import type { LoginSearch, OperationSearch } from "./api/audit";
 import { createAccountClient } from "./api/accounts";
@@ -23,12 +26,23 @@ import { defaultFetch, type FetchImplementation } from "./api/client";
 import { toFailureView } from "./api/problems";
 import { DiagnosticCard } from "./DiagnosticCard";
 import { HealthPage } from "./HealthPage";
-import { SchedulingPage, SubmitResourceJobsPage } from "./scheduling/Pages";
-import { JobsPage, JobDetailPage, SubmitCountJobPage } from "./jobs/Pages";
+const SchedulingPage = lazyRouteComponent(() => import("./scheduling/Pages"), "SchedulingPage");
+const SubmitResourceJobsPage = lazyRouteComponent(
+  () => import("./scheduling/Pages"),
+  "SubmitResourceJobsPage",
+);
+const JobsPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobsPage");
+const JobDetailPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobDetailPage");
+const SubmitCountJobPage = lazyRouteComponent(() => import("./jobs/Pages"), "SubmitCountJobPage");
 import type { JobSearch } from "./api/jobs";
 import { validateJobSearch } from "./jobs/search";
-import { StorageRootsPage } from "./storage/Pages";
-import { NavigationRecoveryPage } from "./navigation/Pages";
+import { validateDatasetSearch } from "./datasets/search";
+const DatasetsPage = lazyRouteComponent(() => import("./datasets/Pages"), "DatasetsPage");
+const StorageRootsPage = lazyRouteComponent(() => import("./storage/Pages"), "StorageRootsPage");
+const NavigationRecoveryPage = lazyRouteComponent(
+  () => import("./navigation/Pages"),
+  "NavigationRecoveryPage",
+);
 
 /** 路由装配输入；测试使用内存 history 与注入传输，不启动服务器。 */
 interface AppRouterOptions {
@@ -146,6 +160,12 @@ export function createAppRouter(options: AppRouterOptions) {
     path: "/navigation/recovery",
     component: NavigationRecoveryPage,
   });
+  const datasets = createRoute({
+    getParentRoute: () => root,
+    path: "/datasets",
+    validateSearch: validateDatasetSearch,
+    component: DatasetsPage,
+  });
   const instance = createRouter({
     routeTree: root.addChildren([
       index,
@@ -160,6 +180,7 @@ export function createAppRouter(options: AppRouterOptions) {
       scheduling,
       resources,
       storageRoots,
+      datasets,
       navigationRecovery,
     ]),
     history: options.history,

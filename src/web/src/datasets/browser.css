@@ -1,0 +1,172 @@
+/* M1-04 布局 A 的排布；共享部件不依赖此三栏容器，后续 B/C 可直接复用。 */
+.dataset-layout-a {
+  display: grid;
+  grid-template-columns: minmax(320px, 360px) minmax(0, 1fr) minmax(160px, 220px);
+  gap: 20px;
+  align-items: start;
+  max-width: 100%;
+}
+.dataset-layout-a > * {
+  min-width: 0;
+}
+.dataset-layout-a > aside {
+  background: #fafafa;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow-x: hidden;
+}
+/* 名字单行、放不下用省略号（悬停看全名）；数量和大小在名字下一行。 */
+.dataset-tree-node {
+  display: block;
+  min-width: 0;
+}
+.dataset-tree-name {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dataset-tree-meta {
+  display: block;
+  color: #888;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dataset-layout-a .ant-tree .ant-tree-node-content-wrapper {
+  min-width: 0;
+  overflow: hidden;
+}
+@media (max-width: 1000px) {
+  .dataset-layout-a {
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  }
+  .dataset-layout-a > aside:last-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 650px) {
+  .dataset-layout-a {
+    display: block;
+  }
+}
+
+.dataset-json {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 65vh;
+  overflow: auto;
+  background: #f6f8fa;
+  padding: 12px;
+}
+.dataset-filters {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.dataset-filters label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.dataset-layout-a main {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* M1-05 布局 B、C 与切换器；部件样式沿用上面的 dataset-tree-*。 */
+.dataset-toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.dataset-layout-b,
+.dataset-layout-c {
+  max-width: 100%;
+  min-width: 0;
+}
+/* 名字列限宽，长名字用省略号；全名在悬停提示里。 */
+.dataset-table-name {
+  max-width: 360px;
+  display: block;
+}
+.dataset-layout-b .ant-btn.dataset-table-name {
+  padding: 0;
+  height: auto;
+}
+.dataset-row-selected > td {
+  background: #e6f4ff;
+}
+/* C：左边目录分栏在自己的容器里横向滚动，右边预览占剩余宽度。 */
+.dataset-miller-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 16px;
+  align-items: start;
+}
+.dataset-miller-scroll {
+  display: flex;
+  overflow-x: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  min-width: 0;
+}
+.dataset-miller-column {
+  flex: 0 0 240px;
+  min-width: 0;
+  padding: 8px;
+  border-right: 1px solid #eee;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.dataset-miller-heading {
+  font-weight: 600;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dataset-miller-item.ant-btn {
+  height: auto;
+  text-align: left;
+  padding: 4px 8px;
+  display: block;
+}
+.dataset-miller-item .dataset-tree-meta {
+  color: inherit;
+  opacity: 0.7;
+}
+.dataset-miller-empty {
+  color: #888;
+}
+.dataset-preview {
+  min-width: 0;
+  overflow-x: hidden;
+}
+.dataset-path-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+}
+.dataset-path-step {
+  display: inline-flex;
+  align-items: center;
+  max-width: 240px;
+}
+.dataset-path-step .ant-btn {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 1000px) {
+  .dataset-miller-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
