@@ -108,6 +108,24 @@
         "title": "AccountStatus",
         "type": "string"
       },
+      "AcknowledgeResponse": {
+        "additionalProperties": false,
+        "description": "管理员确认的结果。\n\nAttributes:\n    cleared_job_ids: 已归档并清掉日志的作业编号（文本，升序）。",
+        "properties": {
+          "cleared_job_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cleared Job Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cleared_job_ids"
+        ],
+        "title": "AcknowledgeResponse",
+        "type": "object"
+      },
       "ActorResponse": {
         "additionalProperties": false,
         "description": "历史操作者的安全 JSON 表达。\n\nAttributes:\n    account_id: 正整数十进制文本，1 至 2^63-1、无单位、无默认；运维为 null。\n    name: 当时显示名，1-64 个码点、不可空、无默认；运维固定“运维”。",
@@ -141,8 +159,47 @@
       },
       "AuditValues": {
         "additionalProperties": false,
-        "description": "v1 的平面白名单，秘密无字段可容纳；None 表示未提供，序列化时排除。\n\nAttributes:\n    model_config: frozen/extra=forbid/hide_input_in_errors；未知字段拒绝且不回显值。\n    login_name: 已确认账号的登录名，3-32 字符；默认 None，不接受未知输入原文。\n    display_name: 已确认账号的显示名，1-64 码点；默认 None。\n    role: administrator/member；默认 None，不含权限令牌。\n    status: enabled/disabled；默认 None。\n    must_change_password: 严格布尔；默认 None，仅表示强制改密标记。\n    retention_days: 严格整数 7-365 天；默认 None。\n    job_id: 作业正编号的规范十进制文本，最大 2^63-1；默认 None。\n    job_type: 稳定英文类型键，1-64 字符；默认 None，不存显示名或参数。\n    job_state: jobs.JobState 的稳定英文码，before/after 分别存前后状态；默认 None。\n    resubmitted_from: 原作业正编号文本；仅重新提交的 after 提供，默认 None。",
+        "description": "v1 的平面白名单，秘密无字段可容纳；None 表示未提供，序列化时排除。\n\nAttributes:\n    model_config: frozen/extra=forbid/hide_input_in_errors；未知字段拒绝且不回显值。\n    login_name: 已确认账号的登录名，3-32 字符；默认 None，不接受未知输入原文。\n    display_name: 已确认账号的显示名，1-64 码点；默认 None。\n    role: administrator/member；默认 None，不含权限令牌。\n    status: enabled/disabled；默认 None。\n    must_change_password: 严格布尔；默认 None，仅表示强制改密标记。\n    retention_days: 严格整数 7-365 天；默认 None。\n    job_id: 作业正编号的规范十进制文本，最大 2^63-1；默认 None。\n    job_type: 稳定英文类型键，1-64 字符；默认 None，不存显示名或参数。\n    job_state: jobs.JobState 的稳定英文码，before/after 分别存前后状态；默认 None。\n    resubmitted_from: 原作业正编号文本；仅重新提交的 after 提供，默认 None。\n    dataset_ids: 写导航层涉及的数据集编号，至多 20 个，默认 None（M1-07）；总数见 dataset_count。\n    dataset_count: 涉及的数据集总数，非负整数，默认 None。\n    file_count: 写导航层实际改的文件数，非负整数，默认 None。\n    link_count: 写导航层实际建或改的链接数，非负整数，默认 None。\n    change_record_id: 变更记录编号文本（等于写入作业编号），默认 None；没有生成变更记录时不提供。\n    reverts_job_id: 撤回作业才提供：被撤回的写入作业编号文本，默认 None。",
         "properties": {
+          "change_record_id": {
+            "anyOf": [
+              {
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Record Id"
+          },
+          "dataset_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Count"
+          },
+          "dataset_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Ids"
+          },
           "display_name": {
             "anyOf": [
               {
@@ -155,6 +212,18 @@
               }
             ],
             "title": "Display Name"
+          },
+          "file_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Count"
           },
           "job_id": {
             "anyOf": [
@@ -193,6 +262,18 @@
               }
             ],
             "title": "Job Type"
+          },
+          "link_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Count"
           },
           "login_name": {
             "anyOf": [
@@ -242,6 +323,18 @@
               }
             ],
             "title": "Retention Days"
+          },
+          "reverts_job_id": {
+            "anyOf": [
+              {
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reverts Job Id"
           },
           "role": {
             "anyOf": [
@@ -2416,6 +2509,51 @@
         "title": "LoginResult",
         "type": "string"
       },
+      "MismatchItemResponse": {
+        "additionalProperties": false,
+        "description": "一项对不上的步骤。\n\nAttributes:\n    job_id: 所属写入作业编号，规范十进制文本。\n    step_index: 在写入日志里的步骤序号，从 0 起。\n    path: 相对导航层根的路径。\n    expected_before: 前像的文字描述（哈希、链接目标或“不存在”）。\n    expected_after: 后像的文字描述。\n    actual: 磁盘现状的文字描述；读不了时写原因，不含文件正文。",
+        "properties": {
+          "actual": {
+            "minLength": 1,
+            "title": "Actual",
+            "type": "string"
+          },
+          "expected_after": {
+            "minLength": 1,
+            "title": "Expected After",
+            "type": "string"
+          },
+          "expected_before": {
+            "minLength": 1,
+            "title": "Expected Before",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "path": {
+            "minLength": 1,
+            "title": "Path",
+            "type": "string"
+          },
+          "step_index": {
+            "minimum": 0.0,
+            "title": "Step Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id",
+          "step_index",
+          "path",
+          "expected_before",
+          "expected_after",
+          "actual"
+        ],
+        "title": "MismatchItemResponse",
+        "type": "object"
+      },
       "NavigationDocument": {
         "additionalProperties": false,
         "description": "导航文件原文；非UTF-8或不可读时content为空并附诊断，坏JSON文本仍可查看。",
@@ -2506,7 +2644,7 @@
       },
       "ObjectResponse": {
         "additionalProperties": false,
-        "description": "对象的历史名字，保留给未来撤回功能定位。\n\nAttributes:\n    kind: account/audit_settings/job/dataset_index，必填；job 不表示账号。\n    object_id: 账号/作业编号十进制文本或设置键 retention、索引键 all；失败新建尚无编号时 None。\n    name: 当时显示名、固定设置名或“作业显示名 #编号”，1-64 码点，必填。\n    deleted: 账号编号已不存在为 True；设置、作业或未分配编号为 False。",
+        "description": "对象的历史名字，保留给未来撤回功能定位。\n\nAttributes:\n    kind: account/audit_settings/job/dataset_index/navigation_write，必填；job 不表示账号。\n    object_id: 账号/作业编号十进制文本或设置键 retention、索引键 all；失败新建尚无编号时 None。\n    name: 当时显示名、固定设置名或“作业显示名 #编号”，1-64 码点，必填。\n    deleted: 账号编号已不存在为 True；设置、作业或未分配编号为 False。",
         "properties": {
           "deleted": {
             "title": "Deleted",
@@ -2517,7 +2655,8 @@
               "account",
               "audit_settings",
               "job",
-              "dataset_index"
+              "dataset_index",
+              "navigation_write"
             ],
             "title": "Kind",
             "type": "string"
@@ -2723,7 +2862,14 @@
           "set_retention",
           "submit_job",
           "cancel_job",
-          "rebuild_index"
+          "rebuild_index",
+          "create_link",
+          "create_dataset",
+          "repoint_dataset",
+          "set_data_origin",
+          "revert_change",
+          "rollback_navigation_write",
+          "confirm_navigation_recovery"
         ],
         "title": "OperationType",
         "type": "string"
@@ -2795,6 +2941,74 @@
           "error_id"
         ],
         "title": "ProblemResponse",
+        "type": "object"
+      },
+      "RecoveryBlockResponse": {
+        "additionalProperties": false,
+        "description": "当前标记；没有标记时只有 blocked=false，其余字段省略。\n\nAttributes:\n    blocked: 写导航层的作业是否被挡住。\n    set_at: 第一次设置的 UTC 时刻；blocked=false 时省略。\n    job_ids: 留有对不上项的写入作业编号（文本，升序）；blocked=false 时省略。\n    items: 对不上的项样例，至多 MARKER_ITEM_SAMPLE_LIMIT 条；blocked=false 时省略。\n    total_items: 对不上的项总数，≥ len(items)；blocked=false 时省略。",
+        "properties": {
+          "blocked": {
+            "title": "Blocked",
+            "type": "boolean"
+          },
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MismatchItemResponse"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          },
+          "job_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Ids"
+          },
+          "set_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Set At"
+          },
+          "total_items": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Items"
+          }
+        },
+        "required": [
+          "blocked"
+        ],
+        "title": "RecoveryBlockResponse",
         "type": "object"
       },
       "RecoveryMode": {
@@ -8573,6 +8787,240 @@
         "summary": "Resubmit Job",
         "tags": [
           "jobs"
+        ]
+      }
+    },
+    "/api/navigation/recovery-block": {
+      "get": {
+        "description": "读取“导航层恢复失败”标记，供所有页面顶部提示和详情页使用。\n\nArgs:\n    request: 当前请求，只读 app.state 的数据库装配。\n    context: 全局认证上下文，成员与管理员相同。\n\nReturns:\n    HTTP 200；没有标记时 {\"blocked\": false}，有标记时带 set_at、job_ids、items 样例和完整 total_items。\n\nRaises:\n    AuthenticationError: 未登录，401。\n    PasswordChangeRequiredError: 必须改口令，403。\n    InputError: 标记行损坏，400。\n    ConflictError: 只读锁冲突，409。\n    ExternalError: 依赖未装配或读取失败，502。\n    DefectError: 装配或转换缺陷，500。\n\nSide Effects:\n    只读数据库；不读导航层，不写操作日志。\n\nTime Semantics:\n    每次读取当前已提交状态，不缓存；前端约每秒轮询一次，接口无等待。",
+        "operationId": "get_navigation_recovery_block",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryBlockResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Recovery Block",
+        "tags": [
+          "navigation"
+        ]
+      }
+    },
+    "/api/navigation/recovery-block/acknowledge": {
+      "post": {
+        "description": "管理员人工处理后确认：归档日志、记 confirm_navigation_recovery 操作日志、清标记。\n\nArgs:\n    request: 当前请求，只读 app.state 的数据库与状态目录装配。\n    context: 全局认证的管理员上下文；成员为 403，且先于其他检查。\n\nReturns:\n    HTTP 200，已清理的作业编号（文本，升序）；下一轮作业领取即放行排队的写作业。\n\nRaises:\n    AuthenticationError: 未登录，401。\n    AuthorizationError: Origin 不合法或不是管理员，403。\n    PasswordChangeRequiredError: 必须改口令，403。\n    ConflictError: 当前没有标记（已被别人确认），409。\n    InputError: 标记损坏，400。\n    ExternalError: 归档、删日志或数据库写入失败，502；标记保留。\n    DefectError: 装配或时钟缺陷，500。\n\nSide Effects:\n    写状态目录（归档变更记录、删写入日志）和数据库（操作日志与清标记）；不写导航层，不调用 recovery、atomic。\n    操作日志的操作人是当前管理员，来源与请求编号取自服务端。\n\nTime Semantics:\n    使用请求唯一 UTC 时刻；同步完成，不重试；崩在中途时标记保留、写操作继续被挡。",
+        "operationId": "acknowledge_navigation_recovery_block",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcknowledgeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Acknowledge Block",
+        "tags": [
+          "navigation"
         ]
       }
     },

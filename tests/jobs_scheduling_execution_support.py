@@ -52,13 +52,14 @@ class SchedulingCase:
 
 
 @contextmanager
-def scheduling_case(
+def scheduling_case(  # noqa: PLR0913  # 理由：测试夹具的关键字选项；写导航层选项是 M1-07 追加的第六个。
     root: Path,
     *,
     concurrency: int = 1,
     gpus: tuple[int, ...] = (),
     execute: Callable[[ExecutionContext], None] = execute_count,
     needs_gpu: bool | frozenset[str] = False,
+    writes_navigation: frozenset[str] = frozenset(),
 ) -> Generator[SchedulingCase]:
     """配置两个独立类型及空每日登记；需要GPU时仅注入临时假命令路径。"""
     registry = JobRegistry()
@@ -72,6 +73,7 @@ def scheduling_case(
                 execute,
                 concurrency=concurrency,
                 requires_gpu=needs_gpu if isinstance(needs_gpu, bool) else key in needs_gpu,
+                writes_navigation=key in writes_navigation,
             )
         )
     settings = resolve_scheduling(JobsConfig.model_validate({"gpus": gpus}), registry)

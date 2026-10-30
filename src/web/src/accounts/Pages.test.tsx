@@ -41,9 +41,11 @@ function mount(path: string, fetchImpl: FetchImplementation) {
     fetchImpl: (...args) =>
       new URL(args[0].url).pathname === "/api/worker/status"
         ? Promise.resolve(Response.json(onlineWorker))
-        : new URL(args[0].url).pathname === "/api/version"
-          ? Promise.resolve(Response.json({ version: "测试 (aaaaaaa)" }))
-          : fetchImpl(...args),
+        : new URL(args[0].url).pathname === "/api/navigation/recovery-block"
+          ? Promise.resolve(Response.json({ blocked: false }))
+          : new URL(args[0].url).pathname === "/api/version"
+            ? Promise.resolve(Response.json({ version: "测试 (aaaaaaa)" }))
+            : fetchImpl(...args),
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   const view = render(

@@ -25,6 +25,7 @@ from rdp.jobs.types import RecoveryMode
 if TYPE_CHECKING:
     from rdp.jobs.datasets.rescan import RescanDependencies
     from rdp.jobs.execution import ExecutionContext
+    from rdp.jobs.navwrite.pipeline import NavWriteDependencies
 
 
 # 类型键是持久化协议；登记、执行装配、定时规则和HTTP入口共用，不复用历史含义。
@@ -65,6 +66,8 @@ class JobDefinition:
         requires_gpu: 默认 False，严格布尔；True 时领取必须同时申请 GPU，空配置在执行时失败。
         storage: 按检查顺序排列的 StorageUse 元组，默认空，同一个根不可重复声明；
             名字须在启动配置中登记，用户不能用作业参数扩大该声明。
+        writes_navigation: 默认 False，严格布尔（M1-07，ADR 0005 修订）。True 表示该类型会写导航层：
+            "导航层恢复失败"标记存在时，worker 不领取这类作业，它们留在排队中；其他类型不受影响。
         execute: 仅接收 ExecutionContext 的同步函数，成功返回 None；每一步至多 JOB_CHECKPOINT_MAX_S
             到达检查点，所有等待经上下文；异常由执行器外层收口，不自行写作业状态或结果。
     """
@@ -77,6 +80,7 @@ class JobDefinition:
     concurrency: int = 1
     requires_gpu: bool = False
     storage: tuple[StorageUse, ...] = ()
+    writes_navigation: bool = False
 
 
 class JobRegistry:
@@ -228,14 +232,19 @@ class JobRegistry:
         return tuple(self._definitions[key] for key in sorted(self._definitions))
 
 
-def production_registry(rescan_dependencies: RescanDependencies | None = None) -> JobRegistry:
+def production_registry(
+    rescan_dependencies: RescanDependencies | None = None,
+    nav_write_dependencies: NavWriteDependencies | None = None,
+) -> JobRegistry:
     """构造示例与维护作业的生产登记表。
 
     Args:
         rescan_dependencies: worker的显式扫描依赖；Web或只提交调用传None，不获得文件访问能力。
+        nav_write_dependencies: worker的写导航层依赖（M1-07）；Web传None，只能校验提交参数，
+            执行时缺依赖属于程序缺陷。
 
     Returns:
-        新 JobRegistry：示例、维护及dataset_rescan；扫描为restart，执行能力由入口显式注入。
+        新 JobRegistry：示例、维护、dataset_rescan及写导航层的 nav_write_apply、nav_revert_preview；扫描为restart，执行能力由入口显式注入。
         三个示例为 interrupt，两个清除为 restart；只有 example_gpu 需要 GPU，各类默认并发 1。
 
     Raises:
@@ -252,6 +261,7 @@ def production_registry(rescan_dependencies: RescanDependencies | None = None) -
     from rdp.jobs.datasets.sizing import build_sizing_definition
     from rdp.jobs.example import CountParameters, execute_count
     from rdp.jobs.maintenance import PurgeParameters, execute_purge_errors, execute_purge_logs
+    from rdp.jobs.navwrite.jobs import build_navwrite_definitions
     from rdp.jobs.resource_examples import (
         GpuExampleParameters,
         NavigationExampleParameters,
@@ -299,6 +309,8 @@ def production_registry(rescan_dependencies: RescanDependencies | None = None) -
         registry.register(definition)
     registry.register(build_rescan_definition(rescan_dependencies))
     registry.register(build_sizing_definition(rescan_dependencies))
+    for definition in build_navwrite_definitions(nav_write_dependencies):
+        registry.register(definition)
     return registry
 
 

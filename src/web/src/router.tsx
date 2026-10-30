@@ -39,6 +39,10 @@ import { validateJobSearch } from "./jobs/search";
 import { validateDatasetSearch } from "./datasets/search";
 const DatasetsPage = lazyRouteComponent(() => import("./datasets/Pages"), "DatasetsPage");
 const StorageRootsPage = lazyRouteComponent(() => import("./storage/Pages"), "StorageRootsPage");
+const NavigationRecoveryPage = lazyRouteComponent(
+  () => import("./navigation/Pages"),
+  "NavigationRecoveryPage",
+);
 
 /** 路由装配输入；测试使用内存 history 与注入传输，不启动服务器。 */
 interface AppRouterOptions {
@@ -151,6 +155,11 @@ export function createAppRouter(options: AppRouterOptions) {
     path: "/storage-roots",
     component: StorageRootsPage,
   });
+  const navigationRecovery = createRoute({
+    getParentRoute: () => root,
+    path: "/navigation/recovery",
+    component: NavigationRecoveryPage,
+  });
   const datasets = createRoute({
     getParentRoute: () => root,
     path: "/datasets",
@@ -172,6 +181,7 @@ export function createAppRouter(options: AppRouterOptions) {
       resources,
       storageRoots,
       datasets,
+      navigationRecovery,
     ]),
     history: options.history,
     defaultPreload: false,

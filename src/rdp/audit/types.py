@@ -39,6 +39,15 @@ class OperationType(StrEnum):
     SUBMIT_JOB = "submit_job"
     CANCEL_JOB = "cancel_job"
     REBUILD_INDEX = "rebuild_index"
+    # M1-07（ADR 0009 L15）：写导航层的七个操作码。前五个对应 NavOperation，由 worker 以提交人身份追加；
+    # 后两个是平台自己的动作：中断后的回滚恢复（系统身份）和管理员确认"导航层恢复失败"。
+    CREATE_LINK = "create_link"
+    CREATE_DATASET = "create_dataset"
+    REPOINT_DATASET = "repoint_dataset"
+    SET_DATA_ORIGIN = "set_data_origin"
+    REVERT_CHANGE = "revert_change"
+    ROLLBACK_NAVIGATION_WRITE = "rollback_navigation_write"
+    CONFIRM_NAVIGATION_RECOVERY = "confirm_navigation_recovery"
 
 
 class OperationResult(StrEnum):
@@ -82,6 +91,12 @@ class AuditValues(BaseModel):
         job_type: 稳定英文类型键，1-64 字符；默认 None，不存显示名或参数。
         job_state: jobs.JobState 的稳定英文码，before/after 分别存前后状态；默认 None。
         resubmitted_from: 原作业正编号文本；仅重新提交的 after 提供，默认 None。
+        dataset_ids: 写导航层涉及的数据集编号，至多 20 个，默认 None（M1-07）；总数见 dataset_count。
+        dataset_count: 涉及的数据集总数，非负整数，默认 None。
+        file_count: 写导航层实际改的文件数，非负整数，默认 None。
+        link_count: 写导航层实际建或改的链接数，非负整数，默认 None。
+        change_record_id: 变更记录编号文本（等于写入作业编号），默认 None；没有生成变更记录时不提供。
+        reverts_job_id: 撤回作业才提供：被撤回的写入作业编号文本，默认 None。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
@@ -100,6 +115,13 @@ class AuditValues(BaseModel):
     job_type: str | None = Field(default=None, strict=True, min_length=1, max_length=64)
     job_state: str | None = Field(default=None, strict=True, min_length=1, max_length=16)
     resubmitted_from: str | None = Field(default=None, strict=True, pattern=r"^[1-9][0-9]{0,18}$")
+
+    dataset_ids: tuple[str, ...] | None = Field(default=None, max_length=20)
+    dataset_count: int | None = Field(default=None, strict=True, ge=0)
+    file_count: int | None = Field(default=None, strict=True, ge=0)
+    link_count: int | None = Field(default=None, strict=True, ge=0)
+    change_record_id: str | None = Field(default=None, strict=True, pattern=r"^[1-9][0-9]{0,18}$")
+    reverts_job_id: str | None = Field(default=None, strict=True, pattern=r"^[1-9][0-9]{0,18}$")
 
 
 class OperationDetails(BaseModel):
@@ -137,6 +159,33 @@ OPERATION_DETAIL_FIELDS: dict[OperationType, frozenset[str]] = {
     OperationType.CANCEL_JOB: frozenset({"job_id", "job_type", "job_state"}),
     OperationType.REBUILD_INDEX: frozenset(),
 }
+# M1-07：对象是 navigation_write 的七个操作码；校验时两者必须一一对应。
+NAVIGATION_OPERATIONS = frozenset(
+    {
+        OperationType.CREATE_LINK,
+        OperationType.CREATE_DATASET,
+        OperationType.REPOINT_DATASET,
+        OperationType.SET_DATA_ORIGIN,
+        OperationType.REVERT_CHANGE,
+        OperationType.ROLLBACK_NAVIGATION_WRITE,
+        OperationType.CONFIRM_NAVIGATION_RECOVERY,
+    }
+)
+# M1-07：写导航层各操作码共用同一组摘要字段（L15），撤回另有 reverts_job_id。
+_NAVIGATION_DETAIL_FIELDS = frozenset(
+    {"dataset_ids", "dataset_count", "file_count", "link_count", "change_record_id"}
+)
+OPERATION_DETAIL_FIELDS.update(
+    {
+        OperationType.CREATE_LINK: _NAVIGATION_DETAIL_FIELDS,
+        OperationType.CREATE_DATASET: _NAVIGATION_DETAIL_FIELDS,
+        OperationType.REPOINT_DATASET: _NAVIGATION_DETAIL_FIELDS,
+        OperationType.SET_DATA_ORIGIN: _NAVIGATION_DETAIL_FIELDS,
+        OperationType.REVERT_CHANGE: _NAVIGATION_DETAIL_FIELDS | {"reverts_job_id"},
+        OperationType.ROLLBACK_NAVIGATION_WRITE: _NAVIGATION_DETAIL_FIELDS,
+        OperationType.CONFIRM_NAVIGATION_RECOVERY: _NAVIGATION_DETAIL_FIELDS,
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -165,12 +214,13 @@ class ObjectRef:
     """操作对象的独立快照，不建立会随账号删除而消失的外键。
 
     Attributes:
-        kind: account、audit_settings、job 或 dataset_index；旧值含义不变。
+        kind: account、audit_settings、job、dataset_index 或 navigation_write；旧值含义不变。
+            navigation_write（M1-07）的 object_id 是写入作业编号，也是变更记录编号。
         object_id: account/job 为 1 至 2^63-1 的十进制文本；失败新建尚未分配编号为 None；设置固定 retention；数据集索引固定 all。
-        name: 已确认显示名或固定“日志保留期”，1-64 码点；job 为“显示名 #编号”，最多 61 码点；失败新建account固定“新账号”，job尚无编号固定“新作业”；dataset_index固定“数据集索引”，不抄输入。
+        name: 已确认显示名或固定“日志保留期”，1-64 码点；job 为“显示名 #编号”，最多 61 码点；失败新建account固定“新账号”，job尚无编号固定“新作业”；dataset_index固定“数据集索引”，不抄输入；navigation_write 为“写导航层 #编号”。
     """
 
-    kind: Literal["account", "audit_settings", "job", "dataset_index"]
+    kind: Literal["account", "audit_settings", "job", "dataset_index", "navigation_write"]
     object_id: str | None
     name: str
 

@@ -41,6 +41,7 @@ from rdp.infra.storage import (
 from rdp.infra.version import DeploymentLayout, read_platform_version
 from rdp.jobs._clock import ClockReader
 from rdp.jobs.datasets.rescan import RescanDependencies
+from rdp.jobs.navwrite.wiring import build_nav_write_dependencies
 from rdp.jobs.registry import JobRegistry, production_registry
 from rdp.jobs.schedules import local_timezone, production_schedules
 from rdp.jobs.scheduling import resolve_scheduling
@@ -160,7 +161,7 @@ def prepare_service(
             inputs.mounts.resolve_uuid_device,
             inputs.clock.now,
         )
-        registry = production_registry(
+        rescan = (
             RescanDependencies(
                 engine,
                 config.nav_root,
@@ -169,6 +170,11 @@ def prepare_service(
             )
             if process == "worker"
             else None
+        )
+        registry = production_registry(
+            rescan,
+            # 写导航层的依赖只在 worker 装配；Web 传 None，只能校验提交参数（import-linter 合约）。
+            build_nav_write_dependencies(rescan, paths) if rescan is not None else None,
         )
         try:
             registry.validate_storage_roots(roots=config.storage_roots)

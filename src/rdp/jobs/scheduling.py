@@ -147,6 +147,8 @@ class Scheduler:
             准备后的恢复候选若收到取消，不等名额或卡，先用普通终态事务转已取消并移出候选、清展示；
             不再次调用 recover_job 或增加恢复次数，终态写失败按整实例失败处理，不能永久卡在 cancelling。
             取消终态已提交后，作业日志摘要失败只记一次带 job_id 的 ERROR，继续领取其他作业。
+            "导航层恢复失败"标记在（dependencies.navigation_blocked 为真）时，writes_navigation 的类型整类跳过，
+            作业留在排队中、不写展示；标记被确认后下一轮即放行，不需要重启 worker。
             类型上限满则跳过此类；可用卡全部忙时记录 GPU 等待，同类后项不能越过；别类照常领取。
             跨类型抢卡也以此 job_id 顺序，不能因登记顺序或上轮游标让后提交的 B 越过等卡的 A。
             同轮已有队首等卡时，后续需卡队首不再领取途中归还的卡；不需卡的类型照常领取。
@@ -165,7 +167,14 @@ class Scheduler:
             item.type_name: item for item in self.resources.configuration.catalog.settings.types
         }
         gpu_waiting = False
+        navigation_blocked: bool | None = None
         for candidate in self._heads():
+            if self._writes_navigation(candidate.type_name):
+                if navigation_blocked is None:
+                    navigation_blocked = self._navigation_blocked()
+                if navigation_blocked:
+                    # "导航层恢复失败"标记在：整类写导航层的作业留在排队中，其他类型不受影响。
+                    continue
             capacity = capacities.get(candidate.type_name)
             if gpu_waiting and capacity is not None and capacity.requires_gpu:
                 # 卡可能在扫描途中归还；本轮为更早的需卡队首保留优先权，CPU类型仍继续判断。
@@ -183,6 +192,16 @@ class Scheduler:
             if admission.wait_reason is WaitReason.GPU:
                 gpu_waiting = True
         return None
+
+    def _writes_navigation(self, type_name: str) -> bool:
+        """该类型是否登记为写导航层；未登记的类型不是。"""
+        definition = self.dependencies.registry.lookup(type_name)
+        return definition is not None and definition.writes_navigation
+
+    def _navigation_blocked(self) -> bool:
+        """每轮领取至多读一次标记；未装配回调（Web 与旧测试）视为没有被挡住。"""
+        callback = self.dependencies.navigation_blocked
+        return callback is not None and callback()
 
     def _heads(self) -> tuple[JobRecord, ...]:
         """恢复只替换同类型队首；先关闭读事务，再收尾取消或发布排队展示。"""

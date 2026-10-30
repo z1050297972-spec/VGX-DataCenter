@@ -51,7 +51,14 @@ def historical_audit_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     tables = {
         name: table
         for name, table in metadata.tables.items()
-        if name not in {"jobs", "worker_heartbeat", "schedule_submissions", "worker_gpu_checks"}
+        if name
+        not in {
+            "jobs",
+            "worker_heartbeat",
+            "schedule_submissions",
+            "worker_gpu_checks",
+            "nav_recovery_failure",
+        }
         and not name.startswith("dataset")
     }
     monkeypatch.setattr(metadata, "tables", tables)

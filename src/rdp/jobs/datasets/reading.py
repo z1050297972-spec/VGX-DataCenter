@@ -24,8 +24,10 @@ from rdp.jobs.datasets.types import (
     JsonObject,
     Link,
     NavigationCatalog,
+    ProvenanceState,
     Source,
 )
+from rdp.jobs.navwrite.provenance import read_provenance
 
 
 def discover_entries(nav_root: Path) -> NavigationCatalog:
@@ -168,7 +170,18 @@ def read_entry(
         else ()
     )
     return EntrySnapshot(
-        location, documents, identity, roots, links, sources, "来源.json" in names, size, issues
+        location,
+        documents,
+        identity,
+        roots,
+        links,
+        sources,
+        "来源.json" in names,
+        size,
+        issues,
+        read_provenance(nav_root / location.path).state
+        if "来源.json" in names
+        else ProvenanceState.ABSENT,
     )
 
 

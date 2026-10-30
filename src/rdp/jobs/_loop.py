@@ -120,6 +120,9 @@ class Loop:
             work = recover_job(number, self.dependencies)
             if work is not None:
                 recovered.append(work)
+        if self.dependencies.recover_navigation is not None and not self.stop.is_set():
+            # ADR 0005 修订：旧作业已判为中断之后、第一次领取之前，先把没收尾的写导航层作业退回。
+            self.dependencies.recover_navigation()
         self.scheduler = Scheduler(self.dependencies, self.resources, recovered=tuple(recovered))
 
     def _fill(self) -> None:
