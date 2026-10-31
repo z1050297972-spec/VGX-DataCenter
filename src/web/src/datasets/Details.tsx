@@ -1,5 +1,5 @@
 // 数据集详情共享部件（11、16、M1-04）；索引时间和现场 JSON 时间不混为一份快照。
-import { useState, type ReactElement } from "react";
+import { lazy, Suspense, useState, type ReactElement } from "react";
 import { Alert, Button, Card, Typography } from "antd";
 import { rescanDataset, sizeDataset, type DatasetDetail } from "../api/datasets";
 import { useAccountClient } from "../accounts/runtime";
@@ -9,11 +9,19 @@ import { toFailureView } from "../api/problems";
 import { NavigationDocumentViewer } from "./Documents";
 import { SubtasksViewer } from "./Subtasks";
 import { DatasetSizeSummary } from "./Sizes";
+import { RepointEditor } from "./Repoint";
+import { FileViewerEntry } from "./FileViewerEntry";
 import { DataOriginEditor } from "./DataOrigin";
 import { DatasetInformation } from "./Information";
 import { DatasetLinks, DatasetSources } from "./Entries";
+import { CreateLinkEntry } from "./CreationEntries";
 import { useDatasetDetail } from "./queries";
 import { formatDateTime } from "../time";
+
+// 编辑器按需分块，保持主入口体积预算。
+const FieldEditor = lazy(async () => ({
+  default: (await import("./FieldEditing")).DatasetFieldEditor,
+}));
 
 interface DetailProps {
   /** 当前相对入口路径。 */ entryPath: string;
@@ -77,6 +85,8 @@ function DetailContent({
         />
       )}
       <Typography.Title level={3}>{detail.entry.name}</Typography.Title>
+      <CreateLinkEntry datasetId={detail.entry.dataset_id} />
+      <RepointEditor detail={detail} />
       <p>{detail.entry.dataset_id ?? "身份未知"}</p>
       <p>{detail.entry.entry_path}</p>
       <p>索引时间：{formatDateTime(detail.indexed_at)}</p>
@@ -99,6 +109,7 @@ function DetailContent({
       {detail.entry.dataset_id && (
         <DataOriginEditor datasetId={detail.entry.dataset_id} provenance={detail.provenance} />
       )}
+      <FieldEditEntry detail={detail} />
       <DatasetSizeSummary size={detail.dataset_size} />
       <Button
         disabled={!detail.entry.dataset_id || rescan.isPending}
@@ -120,6 +131,11 @@ function DetailContent({
       </Button>
       {sizing.error && <DiagnosticCard failure={toFailureView(sizing.error)} />}
       {rescan.error && <DiagnosticCard failure={toFailureView(rescan.error)} />}
+      <FileViewerEntry
+        key={detail.entry.dataset_id}
+        datasetId={detail.entry.dataset_id}
+        linkNames={detail.links.map((link) => link.name)}
+      />
       <DatasetLinks links={detail.links} />
       <DatasetSources sources={detail.sources} />
       <DatasetInformation document={detail.canonical_information} />
@@ -133,5 +149,17 @@ function DetailContent({
         }}
       />
     </>
+  );
+}
+
+function FieldEditEntry({ detail }: { detail: DatasetDetail }): ReactElement {
+  if (!detail.entry.dataset_id) return <></>;
+  return (
+    <Suspense fallback={<p>正在加载编辑器…</p>}>
+      <FieldEditor
+        key={JSON.stringify([detail.entry.dataset_id, detail.canonical_information?.sha256])}
+        datasetId={detail.entry.dataset_id}
+      />
+    </Suspense>
   );
 }

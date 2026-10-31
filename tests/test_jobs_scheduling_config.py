@@ -141,7 +141,7 @@ def test_state_path(tmp_path: Path) -> None:
 
 
 def test_production_types() -> None:
-    """契约：生产登记十种类型，两个清除为restart、三个示例为interrupt，写导航层的 nav_write_apply 为interrupt，只有example_gpu需卡。"""
+    """契约：生产登记十三种类型，两个清除为restart、三个示例为interrupt，写导航层的 nav_write_apply 为interrupt，只有example_gpu需卡。"""
     definitions = production_registry().definitions()
     assert [
         (
@@ -158,7 +158,11 @@ def test_production_types() -> None:
         ("example_count", "示例：数数", "interrupt", 1, False),
         ("example_gpu", "示例：占用 GPU", "interrupt", 1, True),
         ("example_navigation", "示例：写锁", "interrupt", 1, False),
+        ("nav_create_dataset_preview", "预览新增数据集", "restart", 1, False),
+        ("nav_create_link_preview", "预览建链", "restart", 1, False),
         ("nav_data_origin_preview", "预览改数据来源", "restart", 1, False),
+        ("nav_fields_preview", "预览编辑字段", "restart", 1, False),
+        ("nav_repoint_preview", "预览改指向", "restart", 1, False),
         ("nav_revert_preview", "预览撤回", "restart", 1, False),
         ("nav_write_apply", "写导航层", "interrupt", 1, False),
         ("purge_audit_logs", "清除过期日志", "restart", 1, False),

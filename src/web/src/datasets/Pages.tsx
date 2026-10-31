@@ -12,6 +12,7 @@ import { LayoutA } from "./LayoutA";
 import { LayoutB } from "./LayoutB";
 import { LayoutC } from "./LayoutC";
 import type { DatasetLayout } from "../api/datasets";
+import { CreateDatasetEntry } from "./CreationEntries";
 import "./browser.css";
 
 const route = getRouteApi("/datasets");
@@ -30,6 +31,7 @@ export function DatasetsPage(): ReactElement {
     return (
       <section>
         <Typography.Title level={2}>数据集浏览</Typography.Title>
+        <CreateDatasetEntry />
         <Alert type="error" title="数据集筛选参数不合法" />
         <Button
           onClick={() => {
@@ -52,6 +54,8 @@ function BrowserContent(): ReactElement {
     robot_type: search.robot_type,
     robot_model_id: search.robot_model_id,
     data_origin: search.data_origin,
+    scene: search.scene,
+    tasks: search.tasks,
     fps: search.fps,
     offset: search.offset,
     entry_path: search.entry_path,
@@ -60,6 +64,7 @@ function BrowserContent(): ReactElement {
   return (
     <section>
       <Typography.Title level={2}>数据集浏览</Typography.Title>
+      <CreateDatasetEntry />
       {query.panel.data && <StorageWarnings roots={query.panel.data.storage_roots} />}
       {layout.loadError && (
         <>

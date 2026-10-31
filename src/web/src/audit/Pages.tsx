@@ -2,7 +2,7 @@
 // 历史名字和明细只做安全文本展示，页面不提供修改单条记录的入口。
 import { useRef, useState, type ReactElement } from "react";
 import { Alert, Button, Form, Input, Select, Table, Typography } from "antd";
-import { getRouteApi } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { TableColumnsType } from "antd";
 import type { OperationLogPage, LoginLogPage, OperationSearch, LoginSearch } from "../api/audit";
 import { AUDIT_MIN_RETENTION_DAYS, AUDIT_MAX_RETENTION_DAYS, AUDIT_PAGE_LIMIT } from "../api/audit";
@@ -49,7 +49,7 @@ function OperationContent({ search }: { search: OperationSearch }): ReactElement
   const logs = useOperationLogs(search);
   const navigate = operationRoute.useNavigate();
   return (
-    <section>
+    <section style={{ minWidth: 0, maxWidth: "100%" }}>
       <Typography.Title level={2}>操作日志</Typography.Title>
       <Retention />
       <Filters
@@ -187,6 +187,22 @@ const operationColumns: TableColumnsType<OperationLogPage["items"][number]> = [
   { title: "来源 IP", key: "ip", render: (_, row) => row.source_ip ?? "未知" },
   { title: "请求编号", dataIndex: "request_id" },
   { title: "明细", key: "details", render: (_, row) => details(row.details) },
+  {
+    title: "导航操作",
+    key: "navigation",
+    render: (_, row) =>
+      row.target.kind === "navigation_write" &&
+      row.target.object_id !== null &&
+      /^[1-9][0-9]{0,18}$/.test(row.target.object_id) ? (
+        <Link
+          aria-label={`撤回导航作业 ${row.target.object_id}`}
+          to="/jobs/$jobId/revert"
+          params={{ jobId: row.target.object_id }}
+        >
+          撤回
+        </Link>
+      ) : null,
+  },
 ];
 const loginColumns: TableColumnsType<LoginLogPage["items"][number]> = [
   { title: "时间", key: "time", render: (_, row) => localTime(row.occurred_at) },

@@ -2,6 +2,7 @@
 import { useMemo, type ReactElement } from "react";
 import { Alert, Table, Typography } from "antd";
 import type { DatasetDetail } from "../api/datasets";
+import { DatasetFieldSummary } from "./FieldSummary";
 import { MarkdownValue } from "./Markdown";
 
 // 原始 JSON 是文本接口，这个局部投影用于渲染，不另定义 HTTP 响应模型。
@@ -25,6 +26,7 @@ export function DatasetInformation(props: Props): ReactElement {
   const fields = useMemo(() => readFields(props.document), [props.document]);
   return (
     <section aria-label="14 项数据集信息">
+      <DatasetFieldSummary document={props.document} />
       <Typography.Title level={4}>14 项数据集信息</Typography.Title>
       {fields ? (
         <>

@@ -12,6 +12,8 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from rdp.jobs.datasets.fingerprint import DatasetFingerprint
+from rdp.jobs.navwrite.create_details import CreationDetails
+from rdp.jobs.navwrite.policy import REPOINT_LISTED_CHANGE_LIMIT
 
 _FROZEN = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
 
@@ -23,6 +25,7 @@ class NavOperation(StrEnum):
         CREATE_LINK: create_link，建链（M1-08，L1-L4）。
         CREATE_DATASET: create_dataset，新增数据集（M1-08，L5、L6）。
         REPOINT_DATASET: repoint_dataset，改指向（M1-09，L17-L19）。
+        EDIT_DATASET_FIELDS: edit_dataset_fields，编辑导航层字段（M1.5-02）。
         SET_DATA_ORIGIN: set_data_origin，数据来源标注（M1-10，只改来源.json）。
         REVERT_CHANGE: revert_change，撤回某个已完成作业（L16，本票）。
     """
@@ -30,6 +33,7 @@ class NavOperation(StrEnum):
     CREATE_LINK = "create_link"
     CREATE_DATASET = "create_dataset"
     REPOINT_DATASET = "repoint_dataset"
+    EDIT_DATASET_FIELDS = "edit_dataset_fields"
     SET_DATA_ORIGIN = "set_data_origin"
     REVERT_CHANGE = "revert_change"
 
@@ -296,6 +300,9 @@ class PlanReport(BaseModel):
         listed_total: 应逐处列出的总数，≥ len(listed_changes)；总数始终完整。
         checks: 预览做了哪些检查及其范围。
         notices: 提醒与例外，例如"将把 X 加进 dataset_roots"、alpha 少 3 个数据块。
+        creation: 建链和新增数据集的结构化差异；其他操作及历史预览为 None。
+        repoint_changes: 改指向的完整 Markdown/notes 逐处差异，至多 REPOINT_LISTED_CHANGE_LIMIT；
+            历史及其他操作为 None，通用 listed_changes 仍只给前500条样例。
     """
 
     model_config = _FROZEN
@@ -307,6 +314,10 @@ class PlanReport(BaseModel):
     listed_total: int = Field(ge=0)
     checks: tuple[CheckNote, ...]
     notices: tuple[PreviewNotice, ...]
+    creation: CreationDetails | None = None
+    repoint_changes: tuple[ListedChange, ...] | None = Field(
+        default=None, max_length=REPOINT_LISTED_CHANGE_LIMIT
+    )
 
 
 class NavPreview(BaseModel):
@@ -344,7 +355,8 @@ class ApplyResult(BaseModel):
         file_count: 实际写入的文件数。
         link_count: 实际建或改的链接数。
         reindexed_dataset_ids: 已更新索引的数据集；回滚或 noop 时为空。
-        sizing_job_ids: 随后提交的统计大小作业编号，每个数据集一个；回滚或 noop 时为空。
+        sizing_job_ids: 随后提交的统计大小作业编号，每个仍存在的数据集一个；回滚或 noop 时为空。
+        sizing_skipped_dataset_ids: 写入或撤回后入口已删除、因此没有提交统计的数据集编号，顺序同计划。
     """
 
     model_config = _FROZEN
@@ -356,6 +368,7 @@ class ApplyResult(BaseModel):
     link_count: int = Field(ge=0)
     reindexed_dataset_ids: tuple[str, ...]
     sizing_job_ids: tuple[int, ...]
+    sizing_skipped_dataset_ids: tuple[str, ...] = ()
 
 
 class MismatchItem(BaseModel):

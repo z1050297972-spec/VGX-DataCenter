@@ -8,7 +8,7 @@ import { DatasetDetails } from "./Details";
 import { TreeNodeMeta } from "./BrowserParts";
 import { BrowserPanel, useBrowserActions, type BrowserQuery } from "./browserState";
 
-/** 表格行：一个树节点及其子行；key 用节点路径，稳定且在两棵树里不重复。 */
+/** 表格行：一个树节点及其子行；key 用节点路径，稳定且在三棵树里不重复。 */
 interface Row {
   key: string;
   node: DatasetTrees["nodes"][number];
@@ -56,11 +56,12 @@ export function LayoutB({ query }: { query: BrowserQuery }): ReactElement {
           name="dataset-view"
           value={view}
           onChange={(value) => {
-            actions.setView(value === "task" ? "task" : "format");
+            actions.setView(value === "scene" ? "scene" : value === "task" ? "task" : "format");
           }}
           options={[
             { value: "format", label: "按格式" },
             { value: "task", label: "按任务" },
+            { value: "scene", label: "按场景" },
           ]}
         />
         <Button aria-expanded={search.panel === true} onClick={actions.togglePanel}>

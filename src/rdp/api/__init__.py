@@ -27,12 +27,16 @@ from rdp.api.audit import router as audit_router
 from rdp.api.data_origin import router as data_origin_router
 from rdp.api.database import configure_database
 from rdp.api.datasets import router as datasets_router
+from rdp.api.datasets.creation import router as dataset_creation_router
+from rdp.api.datasets.fields import router as field_edit_router
 from rdp.api.error_details import get_error_details
 from rdp.api.errors import ErrorBoundary, install_error_handlers
+from rdp.api.file_viewer import router as file_viewer_router
 from rdp.api.health import HealthResponse, get_health
 from rdp.api.jobs import router as jobs_router
 from rdp.api.jobs import worker_router
 from rdp.api.navigation import router as navigation_router
+from rdp.api.navigation_writes import router as navigation_writes_router
 from rdp.api.storage import router as storage_router
 from rdp.api.version import configure_version
 from rdp.infra.db.records import ErrorRecord
@@ -195,7 +199,7 @@ def create_app(
     Side Effects:
         只读构建目录及入口文件状态，注册内存路由；有数据库时初始化默认 Argon2 编码器及假哈希，
         其资源和失败语义见 install_account_security；不建 socket、不写磁盘。
-        静态托管请求只读构建产物；数据集详情按其服务契约只读导航，业务路由不访问存储根。
+        静态托管请求只读构建产物；数据集详情只读导航；M1.5查看器独立带超时只读存储根。
         database 非空时只读校验版本，失败不迁移、不 dispose 调用者引擎；
         请求业务会话和缺陷报错会话彼此独立，报错失败不掩盖原 500，详见
         errors.report_error_with_database。
@@ -231,11 +235,15 @@ def create_app(
     app.include_router(jobs_router)
     # 数据集路由与M0共享认证/Origin及统一诊断；必须先于API兜底登记，离线可导出类型。
     app.include_router(datasets_router)
+    app.include_router(dataset_creation_router)
+    app.include_router(navigation_writes_router)
+    app.include_router(file_viewer_router)
     app.include_router(storage_router)
     app.include_router(worker_router)
     # M1-07：导航层恢复失败标记；读全员、确认仅管理员，只碰数据库和状态目录。
     app.include_router(navigation_router)
     app.include_router(data_origin_router)
+    app.include_router(field_edit_router)
     configure_version(
         app, version=platform_version if platform_version is not None else "未知 (未知)"
     )

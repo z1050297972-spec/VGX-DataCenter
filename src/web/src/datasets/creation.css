@@ -1,0 +1,82 @@
+/* 创建页面的长路径只在局部容器滚动；min-width:0 避免网格子项撑宽 1280px 页面。 */
+.creation-page,
+.creation-review {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.creation-form {
+  display: grid;
+  gap: 16px;
+  max-width: 720px;
+  width: 100%;
+}
+.creation-fields {
+  display: grid;
+  gap: 12px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.creation-fields label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.creation-fields select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 11px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+}
+.creation-fields .creation-check,
+.creation-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  overflow-wrap: anywhere;
+  margin: 8px 0;
+}
+.creation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}
+.creation-review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
+}
+.creation-review-grid > * {
+  min-width: 0;
+}
+.creation-paths {
+  padding-left: 18px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.creation-scroll {
+  max-width: 100%;
+  max-height: 320px;
+  overflow: auto;
+}
+.creation-scroll pre {
+  width: max-content;
+  min-width: 100%;
+  margin: 0;
+}
+.creation-note {
+  color: #666;
+}
+.creation-page .ant-card {
+  min-width: 0;
+  margin-bottom: 12px;
+}
+.creation-page .ant-alert {
+  margin-bottom: 12px;
+  min-width: 0;
+}

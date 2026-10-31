@@ -1,9 +1,16 @@
-"""两个视图的纯索引树聚合，数量按永久编号去重、大小按入口求和。"""
+"""真实视图与虚拟场景树的纯索引聚合，数量按永久编号去重、大小按入口求和。"""
 
 from pathlib import PurePosixPath
 
 from rdp.infra.db.validation import invalid_field
-from rdp.jobs.dataset_browser.schemas import DatasetTreeNode, EntrySummary, TreeSize
+from rdp.jobs.dataset_browser._classification import scene_path
+from rdp.jobs.dataset_browser.schemas import (
+    DatasetListItem,
+    DatasetTreeNode,
+    EntrySummary,
+    TreeSize,
+)
+from rdp.jobs.datasets import vocabulary
 from rdp.jobs.datasets.types import View
 
 
@@ -68,3 +75,46 @@ def nodes(entries: tuple[EntrySummary, ...]) -> tuple[DatasetTreeNode, ...]:
             )
         )
     return tuple(result)
+
+
+def scenes(
+    items: tuple[DatasetListItem, ...], entries: tuple[EntrySummary, ...]
+) -> tuple[DatasetTreeNode, ...]:
+    """场景树每个数据集取唯一规范入口一次，避免格式副本重复计数；缺规范副本不伪造入口。"""
+    selected = {entry.entry_path: entry for entry in entries}
+    groups: dict[str, list[EntrySummary]] = {"按场景": []}
+    names = {"按场景": "按场景"}
+    leaves: dict[str, EntrySummary] = {}
+    for item in items:
+        entry = selected.get(item.canonical_entry_path or "")
+        if entry is None:
+            continue
+        parent = scene_path(item.scene)
+        path = parent + "/" + entry.name
+        groups["按场景"].append(entry)
+        groups.setdefault(parent, []).append(entry)
+        groups[path] = [entry]
+        leaves[path] = entry
+        names[parent] = (
+            (vocabulary.scene_name(item.scene) or f"{item.scene}（不在词表）")
+            if item.scene
+            else vocabulary.UNLABELED_NAME
+        )
+        names[path] = entry.name
+    return tuple(
+        DatasetTreeNode(
+            path=path,
+            parent_path=path.rsplit("/", 1)[0] if "/" in path else None,
+            name=names[path],
+            kind="entry" if path in leaves else "view" if path == "按场景" else "scene",
+            view="scene",
+            format=None,
+            version=None,
+            dataset_id=leaves[path].dataset_id if path in leaves else None,
+            entry_path=leaves[path].entry_path if path in leaves else None,
+            dataset_count=len({entry.dataset_id for entry in children if entry.dataset_id}),
+            entry_count=len(children),
+            size=aggregate(tuple(children)),
+        )
+        for path, children in sorted(groups.items())
+    )

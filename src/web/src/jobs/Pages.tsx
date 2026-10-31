@@ -1,4 +1,5 @@
 // 作业页面契约（08）：Ant Design 与统一 DiagnosticCard；不直接 fetch、不计算后端结果。
+import { RevertEntry } from "../navwrites/Revert";
 import { useState, type ReactElement } from "react";
 import { Alert, Button, Select, Table, Typography, Progress, Form, Input } from "antd";
 import { getRouteApi, Link } from "@tanstack/react-router";
@@ -15,6 +16,7 @@ import {
 } from "./queries";
 import type { JobTiming } from "./progress";
 import { jobStatusLabel, useJobTiming, isJobTerminal } from "./progress";
+
 const jobsRoute = getRouteApi("/jobs");
 
 /**
@@ -71,6 +73,7 @@ export function JobDetailPage(): ReactElement {
         </Link>
       )}
       <JobActions key={job.job_id} job={job} />
+      <RevertEntry job={job} />
       <JobDiagnosticCard job={job} />
       <JobLogPanel job={job} />
     </section>

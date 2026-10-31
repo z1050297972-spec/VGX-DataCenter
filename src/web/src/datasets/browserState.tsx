@@ -42,7 +42,7 @@ export function useBrowserActions() {
         },
       }),
     // 进入目录：目录只筛选列表，不打开详情。
-    openDirectory: (path: string, view?: components["schemas"]["View"]) =>
+    openDirectory: (path: string, view?: components["schemas"]["DatasetTreeNode"]["view"]) =>
       void navigate({
         search: {
           ...search,
@@ -58,7 +58,7 @@ export function useBrowserActions() {
         search: { ...search, selected: undefined, entry_path: undefined, offset: undefined },
       }),
     // 换视图树：清掉目录与分页，选中项保留。
-    setView: (view: "task" | "format") =>
+    setView: (view: "task" | "format" | "scene") =>
       void navigate({
         search: { ...search, tree_view: view, entry_path: undefined, offset: undefined },
       }),

@@ -191,6 +191,10 @@ class EntrySnapshot:
         provenance_state: 来源.json 的三态（M1-07）：不存在、可读、无法读取；与
             provenance_present 并存，后者仍只表示目录项有无。默认 ABSENT，只加不改。
         data_origin: 来源文件有效且身份与入口一致时的筛选编码；其余为 unknown（M1-10）。
+        scene: 数据集信息.json 顶层 scene 的非空文本原值；缺失、空串、非文本或文件不可用为 None
+            （M1.5-03）。不校验是否在词表内，词表外的值照样保留。
+        tasks: 顶层 tasks 数组里的非空文本项，去重并保持原顺序；缺失或不是数组为空元组。
+        robot_model: 顶层 robot_model 的非空文本原值；缺失、空串、非文本为 None。
     """
 
     location: EntryLocation
@@ -204,3 +208,6 @@ class EntrySnapshot:
     findings: tuple[Finding, ...]
     provenance_state: ProvenanceState = ProvenanceState.ABSENT
     data_origin: str = "unknown"
+    scene: str | None = None
+    tasks: tuple[str, ...] = ()
+    robot_model: str | None = None

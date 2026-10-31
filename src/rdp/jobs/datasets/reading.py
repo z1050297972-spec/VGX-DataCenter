@@ -127,6 +127,7 @@ def read_entry(
         links/source.entry_path 由位置推导，JSON 原值留给面板核对；来源.json 读取三态，
         有效且身份匹配时投影来源筛选编码，否则 unknown，不从按格式副本猜测规范来源。
         第4项取不出记录值时 recorded_size_bytes=None 并添加 RECORDED_SIZE_MISSING 提示。
+        scene/tasks/robot_model 只投影信息文件顶层，不解析 Markdown；空值按未标注，词表外文本保留。
 
     Raises:
         InputError: location 越界、目录项数量超过 MAX_ENTRY_MEMBERS 或调用参数非法。
@@ -193,6 +194,7 @@ def read_entry(
         issues,
         provenance.state if provenance else ProvenanceState.ABSENT,
         origin,
+        *classification(documents[1]),
     )
 
 
@@ -278,6 +280,47 @@ def extract_recorded_size(information: JsonDocument) -> int | None:
         return None
     value = int(match[1].replace(",", ""))
     return value if value <= MAX_SQLITE_INTEGER else None
+
+
+def classification(information: JsonDocument) -> tuple[str | None, tuple[str, ...], str | None]:
+    """从数据集信息顶层取场景、任务和机器人型号三个人工分类字段（M1.5-03）。
+
+    Args:
+        information: 数据集信息.json 的读取结果，payload=None 表示不可用。
+
+    Returns:
+        (scene, tasks, robot_model)：scene、robot_model 是非空文本原值，缺失、空串、非文本为 None；
+        tasks 是数组里的非空文本项，去重并保持原顺序，缺失或不是数组为空元组。
+        不校验是否在词表内（词表外的值保留，提示在一致性面板），不去除首尾空白，不读取 14 项 Markdown。
+
+    Raises:
+        无。
+
+    Side Effects:
+        无；只读已解析对象。
+
+    Time Semantics:
+        不取时钟；值属于本次读取的导航层内容。
+    """
+    payload = information.payload
+    if payload is None:
+        return None, (), None
+    raw_tasks = payload.get("tasks")
+    tasks = (
+        tuple(
+            dict.fromkeys(
+                item for item in cast(list[object], raw_tasks) if isinstance(item, str) and item
+            )
+        )
+        if isinstance(raw_tasks, list)
+        else ()
+    )
+    return _text_or_none(payload.get("scene")), tasks, _text_or_none(payload.get("robot_model"))
+
+
+def _text_or_none(value: object) -> str | None:
+    """分类字段只接受非空文本，其余按未填写处理。"""
+    return value if isinstance(value, str) and value else None
 
 
 def _validate_location(location: EntryLocation) -> None:

@@ -26,6 +26,7 @@ from rdp.infra.diagnostics import (
 )
 from rdp.infra.state import StatePaths
 from rdp.jobs.datasets.catalog import SIZING_TYPE
+from rdp.jobs.datasets.fingerprint import FileState, fingerprint_dataset
 from rdp.jobs.datasets.rescan import (
     RescanDependencies,
     RescanParameters,
@@ -53,6 +54,7 @@ from rdp.jobs.navwrite.models import ApplyResult, MismatchItem, NavPreview, NavW
 from rdp.jobs.navwrite.policy import AUDIT_DATASET_ID_LIMIT
 from rdp.jobs.navwrite.preview_state import verify_preview_state
 from rdp.jobs.navwrite.previews import read_preview
+from rdp.jobs.policy import JOB_TEXT_MAX_CHARS
 from rdp.jobs.records import find_job
 from rdp.jobs.service import JobService
 from rdp.jobs.types import JobProgress, JobState
@@ -255,7 +257,7 @@ def run_write_plan(
         preview_job_id: 预览作业编号，≥ 1；计划取自 nav-previews 里同一份文件。
 
     Returns:
-        ApplyResult。committed：已写入并提交了统计大小；noop：核对通过但计划无步骤，操作日志照记。
+        ApplyResult。committed：已写入，仅为仍存在的数据集提交统计，删除编号记入 sizing_skipped_dataset_ids；noop：核对通过但计划无步骤，操作日志照记。
         中途失败不返回，抛出下面的异常，导航层已退回（outcome 即 rolled_back，由异常携带的诊断表达）。
 
     Raises:
@@ -291,6 +293,7 @@ def run_write_plan(
         raise
     reindexed: tuple[str, ...] = ()
     sizing: tuple[int, ...] = ()
+    skipped: tuple[str, ...] = ()
     if not locked.noop:
         progress.stage(2)
         reindexed = _after_commit(
@@ -300,12 +303,13 @@ def run_write_plan(
             (),
         )
         progress.stage(3)
+        remaining, skipped = _after_commit(
+            progress, "核对统计范围", lambda: _sizing_scope(context, dependencies, plan), ((), ())
+        )
         sizing = _after_commit(
             progress,
             "提交统计大小",
-            lambda: submit_sizing_jobs(
-                dependencies.service, plan.dataset_ids, now=context.clock.now()
-            ),
+            lambda: submit_sizing_jobs(dependencies.service, remaining, now=context.clock.now()),
             (),
         )
     progress.stage(4)
@@ -318,6 +322,7 @@ def run_write_plan(
         link_count=locked.link_count,
         reindexed_dataset_ids=reindexed,
         sizing_job_ids=sizing,
+        sizing_skipped_dataset_ids=skipped,
     )
     _after_commit(
         progress,
@@ -325,7 +330,16 @@ def run_write_plan(
         lambda: _audit_success(dependencies, context, submitter, result, bool(plan.steps)),
         None,
     )
-    progress.finish()
+    if skipped:
+        _after_commit(
+            progress,
+            "记录统计跳过",
+            lambda: context.log.write_line(
+                "已删除数据集不统计：" + "、".join(skipped), now=context.clock.now()
+            ),
+            None,
+        )
+    progress.finish(skipped)
     return result
 
 
@@ -446,13 +460,15 @@ class _Progress:
             )
         )
 
-    def finish(self) -> None:
+    def finish(self, skipped: tuple[str, ...] = ()) -> None:
         """全部阶段完成：把累计警告数连同最后一阶段的完成上报一次。"""
         self.context.reporter.report(
             JobProgress(
                 stage_index=len(STAGES),
                 stage_count=len(STAGES),
-                stage_name=STAGES[-1],
+                stage_name=(
+                    STAGES[-1] + ("；已删除数据集不统计：" + "、".join(skipped) if skipped else "")
+                )[:JOB_TEXT_MAX_CHARS],
                 done=1,
                 total=1,
                 unit="阶段",
@@ -575,3 +591,34 @@ def _audit_failure(
         append_navigation_audit(dependencies.rescan.engine, event)
     except Exception:
         logger.error("写导航层失败的操作日志补记失败 job_id=%s", context.job_id, exc_info=True)
+
+
+def _sizing_scope(
+    context: ExecutionContext, dependencies: NavWriteDependencies, plan: NavWritePlan
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """以导航事实核对统计范围；索引发布失败时也不能给已删除入口提交统计。"""
+    remaining: list[str] = []
+    removed: list[str] = []
+    for identifier in plan.dataset_ids:
+        known = tuple(
+            entry.path
+            for dataset in plan.state.datasets
+            if dataset.dataset_id == identifier
+            for entry in dataset.entries
+        )
+        if plan.state.new_dataset is not None:
+            known = (*known, plan.state.new_dataset.destination_path)
+        observed = fingerprint_dataset(
+            dependencies.rescan.nav_root,
+            identifier,
+            known_entry_paths=known,
+            checkpoint=context.reporter.check_cancelled,
+        )
+        if not observed.verifiable:
+            problem = nav_input_error("NAV_SIZING_SCOPE", "写入后数据集状态不可验证，未提交统计")
+            raise problem
+        if any(entry.state is FileState.PRESENT for entry in observed.entries):
+            remaining.append(identifier)
+        else:
+            removed.append(identifier)
+    return tuple(remaining), tuple(removed)

@@ -41,7 +41,7 @@ class DataOrigin(StrEnum):
 
 
 class DatasetFilters(BrowserValue):
-    """所有树/列表共享的筛选；不同维度 AND，同一维度匹配任一数据块。
+    """所有树/列表共享的筛选；不同维度 AND，tasks 多选取交集，其余元信息匹配任一数据块。
 
     未提供表示不限；unknown 是独立的未知项。型号标签精确且区分大小写，
     型号按已登记标签并集匹配；型号 unknown 指没有任何已映射标签（不等于标签未知）。
@@ -58,6 +58,12 @@ class DatasetFilters(BrowserValue):
     )
     fps: Annotated[int, Field(ge=0)] | Literal["unknown"] | None = Field(
         default=None, description="四舍五入后非负整数帧/秒或 unknown"
+    )
+    scene: str | None = Field(
+        default=None, min_length=1, description="场景原编码；unlabeled 表示未标注"
+    )
+    tasks: tuple[Annotated[str, Field(min_length=1)], ...] = Field(
+        default=(), description="重复 tasks 参数；全部任务取交集；unlabeled 必须单独使用"
     )
     data_origin: DataOrigin | None = None
     view: View | None = None
@@ -95,8 +101,18 @@ class FilterOption(BrowserValue):
     count: int = Field(ge=0)
 
 
+class VocabularyTerm(BrowserValue):
+    """受控编码及中文名，只由服务端词表生成，不含筛选专用项。"""
+
+    code: str
+    name: str
+
+
 class DatasetFilterOptions(BrowserValue):
-    """未应用当前筛选的全局候选；所有列表按值排序，未知项固定最后且即使零项也保留。"""
+    """未应用当前筛选的全局候选。
+
+    型号等候选按值排序；分类候选按词表顺序、词表外原值排序，未标注固定最后；零计数词表项保留。
+    """
 
     robot_models_registered: bool
     default_robot_filter: Literal["robot_model", "robot_type"]
@@ -107,6 +123,10 @@ class DatasetFilterOptions(BrowserValue):
         description="value 为整数十进制文本或 unknown；已知按数值排序"
     )
     data_origins: tuple[FilterOption, ...]
+    scenes: tuple[FilterOption, ...]
+    tasks: tuple[FilterOption, ...]
+    scene_vocabulary: tuple[VocabularyTerm, ...]
+    task_vocabulary: tuple[VocabularyTerm, ...]
 
 
 class DatasetSize(BrowserValue):
@@ -157,6 +177,9 @@ class DatasetListItem(BrowserValue):
     robot_model_ids: tuple[str, ...]
     fps: tuple[int | None, ...]
     data_origin: DataOrigin
+    scene: str | None = None
+    tasks: tuple[str, ...] = ()
+    robot_model: str | None = None
     size: DatasetSize = Field(
         description="数据集取按任务入口；无唯一规范入口时未知，不叠加格式副本"
     )
@@ -181,8 +204,8 @@ class DatasetTreeNode(BrowserValue):
     path: str
     parent_path: str | None
     name: str
-    kind: Literal["view", "format", "version", "entry"]
-    view: View
+    kind: Literal["view", "format", "version", "scene", "entry"]
+    view: View | Literal["scene"]
     format: str | None
     version: str | None
     dataset_id: str | None
@@ -193,7 +216,10 @@ class DatasetTreeNode(BrowserValue):
 
 
 class DatasetTreesResponse(BrowserValue):
-    """两棵树各保留一个视图根，空索引仍可浏览；最多 MAX_SCAN_ENTRIES 个入口。"""
+    """按任务、按格式及按场景各保留一个根，空索引仍可浏览。
+
+    真实入口受 MAX_SCAN_ENTRIES 预算约束；场景叶只引用规范入口，不增加扫描。
+    """
 
     nodes: tuple[DatasetTreeNode, ...]
     indexed_at: AwareDatetime | None

@@ -1,0 +1,110 @@
+{
+  "issue": "M1.5-01",
+  "date": "2026-10-30",
+  "seams": [
+    "真实ASGI接口和临时导航/数据根",
+    "真实Router、Query和HTTP传输边界",
+    "JSON Worker消息边界"
+  ],
+  "red_green": [
+    {
+      "test": "test_lists_registered_link_directory",
+      "red": "新路由不存在，404",
+      "green": "目录页及UTC元数据"
+    },
+    {
+      "test": "test_reads_original_bytes",
+      "red": "文件路由不存在，404",
+      "green": "JSON原字节及安全头；后续扩展验证O_NOATIME/EPERM只读回退"
+    },
+    {
+      "test": "test_video_ranges_and_streaming",
+      "red": "Range返回200，期望206",
+      "green": "首尾、截尾、开放范围及416"
+    },
+    {
+      "test": "test_mount_failure_does_not_exhaust_access_slots",
+      "red": "挂载表恢复后仍因访问槽泄漏返回502",
+      "green": "失败后归还许可，恢复200"
+    },
+    {
+      "test": "从详情选择链接、浏览目录并播放视频",
+      "red": "详情没有查看原文件按钮",
+      "green": "链接选择、目录导航、原生视频和返回上级"
+    },
+    {
+      "test": "原文件JSON格式化保留数字原词法并分页",
+      "red": "Worker仍返回紧凑原文",
+      "green": "格式化保留大整数和指数原词法"
+    },
+    {
+      "test": "test_unknown_text_extension_still_obeys_size_limit",
+      "red": "无MIME的log绕过上限返回200",
+      "green": "log/jsonl/yaml/无后缀文件超过32MiB均拒绝"
+    },
+    {
+      "test": "视频读取失败展示服务端五段诊断",
+      "red": "只有原生媒体失败提示，无服务端诊断",
+      "green": "一字节Range探针取得统一诊断"
+    },
+    {
+      "test": "test_short_reads_fill_requested_range",
+      "red": "系统短读误判变化，返回502",
+      "green": "在共同截止内补齐原字节，返回206"
+    }
+  ],
+  "initial_green_regressions": {
+    "reason": "下列行为已在前一切片的路径边界、大小校验、M0预算或预览分支中实现，补测初跑为绿；未将它们伪记为实现前红灯。",
+    "tests": [
+      "test_rejects_unsafe_paths_and_offline_storage",
+      "test_large_text_is_rejected",
+      "test_blocked_file_read_returns_502_without_waiting_for_kernel",
+      "test_pagination_limit_and_registered_target_drift",
+      "文本、JSON和图片分别使用只读预览"
+    ]
+  },
+  "mutations": [
+    {
+      "change": "路径解析边界放宽到系统根",
+      "test": "test_rejects_unsafe_paths_and_offline_storage",
+      "result": "killed"
+    },
+    {
+      "change": "Range状态码错误地返回200",
+      "test": "test_video_ranges_and_streaming",
+      "result": "killed"
+    },
+    {
+      "change": "32MiB上限错误地多允许一个字节",
+      "test": "test_large_text_is_rejected",
+      "result": "killed"
+    },
+    {
+      "change": "省略O_NOATIME",
+      "test": "test_reads_original_bytes",
+      "result": "killed"
+    },
+    {
+      "change": "错误地把访问预算由1秒放宽到3秒",
+      "test": "test_blocked_file_read_returns_502_without_waiting_for_kernel",
+      "result": "killed"
+    }
+  ],
+  "mutation_isolation": "只在/tmp临时rdp源码副本变异，通过PYTHONPATH运行真实接口测试；未修改当前工作区或其他worktree。",
+  "real_rehearsal": "按派工由执行线在沙箱外执行；本次未访问/mnt、真实部署、systemctl或8600端口。",
+  "verification": {
+    "make_check_exit_code": 0,
+    "python_tests_passed": 2561,
+    "python_skipped": 0,
+    "vitest_files_passed": 36,
+    "vitest_tests_passed": 353,
+    "vitest_skipped": 0,
+    "entry_name": "index-BjNpSaB9.js",
+    "entry_bytes": 55275,
+    "ui_chunk_bytes": 786889,
+    "build_log": "/tmp/m15-file-viewer-build.log",
+    "check_log": "/tmp/m15-file-viewer-final-check.log",
+    "dist_removed": true,
+    "mutation_summary_log": "/tmp/m15-mutations-summary.log"
+  }
+}

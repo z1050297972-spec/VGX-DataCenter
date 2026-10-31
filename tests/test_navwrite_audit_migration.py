@@ -48,6 +48,7 @@ NAV_CODES = {
     "create_dataset",
     "repoint_dataset",
     "set_data_origin",
+    "edit_dataset_fields",
     "revert_change",
     "rollback_navigation_write",
     "confirm_navigation_recovery",
@@ -97,7 +98,7 @@ def _navigation_event(
 
 
 def test_new_operation_codes_are_stable_strings() -> None:
-    """L15：七个新操作码的字符串值固定，旧值含义不变。"""
+    """L15：导航写入操作码（含字段编辑扩展）的字符串值固定，旧值含义不变。"""
     new = {member.value for member in OperationType} - set(OLD_CODES)
     assert new == NAV_CODES
     for name, value in OLD_CODES.items():
@@ -223,7 +224,7 @@ def test_old_rows_unchanged_by_0010(tmp_path: Path, monkeypatch: pytest.MonkeyPa
                 }
             result = migrate(paths, now=NOW)
             assert result.previous_revision == "0009_rebuild_index_audit"
-            assert result.current_revision == "0011_data_origin"
+            assert result.current_revision == "0012_scene_task_index"
             with session_scope(engine, read_only=True) as session:
                 after = query_operations(
                     session, OperationQuery(LogQuery()), lambda _s, _i: frozenset()
@@ -349,6 +350,7 @@ def test_import_boundary_contract_present() -> None:
         "rdp.jobs.navwrite.recovery",
         "rdp.jobs.navwrite.pipeline",
         "rdp.jobs.navwrite.jobs",
+        "rdp.jobs.navwrite.field_jobs",
     }
     # 直接依赖：api、ops 的源文件里没有任何一行 import 这四个模块（合约本身由 make check 的 lint-imports 执行）。
     for package in ("api", "ops"):

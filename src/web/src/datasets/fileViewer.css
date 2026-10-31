@@ -1,0 +1,61 @@
+/* 两栏均可收缩；长路径和文件名只在本栏截断，1280×900下不撑出页面。 */
+.file-viewer {
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px 0;
+}
+.file-viewer select {
+  max-width: 100%;
+}
+.file-viewer-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 12px;
+}
+.file-viewer-directory,
+.file-viewer-preview {
+  min-width: 0;
+  overflow: hidden;
+}
+.file-viewer-directory {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.file-viewer-row {
+  min-width: 0;
+  padding: 4px 0;
+}
+.file-viewer-row .ant-btn {
+  display: block;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-viewer-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-viewer-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-viewer-preview video,
+.file-viewer-preview img {
+  max-width: 100%;
+  max-height: 55vh;
+}
+.file-viewer-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+@media (max-width: 800px) {
+  .file-viewer-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
