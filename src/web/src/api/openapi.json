@@ -3940,6 +3940,102 @@
         "title": "PanelSeverity",
         "type": "string"
       },
+      "ParquetCell": {
+        "description": "有界显示文本；truncated明确表示原值尚有未展示内容。",
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "ParquetCell",
+        "type": "object"
+      },
+      "ParquetColumn": {
+        "description": "按文件声明顺序返回的列名与Arrow类型。",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "ParquetColumn",
+        "type": "object"
+      },
+      "ParquetPage": {
+        "description": "parquet结构、精确计数与分页；行内单元格顺序与columns相同。",
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ParquetColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "row_groups": {
+            "title": "Row Groups",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/ParquetCell"
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "schema_only": {
+            "title": "Schema Only",
+            "type": "boolean"
+          },
+          "total_rows": {
+            "title": "Total Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "columns",
+          "total_rows",
+          "row_groups",
+          "offset",
+          "limit",
+          "rows",
+          "has_more",
+          "schema_only"
+        ],
+        "title": "ParquetPage",
+        "type": "object"
+      },
       "PlanReport": {
         "additionalProperties": false,
         "description": "给人看的预览报告，由计划算出，不独立重算规则。\n\nAttributes:\n    model_config: 冻结，拒绝未知字段。\n    file_count: 将写的文件数，≥ 0。\n    link_count: 将建或改的链接数，≥ 0。\n    directory_count: 将建的目录数，≥ 0。\n    field_counts: 按文件和字段分组的数量，完整不截断。\n    listed_changes: 逐处列出的改动，至多 PREVIEW_LISTED_CHANGE_LIMIT 条样例。\n    listed_total: 应逐处列出的总数，≥ len(listed_changes)；总数始终完整。\n    checks: 预览做了哪些检查及其范围。\n    notices: 提醒与例外，例如\"将把 X 加进 dataset_roots\"、alpha 少 3 个数据块。\n    creation: 建链和新增数据集的结构化差异；其他操作及历史预览为 None。\n    repoint_changes: 改指向的完整 Markdown/notes 逐处差异，至多 REPOINT_LISTED_CHANGE_LIMIT；\n        历史及其他操作为 None，通用 listed_changes 仍只给前500条样例。",
@@ -4861,6 +4957,25 @@
           "version"
         ],
         "title": "VersionResponse",
+        "type": "object"
+      },
+      "VideoInfo": {
+        "description": "首个视频流的编码名称与有限、非负总时长（秒）。",
+        "properties": {
+          "codec": {
+            "title": "Codec",
+            "type": "string"
+          },
+          "duration_s": {
+            "title": "Duration S",
+            "type": "number"
+          }
+        },
+        "required": [
+          "codec",
+          "duration_s"
+        ],
+        "title": "VideoInfo",
         "type": "object"
       },
       "View": {
@@ -9942,6 +10057,183 @@
         ]
       }
     },
+    "/api/datasets/{dataset_id}/parquet": {
+      "get": {
+        "description": "预览登记链接内parquet结构和有界数据页。\n\nArgs:\n    request: 当前HTTP请求，仅取已装配查看器。\n    account: 已登录且完成改密的账号。\n    dataset_id: 数据集永久编号。\n    query: 链接名、相对路径、行offset与limit；limit最大200。\n\nReturns:\n    200结构和分页；单元格最多1024字符并标记截断，超过2GiB只返回结构与计数。\n\nRaises:\n    DatasetQueryError: 非法路径、分页或损坏文件，422。\n    DatasetNotFoundError: 数据集不存在，404。\n    ExternalError: 存储离线或读取超时，502五段诊断。\n    DefectError: 查看器未装配，500；认证失败沿用全局边界。\n\nSide Effects:\n    只读选定文件需要的行组，不写存储或提交作业。\n\nTime Semantics:\n    同步工作线程中执行，整个读取受配置的存储秒级预算限制。",
+        "operationId": "preview_dataset_parquet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^/\\\\\\s\\x00]+$",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "link_name",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Link Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 4096,
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParquetPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Preview Dataset Parquet",
+        "tags": [
+          "files"
+        ]
+      }
+    },
     "/api/datasets/{dataset_id}/rescan": {
       "post": {
         "description": "将链接状态旁的重新检查操作转换成单数据集扫描作业。\n\nArgs:\n    context: 当前登录且完成改密账号，Origin已由全局安全边界验证。\n    dataset_id: 永久编号，1至256码点，不含分隔符、空白或NUL；不接受全量范围。\n\nReturns:\n    201，M0 JobResponse，type_name=dataset_rescan，parameters仅dataset_id，提交人为当前账号。\n\nRaises:\n    DatasetNotFoundError: 编号尚未入索引，404。\n    DatasetQueryError: 编号不合约，422。\n    JobInputError: 扫描类型未登记或参数模型不兼容，422。\n    AuthenticationError: 提交时会话失效，401。\n    AuthorizationError: 写请求Origin缺失/无效，403。\n    PasswordChangeRequiredError: 账号须改密，403。\n    InputError: 索引或作业数据损坏，400。\n    ConflictError: 提交/日志写锁冲突，409。\n    ExternalError: 作业持久化失败，502。\n    DefectError: 登记或响应转换错误，500。\n\nSide Effects:\n    JobService提交及审计同事务；Web不运行扫描、不持导航写锁，不立即重算链接状态。\n\nTime Semantics:\n    提交后立即返回排队记录，前端按M0作业接口查询进度；不以HTTP请求超时取消作业。",
@@ -10070,6 +10362,359 @@
         "summary": "Rescan Dataset",
         "tags": [
           "datasets"
+        ]
+      }
+    },
+    "/api/datasets/{dataset_id}/video": {
+      "get": {
+        "description": "把登记视频的选定时间段转为浏览器可播放的H.264分片MP4。\n\nArgs:\n    request: 当前HTTP请求，取得本应用查看器。\n    account: 已登录且完成改密的账号。\n    dataset_id: 数据集永久编号。\n    query: 登记链接、相对文件路径、起点秒数与片长；默认60秒，最多300秒。\n\nReturns:\n    200 video/mp4流，禁止缓存；不承诺Content-Length，不支持字节Range。\n\nRaises:\n    DatasetQueryError: 路径或时间参数非法，422。\n    DatasetNotFoundError: 数据集不存在，404。\n    VideoBusyError: 两路转码均已占用，429五段诊断。\n    ExternalError: 工具缺失、编码器不可用、超时或转码失败，首块前返回502诊断。\n    DefectError: 服务装配错误，500；认证沿用全局边界。\n\nSide Effects:\n    只读源描述符，启动ffmpeg；完成、断开或超时均杀进程并释放许可，不写产物。\n\nTime Semantics:\n    start_s相对于源视频开始；单次转码总时限120秒。首块后失败中止流，不能更改已发状态。",
+        "operationId": "transcode_dataset_video",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^/\\\\\\s\\x00]+$",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "link_name",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Link Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "maxLength": 4096,
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start_s",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Start S",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "duration_s",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "exclusiveMinimum": 0,
+              "maximum": 300,
+              "title": "Duration S",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "video/mp4": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "H.264分片MP4"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "两路转码均已占用，五段诊断"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Transcode Dataset Video",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/datasets/{dataset_id}/video-info": {
+      "get": {
+        "description": "探测登记视频的编码与总时长，供浏览器选择播放方式。\n\nArgs:\n    request: 当前HTTP请求，读取本应用查看器。\n    account: 已登录且完成改密的账号。\n    dataset_id: 数据集永久编号。\n    query: 链接名与目标内相对普通文件路径。\n\nReturns:\n    200视频编码与以秒计的总时长。\n\nRaises:\n    DatasetQueryError: 路径非法或不是普通文件，422。\n    DatasetNotFoundError: 编号不存在，404。\n    ExternalError: 存储离线、探测失败或超时，502五段诊断。\n    DefectError: 应用未装配查看器，500；认证沿用全局边界。\n\nSide Effects:\n    只读安全描述符，启动并回收ffprobe，不修改源文件。\n\nTime Semantics:\n    总时长以视频开始为零点；探测共用配置的存储访问预算。",
+        "operationId": "probe_dataset_video",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^/\\\\\\s\\x00]+$",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "link_name",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Link Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 4096,
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Probe Dataset Video",
+        "tags": [
+          "files"
         ]
       }
     },

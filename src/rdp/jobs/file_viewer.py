@@ -28,10 +28,12 @@ from rdp.infra.diagnostics import (
     Diagnostic,
     DiagnosticCategory,
     DiagnosticLevel,
+    DiagnosticObject,
     ExternalError,
     InputError,
 )
 from rdp.infra.storage import MountInspector, OfflineReason, StorageAccessChecker
+from rdp.jobs import _file_parquet, _file_video
 from rdp.jobs.dataset_browser.errors import DatasetNotFoundError, DatasetQueryError
 from rdp.jobs.datasets import _io, _json
 from rdp.jobs.datasets._readonly import open_fd
@@ -67,6 +69,14 @@ class FileQuery(BaseModel):
     path: str = Field(default="", max_length=4096)
     offset: int = Field(default=0, ge=0, le=10_000_000)
     limit: int = Field(default=100, ge=1, le=FILE_PAGE_LIMIT)
+
+
+class ParquetQuery(FileQuery):
+    """parquet行分页；公开声明与运行时共用200行上限，默认也为200行。"""
+
+    limit: int = Field(
+        default=_file_parquet.PARQUET_PAGE_LIMIT, ge=1, le=_file_parquet.PARQUET_PAGE_LIMIT
+    )
 
 
 class FileSlice(BaseModel):
@@ -374,6 +384,117 @@ class FileViewerService:
             request, dataset_id, part.query, lambda path, root: _read_slice(path, root, part)
         )
 
+    def parquet_page(
+        self, request: JobRequest, dataset_id: str, query: FileQuery
+    ) -> _file_parquet.ParquetPage:
+        """读取parquet结构与一页有界文本，不读取无关行组。
+
+        Args:
+            request: 当前可信身份和UTC请求上下文。
+            dataset_id: 已索引的数据集永久编号。
+            query: 登记链接、相对文件路径和从零起的行偏移；limit为1至200行。
+
+        Returns:
+            列结构、总行数、行组数和最多200行；超过2GiB时schema_only为真且rows为空。
+
+        Raises:
+            DatasetQueryError: 路径非法、非普通文件、分页超过200行或parquet损坏。
+            DatasetNotFoundError: 没有唯一规范入口。
+            AuthenticationError: 当前会话失效。
+            ExternalError: 存储离线、超时或I/O失败。
+            DefectError: 内部依赖装配违约。
+
+        Side Effects:
+            只读导航和O_NOATIME打开的文件；EPERM沿用普通只读回退，不写缓存。
+
+        Time Semantics:
+            结构与分页共用配置的存储访问秒级预算；不缓存或重试。
+        """
+        if query.limit > _file_parquet.PARQUET_PAGE_LIMIT:
+            raise DatasetQueryError(_reject("parquet单页最多200行").diagnostics)
+
+        def read(path: Path, root: Path) -> _file_parquet.ParquetPage:
+            descriptor = _safe_open(path, root, query.path)
+            if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                os.close(descriptor)
+                raise _reject("只能预览普通parquet文件")
+            try:
+                return _file_parquet.read_page(descriptor, query.offset, query.limit, _checkpoint)
+            except (ValueError, TypeError) as error:
+                raise _reject("parquet文件损坏或内容无法解析") from error
+
+        return self._access(request, dataset_id, query, read)
+
+    def video_info(
+        self, request: JobRequest, dataset_id: str, query: FileQuery
+    ) -> _file_video.VideoInfo:
+        """探测登记视频的首个视频流编码与总时长。
+
+        Args:
+            request: 当前可信身份与UTC请求上下文。
+            dataset_id: 已索引永久编号。
+            query: 已登记链接名与目标内相对普通文件路径。
+
+        Returns:
+            编码名称和有限非负的总秒数。
+
+        Raises:
+            DatasetQueryError: 路径非法或不是普通文件。
+            DatasetNotFoundError: 数据集没有唯一规范入口。
+            AuthenticationError: 会话失效。
+            ExternalError: 存储离线、超时、工具缺失或视频损坏。
+            DefectError: 查看器装配违约。
+
+        Side Effects:
+            只读O_NOATIME文件描述符，启动并回收ffprobe，不写存储。
+
+        Time Semantics:
+            探测共用存储访问预算，子进程不超过剩余秒数且最多10秒，无重试。
+        """
+        return self._access(
+            request,
+            dataset_id,
+            query,
+            lambda path, root: cast(_file_video.VideoInfo, _video_open(path, root, query, None)),
+        )
+
+    def video_stream(
+        self, request: JobRequest, dataset_id: str, query: _file_video.VideoQuery
+    ) -> _file_video.VideoStream:
+        """启动一个受限的H.264分片MP4流，由调用方在finally关闭。
+
+        Args:
+            request: 当前已认证身份与UTC请求上下文。
+            dataset_id: 已索引的永久编号。
+            query: 链接、相对文件路径、非负起点秒数与大于0且最多300秒的片长。
+
+        Returns:
+            已启动的流对象；调用方必须读取首块后才发送响应头，结束或断开时close。
+
+        Raises:
+            DatasetQueryError: 相对路径非法或非普通文件。
+            DatasetNotFoundError: 没有唯一规范入口。
+            AuthenticationError: 会话撤销。
+            VideoBusyError: 两路转码许可已占满。
+            ExternalError: 存储失败、工具或编码器不可用；读取流时也可能报告转码失败。
+            DefectError: 内部装配违约。
+
+        Side Effects:
+            只读安全描述符，启动ffmpeg；关闭或120秒总时限杀进程归还许可，不写缓存。
+
+        Time Semantics:
+            起点和片长以源视频开始为零点；启动受存储预算，流总时限120秒，无自动重试。
+        """
+        location = FileQuery(link_name=query.link_name, path=query.path)
+        return self._access(
+            request,
+            dataset_id,
+            location,
+            lambda path, root: cast(
+                _file_video.VideoStream, _video_open(path, root, location, query)
+            ),
+        )
+
     def _access(
         self,
         request: JobRequest,
@@ -389,14 +510,14 @@ class FileViewerService:
         if root is None or target.is_relative_to(self.nav_root):
             raise _reject("目标必须在登记存储根内且不在导航层内")
         slot = _AccessSlot()
-        results: list[_T | InputError] = []
+        results: list[_T | InputError | ExternalError] = []
         deadline = time.monotonic() + self.options.access_timeout_s
 
         def observe(_root: Path) -> None:
             token = _ACCESS_DEADLINE.set(deadline)
             try:
                 results.append(action(target, root.path))
-            except InputError as error:
+            except (InputError, ExternalError) as error:
                 results.append(error)
             finally:
                 _ACCESS_DEADLINE.reset(token)
@@ -418,8 +539,9 @@ class FileViewerService:
         if not results:
             raise DefectError()
         result = results[0]
-        if isinstance(result, InputError):
-            raise result
+        if isinstance(result, (InputError, ExternalError)):
+            error = _identified_failure(result, dataset_id, query)
+            raise error from result
         logger.debug(
             "原文件只读访问完成",
             extra={
@@ -490,3 +612,46 @@ def _read_slice(path: Path, root: Path, part: FileSlice) -> bytes:
         return bytes(content)
     finally:
         os.close(descriptor)
+
+
+def _video_open(
+    path: Path, root: Path, location: FileQuery, query: _file_video.VideoQuery | None
+) -> _file_video.VideoInfo | _file_video.VideoStream:
+    """在既有路径边界内借出安全fd；迟到的启动结果在发布前关闭，防止超时泄漏。"""
+    descriptor = _safe_open(path, root, location.path)
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise _reject("视频输入必须是普通文件")
+        deadline = _ACCESS_DEADLINE.get()
+        remaining_s = (
+            min(_file_video.TOOL_TIMEOUT_S, deadline - time.monotonic())
+            if deadline is not None
+            else _file_video.TOOL_TIMEOUT_S
+        )
+        if query is None:
+            return _file_video.probe(descriptor, max(0.001, remaining_s))
+        stream = _file_video.transcode(descriptor, query, max(0.001, remaining_s))
+        try:
+            _checkpoint()
+        except BaseException:
+            stream.close()
+            raise
+        return stream
+    finally:
+        os.close(descriptor)
+
+
+def _identified_failure(
+    error: InputError | ExternalError, dataset_id: str, query: FileQuery
+) -> InputError | ExternalError:
+    """在掌握请求身份的查看器边界补上数据集和相对路径，保留原异常类别与状态。"""
+    identity = (
+        DiagnosticObject(key="dataset_id", value=dataset_id),
+        DiagnosticObject(key="link_name", value=query.link_name),
+        DiagnosticObject(key="relative_path", value=query.path or "/"),
+    )
+    diagnostics = tuple(
+        Diagnostic.model_validate(item.model_dump() | {"objects": (*item.objects, *identity)})
+        for item in error.diagnostics
+    )
+    return type(error)(diagnostics)

@@ -1369,6 +1369,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/datasets/{dataset_id}/parquet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Dataset Parquet
+         * @description 预览登记链接内parquet结构和有界数据页。
+         *
+         *     Args:
+         *         request: 当前HTTP请求，仅取已装配查看器。
+         *         account: 已登录且完成改密的账号。
+         *         dataset_id: 数据集永久编号。
+         *         query: 链接名、相对路径、行offset与limit；limit最大200。
+         *
+         *     Returns:
+         *         200结构和分页；单元格最多1024字符并标记截断，超过2GiB只返回结构与计数。
+         *
+         *     Raises:
+         *         DatasetQueryError: 非法路径、分页或损坏文件，422。
+         *         DatasetNotFoundError: 数据集不存在，404。
+         *         ExternalError: 存储离线或读取超时，502五段诊断。
+         *         DefectError: 查看器未装配，500；认证失败沿用全局边界。
+         *
+         *     Side Effects:
+         *         只读选定文件需要的行组，不写存储或提交作业。
+         *
+         *     Time Semantics:
+         *         同步工作线程中执行，整个读取受配置的存储秒级预算限制。
+         */
+        get: operations["preview_dataset_parquet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/datasets/{dataset_id}/rescan": {
         parameters: {
             query?: never;
@@ -1408,6 +1449,89 @@ export interface paths {
          *         提交后立即返回排队记录，前端按M0作业接口查询进度；不以HTTP请求超时取消作业。
          */
         post: operations["rescan_dataset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/video": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Transcode Dataset Video
+         * @description 把登记视频的选定时间段转为浏览器可播放的H.264分片MP4。
+         *
+         *     Args:
+         *         request: 当前HTTP请求，取得本应用查看器。
+         *         account: 已登录且完成改密的账号。
+         *         dataset_id: 数据集永久编号。
+         *         query: 登记链接、相对文件路径、起点秒数与片长；默认60秒，最多300秒。
+         *
+         *     Returns:
+         *         200 video/mp4流，禁止缓存；不承诺Content-Length，不支持字节Range。
+         *
+         *     Raises:
+         *         DatasetQueryError: 路径或时间参数非法，422。
+         *         DatasetNotFoundError: 数据集不存在，404。
+         *         VideoBusyError: 两路转码均已占用，429五段诊断。
+         *         ExternalError: 工具缺失、编码器不可用、超时或转码失败，首块前返回502诊断。
+         *         DefectError: 服务装配错误，500；认证沿用全局边界。
+         *
+         *     Side Effects:
+         *         只读源描述符，启动ffmpeg；完成、断开或超时均杀进程并释放许可，不写产物。
+         *
+         *     Time Semantics:
+         *         start_s相对于源视频开始；单次转码总时限120秒。首块后失败中止流，不能更改已发状态。
+         */
+        get: operations["transcode_dataset_video"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/video-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Probe Dataset Video
+         * @description 探测登记视频的编码与总时长，供浏览器选择播放方式。
+         *
+         *     Args:
+         *         request: 当前HTTP请求，读取本应用查看器。
+         *         account: 已登录且完成改密的账号。
+         *         dataset_id: 数据集永久编号。
+         *         query: 链接名与目标内相对普通文件路径。
+         *
+         *     Returns:
+         *         200视频编码与以秒计的总时长。
+         *
+         *     Raises:
+         *         DatasetQueryError: 路径非法或不是普通文件，422。
+         *         DatasetNotFoundError: 编号不存在，404。
+         *         ExternalError: 存储离线、探测失败或超时，502五段诊断。
+         *         DefectError: 应用未装配查看器，500；认证沿用全局边界。
+         *
+         *     Side Effects:
+         *         只读安全描述符，启动并回收ffprobe，不修改源文件。
+         *
+         *     Time Semantics:
+         *         总时长以视频开始为零点；探测共用配置的存储访问预算。
+         */
+        get: operations["probe_dataset_video"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4193,6 +4317,51 @@ export interface components {
          */
         PanelSeverity: "action_required" | "notice";
         /**
+         * ParquetCell
+         * @description 有界显示文本；truncated明确表示原值尚有未展示内容。
+         */
+        ParquetCell: {
+            /** Text */
+            text: string;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+        };
+        /**
+         * ParquetColumn
+         * @description 按文件声明顺序返回的列名与Arrow类型。
+         */
+        ParquetColumn: {
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+        };
+        /**
+         * ParquetPage
+         * @description parquet结构、精确计数与分页；行内单元格顺序与columns相同。
+         */
+        ParquetPage: {
+            /** Columns */
+            columns: components["schemas"]["ParquetColumn"][];
+            /** Has More */
+            has_more: boolean;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Row Groups */
+            row_groups: number;
+            /** Rows */
+            rows: components["schemas"]["ParquetCell"][][];
+            /** Schema Only */
+            schema_only: boolean;
+            /** Total Rows */
+            total_rows: number;
+        };
+        /**
          * PlanReport
          * @description 给人看的预览报告，由计划算出，不独立重算规则。
          *
@@ -4676,6 +4845,16 @@ export interface components {
         VersionResponse: {
             /** Version */
             version: string;
+        };
+        /**
+         * VideoInfo
+         * @description 首个视频流的编码名称与有限、非负总时长（秒）。
+         */
+        VideoInfo: {
+            /** Codec */
+            codec: string;
+            /** Duration S */
+            duration_s: number;
         };
         /**
          * View
@@ -8154,6 +8333,114 @@ export interface operations {
             };
         };
     };
+    preview_dataset_parquet: {
+        parameters: {
+            query: {
+                link_name: string;
+                path?: string;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParquetPage"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
     rescan_dataset: {
         parameters: {
             query?: never;
@@ -8172,6 +8459,222 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    transcode_dataset_video: {
+        parameters: {
+            query: {
+                link_name: string;
+                path: string;
+                start_s?: number;
+                duration_s?: number;
+            };
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description H.264分片MP4 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": string;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description 两路转码均已占用，五段诊断 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    probe_dataset_video: {
+        parameters: {
+            query: {
+                link_name: string;
+                path?: string;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoInfo"];
                 };
             };
             /** @description Bad Request */

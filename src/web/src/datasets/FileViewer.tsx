@@ -1,21 +1,26 @@
 // 原文件查看器（M1.5-01）：目录与预览分栏，复用Query取消、统一诊断、时间/大小和JSON Worker。
 import { useState, type ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "antd";
+import { Button, Select, Slider } from "antd";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import {
   listFiles,
   readFileText,
   fileUrl,
   probeFile,
+  readVideoInfo,
+  videoUrl,
+  probeVideo,
   type FileItem,
   type FileLocation,
   type FilePage,
+  type VideoInfo,
 } from "../api/fileViewer";
 import { DiagnosticCard } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
 import { formatDateTime } from "../time";
 import { formatBytes } from "./formatBytes";
+import { ParquetPreview } from "./ParquetPreview";
 import { JsonViewer } from "./JsonViewer";
 import type { FileViewerProps } from "./FileViewerEntry";
 import "./fileViewer.css";
@@ -59,21 +64,18 @@ export function FileViewer(props: FileViewerProps & { datasetId: string }): Reac
   return (
     <section aria-label="原文件查看器" className="file-viewer">
       <p>数据盘原文件 · 只读</p>
-      <select
+      <Select
+        virtual={false}
         aria-label="选择原文件链接"
-        value={linkName}
-        onChange={(event) => {
-          setLinkName(event.target.value);
+        placeholder="请选择链接"
+        value={linkName || undefined}
+        style={{ width: "100%" }}
+        options={[...new Set(props.linkNames)].map((name) => ({ value: name, label: name }))}
+        onChange={(name: string) => {
+          setLinkName(name);
           go("");
         }}
-      >
-        <option value="">请选择链接</option>
-        {[...new Set(props.linkNames)].map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </select>
+      />
       {!props.linkNames.length && <p>没有已登记链接，请重新扫描后查看。</p>}
       {linkName && (
         <>
@@ -193,8 +195,9 @@ function FileRow({
   );
 }
 
-type PreviewKind = "json" | "text" | "video" | "image" | "other";
+type PreviewKind = "json" | "text" | "video" | "image" | "parquet" | "other";
 function previewKind(name: string): PreviewKind {
+  if (/\.parquet$/i.test(name)) return "parquet";
   if (/\.(mp4|webm|mov|m4v|ogv)$/i.test(name)) return "video";
   if (/\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(name)) return "image";
   if (/\.(json|jsonl)$/i.test(name)) return "json";
@@ -218,15 +221,15 @@ function Preview({ location, name }: { location: FileLocation; name: string }): 
       <p className="file-viewer-path" title={name}>
         {name}
       </p>
-      <MediaPreview kind={kind} location={location} name={name} />
+      {kind === "video" ? (
+        <VideoPreview location={location} />
+      ) : (
+        <MediaPreview kind={kind} location={location} name={name} />
+      )}
       {text && query.isPending && <p role="status">正在读取文件</p>}
       {query.error && <DiagnosticCard failure={toFailureView(query.error)} />}
-      {query.data !== undefined &&
-        (kind === "json" ? (
-          <JsonViewer content={query.data} label="原文件 JSON" format />
-        ) : (
-          <pre className="file-viewer-text">{query.data}</pre>
-        ))}
+      {query.data !== undefined && <TextContent kind={kind} content={query.data} />}
+      {kind === "parquet" && <ParquetPreview location={location} />}
       {kind === "other" && <p>此格式不支持在线预览，请下载工具查看。</p>}
     </>
   );
@@ -254,17 +257,6 @@ function MediaPreview({
   return (
     <>
       {failed && <DiagnosticCard failure={toFailureView(diagnostic.error)} />}
-      {kind === "video" && (
-        <video
-          aria-label="原文件视频"
-          src={src}
-          controls
-          preload="metadata"
-          onError={() => {
-            setFailed(true);
-          }}
-        />
-      )}
       {kind === "image" && (
         <img
           aria-label="原文件图片"
@@ -276,5 +268,135 @@ function MediaPreview({
         />
       )}
     </>
+  );
+}
+
+function VideoPreview({ location }: { location: FileLocation }): ReactElement {
+  const [nativeFailed, setNativeFailed] = useState(false);
+  const [failedSource, setFailedSource] = useState("");
+  const [startS, setStartS] = useState(0);
+  const client = useAccountClient();
+  const identity = useCurrentAccount();
+  const info = useQuery({
+    ...options,
+    queryKey: ["datasets", identity.data?.account_id, "video-info", location],
+    queryFn: ({ signal }) => readVideoInfo({ client, payload: location, signal }),
+  });
+  // AV1的MIME探测只在已确认编码为av1后影响决策；其他编码继续先试原文件。
+  const unsupported = av1Unsupported(info.data?.codec);
+  const transcoded = nativeFailed || unsupported;
+  const source = transcoded ? videoUrl({ ...location, startS }) : fileUrl(location);
+  const diagnostic = useQuery({
+    ...options,
+    enabled: failedSource === source,
+    queryKey: ["datasets", identity.data?.account_id, "video-error", source],
+    queryFn: ({ signal }) => probeVideo({ client, payload: { ...location, startS }, signal }),
+  });
+  const durationS = info.data?.duration_s ?? 0;
+  function seek(value: number): void {
+    setStartS(value);
+    setNativeFailed(true);
+  }
+  return (
+    <>
+      <VideoStatus info={info.data} infoError={info.error} error={diagnostic.error} />
+      <p>{transcoded ? "转码播放 · H.264 · 每段60秒" : "原文件播放"}</p>
+      <video
+        key={source}
+        aria-label="原文件视频"
+        src={source}
+        controls
+        preload="metadata"
+        onError={() => {
+          if (transcoded) setFailedSource(source);
+          else setNativeFailed(true);
+        }}
+      />
+      {durationS > 0 && <VideoControls durationS={durationS} startS={startS} onSeek={seek} />}
+    </>
+  );
+}
+
+function VideoControls({
+  durationS,
+  startS,
+  onSeek,
+}: {
+  durationS: number;
+  startS: number;
+  onSeek: (value: number) => void;
+}): ReactElement {
+  const [sliderS, setSliderS] = useState<number | null>(null);
+  return (
+    <>
+      <p>起点：{startS} 秒</p>
+      <Slider
+        ariaLabelForHandle="视频起点"
+        min={0}
+        max={Math.max(0, durationS - 0.1)}
+        step={0.1}
+        value={sliderS ?? startS}
+        onChange={setSliderS}
+        onChangeComplete={(value) => {
+          setSliderS(null);
+          onSeek(value);
+        }}
+      />
+      <Button
+        aria-label="视频上一段"
+        disabled={startS === 0}
+        onClick={() => {
+          onSeek(Math.max(0, startS - 60));
+        }}
+      >
+        上一段
+      </Button>
+      <Button
+        aria-label="视频下一段"
+        disabled={startS + 60 >= durationS}
+        onClick={() => {
+          onSeek(startS + 60);
+        }}
+      >
+        下一段
+      </Button>
+    </>
+  );
+}
+
+function av1Unsupported(codec: string | undefined): boolean {
+  return (
+    codec === "av1" &&
+    !document.createElement("video").canPlayType('video/mp4; codecs="av01.0.05M.08"')
+  );
+}
+
+function VideoStatus({
+  info,
+  infoError,
+  error,
+}: {
+  info: VideoInfo | undefined;
+  infoError: unknown;
+  error: unknown;
+}): ReactElement {
+  return (
+    <>
+      {!!infoError && <DiagnosticCard failure={toFailureView(infoError)} />}
+      {!!error && <DiagnosticCard failure={toFailureView(error)} />}
+      {info && (
+        <p>
+          编码：{info.codec} · 总时长：{info.duration_s} 秒
+        </p>
+      )}
+    </>
+  );
+}
+
+function TextContent({ kind, content }: { kind: PreviewKind; content: string }): ReactElement {
+  return kind === "json" ? (
+    <JsonViewer content={content} label="原文件 JSON" format />
+  ) : (
+    <pre className="file-viewer-text">{content}</pre>
   );
 }

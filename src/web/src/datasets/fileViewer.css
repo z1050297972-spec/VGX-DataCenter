@@ -59,3 +59,17 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* antd表格的横向滚动限制在预览栏内，列内容不能反向撑大grid轨道。 */
+.file-viewer-table {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+.file-viewer-cell {
+  display: inline-block;
+  max-width: 320px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

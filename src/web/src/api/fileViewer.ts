@@ -94,3 +94,100 @@ export function probeFile(input: AccountCall<FileLocation>): Promise<boolean> {
     return true;
   });
 }
+
+export type VideoInfo = components["schemas"]["VideoInfo"];
+export interface VideoLocation extends FileLocation {
+  /** 起点秒数，有限且非负；每段固定60秒。 */ startS: number;
+}
+
+/**
+ * 探测首个视频流编码和总时长。
+ * @param input - 已认证客户端、文件位置与取消信号。
+ * @returns 编码与以秒计的总时长。
+ * @throws Error 探测或HTTP失败，保留服务端五段诊断。
+ * @sideEffects GET探测接口，不写存储。
+ * @timeSemantics 最多60秒，不轮询，离开预览取消。
+ */
+export function readVideoInfo(input: AccountCall<FileLocation>): Promise<VideoInfo> {
+  return boundedRequest(input.signal, DATASET_REQUEST_TIMEOUT_MS, async (signal) => {
+    const value = input.payload;
+    const result = await input.client.GET("/api/datasets/{dataset_id}/video-info", {
+      params: {
+        path: { dataset_id: value.datasetId },
+        query: { link_name: value.linkName, path: value.path },
+      },
+      signal,
+    });
+    if (!result.data) throw new Error("视频探测响应缺失");
+    return result.data;
+  });
+}
+
+/**
+ * 生成浏览器直接播放的分段转码地址。
+ * @param location - 文件位置与非负起点秒数。
+ * @returns 同源转码URL，片长固定60秒。
+ * @throws 无。
+ * @sideEffects 无；媒体控件发起实际请求。
+ * @timeSemantics 起点相对于源视频开始，不缓存流。
+ */
+export function videoUrl(location: VideoLocation): string {
+  return `/api/datasets/${encodeURIComponent(location.datasetId)}/video?link_name=${encodeURIComponent(location.linkName)}&path=${encodeURIComponent(location.path)}&start_s=${String(location.startS)}&duration_s=60`;
+}
+
+/**
+ * 在转码播放失败时取得统一诊断，成功时立即取消探针流。
+ * @param input - 已认证客户端、分段位置和取消信号。
+ * @returns 取得可读响应时为true。
+ * @throws Error 工具或HTTP失败，保留服务端诊断。
+ * @sideEffects GET转码接口；仅探测响应头，不缓冲整个视频，成功后取消正文。
+ * @timeSemantics 最多60秒，无重试，离开预览取消。
+ */
+export function probeVideo(input: AccountCall<VideoLocation>): Promise<boolean> {
+  return boundedRequest(input.signal, DATASET_REQUEST_TIMEOUT_MS, async (signal) => {
+    const value = input.payload;
+    const result = await input.client.GET("/api/datasets/{dataset_id}/video", {
+      params: {
+        path: { dataset_id: value.datasetId },
+        query: {
+          link_name: value.linkName,
+          path: value.path,
+          start_s: value.startS,
+          duration_s: 60,
+        },
+      },
+      signal,
+      parseAs: "stream",
+    });
+    await result.data?.cancel();
+    return true;
+  });
+}
+
+export type ParquetPage = components["schemas"]["ParquetPage"];
+export interface ParquetLocation extends FileLocation {
+  /** 从零起的行偏移，最大10000000。 */ offset: number;
+}
+
+/**
+ * 读取parquet结构、计数和最多200行。
+ * @param input - 已认证客户端、文件位置、行偏移和取消信号。
+ * @returns 服务端有界单元格与结构，大文件仅有结构。
+ * @throws Error HTTP失败、超时或响应缺失，保留统一诊断。
+ * @sideEffects GET分页接口，不读取或缓存整表。
+ * @timeSemantics 每次选择或翻页读取，不轮询，最多60秒，切换文件取消。
+ */
+export function readParquet(input: AccountCall<ParquetLocation>): Promise<ParquetPage> {
+  return boundedRequest(input.signal, DATASET_REQUEST_TIMEOUT_MS, async (signal) => {
+    const value = input.payload;
+    const result = await input.client.GET("/api/datasets/{dataset_id}/parquet", {
+      params: {
+        path: { dataset_id: value.datasetId },
+        query: { link_name: value.linkName, path: value.path, offset: value.offset, limit: 200 },
+      },
+      signal,
+    });
+    if (!result.data) throw new Error("parquet响应缺失");
+    return result.data;
+  });
+}
