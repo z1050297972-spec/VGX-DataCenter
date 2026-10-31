@@ -20,6 +20,8 @@ describe("数据来源标注", () => {
     const requests: Request[] = [];
     const page = mountPage(originUrl, originFetch(requests));
     try {
+      // 等真实路由完成初次加载，避免慢机器把动态导入耗时算进DOM查找预算。
+      await page.router.load();
       const area = await screen.findByRole("region", { name: "数据来源标注" });
       fireEvent.mouseDown(within(area).getByRole("combobox", { name: "选择数据来源" }));
       for (const label of ["真机采集", "UMI 采集", "ego 采集", "仿真生成", "开源下载", "未知"])

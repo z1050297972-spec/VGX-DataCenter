@@ -58,9 +58,8 @@ it("从详情选择链接、浏览目录并播放视频", async () => {
     expect(
       requests.filter((request) => new URL(request.url).pathname.endsWith("/files")),
     ).toHaveLength(0);
-    fireEvent.change(within(area).getByRole("combobox", { name: "选择原文件链接" }), {
-      target: { value: "原始数据" },
-    });
+    fireEvent.mouseDown(within(area).getByRole("combobox", { name: "选择原文件链接" }));
+    fireEvent.click(await screen.findByRole("option", { name: "原始数据" }));
     fireEvent.click(await within(area).findByRole("button", { name: "打开目录 videos" }));
     fireEvent.click(await within(area).findByRole("button", { name: "预览文件 clip.mp4" }));
     await waitFor(() => {
@@ -136,9 +135,8 @@ it("文本、JSON和图片分别使用只读预览", async () => {
   try {
     fireEvent.click(await screen.findByRole("button", { name: "查看原文件" }));
     const area = await screen.findByRole("region", { name: "原文件查看器" });
-    fireEvent.change(within(area).getByRole("combobox", { name: "选择原文件链接" }), {
-      target: { value: "原始数据" },
-    });
+    fireEvent.mouseDown(within(area).getByRole("combobox", { name: "选择原文件链接" }));
+    fireEvent.click(await screen.findByRole("option", { name: "原始数据" }));
     fireEvent.click(await within(area).findByRole("button", { name: "预览文件 note.txt" }));
     expect((await within(area).findByText("首行 末行")).textContent).toBe("首行\n末行");
     fireEvent.click(within(area).getByRole("button", { name: "预览文件 info.json" }));
@@ -174,7 +172,7 @@ it("视频读取失败展示服务端五段诊断", async () => {
           limit: 100,
           has_more: false,
         });
-      if (url.pathname.endsWith("/file")) {
+      if (url.pathname.endsWith("/video")) {
         requests.push(request);
         return Response.json(
           {
@@ -209,18 +207,138 @@ it("视频读取失败展示服务端五段诊断", async () => {
   try {
     fireEvent.click(await screen.findByRole("button", { name: "查看原文件" }));
     const area = await screen.findByRole("region", { name: "原文件查看器" });
-    fireEvent.change(within(area).getByRole("combobox", { name: "选择原文件链接" }), {
-      target: { value: "原始数据" },
-    });
+    fireEvent.mouseDown(within(area).getByRole("combobox", { name: "选择原文件链接" }));
+    fireEvent.click(await screen.findByRole("option", { name: "原始数据" }));
     fireEvent.click(await within(area).findByRole("button", { name: "预览文件 clip.mp4" }));
+    fireEvent.error(within(area).getByLabelText("原文件视频"));
     fireEvent.error(within(area).getByLabelText("原文件视频"));
     expect(await within(area).findByText(/fixture-storage-timeout/)).toBeTruthy();
     expect(within(area).getByText(/恢复挂载后重试/)).toBeTruthy();
+    expect(requests.some((request) => new URL(request.url).pathname.endsWith("/video"))).toBe(true);
+  } finally {
+    page.close();
+  }
+});
+
+// 契约：AV1能力探测不支持或原生播放失败时自动切转码，并按60秒分段跳转。
+it.each(["unsupported", "error"])("视频%s自动转码并按段跳转", async (reason) => {
+  const capability = vi
+    .spyOn(HTMLMediaElement.prototype, "canPlayType")
+    .mockReturnValue(reason === "unsupported" ? "" : "probably");
+  const requests: Request[] = [];
+  const fallback = datasetFetch(requests);
+  const page = mountPage(
+    `/datasets?selected=${encodeURIComponent(taskEntry.entry_path)}`,
+    async (request) => {
+      const url = new URL(request.url);
+      if (url.pathname === "/api/datasets/detail") return Response.json(viewerDetail);
+      if (url.pathname.endsWith("/files"))
+        return Response.json({
+          items: [
+            { name: "clip.mp4", kind: "file", size_bytes: 10, modified_at: "2026-10-30T08:00:00Z" },
+          ],
+          offset: 0,
+          limit: 100,
+          has_more: false,
+        });
+      if (url.pathname.endsWith("/video-info"))
+        return Response.json({ codec: "av1", duration_s: 150 });
+      return fallback(request);
+    },
+  );
+  try {
+    fireEvent.click(await screen.findByRole("button", { name: "查看原文件" }));
+    const area = await screen.findByRole("region", { name: "原文件查看器" });
+    fireEvent.mouseDown(within(area).getByRole("combobox", { name: "选择原文件链接" }));
+    fireEvent.click(await screen.findByRole("option", { name: "原始数据" }));
+    fireEvent.click(await within(area).findByRole("button", { name: "预览文件 clip.mp4" }));
+    if (reason === "error") fireEvent.error(within(area).getByLabelText("原文件视频"));
+    await waitFor(() => {
+      expect(within(area).getByLabelText("原文件视频").getAttribute("src")).toContain("/video?");
+    });
+    expect(await within(area).findByText(/av1.*150/)).toBeTruthy();
+    expect(within(area).getByText(/转码播放/)).toBeTruthy();
+    fireEvent.click(within(area).getByRole("button", { name: "视频下一段" }));
+    expect(within(area).getByLabelText("原文件视频").getAttribute("src")).toContain("start_s=60");
+    fireEvent.click(within(area).getByRole("button", { name: "视频上一段" }));
+    expect(within(area).getByLabelText("原文件视频").getAttribute("src")).toContain("start_s=0");
+    expect(within(area).getByRole("slider", { name: "视频起点" })).toBeTruthy();
+  } finally {
+    page.close();
+    capability.mockRestore();
+  }
+});
+
+// 契约：parquet先展示结构与计数，按200行翻页，截断单元格明确标注，宽表自带滚动容器。
+it("parquet显示表结构、截断标记并分页", async () => {
+  const requests: Request[] = [];
+  const fallback = datasetFetch(requests);
+  const page = mountPage(
+    `/datasets?selected=${encodeURIComponent(taskEntry.entry_path)}`,
+    async (request) => {
+      const url = new URL(request.url);
+      if (url.pathname === "/api/datasets/detail") return Response.json(viewerDetail);
+      if (url.pathname.endsWith("/files"))
+        return Response.json({
+          items: [
+            {
+              name: "data.parquet",
+              kind: "file",
+              size_bytes: 10,
+              modified_at: "2026-10-30T08:00:00Z",
+            },
+          ],
+          offset: 0,
+          limit: 100,
+          has_more: false,
+        });
+      if (url.pathname.endsWith("/parquet")) {
+        requests.push(request);
+        const offset = Number(url.searchParams.get("offset"));
+        return Response.json({
+          columns: [
+            { name: "value", type: "int64" },
+            { name: "note", type: "string" },
+          ],
+          total_rows: 201,
+          row_groups: 3,
+          offset,
+          limit: 200,
+          rows: [
+            [
+              { text: offset ? "201" : "17", truncated: false },
+              { text: "nested-value", truncated: true },
+            ],
+          ],
+          has_more: offset === 0,
+          schema_only: false,
+        });
+      }
+      return fallback(request);
+    },
+  );
+  try {
+    fireEvent.click(await screen.findByRole("button", { name: "查看原文件" }));
+    const area = await screen.findByRole("region", { name: "原文件查看器" });
+    fireEvent.mouseDown(within(area).getByRole("combobox", { name: "选择原文件链接" }));
+    fireEvent.click(await screen.findByRole("option", { name: "原始数据" }));
+    fireEvent.click(await within(area).findByRole("button", { name: "预览文件 data.parquet" }));
+    const preview = await within(area).findByRole("region", { name: "parquet预览" });
+    expect(await within(preview).findByText("int64")).toBeTruthy();
+    expect(within(preview).getByText(/总行数：201.*行组：3/)).toBeTruthy();
+    expect(within(preview).getByText(/nested-value.*已截断/)).toBeTruthy();
+    expect(within(preview).getByRole("region", { name: "parquet数据表格" })).toBeTruthy();
+    fireEvent.click(within(preview).getByRole("button", { name: "parquet下一页" }));
+    await waitFor(() => {
+      expect(
+        requests.some((request) => new URL(request.url).searchParams.get("offset") === "200"),
+      ).toBe(true);
+    });
     expect(
       requests
-        .find((request) => new URL(request.url).pathname.endsWith("/file"))
-        ?.headers.get("Range"),
-    ).toBe("bytes=0-0");
+        .filter((request) => new URL(request.url).pathname.endsWith("/parquet"))
+        .every((request) => new URL(request.url).searchParams.get("limit") === "200"),
+    ).toBe(true);
   } finally {
     page.close();
   }
