@@ -1,0 +1,1 @@
+上一次运行因机器重启而中止（日志停在你给 test_plan.py 追加 `test_transport_rejects_failed_child_even_with_output` 之后），从中断处继续原来的任务：派工 B2 的要求不变（/home/shawn/桌面/robot-data-platform/.scratch/m2-downloads/assets/01-download-plan/prompt-B2.md 和它引用的 prompt-B.md）。先看一眼工作区当前状态（`git status`、`git diff --stat`），确认上次的改动都在，然后继续，直到测试里不留跳过、`make check` 全绿，按 prompt-B 的五块格式交最终回复。

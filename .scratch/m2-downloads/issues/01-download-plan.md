@@ -1,6 +1,6 @@
 # 下载计划
 
-Status: in-progress
+Status: in-review
 
 分级：骨架关卡。理由：新领域对象（下载请求、文件清单、下载计划）和对外部服务的数据契约（Hub API 的版本、清单、分页），后面三张票都建在它上面。
 
@@ -63,3 +63,19 @@ Status: in-progress
 - 2026-10-30，骨架关卡评审。重跑 `make check` 全绿（2483 passed、23 skipped），输出 `~/.cache/rdp-dispatch/m2-01/review-A-check.txt`。文件归属：只新增 `src/rdp/jobs/downloads/{__init__,plan}.py`、`tests/jobs/downloads/test_plan.py`；主仓库 `src tests` 无改动。运行日志：旧项目路径只出现在 Codex 读 AGENTS.md 的原文里；无安装、联网命令；无 `/mnt` 命令。23 个跳过的测试覆盖验收全部条目。快照 `refs/rdp/m2-01/A-done`。结论：建议通过，附三条待负责人定：(1) 每个请求加总时长上限 30 秒、响应体上限 16 MB（CODING_STANDARDS / 7.1"所有等待都有上限"）；(2) 演练存储根用 `/tmp` 下 200 MB ext4 镜像经 `udisksctl loop-setup` 挂载，带 UUID，代码和 ADR 不改；(3) 权重落点 `<可写存储根>/权重/<命名空间>/<仓库>@<commit 前 12 位>/`。已交负责人。
 - 2026-10-30，负责人："你把功能搭建好吧，我自己做下载测试，我之后会创建一个单独放权重的目录，让用户自己填位置"。执行线理解为：骨架通过；后续票的骨架关卡预授权（3.0 第 3 条，合并仍等负责人）；(1) 总时长与响应体上限按建议；(2) 不做演练存储根，负责人自己测；(3) 权重落点改为用户选可写存储根 + 填子目录，默认 `<命名空间>/<仓库>@<commit 前 12 位>`。契约提交 `95c3014`（`契约：下载计划`）。
 - 2026-10-30，派工 B（含上述三处契约修改，执行线按负责人决定批准）。续接会话 `01a18c09-130f-7602-a90f-fb2fac86d3de`，快照 `refs/rdp/m2-01/B`，提示 `assets/01-download-plan/prompt-B.md`，日志 `~/.cache/rdp-dispatch/m2-01/ev-B.jsonl`，PID 2015629。
+- 2026-10-30，派工 B 交回（05:44，约 10 分钟），只完成 6/23 个测试就以"预计超 80 分钟"交检查点（误读提示）。执行线前两次以为 Codex 已退出是等待脚本记错 PID（setsid 再 fork），重试因会话被原进程占用而失败，无副作用，重试文件已删。
+- 2026-10-30，派工 B2（续接，不计打回轮）：要求做完剩余 19 个测试；定 `target_subdir` 允许中文和空格（与 repo_id 分开校验）；总时长和响应体上限必须有运行时保障。提示 `assets/01-download-plan/prompt-B2.md`，日志 `~/.cache/rdp-dispatch/m2-01/ev-B2.jsonl`，PID 2151743。
+- 2026-10-30，派工 B2 中断：运行约 70 分钟，日志停在 06:54，没有 `turn.completed`；07:28 机器重启，执行线会话也断了。工作区改动都在（新增 `_http_child.py`：HTTP 放子进程里做，用来保证总时长上限）。
+- 2026-10-30 19:28，派工 B3（网关断开后的续接，不计打回轮）。快照 `refs/rdp/m2-01/B3`，提示 `assets/01-download-plan/prompt-B3.md`，日志 `~/.cache/rdp-dispatch/m2-01/ev-B3.jsonl`，PID 627341。
+- 2026-10-30 19:32，派工 B3 交回：23+ 个测试全部去掉跳过，Codex 自报 `make check` 全绿（2527 passed）。快照 `refs/rdp/m2-01/B-done`。
+- 2026-10-30，评审（3.5）：
+  1. 重跑：执行线的 `make check` 和变异抽查同时跑了，结果不可信，修复轮后重跑。
+  2. 文件归属：只有 `src/rdp/jobs/downloads/{plan,_http_child}.py`、`tests/jobs/downloads/test_plan.py`；主仓库非规划文件无改动。通过。
+  3. 对比契约：相对 `95c3014` 的改动只有负责人批准的三处（总时长与响应体上限、`target_subdir`、权重默认路径去掉 `权重/`）。Codex 申请给 `UrllibTransport.request` 的 Side Effects 补"隔离子进程"一句：措辞补充，执行线批准（6.2）。通过。
+  4. 变异抽查：`assets/01-download-plan/mutation_probe.py`，结果 `mutation_probe-B-done.txt`。20 个变异抓住 16 个，1 个因匹配两处跳过。漏网 4 个：包含模式"以 `/` 结尾补 `*`"、容量余量（阻塞，进修复清单）；`_request` 的主机校验、父进程响应体上限（等价：另一层有校验并有测试，不打回）。
+  5. 运行日志：B、B2、B3 均无旧项目路径、安装或联网命令、`/mnt` 命令，也没有对镜像或官方站的请求。通过。
+  6. 两轴评审：执行线人工通读实现（HTTP 子进程、token 读取、重试、分页、预览、筛选、路径校验、容量）。没有硬性违规。遗留：`meta/info.json` 经镜像 `resolve` 时如果被 302 到镜像 CDN，会按"不可用"失败（info.json 是 git 小文件，预计是 200 直出），等负责人实测确认。
+  7. 违规试验：检查链没改，不做。
+- 2026-10-30，修复轮 r1（第 1 轮打回）：补"斜杠补星"和"容量余量"两个测试，加上批准的 docstring 补充。快照 `refs/rdp/m2-01/r1`，提示 `assets/01-download-plan/prompt-r1.md`，PID 1097896。
+- 2026-10-30 19:44，r1 交回。变异抽查复跑（`mutation_probe-r1-done.txt`）：只剩两个等价变异漏网。日志无违规。快照 `refs/rdp/m2-01/r1-done`。实现提交 `0e9d39d`（`实现：下载计划`），钩子跑全量 `make check` 全绿（132 秒）。第 01 张完成，等 M2 整体合并。
+- 2026-10-30，在分支上合并 main（`2cf390d`，M1、M1.5 全部）：没有冲突。提交合并时钩子连续三次被 M1/M1.5 的页面 Vitest 超时挂掉（JsonViewer、DataOrigin、FieldEditing、FileViewer、Repoint），单独跑能过，当时 load 8–18，M1 线的 Codex 正在跑 pytest。已按约定通知 M1 线（datasets-f5），对方确认是已知的不稳定用例，会开票处理。后台循环等到 load < 4 再提交合并。
