@@ -24,6 +24,7 @@ from rdp.jobs.types import RecoveryMode
 
 if TYPE_CHECKING:
     from rdp.jobs.datasets.rescan import RescanDependencies
+    from rdp.jobs.downloads.job import DownloadDependencies
     from rdp.jobs.execution import ExecutionContext
     from rdp.jobs.navwrite.pipeline import NavWriteDependencies
 
@@ -235,6 +236,7 @@ class JobRegistry:
 def production_registry(
     rescan_dependencies: RescanDependencies | None = None,
     nav_write_dependencies: NavWriteDependencies | None = None,
+    download_dependencies: DownloadDependencies | None = None,
 ) -> JobRegistry:
     """构造示例与维护作业的生产登记表。
 
@@ -242,11 +244,12 @@ def production_registry(
         rescan_dependencies: worker的显式扫描依赖；Web或只提交调用传None，不获得文件访问能力。
         nav_write_dependencies: worker的写导航层依赖（M1-07）；Web传None，只能校验提交参数，
             执行时缺依赖属于程序缺陷。
+        download_dependencies: worker下载边界依赖；Web传None，仅校验参数。
 
     Returns:
         新 JobRegistry：示例、维护、数据集扫描与统计，以及 nav_write_apply、
         nav_revert_preview、两个创建预览、nav_data_origin_preview、nav_repoint_preview 和
-        nav_fields_preview；扫描与预览为 restart，
+        nav_fields_preview，以及 resume 的 download；扫描与预览为 restart，
         执行能力由入口显式注入。
         三个示例为 interrupt，两个清除为 restart；只有 example_gpu 需要 GPU，各类默认并发 1。
 
@@ -262,6 +265,7 @@ def production_registry(
     # 延迟导入避免登记定义和执行上下文的模块环；每次构造都返回独立对象。
     from rdp.jobs.datasets.rescan import build_rescan_definition
     from rdp.jobs.datasets.sizing import build_sizing_definition
+    from rdp.jobs.downloads.job import DownloadExecutor, DownloadParameters
     from rdp.jobs.example import CountParameters, execute_count
     from rdp.jobs.maintenance import PurgeParameters, execute_purge_errors, execute_purge_logs
     from rdp.jobs.navwrite.create_jobs import build_creation_definitions
@@ -314,6 +318,15 @@ def production_registry(
         ),
     ):
         registry.register(definition)
+    registry.register(
+        JobDefinition(
+            "download",
+            "下载",
+            DownloadParameters,
+            RecoveryMode.RESUME,
+            DownloadExecutor(download_dependencies).execute,
+        )
+    )
     registry.register(build_rescan_definition(rescan_dependencies))
     registry.register(build_sizing_definition(rescan_dependencies))
     for definition in (

@@ -10,6 +10,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Float,
+    ForeignKey,
     Index,
     Integer,
     String,
@@ -155,3 +156,60 @@ class WorkerHeartbeatRow(Base):
     pid: Mapped[int] = mapped_column(Integer, nullable=False)
     started_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+
+class DownloadAdjustmentRow(Base):
+    """版本化下载调参快照，与迁移 0013 共用结构。
+
+    Attributes:
+        job_id: 对应作业的正整数主键。
+        requested_version: 已提交的非负版本。
+        applied_version: 已成功应用的非负版本，不超过请求版本。
+        requested_concurrency: 待生效文件并发，1 至 16。
+        requested_limit_bytes_per_s: 待生效速率，0 或至少 1024 bytes/s。
+        effective_concurrency: 已生效文件并发，1 至 16。
+        effective_limit_bytes_per_s: 已生测速率，0 或至少 1024 bytes/s。
+        speed_bytes_per_s: 当前传输速度，非负 bytes/s。
+        total_files: 文件总数，非负。
+        completed_files: 完成文件数，非负。
+        failed_files: 失败文件数，非负。
+        skipped_files: 跳过文件数，非负。
+    """
+
+    __tablename__ = "download_adjustments"
+    __table_args__ = (
+        CheckConstraint("speed_bytes_per_s >= 0", name="speed"),
+        CheckConstraint("total_files >= 0", name="total_files"),
+        CheckConstraint("completed_files >= 0", name="completed_files"),
+        CheckConstraint("failed_files >= 0", name="failed_files"),
+        CheckConstraint("skipped_files >= 0", name="skipped_files"),
+        CheckConstraint("requested_version >= 0", name="requested_version"),
+        CheckConstraint(
+            "applied_version >= 0 AND applied_version <= requested_version", name="applied_version"
+        ),
+        CheckConstraint("requested_concurrency BETWEEN 1 AND 16", name="requested_concurrency"),
+        CheckConstraint(
+            "requested_limit_bytes_per_s = 0 OR requested_limit_bytes_per_s >= 1024",
+            name="requested_limit",
+        ),
+        CheckConstraint("effective_concurrency BETWEEN 1 AND 16", name="effective_concurrency"),
+        CheckConstraint(
+            "effective_limit_bytes_per_s = 0 OR effective_limit_bytes_per_s >= 1024",
+            name="effective_limit",
+        ),
+    )
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("jobs.job_id", ondelete="CASCADE"), primary_key=True
+    )
+    requested_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    applied_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    requested_concurrency: Mapped[int] = mapped_column(Integer, nullable=False)
+    requested_limit_bytes_per_s: Mapped[int] = mapped_column(Integer, nullable=False)
+    effective_concurrency: Mapped[int] = mapped_column(Integer, nullable=False)
+    effective_limit_bytes_per_s: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    speed_bytes_per_s: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    total_files: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    completed_files: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    failed_files: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    skipped_files: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")

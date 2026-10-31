@@ -170,11 +170,13 @@ class JobsConfig(BaseModel):
     Attributes:
         gpus: 平台可用物理卡号，默认 (0, 1)，空表示不用 GPU；最多 MAX_CONFIGURED_GPUS，
             每项严格整数 0 至 MAX_GPU_INDEX，不接受重复、bool、字符串。
+        aria2c_path: aria2c 可执行文件路径或名称，非空，默认 aria2c。
         concurrency: 按稳定类型键覆盖的并发上限，默认空字典，每值 1 至 MAX_JOB_CONCURRENCY；
             启动时 resolve_scheduling 再核对类型存在性并复制成不可变快照。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
+    aria2c_path: str = Field(default="aria2c", strict=True, min_length=1)
     gpus: tuple[GpuIndex, ...] = Field(default=(0, 1), max_length=MAX_CONFIGURED_GPUS)
     concurrency: dict[str, ConcurrencyLimit] = Field(default_factory=dict)
 
@@ -203,7 +205,7 @@ class PlatformConfig(BaseModel):
             load_config 的缺省值是注入 home 下的 .local/share/rdp。
             文件中允许绝对路径或 ~/ 前缀（也允许单独 ~），后者用注入 home 展开；
             不接受相对路径、~其他用户或环境变量展开，不解析软链接、不要求已存在。
-        jobs: JobsConfig，默认两张卡、没有并发覆盖；只允许 gpus/concurrency。
+        jobs: JobsConfig，默认两张卡、没有并发覆盖；允许 gpus/concurrency/aria2c_path。
         nav_root: 导航层绝对 Path，默认 DEFAULT_NAV_ROOT；文件输入的 home 展开规则同 state_dir。
         storage_roots: 按配置顺序的不可变登记元组，默认空；名字唯一，路径不得相等或互相包含。
             路径只按分量做词法比较，不访问软链接；运维须登记真实挂载点路径。

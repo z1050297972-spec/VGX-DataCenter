@@ -277,7 +277,7 @@ def test_migration_upgrade(tmp_path: Path) -> None:
     paths = state_paths(PlatformConfig(state_dir=tmp_path), ())
     initialize_state(paths)
     result = migrate(paths, now=NOW)
-    assert result.current_revision == "0012_scene_task_index"
+    assert result.current_revision == "0013_download_adjustments"
     engine = create_database_engine(paths.database)
     try:
         names = set(inspect(engine).get_table_names())

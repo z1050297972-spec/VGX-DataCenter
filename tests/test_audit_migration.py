@@ -54,6 +54,7 @@ def historical_audit_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         if name
         not in {
             "jobs",
+            "download_adjustments",
             "worker_heartbeat",
             "schedule_submissions",
             "worker_gpu_checks",
