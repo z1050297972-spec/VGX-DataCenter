@@ -3096,6 +3096,173 @@
         "title": "IndexedStorageRoot",
         "type": "object"
       },
+      "IngestConfirmation": {
+        "additionalProperties": false,
+        "description": "只确认保存的预览，不接受客户端计划。\n\nAttributes:\n    preview_job_id: 正整数编号的十进制文本，范围沿用 M1。",
+        "properties": {
+          "preview_job_id": {
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "title": "Preview Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preview_job_id"
+        ],
+        "title": "IngestConfirmation",
+        "type": "object"
+      },
+      "IngestOptions": {
+        "additionalProperties": false,
+        "description": "手动入库的预览输入，路径和名字的默认值由固定下载回执推导。\n\nAttributes:\n    dataset_name: M1 安全单层数据集名；None 使用仓库名。\n    target_subdir: 同一个可写根内的相对路径；None 使用 下载/命名空间/仓库@短提交。\n    format_entries: 勾选的 M1 格式入口；None 默认 lerobot/数据版本，空元组表示不建格式入口。",
+        "properties": {
+          "dataset_name": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Name"
+          },
+          "format_entries": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FormatEntrySelection"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format Entries"
+          },
+          "target_subdir": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Subdir"
+          }
+        },
+        "title": "IngestOptions",
+        "type": "object"
+      },
+      "IngestParameters": {
+        "additionalProperties": false,
+        "description": "worker 保存的入库请求，来源编号由 HTTP 路径解析。\n\nAttributes:\n    download_job_id: 成功的数据集下载编号，严格正整数。",
+        "properties": {
+          "dataset_name": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Name"
+          },
+          "download_job_id": {
+            "minimum": 1.0,
+            "title": "Download Job Id",
+            "type": "integer"
+          },
+          "format_entries": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FormatEntrySelection"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format Entries"
+          },
+          "target_subdir": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Subdir"
+          }
+        },
+        "required": [
+          "download_job_id"
+        ],
+        "title": "IngestParameters",
+        "type": "object"
+      },
+      "IngestPreviewView": {
+        "additionalProperties": false,
+        "description": "从保存的计划提取页面摘要，不返回可执行计划正文。\n\nAttributes:\n    preview_job_id: 十进制预览编号文本，避免浏览器整数精度损失。\n    parameters: 已解析默认值的输入；修改后必须重新预览。\n    fields: 14 项名称和正文，保持导航层规定的顺序。\n    checks: 预览已经完成的检查说明。\n    notices: 部分下载等提示。\n    format_entry_options: 沿用 M1 格式登记表与已知版本的完整勾选候选。",
+        "properties": {
+          "checks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "format_entry_options": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FormatEntrySelection"
+            },
+            "title": "Format Entry Options",
+            "type": "array"
+          },
+          "notices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notices",
+            "type": "array"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/IngestParameters"
+          },
+          "preview_job_id": {
+            "title": "Preview Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preview_job_id",
+          "parameters",
+          "fields",
+          "checks",
+          "notices"
+        ],
+        "title": "IngestPreviewView",
+        "type": "object"
+      },
       "InterfaceRate": {
         "description": "单个网卡的平均收发速率。\n\nAttributes:\n    receive_bytes_per_s: 接收字节每秒。\n    send_bytes_per_s: 发送字节每秒。",
         "properties": {
@@ -12583,6 +12750,133 @@
         ]
       }
     },
+    "/api/jobs/download-ingest": {
+      "post": {
+        "description": "确认同一份成功预览并提交下载入库写作业。\n\nArgs:\n    context: 确认人的身份、UTC 请求时刻及审计来源。\n    body: 只有预览编号，不接受修改后的名字、路径或计划。\n\nReturns:\n    201，受导航写门禁保护的排队入库作业。\n\nRaises:\n    InputError: 预览未成功、不可读或编号非法。\n    AuthenticationError: 会话失效。\n    AuthorizationError: 写请求 Origin 非本站。\n    ExternalError: 数据库提交失败。\n\nSide Effects:\n    新增确认人的写作业与操作日志；导航和存储仅由 worker 修改。\n\nTime Semantics:\n    提交立即返回；worker 写前复核并以冲突拒绝过期计划，不自动重试。",
+        "operationId": "confirm_download_ingest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Confirm Ingest",
+        "tags": [
+          "download-ingest"
+        ]
+      }
+    },
     "/api/jobs/download-preview": {
       "post": {
         "description": "提交由 worker 执行的只读下载预览。\n\nArgs:\n    context: 已认证身份及作业服务。\n    body: 下载计划参数。\n\nReturns:\n    排队中的预览作业。\n\nRaises:\n    JobInputError: 参数不满足作业契约。\n    ExternalError: 数据库不可用。\n\nSide Effects:\n    原子登记作业及提交日志，不访问存储根。\n\nTime Semantics:\n    立即返回排队状态，不等待预览。",
@@ -13862,6 +14156,272 @@
         "summary": "Set Download Adjustment",
         "tags": [
           "jobs"
+        ]
+      }
+    },
+    "/api/jobs/{job_id}/download-ingest-preview": {
+      "get": {
+        "description": "读取 worker 保存的入库预览摘要。\n\nArgs:\n    context: 已认证账号、作业服务与只读状态目录。\n    job_id: 成功预览编号的规范十进制文本。\n\nReturns:\n    名字、相对位置、勾选入口、14 项和检查说明。\n\nRaises:\n    InputError: 作业不是成功预览、过期或文件不可用。\n    AuthenticationError: 会话失效。\n    ExternalError: 只读查询失败。\n\nSide Effects:\n    只读数据库和状态预览，不访问存储根。\n\nTime Semantics:\n    返回已保存快照；七天过期后要求重新预览。",
+        "operationId": "get_download_ingest_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestPreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Ingest Preview",
+        "tags": [
+          "download-ingest"
+        ]
+      },
+      "post": {
+        "description": "为成功的数据集下载提交入库预览。\n\nArgs:\n    context: 当前成员身份、唯一 UTC 请求时刻与作业服务。\n    job_id: 下载编号的规范十进制文本，正数且不超过 SQLite 整数范围。\n    body: 可选数据集名、同根相对位置与按格式入口；无绝对路径。\n\nReturns:\n    201，worker 预览作业，不等待检查完成。\n\nRaises:\n    InputError: 编号、参数或作业类型非法。\n    AuthenticationError: 会话失效。\n    AuthorizationError: 写请求 Origin 非本站。\n    ExternalError: 作业数据库不可用。\n\nSide Effects:\n    只原子写入作业与操作日志，不读取数据或导航文件。\n\nTime Semantics:\n    沿用 M0 提交预算，不重试写请求；存储检查由 worker 执行。",
+        "operationId": "submit_download_ingest_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestOptions"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Submit Ingest Preview",
+        "tags": [
+          "download-ingest"
         ]
       }
     },

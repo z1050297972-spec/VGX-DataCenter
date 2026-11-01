@@ -352,3 +352,94 @@ it("管理员删除暂存前必须确认，取消不发送请求，使用中目�
     member.close();
   }
 });
+
+it("成功的数据集下载可入库，预览的名字和同根位置可改，确认后进入写入作业", async () => {
+  // 验收 5：通过真实路由和请求边界检查入库入口、worker 预览和重新预览后的确认。
+  const sent: unknown[] = [];
+  const download = {
+    ...completedJob,
+    job_id: "50",
+    type_name: "download",
+    display_name: "下载",
+    parameters: { repo_type: "dataset", repo_id: "org/repo", storage_root: "write" },
+  };
+  function staticResponse(path: string): Response | null {
+    if (path === "/api/jobs/50") return Response.json(download);
+    if (path.endsWith("/log"))
+      return Response.json({ tail: { status: "cleared", lines: [], truncated: false } });
+    if (path === "/api/jobs/50/download-adjustment")
+      return Response.json({
+        requested_version: 0,
+        applied_version: 0,
+        requested: { max_concurrent_downloads: 4, max_overall_download_limit_bytes_per_s: 0 },
+        effective: { max_concurrent_downloads: 4, max_overall_download_limit_bytes_per_s: 0 },
+        speed_bytes_per_s: 0,
+        total_files: 2,
+        completed_files: 2,
+        failed_files: 0,
+        skipped_files: 0,
+      });
+    return null;
+  }
+  const view = mount("/jobs/50", async (request) => {
+    const path = new URL(request.url).pathname;
+    if (path === "/api/jobs/50/download-ingest-preview" && request.method === "POST") {
+      sent.push(await request.json());
+      return Response.json(
+        { ...completedJob, job_id: "82", type_name: "download_ingest_preview" },
+        { status: 201 },
+      );
+    }
+    if (path === "/api/jobs/82")
+      return Response.json({ ...completedJob, job_id: "82", type_name: "download_ingest_preview" });
+    if (path === "/api/jobs/82/download-ingest-preview")
+      return Response.json({
+        preview_job_id: "82",
+        parameters: {
+          download_job_id: 50,
+          dataset_name: sent.length > 1 ? "入库样本" : "repo",
+          target_subdir: sent.length > 1 ? "正式/样本" : "下载/org/repo@aaaaaaaaaaaa",
+          format_entries: [{ format: "lerobot", version: "3.0" }],
+        },
+        fields: { 数据集标识: "org/repo", FPS: "30", 类型与组成: "" },
+        checks: ["清单文件齐全且大小一致"],
+        notices: ["部分下载：排除了视频"],
+        format_entry_options: [{ format: "lerobot", version: "3.0" }],
+      });
+    if (path === "/api/jobs/download-ingest")
+      return Response.json(
+        { ...completedJob, job_id: "83", type_name: "download_ingest_apply" },
+        { status: 201 },
+      );
+    if (path === "/api/jobs/83")
+      return Response.json({ ...completedJob, job_id: "83", type_name: "download_ingest_apply" });
+    return staticResponse(path) ?? transport(request);
+  });
+  try {
+    fireEvent.click(await screen.findByRole("button", { name: "入库" }));
+    fireEvent.click(await screen.findByRole("button", { name: "预览入库" }));
+    expect(await screen.findByText("清单文件齐全且大小一致")).toBeTruthy();
+    expect(screen.getByText("部分下载：排除了视频")).toBeTruthy();
+    const name = screen.getByLabelText("入库数据集名");
+    const location = screen.getByLabelText("入库存放位置");
+    expect(name).toHaveProperty("value", "repo");
+    expect(location).toHaveProperty("value", "下载/org/repo@aaaaaaaaaaaa");
+    fireEvent.change(name, { target: { value: "入库样本" } });
+    fireEvent.change(location, { target: { value: "正式/样本" } });
+    expect(screen.getByRole("button", { name: "确认入库" })).toHaveProperty("disabled", true);
+    fireEvent.click(screen.getByRole("button", { name: "预览入库" }));
+    await waitFor(() => {
+      expect(sent).toHaveLength(2);
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "确认入库" })).toHaveProperty("disabled", false);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "确认入库" }));
+    await waitFor(() => {
+      expect(view.router.state.location.pathname).toBe("/jobs/83");
+    });
+    expect(sent[1]).toMatchObject({ dataset_name: "入库样本", target_subdir: "正式/样本" });
+  } finally {
+    view.close();
+  }
+});

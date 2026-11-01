@@ -29,6 +29,7 @@ from rdp.api.database import configure_database
 from rdp.api.datasets import router as datasets_router
 from rdp.api.datasets.creation import router as dataset_creation_router
 from rdp.api.datasets.fields import router as field_edit_router
+from rdp.api.download_ingest import router as download_ingest_router
 from rdp.api.download_tokens import router as download_tokens_router
 from rdp.api.error_details import get_error_details
 from rdp.api.errors import ErrorBoundary, install_error_handlers
@@ -140,6 +141,7 @@ def _unknown_api() -> Response:
 def _install_job_and_monitoring_routes(app: FastAPI) -> None:
     """一次登记作业和监控入口；只装配路由，不执行采样。"""
     app.include_router(jobs_router)
+    app.include_router(download_ingest_router)
     app.include_router(monitoring_router)
 
 

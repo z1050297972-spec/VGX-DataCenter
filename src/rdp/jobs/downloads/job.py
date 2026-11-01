@@ -663,6 +663,11 @@ def run_download(
     if not isinstance(parameters, DownloadParameters):
         failure = DefectError()
         raise failure
+    # 固定实际下载的版本和完整筛选清单；入库不重新解析可能已移动的远端分支。
+    from rdp.infra.state import state_paths
+    from rdp.jobs.downloads._ingest_receipt import save_receipt
+
+    save_receipt(state_paths(dependencies.plan.config, ()), context.job_id, plan, parameters)
     state = _DownloadRun(context, plan, dependencies, parameters)
     with bind(context, state.check_mirror, state.curl_adjustment):
         state.run()

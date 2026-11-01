@@ -270,6 +270,7 @@ def production_registry(
         ProtectedDownloadExecutor,
         StagingDeleteExecutor,
     )
+    from rdp.jobs.downloads.ingest import build_ingest_definitions
     from rdp.jobs.downloads.job import DownloadParameters
     from rdp.jobs.downloads.preview import PreviewExecutor
     from rdp.jobs.downloads.staging import ScanParameters, StagingScanner
@@ -366,6 +367,7 @@ def production_registry(
     for definition in (
         *build_navwrite_definitions(nav_write_dependencies),
         *build_creation_definitions(nav_write_dependencies),
+        *build_ingest_definitions(nav_write_dependencies),
     ):
         registry.register(definition)
     registry.register(build_data_origin_definition(nav_write_dependencies))

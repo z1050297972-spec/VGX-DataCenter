@@ -1806,6 +1806,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs/download-ingest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Ingest
+         * @description 确认同一份成功预览并提交下载入库写作业。
+         *
+         *     Args:
+         *         context: 确认人的身份、UTC 请求时刻及审计来源。
+         *         body: 只有预览编号，不接受修改后的名字、路径或计划。
+         *
+         *     Returns:
+         *         201，受导航写门禁保护的排队入库作业。
+         *
+         *     Raises:
+         *         InputError: 预览未成功、不可读或编号非法。
+         *         AuthenticationError: 会话失效。
+         *         AuthorizationError: 写请求 Origin 非本站。
+         *         ExternalError: 数据库提交失败。
+         *
+         *     Side Effects:
+         *         新增确认人的写作业与操作日志；导航和存储仅由 worker 修改。
+         *
+         *     Time Semantics:
+         *         提交立即返回；worker 写前复核并以冲突拒绝过期计划，不自动重试。
+         */
+        post: operations["confirm_download_ingest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs/download-preview": {
         parameters: {
             query?: never;
@@ -2188,6 +2227,68 @@ export interface paths {
          *         写事务提交后可见，由 worker 异步应用。
          */
         post: operations["set_download_adjustment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/download-ingest-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Ingest Preview
+         * @description 读取 worker 保存的入库预览摘要。
+         *
+         *     Args:
+         *         context: 已认证账号、作业服务与只读状态目录。
+         *         job_id: 成功预览编号的规范十进制文本。
+         *
+         *     Returns:
+         *         名字、相对位置、勾选入口、14 项和检查说明。
+         *
+         *     Raises:
+         *         InputError: 作业不是成功预览、过期或文件不可用。
+         *         AuthenticationError: 会话失效。
+         *         ExternalError: 只读查询失败。
+         *
+         *     Side Effects:
+         *         只读数据库和状态预览，不访问存储根。
+         *
+         *     Time Semantics:
+         *         返回已保存快照；七天过期后要求重新预览。
+         */
+        get: operations["get_download_ingest_preview"];
+        put?: never;
+        /**
+         * Submit Ingest Preview
+         * @description 为成功的数据集下载提交入库预览。
+         *
+         *     Args:
+         *         context: 当前成员身份、唯一 UTC 请求时刻与作业服务。
+         *         job_id: 下载编号的规范十进制文本，正数且不超过 SQLite 整数范围。
+         *         body: 可选数据集名、同根相对位置与按格式入口；无绝对路径。
+         *
+         *     Returns:
+         *         201，worker 预览作业，不等待检查完成。
+         *
+         *     Raises:
+         *         InputError: 编号、参数或作业类型非法。
+         *         AuthenticationError: 会话失效。
+         *         AuthorizationError: 写请求 Origin 非本站。
+         *         ExternalError: 作业数据库不可用。
+         *
+         *     Side Effects:
+         *         只原子写入作业与操作日志，不读取数据或导航文件。
+         *
+         *     Time Semantics:
+         *         沿用 M0 提交预算，不重试写请求；存储检查由 worker 执行。
+         */
+        post: operations["submit_download_ingest_preview"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4455,6 +4556,81 @@ export interface components {
             path: string;
             /** Reason */
             reason: ("not_mounted" | "source_mismatch" | "timeout") | null;
+        };
+        /**
+         * IngestConfirmation
+         * @description 只确认保存的预览，不接受客户端计划。
+         *
+         *     Attributes:
+         *         preview_job_id: 正整数编号的十进制文本，范围沿用 M1。
+         */
+        IngestConfirmation: {
+            /** Preview Job Id */
+            preview_job_id: string;
+        };
+        /**
+         * IngestOptions
+         * @description 手动入库的预览输入，路径和名字的默认值由固定下载回执推导。
+         *
+         *     Attributes:
+         *         dataset_name: M1 安全单层数据集名；None 使用仓库名。
+         *         target_subdir: 同一个可写根内的相对路径；None 使用 下载/命名空间/仓库@短提交。
+         *         format_entries: 勾选的 M1 格式入口；None 默认 lerobot/数据版本，空元组表示不建格式入口。
+         */
+        IngestOptions: {
+            /** Dataset Name */
+            dataset_name?: string | null;
+            /** Format Entries */
+            format_entries?: components["schemas"]["FormatEntrySelection"][] | null;
+            /** Target Subdir */
+            target_subdir?: string | null;
+        };
+        /**
+         * IngestParameters
+         * @description worker 保存的入库请求，来源编号由 HTTP 路径解析。
+         *
+         *     Attributes:
+         *         download_job_id: 成功的数据集下载编号，严格正整数。
+         */
+        IngestParameters: {
+            /** Dataset Name */
+            dataset_name?: string | null;
+            /** Download Job Id */
+            download_job_id: number;
+            /** Format Entries */
+            format_entries?: components["schemas"]["FormatEntrySelection"][] | null;
+            /** Target Subdir */
+            target_subdir?: string | null;
+        };
+        /**
+         * IngestPreviewView
+         * @description 从保存的计划提取页面摘要，不返回可执行计划正文。
+         *
+         *     Attributes:
+         *         preview_job_id: 十进制预览编号文本，避免浏览器整数精度损失。
+         *         parameters: 已解析默认值的输入；修改后必须重新预览。
+         *         fields: 14 项名称和正文，保持导航层规定的顺序。
+         *         checks: 预览已经完成的检查说明。
+         *         notices: 部分下载等提示。
+         *         format_entry_options: 沿用 M1 格式登记表与已知版本的完整勾选候选。
+         */
+        IngestPreviewView: {
+            /** Checks */
+            checks: string[];
+            /** Fields */
+            fields: {
+                [key: string]: string;
+            };
+            /**
+             * Format Entry Options
+             * @default []
+             */
+            format_entry_options: components["schemas"]["FormatEntrySelection"][];
+            /** Notices */
+            notices: string[];
+            parameters: components["schemas"]["IngestParameters"];
+            /** Preview Job Id */
+            preview_job_id: string;
         };
         /**
          * InterfaceRate
@@ -10575,6 +10751,111 @@ export interface operations {
             };
         };
     };
+    confirm_download_ingest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngestConfirmation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
     submit_download_preview: {
         parameters: {
             query?: never;
@@ -11536,6 +11817,216 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DownloadStatus"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_download_ingest_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestPreviewView"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    submit_download_ingest_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngestOptions"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
                 };
             };
             /** @description Bad Request */

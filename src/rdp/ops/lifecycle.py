@@ -12,6 +12,7 @@ from types import FrameType
 from rdp.infra.diagnostics import DefectError
 from rdp.infra.storage import StorageAccessChecker, read_storage_root
 from rdp.jobs.datasets.triggers import RescanTrigger
+from rdp.jobs.downloads.ingest import recover_ingest_moves
 from rdp.jobs.downloads.plan import UrllibTransport
 from rdp.jobs.execution import ExecutorDependencies
 from rdp.jobs.navwrite.wiring import build_navigation_callbacks
@@ -70,6 +71,7 @@ def start_worker(
         构造 StorageAccessChecker(runtime.inspector, config.storage, read_storage_root)，
         注入 ExecutorDependencies(storage=..., platform_version=runtime.version)，
         poll_submissions 使用本 worker 私有扫描提交器；镜像监控由独立线程运行。
+        启动先完成 M1 导航日志恢复，再恢复下载入库的目录移动；恢复失败保留现场并停止启动。
         WorkerScheduling 使用公共 catalog、resolve_nvidia_smi 结果及 config.errors.retention_days。
         用注入日志时钟调用 run_worker；SIGTERM/SIGINT 只设置独立 Event。
         result.lock_retained=False 或启动前失败时释放引擎；True 时保留引擎和锁到进程退出，
@@ -91,6 +93,13 @@ def start_worker(
         recover, blocked = build_navigation_callbacks(
             runtime.engine, runtime.paths, config.nav_root, inputs.clock
         )
+
+        def recover_all() -> None:
+            """先退回未提交的导航，再处理数据移动；恢复失败时保留现场并停止启动。"""
+            recover()
+            if not blocked():
+                recover_ingest_moves(runtime.paths, config.storage_roots, storage)
+
         rescan_trigger = RescanTrigger(JobService(runtime.engine, runtime.registry), inputs.clock)
 
         def collect(checkpoint: Callable[[], None]) -> None:
@@ -107,7 +116,7 @@ def start_worker(
             storage=storage,
             platform_version=runtime.version,
             poll_submissions=rescan_trigger.poll,
-            recover_navigation=recover,
+            recover_navigation=recover_all,
             navigation_blocked=blocked,
             monitoring_loop=monitor.run,
         )
