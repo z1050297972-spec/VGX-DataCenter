@@ -1,20 +1,316 @@
-/* M1-05 统一外壳：所有登录后页面共用的菜单和内容区。 */
+/* 设计变量：全站视觉取值集中维护，模块 CSS 只消费变量。
+ * 深色模式需要 antd 暗色算法并修改 TSX，另开票处理。 */
+:root {
+  color-scheme: light;
+  /* 页面与容器底色。 */
+  --rdp-page: #f5f5f7;
+  --rdp-surface: #fff;
+  --rdp-subtle: #f5f5f7;
+  /* 正文、次要文字与反白文字。 */
+  --rdp-text: #1d1d1f;
+  --rdp-muted: #68686d;
+  --rdp-on-accent: #fff;
+  /* 主色及其交互、浅底与边框层次。 */
+  --rdp-accent: #0068d1;
+  /* 白字按钮底色需满足正文对比度。 */
+  --rdp-accent-fill: #0068d1;
+  --rdp-accent-fill-hover: #0059b3;
+  --rdp-accent-fill-active: #004b99;
+  --rdp-accent-hover: #0059b3;
+  --rdp-accent-active: #004b99;
+  --rdp-accent-soft: #e7f2ff;
+  --rdp-accent-soft-hover: #d6eaff;
+  --rdp-accent-border: #a3cfff;
+  --rdp-accent-border-hover: #70b5ff;
+  /* 通用边线和玻璃高光。 */
+  --rdp-border: #d2d2d7;
+  --rdp-glass-border: rgb(255 255 255 / 70%);
+  --rdp-glass-top: #fff;
+  --rdp-glass: rgb(255 255 255 / 82%);
+  --rdp-glass-opaque: #fff;
+  /* 玻璃模糊、饱和度与悬停颜色。 */
+  --rdp-blur: 20px;
+  --rdp-saturation: 160%;
+  --rdp-hover: rgb(0 0 0 / 6%);
+  /* 微弱表面阴影与停靠栏阴影。 */
+  --rdp-shadow: 0 4px 20px rgb(0 0 0 / 5%);
+  --rdp-dock-shadow: 0 8px 32px rgb(0 0 0 / 16%);
+  /* 卡片、控件与胶囊圆角。 */
+  --rdp-radius-card: 18px;
+  --rdp-radius-control: 10px;
+  --rdp-radius-small: 6px;
+  --rdp-radius-pill: 999px;
+  /* 共用间距，单位为像素。 */
+  --rdp-line: 1px;
+  --rdp-space-1: 4px;
+  --rdp-space-2: 6px;
+  --rdp-space-3: 8px;
+  --rdp-space-4: 12px;
+  --rdp-space-5: 16px;
+  --rdp-space-6: 18px;
+  --rdp-space-7: 20px;
+  --rdp-space-8: 24px;
+  --rdp-space-select-y: 7px;
+  --rdp-space-select-x: 11px;
+  /* 内容与顶栏、状态横幅共用的最大宽度。 */
+  --rdp-content-width: 1280px;
+  /* 停靠菜单滚动轨道保持透明，不遮住玻璃背景。 */
+  --rdp-scrollbar-track: transparent;
+  /* 停靠栏留白包含安全区域，避免最后的内容被遮挡。 */
+  --rdp-dock-clearance: calc(100px + env(safe-area-inset-bottom));
+  /* 顶栏和停靠栏均低于 antd 弹层。 */
+  --rdp-z-header: 10;
+  --rdp-z-dock: 20;
+  /* 系统字体与诊断、路径等宽字体。 */
+  --rdp-font:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue",
+    "Microsoft YaHei", sans-serif;
+  --rdp-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* 交互过渡可由降级开关关闭。 */
+  --rdp-transition: 160ms ease;
+  /* antd 动画时长，可统一降为零。 */
+  --rdp-motion-fast: 0.1s;
+  --rdp-motion-mid: 0.2s;
+  --rdp-motion-slow: 0.3s;
+}
+
+/* antd 默认变量选择器为 .css-var-root；双类提高优先级，避免运行时注入覆盖。 */
+.css-var-root.css-var-root {
+  --ant-color-primary: var(--rdp-accent-fill);
+  --ant-color-primary-hover: var(--rdp-accent-fill-hover);
+  --ant-color-primary-active: var(--rdp-accent-fill-active);
+  --ant-color-primary-bg: var(--rdp-accent-soft);
+  --ant-color-primary-bg-hover: var(--rdp-accent-soft-hover);
+  --ant-color-primary-border: var(--rdp-accent-border);
+  --ant-color-primary-border-hover: var(--rdp-accent-border-hover);
+  --ant-color-primary-text: var(--rdp-accent);
+  --ant-color-primary-text-hover: var(--rdp-accent-hover);
+  --ant-color-primary-text-active: var(--rdp-accent-active);
+  --ant-color-link: var(--rdp-accent);
+  --ant-color-link-hover: var(--rdp-accent-hover);
+  --ant-color-link-active: var(--rdp-accent-active);
+  --ant-border-radius: var(--rdp-radius-control);
+  --ant-border-radius-sm: var(--rdp-radius-small);
+  --ant-border-radius-lg: var(--rdp-radius-card);
+  --ant-border-radius-xs: var(--rdp-radius-small);
+  --ant-font-family: var(--rdp-font);
+  --ant-font-family-code: var(--rdp-mono);
+  --ant-motion-duration-fast: var(--rdp-motion-fast);
+  --ant-motion-duration-mid: var(--rdp-motion-mid);
+  --ant-motion-duration-slow: var(--rdp-motion-slow);
+  --ant-color-text: var(--rdp-text);
+  --ant-color-text-heading: var(--rdp-text);
+  --ant-color-text-secondary: var(--rdp-muted);
+  --ant-color-text-tertiary: var(--rdp-muted);
+  --ant-color-text-quaternary: var(--rdp-muted);
+  --ant-color-bg-container: var(--rdp-surface);
+  --ant-color-bg-elevated: var(--rdp-surface);
+  --ant-color-bg-layout: var(--rdp-page);
+  --ant-color-border: var(--rdp-border);
+  --ant-color-border-secondary: var(--rdp-border);
+}
+
+/* 外壳：登录与已登录页面共用底色和字体。 */
+body {
+  margin: 0;
+  background: var(--rdp-page);
+  color: var(--rdp-text);
+  font-family: var(--rdp-font);
+}
+/* 普通链接也遵循主题色；停靠菜单以更高优先级保留自身样式。 */
+a {
+  color: var(--rdp-accent);
+}
+a:hover {
+  color: var(--rdp-accent-hover);
+}
 .app-shell {
-  padding: 24px;
   box-sizing: border-box;
   max-width: 100%;
   min-width: 0;
+  padding: 0 var(--rdp-space-8) var(--rdp-dock-clearance);
 }
+/* 顶栏和无类名的状态横幅使用与内容区一致的宽度；正文的顶部间距由既有内联样式提供。 */
+.app-shell > :not(main):not(footer) {
+  box-sizing: border-box;
+  max-width: var(--rdp-content-width);
+  margin-right: auto;
+  margin-left: auto;
+}
+/* 横幅可能不存在，按相邻直接子元素设置间距以避免留下空白。 */
+.app-shell > :not(main):not(footer) + :not(main):not(footer) {
+  margin-top: var(--rdp-space-8);
+}
+/* 既有 AccountMenu 没有外层类名，只能根据其直接子菜单定位。 */
+.app-shell > div:has(> nav.app-menu) {
+  position: sticky;
+  top: 0;
+  z-index: var(--rdp-z-header);
+  padding: var(--rdp-space-4) var(--rdp-space-5);
+}
+/* 模糊放在伪元素：backdrop-filter 若施加在祖先上会使 fixed 菜单相对顶栏定位。 */
+.app-shell > div:has(> nav.app-menu)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--rdp-line) solid var(--rdp-glass-border);
+  border-top-color: var(--rdp-glass-top);
+  border-radius: var(--rdp-radius-card);
+  background: var(--rdp-glass);
+  box-shadow: var(--rdp-shadow);
+  -webkit-backdrop-filter: blur(var(--rdp-blur)) saturate(var(--rdp-saturation));
+  backdrop-filter: blur(var(--rdp-blur)) saturate(var(--rdp-saturation));
+}
+/* 既有用户名、按钮和错误提示没有统一类名，放在玻璃伪元素之上。 */
+.app-shell > div:has(> nav.app-menu) > :not(.app-menu) {
+  position: relative;
+}
+
+/* 停靠菜单：只滚动菜单自身，当前页同时使用字重和下划线。 */
 .app-menu {
+  position: fixed;
+  z-index: var(--rdp-z-dock);
+  bottom: calc(var(--rdp-space-5) + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  box-sizing: border-box;
   display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
+  gap: var(--rdp-space-1);
+  max-width: calc(100vw - 2 * var(--rdp-space-8));
+  padding: var(--rdp-space-2);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rdp-border) var(--rdp-scrollbar-track);
+  border: var(--rdp-line) solid var(--rdp-glass-border);
+  border-top-color: var(--rdp-glass-top);
+  border-radius: var(--rdp-radius-pill);
+  background: var(--rdp-glass);
+  box-shadow: var(--rdp-dock-shadow);
+  -webkit-backdrop-filter: blur(var(--rdp-blur)) saturate(var(--rdp-saturation));
+  backdrop-filter: blur(var(--rdp-blur)) saturate(var(--rdp-saturation));
+}
+/* WebKit 滚动条保持细小透明轨道，菜单仍可横向滚动。 */
+.app-menu::-webkit-scrollbar {
+  height: var(--rdp-space-1);
+}
+.app-menu::-webkit-scrollbar-track {
+  background: var(--rdp-scrollbar-track);
+}
+/* 既有菜单链接没有类名，限定在菜单内选取。 */
+.app-menu a {
+  flex: 0 0 auto;
+  padding: var(--rdp-space-3) var(--rdp-space-4);
+  border-radius: var(--rdp-radius-pill);
+  color: var(--rdp-text);
+  text-decoration: none;
+  transition:
+    background-color var(--rdp-transition),
+    color var(--rdp-transition);
+}
+.app-menu a:hover {
+  background: var(--rdp-hover);
 }
 .app-menu a[aria-current="page"] {
-  font-weight: 600;
-  border-bottom: 2px solid currentColor;
+  background: var(--rdp-accent-fill);
+  color: var(--rdp-on-accent);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
-/* 内容区允许收缩，宽表格只在自己的容器里滚动，不撑宽整页。 */
+:focus-visible {
+  outline: 2px solid var(--rdp-accent);
+  outline-offset: 2px;
+}
+@media (max-width: 640px) {
+  .app-shell {
+    padding-right: var(--rdp-space-4);
+    padding-left: var(--rdp-space-4);
+  }
+  .app-menu {
+    width: calc(100vw - 2 * var(--rdp-space-4));
+    max-width: none;
+  }
+}
+
+/* 内容：既有 JSX 缺少内容、登录卡片和诊断详情类名，因此使用限定结构选择器。 */
 .app-shell > main {
   min-width: 0;
+  max-width: var(--rdp-content-width);
+  margin-right: auto;
+  margin-left: auto;
+  padding-bottom: var(--rdp-space-8);
+}
+.app-shell > footer {
+  max-width: var(--rdp-content-width);
+  margin: 0 auto;
+  color: var(--rdp-muted);
+  font-size: 12px;
+}
+#root > .ant-card {
+  width: min(440px, calc(100% - 2 * var(--rdp-space-8)));
+  margin: max(10vh, var(--rdp-space-8)) auto;
+}
+/* antd 的卡片阴影和表格组件 token 不由全局表面 token 控制。 */
+.ant-card {
+  box-shadow: var(--rdp-shadow);
+}
+.ant-table-thead .ant-table-cell {
+  color: var(--rdp-muted);
+  background: var(--rdp-subtle);
+}
+.ant-card[role="alert"] pre,
+.ant-card[role="alert"] code,
+.dataset-json,
+.file-viewer-text {
+  font-family: var(--rdp-mono);
+}
+
+/* 降级：仅重定义变量，保留相同结构和提示。 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --rdp-glass: var(--rdp-glass-opaque);
+    --rdp-glass-border: var(--rdp-border);
+    --rdp-glass-top: var(--rdp-border);
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root {
+    --rdp-glass: var(--rdp-glass-opaque);
+    --rdp-glass-border: var(--rdp-border);
+    --rdp-glass-top: var(--rdp-border);
+    --rdp-blur: 0px;
+    --rdp-saturation: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --rdp-transition: 0s;
+    --rdp-motion-fast: 0s;
+    --rdp-motion-mid: 0s;
+    --rdp-motion-slow: 0s;
+  }
+}
+
+/* 调试开关：关闭本样式体系的透明、模糊与过渡，不隐藏已有内容。 */
+html[data-rdp-plain] {
+  --rdp-glass: var(--rdp-glass-opaque);
+  --rdp-glass-border: var(--rdp-border);
+  --rdp-glass-top: var(--rdp-border);
+  --rdp-blur: 0px;
+  --rdp-saturation: 100%;
+  --rdp-transition: 0s;
+  --rdp-motion-fast: 0s;
+  --rdp-motion-mid: 0s;
+  --rdp-motion-slow: 0s;
+  --rdp-shadow: none;
+  --rdp-dock-shadow: none;
+  --rdp-hover: var(--rdp-subtle);
+}
+
+/* antd 和现存内联样式可能直接声明动画，调试时必须覆盖它们的时长。 */
+html[data-rdp-plain] *,
+html[data-rdp-plain] *::before,
+html[data-rdp-plain] *::after {
+  animation-duration: 0s !important;
+  transition-duration: 0s !important;
 }

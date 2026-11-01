@@ -2,7 +2,7 @@
 .dataset-layout-a {
   display: grid;
   grid-template-columns: minmax(320px, 360px) minmax(0, 1fr) minmax(160px, 220px);
-  gap: 20px;
+  gap: var(--rdp-space-7);
   align-items: start;
   max-width: 100%;
 }
@@ -10,10 +10,10 @@
   min-width: 0;
 }
 .dataset-layout-a > aside {
-  background: #fafafa;
-  padding: 12px;
-  border: 1px solid #eee;
-  border-radius: 8px;
+  background: var(--rdp-surface);
+  padding: var(--rdp-space-4);
+  border: var(--rdp-line) solid var(--rdp-border);
+  border-radius: var(--rdp-radius-control);
   overflow-x: hidden;
 }
 /* 名字单行、放不下用省略号（悬停看全名）；数量和大小在名字下一行。 */
@@ -29,7 +29,7 @@
 }
 .dataset-tree-meta {
   display: block;
-  color: #888;
+  color: var(--rdp-muted);
   font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
@@ -58,18 +58,18 @@
   overflow-wrap: anywhere;
   max-height: 65vh;
   overflow: auto;
-  background: #f6f8fa;
-  padding: 12px;
+  background: var(--rdp-subtle);
+  padding: var(--rdp-space-4);
 }
 .dataset-filters {
   display: flex;
-  gap: 16px;
+  gap: var(--rdp-space-5);
   flex-wrap: wrap;
-  margin: 16px 0;
+  margin: var(--rdp-space-5) 0;
 }
 .dataset-filters label {
   display: flex;
-  gap: 8px;
+  gap: var(--rdp-space-3);
   align-items: center;
   min-width: 0;
   max-width: 100%;
@@ -82,10 +82,10 @@
 /* M1-05 布局 B、C 与切换器；部件样式沿用上面的 dataset-tree-*。 */
 .dataset-toolbar {
   display: flex;
-  gap: 16px;
+  gap: var(--rdp-space-5);
   align-items: center;
   flex-wrap: wrap;
-  margin: 12px 0;
+  margin: var(--rdp-space-4) 0;
 }
 .dataset-layout-b,
 .dataset-layout-c {
@@ -102,13 +102,13 @@
   height: auto;
 }
 .dataset-row-selected > td {
-  background: #e6f4ff;
+  background: var(--rdp-accent-soft);
 }
 /* C：每一级目录等分左侧宽度，长名省略；1280px 下目录与页面均不产生横向滚动。 */
 .dataset-miller-workspace {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-  gap: 16px;
+  gap: var(--rdp-space-5);
   align-items: start;
 }
 .dataset-miller-scroll {
@@ -116,20 +116,20 @@
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
   overflow-x: hidden;
-  border: 1px solid #eee;
-  border-radius: 8px;
+  border: var(--rdp-line) solid var(--rdp-border);
+  border-radius: var(--rdp-radius-control);
   min-width: 0;
 }
 .dataset-miller-column {
   min-width: 0;
-  padding: 8px;
-  border-right: 1px solid #eee;
+  padding: var(--rdp-space-3);
+  border-right: var(--rdp-line) solid var(--rdp-border);
   max-height: 70vh;
   overflow-y: auto;
 }
 .dataset-miller-heading {
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: var(--rdp-space-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -137,7 +137,7 @@
 .dataset-miller-item.ant-btn {
   height: auto;
   text-align: left;
-  padding: 4px 8px;
+  padding: var(--rdp-space-1) var(--rdp-space-3);
   display: block;
 }
 .dataset-miller-item .dataset-tree-meta {
@@ -145,7 +145,7 @@
   opacity: 0.7;
 }
 .dataset-miller-empty {
-  color: #888;
+  color: var(--rdp-muted);
 }
 .dataset-preview {
   min-width: 0;
@@ -181,5 +181,5 @@
   white-space: normal;
   overflow-wrap: anywhere;
   font-size: 12px;
-  color: #666;
+  color: var(--rdp-muted);
 }
