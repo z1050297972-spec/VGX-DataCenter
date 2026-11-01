@@ -53,6 +53,13 @@ def deployment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Deployment:
     shutil.copytree(
         Path(rdp.__file__).parent, root / "src/rdp", ignore=shutil.ignore_patterns("__pycache__")
     )
+    # 子进程保留真实 worker 生命周期，但镜像检查必须使用内存传输，不能访问外网。
+    (root / "src/sitecustomize.py").write_text(
+        "from rdp.jobs.downloads.plan import HttpResponse, UrllibTransport\n"
+        "def _fake(self, method, url, *, headers, timeout_s):\n"
+        "    return HttpResponse(200, {}, b'')\n"
+        "UrllibTransport.request = _fake\n"
+    )
     dist = root / "src/web/dist"
     dist.mkdir(parents=True)
     (dist / "index.html").write_text("<html>进程退出测试</html>")

@@ -28,6 +28,17 @@ def _stopped(stop: Event) -> Generator[None]:
     yield
 
 
+@pytest.fixture(autouse=True)
+def offline_mirror(monkeypatch: pytest.MonkeyPatch) -> None:
+    """真实 worker 测试只使用假镜像响应，不访问网络。"""
+    from rdp.jobs.downloads.plan import HttpResponse
+
+    def request(*args: object, **kwargs: object) -> HttpResponse:
+        return HttpResponse(200, {}, b"")
+
+    monkeypatch.setattr("rdp.jobs.downloads.plan.UrllibTransport.request", request)
+
+
 def test_exit_codes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """验证契约：第8张：正常0、失败1、实例冲突2及停止超预算原样经 start_worker/run_cli/main 返回给 sys.exit。"""
     for code in (0, 1, 2, 7):

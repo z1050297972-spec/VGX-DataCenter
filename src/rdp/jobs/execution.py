@@ -10,6 +10,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from threading import Event
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ValidationError
@@ -196,6 +197,7 @@ class ExecutorDependencies:
             作业判为中断之后、第一次领取之前调用一次，内容是 recover_navigation_writes（回滚没收尾的写入、
             必要时设置"导航层恢复失败"标记）；抛出的异常按全局基础设施故障处理，整实例失败退出。
             回调返回之前没有任何作业被领取。
+        monitoring_loop: 可选监控线程回调，接收停止事件；仅 worker 入口注入。
         navigation_blocked: 无参回调，默认 None。每轮领取前调用，返回 True 表示"导航层恢复失败"标记在，
             此时 writes_navigation 的作业类型整类跳过、留在排队中；回调只读数据库，抛出异常时同样整实例失败。
     """
@@ -210,6 +212,7 @@ class ExecutorDependencies:
     poll_submissions: Callable[[], tuple[int, ...]] | None = field(default=None, kw_only=True)
     recover_navigation: Callable[[], None] | None = field(default=None, kw_only=True)
     navigation_blocked: Callable[[], bool] | None = field(default=None, kw_only=True)
+    monitoring_loop: Callable[[Event], None] | None = field(default=None, kw_only=True)
 
 
 def execute_job(

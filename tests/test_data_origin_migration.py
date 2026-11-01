@@ -24,7 +24,9 @@ def test_migration_preserves_populated_index_and_expands_origins(
     assert source is not None
     historical = tmp_path / "old/migrations"
     shutil.copytree(
-        source, historical, ignore=shutil.ignore_patterns("v0011*", "v0012*", "v0013*", "v0015*")
+        source,
+        historical,
+        ignore=shutil.ignore_patterns("v0011*", "v0012*", "v0013*", "v0015*", "v0016*"),
     )
     with monkeypatch.context() as patch:
         patch.setattr("rdp.infra.db.migration.__file__", str(historical.parent / "migration.py"))
@@ -54,7 +56,7 @@ def test_migration_preserves_populated_index_and_expands_origins(
                     str(Path(__file__).parents[1] / "src/rdp/infra/db/migration.py"),
                 )
                 result = migrate(paths, now=NOW)
-                assert result.changed and result.current_revision == "0015_download_staging"
+                assert result.changed and result.current_revision == "0016_monitoring"
                 with session_scope(engine, read_only=True) as session:
                     after = {
                         table: session.execute(

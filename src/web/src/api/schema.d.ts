@@ -2399,6 +2399,155 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/monitoring/mirror": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Monitoring Mirror
+         * @description 读取 worker 最近一次镜像检查结果。
+         *
+         *     Args:
+         *         account: 已认证账号。
+         *         session: 当前请求的只读数据库会话。
+         *
+         *     Returns:
+         *         上次保存的状态及检查时间；从未检查时两个字段为空。
+         *
+         *     Raises:
+         *         ExternalError: 数据库不可用。
+         *         ValueError: 数据库检查时间格式损坏。
+         *
+         *     Side Effects:
+         *         只读数据库，不执行网络检查。
+         *
+         *     Time Semantics:
+         *         检查时间来自 worker 的保存结果，不代表当前实时状态。
+         */
+        get: operations["get_monitoring_mirror"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/monitoring/mirror/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Monitoring Mirror Check
+         * @description 请求 worker 尽快执行镜像检查，不创建作业。
+         *
+         *     Args:
+         *         account: 已认证账号。
+         *         session: 当前请求的数据库写会话。
+         *
+         *     Returns:
+         *         请求已提交的标记，不承诺检查完成。
+         *
+         *     Raises:
+         *         ExternalError: 数据库不可用。
+         *         ConflictError: 数据库写锁竞争。
+         *
+         *     Side Effects:
+         *         仅递增单行请求序号；不访问网络和存储根，不创建作业。
+         *
+         *     Time Semantics:
+         *         提交后由 worker 下一轮观察；检查进行中追加的请求不会被覆盖。
+         */
+        post: operations["request_monitoring_mirror_check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/monitoring/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Monitoring Resources
+         * @description 读取本机 CPU、内存及网卡速率。
+         *
+         *     Args:
+         *         request: 当前 Web 请求，提供应用级采样器。
+         *         account: 已认证账号。
+         *         session: 只读数据库会话，用于读取运行中下载作业速度。
+         *
+         *     Returns:
+         *         本次采样与内存中最近网速历史。
+         *
+         *     Raises:
+         *         OSError: 内核文件不可读。
+         *         ValueError: 内核计数格式非法。
+         *
+         *     Side Effects:
+         *         只读本机内核文件并更新内存，不访问存储根。
+         *
+         *     Time Semantics:
+         *         按请求触发采样，间隔和历史上限由具名常量限定。
+         */
+        get: operations["get_monitoring_resources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/monitoring/vpn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Monitoring Vpn
+         * @description 返回本机 VPN 迹象和 worker 的脱敏代理地址。
+         *
+         *     Args:
+         *         account: 已认证账号及请求时钟。
+         *         session: 当前请求的只读数据库会话。
+         *
+         *     Returns:
+         *         网卡、代理进程及 worker 环境的状态与不含凭据的地址。
+         *
+         *     Raises:
+         *         ExternalError: 数据库不可用。
+         *         DefectError: 数据库心跳损坏。
+         *
+         *     Side Effects:
+         *         只读内核进程信息、网卡目录和数据库，不修改网络设置。
+         *
+         *     Time Semantics:
+         *         在线状态按请求时钟和最近心跳判断；结果为本次请求快照。
+         */
+        get: operations["get_monitoring_vpn"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/navigation/data-origin/preview": {
         parameters: {
             query?: never;
@@ -3794,6 +3943,20 @@ export interface components {
         };
         DiagnosticText: string;
         /**
+         * DiskSpace
+         * @description 磁盘容量快照，无法读取时为 None。
+         *
+         *     Attributes:
+         *         total_bytes: 总容量字节数。
+         *         free_bytes: 对当前用户可用字节数。
+         */
+        DiskSpace: {
+            /** Free Bytes */
+            free_bytes: number | null;
+            /** Total Bytes */
+            total_bytes: number | null;
+        };
+        /**
          * DownloadAdjustment
          * @description 运行中唯一允许调整的两项；None 表示保持，不接受凭据或其他选项。
          */
@@ -4200,6 +4363,26 @@ export interface components {
             hold_s: number;
         };
         /**
+         * GpuUsage
+         * @description 一个 GPU 的利用率和显存快照。
+         *
+         *     Attributes:
+         *         index: GPU 序号。
+         *         utilization_percent: GPU 利用率百分比。
+         *         memory_used_bytes: 显存已使用字节。
+         *         memory_total_bytes: 显存总字节。
+         */
+        GpuUsage: {
+            /** Index */
+            index: number;
+            /** Memory Total Bytes */
+            memory_total_bytes: number;
+            /** Memory Used Bytes */
+            memory_used_bytes: number;
+            /** Utilization Percent */
+            utilization_percent: number;
+        };
+        /**
          * GpuUsageResponse
          * @description 一张配置卡的展示占用，空闲不是硬件健康承诺。
          *
@@ -4272,6 +4455,20 @@ export interface components {
             path: string;
             /** Reason */
             reason: ("not_mounted" | "source_mismatch" | "timeout") | null;
+        };
+        /**
+         * InterfaceRate
+         * @description 单个网卡的平均收发速率。
+         *
+         *     Attributes:
+         *         receive_bytes_per_s: 接收字节每秒。
+         *         send_bytes_per_s: 发送字节每秒。
+         */
+        InterfaceRate: {
+            /** Receive Bytes Per S */
+            receive_bytes_per_s: number;
+            /** Send Bytes Per S */
+            send_bytes_per_s: number;
         };
         /**
          * JobListResponse
@@ -4633,6 +4830,31 @@ export interface components {
          * @enum {string}
          */
         LoginResult: "success" | "wrong_password" | "disabled" | "waiting" | "account_missing" | "failure";
+        /**
+         * MirrorCheckResponse
+         * @description 手动检查请求已被记录。
+         *
+         *     Attributes:
+         *         accepted: 标记已写入的请求，并不代表检查已完成。
+         */
+        MirrorCheckResponse: {
+            /** Accepted */
+            accepted: boolean;
+        };
+        /**
+         * MirrorResponse
+         * @description worker 最近一次镜像检查，未检查时结果和时间均为空。
+         *
+         *     Attributes:
+         *         status: 生效、不生效或未知；尚未检查时为空。
+         *         checked_at: 检查时间，带时区；尚未检查时为空。
+         */
+        MirrorResponse: {
+            /** Checked At */
+            checked_at: string | null;
+            /** Status */
+            status: ("effective" | "ineffective" | "unknown") | null;
+        };
         /**
          * MismatchItemResponse
          * @description 一项对不上的步骤。
@@ -5145,6 +5367,53 @@ export interface components {
             password: string;
         };
         /**
+         * ResourcePoint
+         * @description 一次采样区间的网速。
+         *
+         *     Attributes:
+         *         timestamp: 单调时钟秒，仅供同进程曲线排序。
+         *         network: 网卡名称到收发速率的映射。
+         */
+        ResourcePoint: {
+            /** Network */
+            network: {
+                [key: string]: components["schemas"]["InterfaceRate"];
+            };
+            /** Timestamp */
+            timestamp: number;
+        };
+        /**
+         * ResourceResponse
+         * @description CPU、内存和网卡速率历史。
+         *
+         *     Attributes:
+         *         cpu_percent: CPU 忙碌百分比，首次采样为 None。
+         *         memory_total_bytes: 内存总字节数。
+         *         memory_available_bytes: 可用内存字节数。
+         *         swap_total_bytes: 交换区总字节数。
+         *         swap_free_bytes: 交换区空闲字节数。
+         *         history: 最近几分钟的速率点。
+         *         download_speed_bytes_per_s: 运行中下载作业的速度总和，单位字节每秒。
+         *         worker: worker 资源快照；尚未采集时为 None。
+         */
+        ResourceResponse: {
+            /** Cpu Percent */
+            cpu_percent: number | null;
+            /** Download Speed Bytes Per S */
+            download_speed_bytes_per_s: number;
+            /** History */
+            history: components["schemas"]["ResourcePoint"][];
+            /** Memory Available Bytes */
+            memory_available_bytes: number;
+            /** Memory Total Bytes */
+            memory_total_bytes: number;
+            /** Swap Free Bytes */
+            swap_free_bytes: number;
+            /** Swap Total Bytes */
+            swap_total_bytes: number;
+            worker: components["schemas"]["WorkerResourceSnapshot"] | null;
+        };
+        /**
          * RetentionPayload
          * @description 保留期请求及响应的相同字段，不开放其他设置。
          *
@@ -5393,6 +5662,21 @@ export interface components {
             items: components["schemas"]["StorageRootResponse"][];
         };
         /**
+         * StorageSpace
+         * @description 已登记可写根的容量快照。
+         *
+         *     Attributes:
+         *         name: 存储根的配置名称，不包含路径。
+         */
+        StorageSpace: {
+            /** Free Bytes */
+            free_bytes: number | null;
+            /** Name */
+            name: string;
+            /** Total Bytes */
+            total_bytes: number | null;
+        };
+        /**
          * SubmitJobPayload
          * @description 提交载荷；类型模型的进一步校验由领域服务执行。
          *
@@ -5527,11 +5811,62 @@ export interface components {
             name: string;
         };
         /**
+         * VpnResponse
+         * @description 脱敏的 VPN 和代理迹象。
+         *
+         *     Attributes:
+         *         interfaces: 隧道网卡状态。
+         *         processes: 已知代理进程状态。
+         *         proxy: worker 代理环境变量状态。
+         *         proxy_hosts: 代理主机端口，不包含认证信息。
+         */
+        VpnResponse: {
+            /**
+             * Interfaces
+             * @enum {string}
+             */
+            interfaces: "on" | "off" | "unknown";
+            /**
+             * Processes
+             * @enum {string}
+             */
+            processes: "on" | "off" | "unknown";
+            /**
+             * Proxy
+             * @enum {string}
+             */
+            proxy: "on" | "off" | "unknown";
+            /** Proxy Hosts */
+            proxy_hosts: string[];
+        };
+        /**
          * WaitReason
          * @description 资源等待不增加作业状态；无等待用 None，终态必须清空。
          * @enum {string}
          */
         WaitReason: "gpu" | "navigation_lock";
+        /**
+         * WorkerResourceSnapshot
+         * @description worker 最后一次资源观察。
+         *
+         *     Attributes:
+         *         checked_at: 采集结束时的带时区时间。
+         *         system: 系统盘容量。
+         *         storage: 可写存储根容量；未知容量为 None。
+         *         gpu: GPU 信息；无法查询时为 None，空列表表示无 GPU。
+         */
+        WorkerResourceSnapshot: {
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+            /** Gpu */
+            gpu: components["schemas"]["GpuUsage"][] | null;
+            /** Storage */
+            storage: components["schemas"]["StorageSpace"][];
+            system: components["schemas"]["DiskSpace"];
+        };
         /**
          * WorkerStatusResponse
          * @description 在线状态和最近心跳，所有已登录账号可查看；空心跳不伪造 PID。
@@ -11764,6 +12099,410 @@ export interface operations {
                 };
             };
             /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_monitoring_mirror: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MirrorResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    request_monitoring_mirror_check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MirrorCheckResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_monitoring_resources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_monitoring_vpn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VpnResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;

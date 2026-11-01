@@ -2089,6 +2089,39 @@
         "pattern": "\\S",
         "type": "string"
       },
+      "DiskSpace": {
+        "description": "磁盘容量快照，无法读取时为 None。\n\nAttributes:\n    total_bytes: 总容量字节数。\n    free_bytes: 对当前用户可用字节数。",
+        "properties": {
+          "free_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Bytes"
+          },
+          "total_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Bytes"
+          }
+        },
+        "required": [
+          "total_bytes",
+          "free_bytes"
+        ],
+        "title": "DiskSpace",
+        "type": "object"
+      },
       "DownloadAdjustment": {
         "additionalProperties": false,
         "description": "运行中唯一允许调整的两项；None 表示保持，不接受凭据或其他选项。",
@@ -2852,6 +2885,35 @@
         "title": "GpuExampleParameters",
         "type": "object"
       },
+      "GpuUsage": {
+        "description": "一个 GPU 的利用率和显存快照。\n\nAttributes:\n    index: GPU 序号。\n    utilization_percent: GPU 利用率百分比。\n    memory_used_bytes: 显存已使用字节。\n    memory_total_bytes: 显存总字节。",
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "memory_total_bytes": {
+            "title": "Memory Total Bytes",
+            "type": "integer"
+          },
+          "memory_used_bytes": {
+            "title": "Memory Used Bytes",
+            "type": "integer"
+          },
+          "utilization_percent": {
+            "title": "Utilization Percent",
+            "type": "number"
+          }
+        },
+        "required": [
+          "index",
+          "utilization_percent",
+          "memory_used_bytes",
+          "memory_total_bytes"
+        ],
+        "title": "GpuUsage",
+        "type": "object"
+      },
       "GpuUsageResponse": {
         "additionalProperties": false,
         "description": "一张配置卡的展示占用，空闲不是硬件健康承诺。\n\nAttributes:\n    gpu_index: 非负物理编号，最大 MAX_GPU_INDEX。\n    job_id: 当前作业编号文本，空闲/移出池 None；历史终态不计占用。\n    availability: available/excluded/unknown；未有本实例核对记录不能当作可用。\n    diagnostics: 移出池的有界统一诊断，通过或未知为空。\n    checked_at: 启动核对的 UTC 时刻；未知为 None。",
@@ -3032,6 +3094,25 @@
           "checked_at"
         ],
         "title": "IndexedStorageRoot",
+        "type": "object"
+      },
+      "InterfaceRate": {
+        "description": "单个网卡的平均收发速率。\n\nAttributes:\n    receive_bytes_per_s: 接收字节每秒。\n    send_bytes_per_s: 发送字节每秒。",
+        "properties": {
+          "receive_bytes_per_s": {
+            "title": "Receive Bytes Per S",
+            "type": "number"
+          },
+          "send_bytes_per_s": {
+            "title": "Send Bytes Per S",
+            "type": "number"
+          }
+        },
+        "required": [
+          "receive_bytes_per_s",
+          "send_bytes_per_s"
+        ],
+        "title": "InterfaceRate",
         "type": "object"
       },
       "JobListResponse": {
@@ -3805,6 +3886,59 @@
         ],
         "title": "LoginResult",
         "type": "string"
+      },
+      "MirrorCheckResponse": {
+        "description": "手动检查请求已被记录。\n\nAttributes:\n    accepted: 标记已写入的请求，并不代表检查已完成。",
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "accepted"
+        ],
+        "title": "MirrorCheckResponse",
+        "type": "object"
+      },
+      "MirrorResponse": {
+        "description": "worker 最近一次镜像检查，未检查时结果和时间均为空。\n\nAttributes:\n    status: 生效、不生效或未知；尚未检查时为空。\n    checked_at: 检查时间，带时区；尚未检查时为空。",
+        "properties": {
+          "checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "effective",
+                  "ineffective",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "status",
+          "checked_at"
+        ],
+        "title": "MirrorResponse",
+        "type": "object"
       },
       "MismatchItemResponse": {
         "additionalProperties": false,
@@ -4795,6 +4929,93 @@
         "title": "ResetPasswordRequest",
         "type": "object"
       },
+      "ResourcePoint": {
+        "description": "一次采样区间的网速。\n\nAttributes:\n    timestamp: 单调时钟秒，仅供同进程曲线排序。\n    network: 网卡名称到收发速率的映射。",
+        "properties": {
+          "network": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/InterfaceRate"
+            },
+            "title": "Network",
+            "type": "object"
+          },
+          "timestamp": {
+            "title": "Timestamp",
+            "type": "number"
+          }
+        },
+        "required": [
+          "timestamp",
+          "network"
+        ],
+        "title": "ResourcePoint",
+        "type": "object"
+      },
+      "ResourceResponse": {
+        "description": "CPU、内存和网卡速率历史。\n\nAttributes:\n    cpu_percent: CPU 忙碌百分比，首次采样为 None。\n    memory_total_bytes: 内存总字节数。\n    memory_available_bytes: 可用内存字节数。\n    swap_total_bytes: 交换区总字节数。\n    swap_free_bytes: 交换区空闲字节数。\n    history: 最近几分钟的速率点。\n    download_speed_bytes_per_s: 运行中下载作业的速度总和，单位字节每秒。\n    worker: worker 资源快照；尚未采集时为 None。",
+        "properties": {
+          "cpu_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu Percent"
+          },
+          "download_speed_bytes_per_s": {
+            "title": "Download Speed Bytes Per S",
+            "type": "integer"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ResourcePoint"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "memory_available_bytes": {
+            "title": "Memory Available Bytes",
+            "type": "integer"
+          },
+          "memory_total_bytes": {
+            "title": "Memory Total Bytes",
+            "type": "integer"
+          },
+          "swap_free_bytes": {
+            "title": "Swap Free Bytes",
+            "type": "integer"
+          },
+          "swap_total_bytes": {
+            "title": "Swap Total Bytes",
+            "type": "integer"
+          },
+          "worker": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkerResourceSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "cpu_percent",
+          "memory_total_bytes",
+          "memory_available_bytes",
+          "swap_total_bytes",
+          "swap_free_bytes",
+          "history",
+          "download_speed_bytes_per_s",
+          "worker"
+        ],
+        "title": "ResourceResponse",
+        "type": "object"
+      },
       "RetentionPayload": {
         "additionalProperties": false,
         "description": "保留期请求及响应的相同字段，不开放其他设置。\n\nAttributes:\n    days: 严格非 bool 整数，MIN_RETENTION_DAYS 至 MAX_RETENTION_DAYS，单位天，必填。",
@@ -5240,6 +5461,44 @@
         "title": "StorageRootsResponse",
         "type": "object"
       },
+      "StorageSpace": {
+        "description": "已登记可写根的容量快照。\n\nAttributes:\n    name: 存储根的配置名称，不包含路径。",
+        "properties": {
+          "free_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Bytes"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "total_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Bytes"
+          }
+        },
+        "required": [
+          "total_bytes",
+          "free_bytes",
+          "name"
+        ],
+        "title": "StorageSpace",
+        "type": "object"
+      },
       "SubmitJobPayload": {
         "additionalProperties": false,
         "description": "提交载荷；类型模型的进一步校验由领域服务执行。\n\nAttributes:\n    type_name: 稳定英文键，1-64 字符。\n    parameters: JSON 对象，最多 JOB_PARAMETERS_MAX_BYTES 字节，不得包含秘密。",
@@ -5513,6 +5772,53 @@
         "title": "VocabularyTerm",
         "type": "object"
       },
+      "VpnResponse": {
+        "description": "脱敏的 VPN 和代理迹象。\n\nAttributes:\n    interfaces: 隧道网卡状态。\n    processes: 已知代理进程状态。\n    proxy: worker 代理环境变量状态。\n    proxy_hosts: 代理主机端口，不包含认证信息。",
+        "properties": {
+          "interfaces": {
+            "enum": [
+              "on",
+              "off",
+              "unknown"
+            ],
+            "title": "Interfaces",
+            "type": "string"
+          },
+          "processes": {
+            "enum": [
+              "on",
+              "off",
+              "unknown"
+            ],
+            "title": "Processes",
+            "type": "string"
+          },
+          "proxy": {
+            "enum": [
+              "on",
+              "off",
+              "unknown"
+            ],
+            "title": "Proxy",
+            "type": "string"
+          },
+          "proxy_hosts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Proxy Hosts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "interfaces",
+          "processes",
+          "proxy",
+          "proxy_hosts"
+        ],
+        "title": "VpnResponse",
+        "type": "object"
+      },
       "WaitReason": {
         "description": "资源等待不增加作业状态；无等待用 None，终态必须清空。",
         "enum": [
@@ -5521,6 +5827,48 @@
         ],
         "title": "WaitReason",
         "type": "string"
+      },
+      "WorkerResourceSnapshot": {
+        "description": "worker 最后一次资源观察。\n\nAttributes:\n    checked_at: 采集结束时的带时区时间。\n    system: 系统盘容量。\n    storage: 可写存储根容量；未知容量为 None。\n    gpu: GPU 信息；无法查询时为 None，空列表表示无 GPU。",
+        "properties": {
+          "checked_at": {
+            "format": "date-time",
+            "title": "Checked At",
+            "type": "string"
+          },
+          "gpu": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GpuUsage"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpu"
+          },
+          "storage": {
+            "items": {
+              "$ref": "#/components/schemas/StorageSpace"
+            },
+            "title": "Storage",
+            "type": "array"
+          },
+          "system": {
+            "$ref": "#/components/schemas/DiskSpace"
+          }
+        },
+        "required": [
+          "checked_at",
+          "system",
+          "storage",
+          "gpu"
+        ],
+        "title": "WorkerResourceSnapshot",
+        "type": "object"
       },
       "WorkerStatusResponse": {
         "additionalProperties": false,
@@ -14155,6 +14503,474 @@
         "summary": "Submit Revert Preview",
         "tags": [
           "navigation-writes"
+        ]
+      }
+    },
+    "/api/monitoring/mirror": {
+      "get": {
+        "description": "读取 worker 最近一次镜像检查结果。\n\nArgs:\n    account: 已认证账号。\n    session: 当前请求的只读数据库会话。\n\nReturns:\n    上次保存的状态及检查时间；从未检查时两个字段为空。\n\nRaises:\n    ExternalError: 数据库不可用。\n    ValueError: 数据库检查时间格式损坏。\n\nSide Effects:\n    只读数据库，不执行网络检查。\n\nTime Semantics:\n    检查时间来自 worker 的保存结果，不代表当前实时状态。",
+        "operationId": "get_monitoring_mirror",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MirrorResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Monitoring Mirror",
+        "tags": [
+          "monitoring"
+        ]
+      }
+    },
+    "/api/monitoring/mirror/check": {
+      "post": {
+        "description": "请求 worker 尽快执行镜像检查，不创建作业。\n\nArgs:\n    account: 已认证账号。\n    session: 当前请求的数据库写会话。\n\nReturns:\n    请求已提交的标记，不承诺检查完成。\n\nRaises:\n    ExternalError: 数据库不可用。\n    ConflictError: 数据库写锁竞争。\n\nSide Effects:\n    仅递增单行请求序号；不访问网络和存储根，不创建作业。\n\nTime Semantics:\n    提交后由 worker 下一轮观察；检查进行中追加的请求不会被覆盖。",
+        "operationId": "request_monitoring_mirror_check",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MirrorCheckResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Request Monitoring Mirror Check",
+        "tags": [
+          "monitoring"
+        ]
+      }
+    },
+    "/api/monitoring/resources": {
+      "get": {
+        "description": "读取本机 CPU、内存及网卡速率。\n\nArgs:\n    request: 当前 Web 请求，提供应用级采样器。\n    account: 已认证账号。\n    session: 只读数据库会话，用于读取运行中下载作业速度。\n\nReturns:\n    本次采样与内存中最近网速历史。\n\nRaises:\n    OSError: 内核文件不可读。\n    ValueError: 内核计数格式非法。\n\nSide Effects:\n    只读本机内核文件并更新内存，不访问存储根。\n\nTime Semantics:\n    按请求触发采样，间隔和历史上限由具名常量限定。",
+        "operationId": "get_monitoring_resources",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Monitoring Resources",
+        "tags": [
+          "monitoring"
+        ]
+      }
+    },
+    "/api/monitoring/vpn": {
+      "get": {
+        "description": "返回本机 VPN 迹象和 worker 的脱敏代理地址。\n\nArgs:\n    account: 已认证账号及请求时钟。\n    session: 当前请求的只读数据库会话。\n\nReturns:\n    网卡、代理进程及 worker 环境的状态与不含凭据的地址。\n\nRaises:\n    ExternalError: 数据库不可用。\n    DefectError: 数据库心跳损坏。\n\nSide Effects:\n    只读内核进程信息、网卡目录和数据库，不修改网络设置。\n\nTime Semantics:\n    在线状态按请求时钟和最近心跳判断；结果为本次请求快照。",
+        "operationId": "get_monitoring_vpn",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VpnResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Monitoring Vpn",
+        "tags": [
+          "monitoring"
         ]
       }
     },

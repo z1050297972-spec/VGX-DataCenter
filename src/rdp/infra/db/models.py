@@ -6,7 +6,7 @@ SQLite 的 VARCHAR 不限制长度，因此文本上界同时声明 CHECK，不�
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, MetaData, String, Text
+from sqlalchemy import CheckConstraint, Integer, MetaData, String, Text, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from rdp.infra.db.utc import UTCDateTime
@@ -80,3 +80,37 @@ class ErrorReportRow(Base):
     summary: Mapped[str] = mapped_column(String(MAX_ERROR_SUMMARY_CHARS), nullable=False)
     report: Mapped[str] = mapped_column(Text, nullable=False)
     source_kind: Mapped[str] = mapped_column(String(7), nullable=False)
+
+
+class MonitoringMirrorRow(Base):
+    """worker 最近一次镜像检查结果。
+
+    Attributes:
+        id: 唯一结果的主键。
+        status: 生效、不生效或未知。
+        checked_at: 检查时间的 UTC 文本；未检查为 None。
+        requested_seq: 手动检查请求累计序号。
+        completed_seq: 已消费的请求序号。
+    """
+
+    __tablename__ = "monitoring_mirror"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    checked_at: Mapped[str | None] = mapped_column(Text, nullable=True)
+    requested_seq: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    completed_seq: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+
+
+class MonitoringResourcesRow(Base):
+    """worker 最近一次资源采集快照。
+
+    Attributes:
+        id: 唯一快照主键。
+        snapshot: 不含存储路径的 JSON 快照。
+    """
+
+    __tablename__ = "monitoring_resources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    snapshot: Mapped[str] = mapped_column(Text, nullable=False)

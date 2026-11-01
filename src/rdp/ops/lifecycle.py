@@ -12,10 +12,13 @@ from types import FrameType
 from rdp.infra.diagnostics import DefectError
 from rdp.infra.storage import StorageAccessChecker, read_storage_root
 from rdp.jobs.datasets.triggers import RescanTrigger
+from rdp.jobs.downloads.plan import UrllibTransport
 from rdp.jobs.execution import ExecutorDependencies
 from rdp.jobs.navwrite.wiring import build_navigation_callbacks
 from rdp.jobs.scheduling import WorkerScheduling
 from rdp.jobs.service import JobService
+from rdp.monitoring.periodic import MirrorMonitor
+from rdp.monitoring.resources import collect_resources
 from rdp.ops.runtime import RuntimeInputs, ServiceRuntime, resolve_nvidia_smi
 from rdp.ops.worker import run_worker
 
@@ -66,7 +69,7 @@ def start_worker(
     Side Effects:
         构造 StorageAccessChecker(runtime.inspector, config.storage, read_storage_root)，
         注入 ExecutorDependencies(storage=..., platform_version=runtime.version)，
-        poll_submissions绑定本worker私有RescanTrigger.poll，构造时不提交，恢复准备后由主循环调用。
+        poll_submissions 使用本 worker 私有扫描提交器；镜像监控由独立线程运行。
         WorkerScheduling 使用公共 catalog、resolve_nvidia_smi 结果及 config.errors.retention_days。
         用注入日志时钟调用 run_worker；SIGTERM/SIGINT 只设置独立 Event。
         result.lock_retained=False 或启动前失败时释放引擎；True 时保留引擎和锁到进程退出，
@@ -88,6 +91,13 @@ def start_worker(
         recover, blocked = build_navigation_callbacks(
             runtime.engine, runtime.paths, config.nav_root, inputs.clock
         )
+        rescan_trigger = RescanTrigger(JobService(runtime.engine, runtime.registry), inputs.clock)
+
+        def collect(checkpoint: Callable[[], None]) -> None:
+            """只在 worker 监控线程采集磁盘和 GPU。"""
+            collect_resources(runtime.engine, storage, now=inputs.clock.now, checkpoint=checkpoint)
+
+        monitor = MirrorMonitor(runtime.engine, UrllibTransport(), inputs.clock, collect=collect)
         dependencies = ExecutorDependencies(
             runtime.engine,
             runtime.registry,
@@ -96,16 +106,19 @@ def start_worker(
             resources=None,
             storage=storage,
             platform_version=runtime.version,
-            poll_submissions=RescanTrigger(
-                JobService(runtime.engine, runtime.registry), inputs.clock
-            ).poll,
+            poll_submissions=rescan_trigger.poll,
             recover_navigation=recover,
             navigation_blocked=blocked,
+            monitoring_loop=monitor.run,
         )
         stop = Event()
         with signals(stop):
             result = run_worker(
-                dependencies, stop, runtime.logging, scheduling=scheduling, log_time=inputs.log_time
+                dependencies,
+                stop,
+                runtime.logging,
+                scheduling=scheduling,
+                log_time=inputs.log_time,
             )
             # 即使信号恢复抛错，也不能dispose仍有线程使用的引擎。
             retained = result.lock_retained

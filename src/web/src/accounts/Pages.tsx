@@ -511,6 +511,7 @@ export function AccountMenu(): ReactElement {
         <Link to="/change-password">修改口令</Link>
         <Link to="/jobs">作业</Link>
         <Link to="/downloads">下载</Link>
+        <Link to="/monitoring">网络与资源</Link>
         <Link to="/scheduling">调度</Link>
         <Link to="/datasets">数据集</Link>
         <Link to="/storage-roots">存储根</Link>

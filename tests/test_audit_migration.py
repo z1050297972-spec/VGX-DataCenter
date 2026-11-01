@@ -56,6 +56,8 @@ def historical_audit_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
             "jobs",
             "download_adjustments",
             "download_staging_snapshots",
+            "monitoring_mirror",
+            "monitoring_resources",
             "worker_heartbeat",
             "schedule_submissions",
             "worker_gpu_checks",
