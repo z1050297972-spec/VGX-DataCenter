@@ -315,3 +315,13 @@ export function useJobProgress(jobId: number): UseQueryResult<JobProgress> {
 - **10.4** 前端里的地址一律写相对路径（`/api/...`），不写协议和主机名（ADR 0001：M5 要上 HTTPS）。〔审〕
 - **10.5** 诊断和报错，用同一个组件渲染接口返回的诊断对象（6.1）：输入或数据问题显示五段卡片，程序缺陷显示一句话加错误编号（09）。前端不自己拼报错文字。〔审〕
 - **10.6** 需要能刷新、能分享的页面状态（页签、筛选条件）放在 URL 查询参数里，用 TanStack Router 的类型化 search params（ADR 0002）。〔审〕
+
+### 10.1 样式（负责人 2026-11-01："前端的代码编写方式，也请工程规范化"；方案见 ADR 0010）
+
+- **10.7** 颜色、圆角、间距、阴影、z-index 只用 `src/web/src/shell.css` 开头定义的 `--rdp-*` 变量，页面 CSS 里不写死色值和魔法数字。需要新值时，先在 `shell.css` 里加变量并写注释。〔审〕
+- **10.8** 先用 antd 组件和它的属性（`Space`、`Flex`、`Typography`、`size`、`type`），不够用再写 CSS 类。不手写 antd 已有的组件。〔审〕
+- **10.9** 静态样式写成 CSS 类，不写 `style={{…}}`。内联 style 只用于运行时才算得出的值（进度百分比、拖拽位置），而且写注释说明为什么。〔审；存量的内联 style 等其他线合并后另开票清理，届时加 ESLint 规则改成〔机〕〕
+- **10.10** 每个模块的样式放在该模块目录下的一个 CSS 文件里，由该模块的组件 import，例如 `datasets/browser.css`。全局样式只放在 `shell.css`。类名用 kebab-case，以模块名开头（`browser-`、`creation-`、`app-`），选择器嵌套不超过三层，不按标签名或 DOM 位置写选择器。唯一的例外是给不能改 JSX 的第三方或既有结构套样式，这时要写注释。〔审〕
+- **10.11** `!important` 只用于覆盖内联 style 或 antd 无法用变量改的规则，每处写注释说明原因。〔审〕
+- **10.12** 样式不能改变可访问性和可测性：不用 CSS 隐藏 DOM 里已有的提示和诊断信息；`:focus-visible` 必须有可见的焦点环；当前状态不能只靠颜色区分；告警和错误的醒目程度不能调低。〔审〕
+- **10.13** 深浅色模式、`prefers-reduced-motion`、`prefers-reduced-transparency` 的降级都只在 `shell.css` 里通过重定义变量实现，页面 CSS 不写自己的媒体查询（响应式断点除外）。〔审〕
