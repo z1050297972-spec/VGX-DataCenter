@@ -14,3 +14,7 @@ M0 第 13 张带着 `0013_login_wait_attempts`（down_revision 接 `0012_scene_t
 - `v0014_download_staging` → `v0015_download_staging`：revision 改为 `"0015_download_staging"`，down_revision 改为 `"0014_download_adjustments"`。
 - `tests/test_jobs_migration.py` 等测试里引用的字符串一起改；以后 M2 的新迁移从 0016 起。
 - 现在 m2-03 的 Codex 循环（`rdp-m2-03-loop`）还在这个工作目录里跑，不在中途改；等它停下后，rebase 到 main 时一起做，然后重跑 `make check`。
+
+## 合并后必做：通知部署（2026-11-01，负责人决定，datasets-e9 转达）
+
+M2 和前端样式第 02 张都合进 main 后，真实部署统一升级一次，由 datasets-e9 执行。M2 合并后，给 datasets-e9 发消息，写上合并提交号。
