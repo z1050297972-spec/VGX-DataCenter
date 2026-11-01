@@ -1,11 +1,12 @@
 """生产worker自动扫描的集成验证；运行真实队列及执行器，仅系统时钟、配置和导航指向测试资源。"""
 
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 from threading import Event, Lock, Thread
+from threading import enumerate as threads
 
 import pytest
 from datasets_execution_support import dataset_case
@@ -13,7 +14,7 @@ from datasets_trigger_support import worker_inputs
 from jobs_loop_support import wait_for
 from jobs_storage_support import NOW
 from nav_manifest import FakeNavigation
-from sqlalchemy import select
+from sqlalchemy import Engine, select
 
 from rdp.infra.db.connection import session_scope
 from rdp.infra.diagnostics import ConflictError
@@ -21,8 +22,39 @@ from rdp.jobs.models import JobRow
 from rdp.jobs.registry import production_registry
 from rdp.jobs.service import JobService
 from rdp.jobs.types import JobClock
+from rdp.monitoring.mirror import latest_mirror
+from rdp.monitoring.resources import latest_resources
 from rdp.ops.lifecycle import start_worker
 from rdp.ops.runtime import prepare_service
+
+
+@pytest.fixture(autouse=True)
+def offline_mirror(monkeypatch: pytest.MonkeyPatch) -> None:
+    """真实 worker 测试只使用假镜像响应，不访问网络。"""
+    from rdp.jobs.downloads.plan import HttpResponse
+
+    def request(*args: object, **kwargs: object) -> HttpResponse:
+        return HttpResponse(200, {}, b"")
+
+    monkeypatch.setattr("rdp.jobs.downloads.plan.UrllibTransport.request", request)
+
+
+def _wait_mirror(engine: Engine, scan_ready: Callable[[], bool]) -> None:
+    """等待 worker 保存假镜像响应的结果。"""
+    wait_for(scan_ready, timeout_s=5.0)
+    wait_for(lambda: latest_mirror(engine) is not None, timeout_s=5.0)
+    result = latest_mirror(engine)
+    assert result is not None and result.status == "effective"
+    wait_for(lambda: latest_resources(engine) is not None, timeout_s=5.0)
+    resources = latest_resources(engine)
+    assert resources is not None and resources.system.total_bytes is not None
+    assert resources.system.total_bytes > 0
+
+
+def _assert_monitor_stopped(failures: list[BaseException]) -> None:
+    """确认集成测试回收监控线程且后台观察无失败。"""
+    assert all(thread.name != "network-monitor" for thread in threads())
+    assert not failures, failures
 
 
 def test_production_worker_automatic_scans(tmp_path: Path, fake_nav: FakeNavigation) -> None:
@@ -62,7 +94,8 @@ def test_production_worker_automatic_scans(tmp_path: Path, fake_nav: FakeNavigat
     def controlled_stop(stop: Event) -> Generator[None]:
         def drive() -> None:
             try:
-                wait_for(lambda: have_completed(1), timeout_s=5.0)
+                # 同一个生产 worker 必须完成扫描和镜像检查；替身不访问网络。
+                _wait_mirror(runtime.engine, lambda: have_completed(1))
                 with guard:
                     offset[0] = 600.0
                 wait_for(lambda: have_completed(2), timeout_s=5.0)
@@ -81,7 +114,7 @@ def test_production_worker_automatic_scans(tmp_path: Path, fake_nav: FakeNavigat
             assert not thread.is_alive()
 
     assert start_worker(runtime, inputs=inputs, signals=controlled_stop) == 0
-    assert not failures, failures
+    _assert_monitor_stopped(failures)
     assert len(completed) == 2
     assert all(
         name == "系统" and account_id is None and outcome == "succeeded" and total == 10

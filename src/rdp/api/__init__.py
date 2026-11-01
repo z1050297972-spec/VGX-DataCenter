@@ -30,12 +30,16 @@ from rdp.api.database import configure_database
 from rdp.api.datasets import router as datasets_router
 from rdp.api.datasets.creation import router as dataset_creation_router
 from rdp.api.datasets.fields import router as field_edit_router
+from rdp.api.download_ingest import router as download_ingest_router
+from rdp.api.download_tokens import router as download_tokens_router
 from rdp.api.error_details import get_error_details
 from rdp.api.errors import ErrorBoundary, install_error_handlers
 from rdp.api.file_viewer import router as file_viewer_router
 from rdp.api.health import HealthResponse, get_health
 from rdp.api.jobs import router as jobs_router
 from rdp.api.jobs import worker_router
+from rdp.api.monitoring import ResourceSampler
+from rdp.api.monitoring import router as monitoring_router
 from rdp.api.navigation import router as navigation_router
 from rdp.api.navigation_writes import router as navigation_writes_router
 from rdp.api.storage import router as storage_router
@@ -137,6 +141,14 @@ def _unknown_api() -> Response:
     return JSONResponse({"detail": "Not Found"}, status_code=404)
 
 
+def _install_job_and_monitoring_routes(app: FastAPI) -> None:
+    """一次登记作业、下载凭据和监控入口；只装配路由，不执行采样。"""
+    app.include_router(jobs_router)
+    app.include_router(download_ingest_router)
+    app.include_router(download_tokens_router)
+    app.include_router(monitoring_router)
+
+
 def create_app(
     web_dist: Path | None,
     *,
@@ -219,7 +231,7 @@ def create_app(
         title="机器人数据管理平台", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None
     )
     install_body_limit(app)
-    app.state.accounts_clock = clock
+    app.state.monitoring_sampler, app.state.accounts_clock = ResourceSampler(), clock
     if database is not None:
         configure_database(app, database)
     app.add_api_route("/api/health", get_health, methods=["GET"], response_model=HealthResponse)
@@ -236,7 +248,7 @@ def create_app(
     # 07 日志接口登记管理员路径和 OpenAPI；全局边界在参数校验前识别 get_admin_context。
     app.include_router(audit_router)
     # 08 作业和心跳均允许全部登录账号，复用全局鉴权和同源写请求边界。
-    app.include_router(jobs_router)
+    _install_job_and_monitoring_routes(app)
     # 数据集路由与M0共享认证/Origin及统一诊断；必须先于API兜底登记，离线可导出类型。
     app.include_router(datasets_router)
     app.include_router(dataset_creation_router)

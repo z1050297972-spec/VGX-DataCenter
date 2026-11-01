@@ -1,4 +1,6 @@
 // 作业页面契约（08）：Ant Design 与统一 DiagnosticCard；不直接 fetch、不计算后端结果。
+import { DownloadDetail } from "./DownloadDetail";
+import { IngestDownload } from "../downloads/Ingest";
 import { RevertEntry } from "../navwrites/Revert";
 import { useState, type ReactElement } from "react";
 import { Alert, Button, Select, Table, Typography, Progress, Form, Input } from "antd";
@@ -67,6 +69,12 @@ export function JobDetailPage(): ReactElement {
       <div>提交人：{submitterLabel(job)}</div>
       <div>GPU：{job.gpu_index ?? "未分配"}</div>
       <JobProgressView job={job} timing={timing} />
+      {job.type_name === "download" && (
+        <>
+          <DownloadDetail job={job} />
+          <IngestDownload job={job} />
+        </>
+      )}
       {job.resubmitted_from && (
         <Link to="/jobs/$jobId" params={{ jobId: job.resubmitted_from }}>
           重新提交自 #{job.resubmitted_from}

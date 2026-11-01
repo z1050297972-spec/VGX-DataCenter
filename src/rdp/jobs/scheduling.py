@@ -404,6 +404,10 @@ def resolve_scheduling(config: JobsConfig, registry: JobRegistry) -> SchedulingS
         if name not in names:
             failure = invalid_field(f"jobs.concurrency.{name}", "已经登记的作业类型")
             raise failure
+    # 同一仓库和 commit 复用暂存目录，允许多个下载作业会造成续传文件和检查点竞争。
+    if checked.concurrency.get("download", 1) > 1:
+        failure = invalid_field("jobs.concurrency.download", "下载作业的并发上限只能为 1")
+        raise failure
     # 再验定义，避免入口传入受损登记；只复制标量到不可变快照，不共享配置字典。
     validated = JobRegistry()
     for definition in definitions:

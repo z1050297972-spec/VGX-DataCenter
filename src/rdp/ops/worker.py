@@ -2,9 +2,10 @@
 
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
-from threading import Event
+from threading import Event, Thread
 from typing import cast
 from uuid import uuid4
 
@@ -16,12 +17,17 @@ from rdp.jobs._clock import ClockReader
 from rdp.jobs.execution import ExecutorDependencies
 from rdp.jobs.gpu import verify_gpu
 from rdp.jobs.navigation import NavigationWriter
-from rdp.jobs.policy import WORKER_EXIT_ALREADY_RUNNING, WORKER_EXIT_FAILURE, WORKER_EXIT_OK
+from rdp.jobs.policy import (
+    WORKER_EXIT_ALREADY_RUNNING,
+    WORKER_EXIT_FAILURE,
+    WORKER_EXIT_OK,
+    WORKER_STOP_TIMEOUT_S,
+)
 from rdp.jobs.resources import ResourcePool, reset_resources_on_startup, save_gpu_checks
 from rdp.jobs.scheduling import WorkerResources, WorkerScheduling
 from rdp.jobs.scheduling_types import GpuCheck
 from rdp.jobs.types import WorkerHeartbeat
-from rdp.jobs.worker import run_loop, worker_lock
+from rdp.jobs.worker import WorkerLoopResult, run_loop, worker_lock
 
 logger = logging.getLogger(__name__)
 
@@ -151,10 +157,37 @@ def run_worker(
         return _worker_exit(
             WorkerExit(WORKER_EXIT_FAILURE, "worker资源副本初始化失败", False), instance_id
         )
-    result = run_loop(dependencies, stop, heartbeat)
+    result = _run_monitored_loop(dependencies, stop, heartbeat, dependencies.monitoring_loop)
     retained = lock.finish(result.unreaped_threads)
     message = "worker已停止" if result.code == WORKER_EXIT_OK else "worker失败退出，需要重启"
     return _worker_exit(WorkerExit(result.code, message, retained), instance_id)
+
+
+def _run_monitored_loop(
+    dependencies: ExecutorDependencies,
+    stop: Event,
+    heartbeat: WorkerHeartbeat,
+    monitor: Callable[[Event], None] | None,
+) -> WorkerLoopResult:
+    """持锁运行周期监控，退出时有界回收并保留仍存活的线程。"""
+    thread: Thread | None = None
+    try:
+        if monitor is not None and not stop.is_set():
+            candidate = Thread(target=monitor, args=(stop,), name="network-monitor", daemon=True)
+            candidate.start()
+            thread = candidate
+        result = run_loop(dependencies, stop, heartbeat)
+    except Exception:
+        logger.exception("worker 主循环或网络监控启动失败")
+        result = WorkerLoopResult(WORKER_EXIT_FAILURE, ())
+    finally:
+        stop.set()
+        if thread is not None:
+            thread.join(timeout=WORKER_STOP_TIMEOUT_S)
+    if thread is not None and thread.is_alive():
+        logger.error("网络监控线程未在停止预算内退出，保留 worker 锁")
+        return WorkerLoopResult(WORKER_EXIT_FAILURE, (*result.unreaped_threads, thread))
+    return result
 
 
 def _worker_exit(result: WorkerExit, instance_id: str) -> WorkerExit:

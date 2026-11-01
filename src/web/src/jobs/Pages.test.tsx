@@ -915,3 +915,80 @@ it.each([
     view.close();
   }
 });
+
+it("下载详情展示速度与计数，并提交并发和限速后等待实际生效", async () => {
+  // 真实 Router 渲染下载作业；调参响应先排队，再由轮询观察实际值。
+  let download: Job = {
+    ...job,
+    type_name: "download",
+    display_name: "下载",
+    parameters: {
+      max_connection_per_server: 7,
+      split: 8,
+      min_split_size_bytes: 20971520,
+      max_tries: 5,
+      retry_wait_s: 10,
+    },
+  };
+  const status = {
+    requested_version: 0,
+    applied_version: 0,
+    requested: { max_concurrent_downloads: 4, max_overall_download_limit_bytes_per_s: 0 },
+    effective: { max_concurrent_downloads: 4, max_overall_download_limit_bytes_per_s: 0 },
+    speed_bytes_per_s: 2048,
+    total_files: 10,
+    completed_files: 2,
+    failed_files: 1,
+    skipped_files: 3,
+  };
+  let sent: unknown = null;
+  const view = mountPage(`/jobs/${job.job_id}`, async (request) => {
+    if (new URL(request.url).pathname.endsWith("/download-adjustment")) {
+      if (request.method === "POST") {
+        sent = await request.json();
+        return Response.json({ ...status, requested_version: 1 });
+      }
+      return Response.json({ ...status, requested_version: sent ? 1 : 0 });
+    }
+    return detailFetch(() => download)(request);
+  });
+  try {
+    expect(await screen.findByText(/2048 B\/s/)).toBeTruthy();
+    expect(screen.getByText(/^文件：2\s*\/\s*10/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        "每服务器连接数：7；每文件分段数：8；最小分段大小：20971520 B；重试次数：5；重试间隔：10 秒",
+      ),
+    ).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("同时下几个文件"), { target: { value: "6" } });
+    fireEvent.change(screen.getByLabelText("总限速（B/s）"), { target: { value: "1024" } });
+    fireEvent.click(screen.getByRole("button", { name: "调整下载参数" }));
+    await waitFor(() => {
+      expect(sent).toEqual({
+        max_concurrent_downloads: 6,
+        max_overall_download_limit_bytes_per_s: 1024,
+      });
+    });
+    expect(await screen.findByText("等待生效")).toBeTruthy();
+    // worker 未确认调参就失败时，不把挂起版本误显示成仍在等待。
+    download = {
+      ...completedJob,
+      type_name: "download",
+      display_name: "下载",
+      summary: completedJob.summary && {
+        ...completedJob.summary,
+        outcome: "failed",
+        aborted: true,
+      },
+    };
+    expect(
+      await screen.findByText(
+        "调参未生效，作业已结束；原因见下方作业诊断。",
+        {},
+        { timeout: 4000 },
+      ),
+    ).toBeTruthy();
+  } finally {
+    view.close();
+  }
+});

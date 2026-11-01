@@ -1284,3 +1284,41 @@ def authorize_job_actor(
     with audit_storage(session):
         account = sessions.authorize(session, identity, moment, admin=admin)
         return ActorRef(account.account_id, account.display_name)
+
+
+@protect
+def authorize_admin_job_actor(
+    session: Session, identity: SessionIdentity, *, now: datetime
+) -> ActorRef:
+    """在作业事务内重验管理员身份并返回操作者快照。
+
+    Args:
+        session: 已开启的受管数据库事务，不在本函数提交。
+        identity: 入口提供的会话定位，不信任缓存的角色。
+        now: 本次请求的 aware UTC 时刻。
+
+    Returns:
+        当前启用且已完成改密的管理员编号和显示名。
+
+    Raises:
+        AuthenticationError: 会话失效或账号不可用。
+        AuthorizationError: 当前账号不是管理员。
+        PasswordChangeRequiredError: 账号必须先改密。
+        InputError: 账号或会话数据损坏。
+        ConflictError: 数据库锁竞争。
+        ExternalError: 数据库读取失败。
+        DefectError: 事务或时钟非法。
+
+    Side Effects:
+        只在调用者事务内重读身份和角色，不刷新会话或写审计。
+
+    Time Semantics:
+        使用请求唯一时刻，在作业及操作日志写入之前完成权限重验。
+    """
+    try:
+        moment = ensure_utc(now)
+    except (AttributeError, TypeError, ValueError, OverflowError):
+        raise DefectError() from None
+    with audit_storage(session):
+        account = sessions.authorize(session, identity, moment, admin=True)
+        return ActorRef(account.account_id, account.display_name)

@@ -11,6 +11,7 @@ import pytest
 from account_api_support import ApiCase, add_actor
 from accounts_support import EXAMPLE_SECRET
 from jobs_api_support import job_api_case
+from nav_manifest import FakeNavigation
 from pydantic import SecretStr
 from sqlalchemy import func, select
 
@@ -25,11 +26,17 @@ from rdp.jobs.registry import production_registry
 
 
 def test_production_submission_roles_and_member_write_rejection(tmp_path: Path) -> None:
-    """验证14个生产类型的角色及集合精确匹配，成员不能经通用接口提交写入作业或留下记录。"""
+    """验证20个生产类型的角色及集合精确匹配，成员不能经通用接口提交写入作业或留下记录。"""
     # 期望来自工单D2及已交付的归类表，不能从类型属性推导，否则降权变异会一起改变期望。
     expected_roles = {
         "dataset_rescan": Role.MEMBER,
         "dataset_sizing": Role.MEMBER,
+        "download": Role.MEMBER,
+        "download_ingest_apply": Role.ADMINISTRATOR,
+        "download_ingest_preview": Role.MEMBER,
+        "download_preview": Role.MEMBER,
+        "download_staging_delete": Role.ADMINISTRATOR,
+        "download_staging_scan": Role.MEMBER,
         "example_count": Role.MEMBER,
         "example_gpu": Role.ADMINISTRATOR,
         "example_navigation": Role.ADMINISTRATOR,
@@ -58,8 +65,51 @@ def test_production_submission_roles_and_member_write_rejection(tmp_path: Path) 
             json={"type_name": "nav_write_apply", "parameters": {"preview_job_id": 1}},
         )
         assert response.status_code == 403, response.text
+        # 入库确认只由专用接口接受；通用提交仍执行 D2 的管理员角色声明。
+        denied = case.client.post(
+            "/api/jobs",
+            headers={"Cookie": "rdp_session=" + member.token.get_secret_value()},
+            json={"type_name": "download_ingest_apply", "parameters": {"preview_job_id": 1}},
+        )
+        assert denied.status_code == 403, denied.text
         with session_scope(case.engine, read_only=True) as session:
             assert session.scalar(select(func.count()).select_from(JobRow)) == 0
+
+
+def test_member_confirms_ingest_via_dedicated_route(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """验证成员通过专用接口确认真实入库预览，提交人与读取结果保持当前成员身份。"""
+    from download_ingest_support import PREVIEW_ID, build, ingest_case, save
+
+    from rdp.jobs.navwrite.previews import read_preview, write_preview
+
+    with ingest_case(tmp_path / "worker", fake_nav) as (harness, _stage):
+        save(harness, build(harness))
+        preview = read_preview(harness.case.paths, PREVIEW_ID)
+        with session_scope(harness.case.engine, read_only=True) as session:
+            row = session.get(JobRow, PREVIEW_ID)
+            assert row is not None
+            session.expunge(row)
+        with job_api_case(tmp_path / "web") as case:
+            # 使用真实 worker 产出的预览和临时作业快照，不替换授权或预览读取逻辑。
+            with session_scope(case.engine) as session:
+                session.merge(row)
+            write_preview(case.app.state.job_paths, preview)
+            member = add_actor(case)
+            headers = {"Cookie": "rdp_session=" + member.token.get_secret_value()}
+            response = case.client.post(
+                "/api/jobs/download-ingest",
+                headers=headers,
+                json={"preview_job_id": str(PREVIEW_ID)},
+            )
+            assert response.status_code == 201, response.text
+            result = response.json()
+            assert result["type_name"] == "download_ingest_apply"
+            assert result["submitted_by"]["account_id"] == str(member.identity.account.account_id)
+            fetched = case.client.get(f"/api/jobs/{result['job_id']}", headers=headers)
+            assert fetched.status_code == 200, fetched.text
+            assert fetched.json()["parameters"] == {"preview_job_id": PREVIEW_ID}
 
 
 def test_submission_roles_before_parameters(tmp_path: Path) -> None:

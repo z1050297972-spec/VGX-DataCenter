@@ -36,6 +36,8 @@ class OperationType(StrEnum):
     CHANGE_PASSWORD = "change_password"  # noqa: S105  # 理由：稳定操作/结果码，不是口令。
     CREATE_FIRST_ADMIN = "create_first_admin"
     SET_RETENTION = "set_retention"
+    SET_DOWNLOAD_TOKEN = "set_download_token"  # noqa: S105  # 稳定操作码，不是凭据。
+    CLEAR_DOWNLOAD_TOKEN = "clear_download_token"  # noqa: S105  # 稳定操作码，不是凭据。
     SUBMIT_JOB = "submit_job"
     CANCEL_JOB = "cancel_job"
     REBUILD_INDEX = "rebuild_index"
@@ -156,6 +158,8 @@ OPERATION_DETAIL_FIELDS: dict[OperationType, frozenset[str]] = {
     OperationType.RESET_PASSWORD_FROM_OPS: frozenset({"must_change_password"}),
     OperationType.CHANGE_PASSWORD: frozenset({"must_change_password"}),
     OperationType.SET_RETENTION: frozenset({"retention_days"}),
+    OperationType.SET_DOWNLOAD_TOKEN: frozenset(),
+    OperationType.CLEAR_DOWNLOAD_TOKEN: frozenset(),
     OperationType.SUBMIT_JOB: frozenset({"job_id", "job_type", "job_state", "resubmitted_from"}),
     OperationType.CANCEL_JOB: frozenset({"job_id", "job_type", "job_state"}),
     OperationType.REBUILD_INDEX: frozenset(),

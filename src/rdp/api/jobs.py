@@ -44,15 +44,21 @@ from rdp.infra.diagnostics import (
 )
 from rdp.infra.ids import MAX_SQLITE_INTEGER
 from rdp.infra.state import StatePaths
+from rdp.jobs.downloads.adjustments import SqlAdjustmentChannel
+from rdp.jobs.downloads.cleanup import DeleteParameters
+from rdp.jobs.downloads.job import DownloadAdjustment, DownloadParameters, DownloadStatus
+from rdp.jobs.downloads.preview import PreviewResult, read_download_preview
+from rdp.jobs.downloads.staging import ScanParameters, StagingSnapshot, read_staging_snapshot
 from rdp.jobs.errors import JobInputError
 from rdp.jobs.example import CountParameters
 from rdp.jobs.logs import read_log_tail
+from rdp.jobs.outcome import JobOutcome
 from rdp.jobs.registry import EXAMPLE_GPU_TYPE, EXAMPLE_NAVIGATION_TYPE, JobRegistry
 from rdp.jobs.resource_examples import GpuExampleParameters, NavigationExampleParameters
 from rdp.jobs.scheduling_service import SchedulingService
 from rdp.jobs.scheduling_types import SchedulingCatalog
 from rdp.jobs.service import JobRequest, JobService
-from rdp.jobs.types import JobQuery, JobRecord
+from rdp.jobs.types import JobQuery, JobRecord, JobState
 from rdp.jobs.worker import heartbeat_online
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -260,6 +266,217 @@ def submit_job(context: SubmissionContext, body: SubmitJobPayload) -> JobRespons
 
 
 @router.post(
+    "/download", response_model=JobResponse, status_code=201, operation_id="submit_download_job"
+)
+def submit_download_job(context: JobContext, body: DownloadParameters) -> JobResponse:
+    """提交下载作业，不在 Web 访问存储根。
+
+    Args:
+        context: 已认证请求上下文。
+        body: 下载参数，范围由下载参数模型校验。
+
+    Returns:
+        新建的排队作业。
+
+    Raises:
+        JobInputError: 参数或作业类型无效。
+        ConflictError: 数据库事务冲突。
+        ExternalError: 数据库不可用。
+
+    Side Effects:
+        在同一事务中写入作业和操作日志。
+
+    Time Semantics:
+        使用请求时刻，不等待 worker 执行。
+    """
+    return _response(
+        context, context.service.submit(_request(context), "download", body.model_dump(mode="json"))
+    )
+
+
+@router.post(
+    "/download-preview",
+    response_model=JobResponse,
+    status_code=201,
+    operation_id="submit_download_preview",
+)
+def submit_download_preview(context: JobContext, body: DownloadParameters) -> JobResponse:
+    """提交由 worker 执行的只读下载预览。
+
+    Args:
+        context: 已认证身份及作业服务。
+        body: 下载计划参数。
+
+    Returns:
+        排队中的预览作业。
+
+    Raises:
+        JobInputError: 参数不满足作业契约。
+        ExternalError: 数据库不可用。
+
+    Side Effects:
+        原子登记作业及提交日志，不访问存储根。
+
+    Time Semantics:
+        立即返回排队状态，不等待预览。
+    """
+    return _response(
+        context,
+        context.service.submit(_request(context), "download_preview", body.model_dump(mode="json")),
+    )
+
+
+@router.get(
+    "/{job_id}/download-preview", response_model=PreviewResult, operation_id="get_download_preview"
+)
+def get_download_preview(context: JobContext, job_id: str) -> PreviewResult:
+    """从状态目录读取已发布的预览摘要。
+
+    Args:
+        context: 已认证身份及状态目录布局。
+        job_id: 正整数预览作业编号文本。
+
+    Returns:
+        不包含凭据或存储路径的预览摘要。
+
+    Raises:
+        InputError: 作业不是预览或结果不存在。
+        ExternalError: 状态目录不可读。
+
+    Side Effects:
+        只读作业记录和状态目录，不访问存储根。
+
+    Time Semantics:
+        结果为 worker 发布时的快照。
+    """
+    identifier = _identifier(job_id)
+    job = context.service.get(_request(context), identifier)
+    if (
+        job.type_name != "download_preview"
+        or job.state is not JobState.COMPLETED
+        or job.summary is None
+        or job.summary.outcome not in (JobOutcome.SUCCEEDED, JobOutcome.SUCCEEDED_WITH_WARNINGS)
+    ):
+        problem = invalid_field("job_id", "已成功完成的下载预览作业")
+        raise problem
+    return read_download_preview(context.paths, identifier)
+
+
+@router.post(
+    "/download-staging-scan",
+    response_model=JobResponse,
+    status_code=201,
+    operation_id="submit_download_staging_scan",
+)
+def submit_download_staging_scan(context: JobContext, body: ScanParameters) -> JobResponse:
+    """提交 worker 只读扫描可写根的暂存目录。
+
+    Args:
+        context: 已认证身份和作业服务。
+        body: 空参数；客户端不提供路径。
+
+    Returns:
+        新建的排队扫描作业。
+
+    Raises:
+        JobInputError: 参数或作业类型无效。
+        ExternalError: 作业数据库不可用。
+
+    Side Effects:
+        原子写入作业和操作日志，不访问存储根。
+
+    Time Semantics:
+        不等待扫描完成；worker 在后续生成快照。
+    """
+    return _response(
+        context,
+        context.service.submit(
+            _request(context), "download_staging_scan", body.model_dump(mode="json")
+        ),
+    )
+
+
+@router.get(
+    "/{job_id}/download-staging",
+    response_model=StagingSnapshot,
+    operation_id="get_download_staging",
+)
+def get_download_staging(request: Request, context: JobContext, job_id: str) -> StagingSnapshot:
+    """读取已成功完成的暂存扫描快照。
+
+    Args:
+        request: 包含受管数据库引擎的请求。
+        context: 已认证身份和作业服务。
+        job_id: 规范正整数作业编号文本。
+
+    Returns:
+        数据库中该作业发布的生成时刻和条目快照。
+
+    Raises:
+        InputError: 作业不是成功的扫描或快照不存在。
+        ExternalError: 数据库不可用。
+
+    Side Effects:
+        只读数据库，不访问存储根。
+
+    Time Semantics:
+        返回生成时的观察，占用标志不是删除许可。
+    """
+    identifier = _identifier(job_id)
+    job = context.service.get(_request(context), identifier)
+    if (
+        job.type_name != "download_staging_scan"
+        or job.state is not JobState.COMPLETED
+        or job.summary is None
+        or job.summary.outcome not in (JobOutcome.SUCCEEDED, JobOutcome.SUCCEEDED_WITH_WARNINGS)
+    ):
+        problem = invalid_field("job_id", "已成功完成的暂存扫描")
+        raise problem
+    return read_staging_snapshot(request.app.state.database_engine, identifier)
+
+
+@router.post(
+    "/download-staging-delete",
+    response_model=JobResponse,
+    status_code=201,
+    operation_id="submit_download_staging_delete",
+)
+def submit_download_staging_delete(
+    context: JobContext,
+    admin: Annotated[AccountRequestContext, Depends(get_admin_context)],
+    body: DeleteParameters,
+) -> JobResponse:
+    """请求 worker 清理管理员确认的暂存目录。
+
+    Args:
+        context: 已认证身份和作业服务。
+        admin: 全局路由守卫确认的管理员；事务内仍重验权限。
+        body: 已校验的根名、仓库身份和 commit 短码，不接收任意路径。
+
+    Returns:
+        已记录操作日志的排队清理作业。
+
+    Raises:
+        AuthorizationError: 非管理员或管理员身份已失效。
+        ConflictError: 目标仓库有下载或清理作业占用。
+        JobInputError: 目标参数非法。
+        ExternalError: 数据库或操作日志不可用。
+
+    Side Effects:
+        只在数据库提交作业与审计，不访问存储根。
+
+    Time Semantics:
+        入队时原子核对占用；worker 执行时还必须重新核对和互斥。
+    """
+    return _response(
+        context,
+        context.service.submit(
+            _request(context), "download_staging_delete", body.model_dump(mode="json")
+        ),
+    )
+
+
+@router.post(
     "/example", response_model=JobResponse, status_code=201, operation_id="submit_count_job"
 )
 def submit_count_job(context: JobContext, body: CountParameters) -> JobResponse:
@@ -371,6 +588,71 @@ def submit_navigation_job(context: JobContext, body: NavigationExampleParameters
             _request(context), EXAMPLE_NAVIGATION_TYPE, body.model_dump(mode="json")
         ),
     )
+
+
+@router.get(
+    "/{job_id}/download-adjustment",
+    response_model=DownloadStatus,
+    operation_id="get_download_adjustment",
+)
+def get_download_adjustment(request: Request, context: JobContext, job_id: str) -> DownloadStatus:
+    """读取下载运行快照。
+
+    Args:
+        request: 包含受管数据库的请求。
+        context: 已认证身份。
+        job_id: 正整数作业编号文本。
+
+    Returns:
+        请求值、实际值和文件计数的数据库快照。
+
+    Raises:
+        InputError: 作业不存在或尚未初始化。
+        ExternalError: 数据库不可用。
+
+    Side Effects:
+        只读数据库。
+
+    Time Semantics:
+        返回最近提交的快照，不保证实时。
+    """
+    return SqlAdjustmentChannel(request.app.state.database_engine).read(_identifier(job_id))
+
+
+@router.post(
+    "/{job_id}/download-adjustment",
+    response_model=DownloadStatus,
+    operation_id="set_download_adjustment",
+)
+def set_download_adjustment(
+    request: Request, context: JobContext, job_id: str, body: DownloadAdjustment
+) -> DownloadStatus:
+    """提交运行中的下载调参请求。
+
+    Args:
+        request: 包含受管数据库的请求。
+        context: 已认证身份。
+        job_id: 正整数作业编号文本。
+        body: 并发数及字节每秒速率，至少指定一项。
+
+    Returns:
+        最近的调参状态；不保证 worker 已生效。
+
+    Raises:
+        InputError: 参数无效或通道不存在。
+        ConflictError: 作业不是运行状态。
+        ExternalError: 数据库不可用。
+
+    Side Effects:
+        写入下载调参通道，不直接访问下载进程。
+
+    Time Semantics:
+        写事务提交后可见，由 worker 异步应用。
+    """
+    channel = SqlAdjustmentChannel(request.app.state.database_engine)
+    identifier = _identifier(job_id)
+    channel.submit(identifier, body)
+    return channel.read(identifier)
 
 
 @router.get("/{job_id}", response_model=JobResponse, operation_id="get_job")
