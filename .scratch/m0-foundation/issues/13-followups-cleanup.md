@@ -70,3 +70,10 @@ Status: done
   - /mnt 清单逐字节相同，两块盘写入扇区数不变。
   - 没演练到的一项：副本里没有失败作业，成员看诊断脱敏这条只靠测试（变异抽查前一轮 8/8）。
 - 按负责人授权合并。
+- 2026-11-01 05:00 真实部署统一升级到 `ed036c2`（负责人："m2已经合并了，可否升级？"）。这次一起上线的有 M0 第 13 张、前端样式第 01、02 张、M2 全部。
+  - 升级前 main 上 make check 全绿：2757 passed，Vitest 380；没有在跑的作业。
+  - upgrade.sh 完成（`assets/13-followups-cleanup/real-upgrade-run.log`），数据库 0012 → 0016_monitoring，迁移前备份已自动生成。
+  - 配置 [jobs] 加了 `aria2c_path = "/home/shawn/miniconda3/bin/aria2c"`（M2 线提示：systemd 的 PATH 里没有 aria2c），之后重启两个服务；改之前的配置备份在 `~/.cache/rdp-dispatch/config.toml.before-upgrade-20261101`。
+  - 两个服务都是 active，health ok；库文件和 -wal、-shm 都是 600；web.log、worker.log 都是 0 条 ERROR。
+  - 启动扫描：35 个数据集，84 条链接，发现仍是 80 组（151 条）。
+  - 两块数据盘写入扇区数不变。
