@@ -7,13 +7,13 @@
 }
 .creation-form {
   display: grid;
-  gap: 16px;
+  gap: var(--rdp-space-5);
   max-width: 720px;
   width: 100%;
 }
 .creation-fields {
   display: grid;
-  gap: 12px;
+  gap: var(--rdp-space-4);
   border: 0;
   padding: 0;
   margin: 0;
@@ -21,41 +21,41 @@
 }
 .creation-fields label {
   display: grid;
-  gap: 6px;
+  gap: var(--rdp-space-2);
   min-width: 0;
 }
 .creation-fields select {
   width: 100%;
   min-width: 0;
-  padding: 7px 11px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  background: #fff;
+  padding: var(--rdp-space-select-y) var(--rdp-space-select-x);
+  border: var(--rdp-line) solid var(--rdp-border);
+  border-radius: var(--rdp-radius-small);
+  background: var(--rdp-surface);
 }
 .creation-fields .creation-check,
 .creation-check {
   display: flex;
-  gap: 8px;
+  gap: var(--rdp-space-3);
   align-items: center;
   overflow-wrap: anywhere;
-  margin: 8px 0;
+  margin: var(--rdp-space-3) 0;
 }
 .creation-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin: 12px 0;
+  gap: var(--rdp-space-4);
+  margin: var(--rdp-space-4) 0;
 }
 .creation-review-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
-  gap: 12px;
+  gap: var(--rdp-space-4);
 }
 .creation-review-grid > * {
   min-width: 0;
 }
 .creation-paths {
-  padding-left: 18px;
+  padding-left: var(--rdp-space-6);
   margin: 0;
   overflow-wrap: anywhere;
 }
@@ -70,13 +70,17 @@
   margin: 0;
 }
 .creation-note {
-  color: #666;
+  color: var(--rdp-muted);
 }
 .creation-page .ant-card {
   min-width: 0;
-  margin-bottom: 12px;
+  margin-bottom: var(--rdp-space-4);
 }
 .creation-page .ant-alert {
-  margin-bottom: 12px;
+  margin-bottom: var(--rdp-space-4);
   min-width: 0;
+}
+
+.creation-select-full {
+  width: 100%;
 }

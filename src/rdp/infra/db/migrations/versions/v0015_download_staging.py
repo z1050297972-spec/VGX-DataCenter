@@ -5,7 +5,7 @@ from alembic import op
 from rdp.infra.db.migrations.versions.v0001_error_reports import downgrade as _reject_downgrade
 
 revision: str = "0015_download_staging"
-down_revision: str = "0013_download_adjustments"
+down_revision: str = "0014_download_adjustments"
 branch_labels: tuple[str, ...] | None = None
 depends_on: str | None = None
 

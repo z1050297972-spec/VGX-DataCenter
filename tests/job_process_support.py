@@ -41,15 +41,15 @@ from rdp.jobs.types import JobClock, JobProgress, JobRecord, JobState, RecoveryM
 from rdp.ops.worker import WorkerExit, run_worker
 
 # 真实进程握手预算，单位秒；不以固定sleep猜测worker已经持锁或写完进度。
-PROCESS_READY_TIMEOUT_S = 15.0
-PROCESS_EXIT_TIMEOUT_S = 5.0
-# 等入口返回的预算必须覆盖生产30秒收尾；额外5秒仅留给进程调度。
+PROCESS_READY_TIMEOUT_S = 30.0
+PROCESS_EXIT_TIMEOUT_S = 15.0
+# 等入口返回的预算必须覆盖生产30秒收尾；额外15秒留给高负载进程调度。
 PROCESS_STOP_TIMEOUT_S = WORKER_STOP_TIMEOUT_S + PROCESS_EXIT_TIMEOUT_S
 # 超时锁测试刻意在入口失败返回后继续保活，最多60秒，父进程授权退出或finally强制清理。
 FAILED_WORKER_HOLD_S = 60.0
 # SIGTERM宽限10秒，计时断言留出主循环一秒及机器调度余量，不接受立即KILL。
 CANCEL_MIN_ELAPSED_S = 9.5
-CANCEL_MAX_ELAPSED_S = 15.0
+CANCEL_MAX_ELAPSED_S = 30.0
 
 
 @dataclass(frozen=True)

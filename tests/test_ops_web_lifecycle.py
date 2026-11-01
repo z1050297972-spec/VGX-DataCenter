@@ -237,7 +237,8 @@ def test_runner_failure(tmp_path: Path) -> None:
             assert start_web(runtime, runner=runner) == 1
             disposed.assert_called_once_with(runtime.engine)
             text = (runtime.paths.logs / "web.log").read_text()
-            assert text.count("ERROR rdp.api.production Web运行失败；") == 1
+            expected = "前端构建产物缺失，请先构建" if failure is None else "Web运行失败，"
+            assert text.count("ERROR rdp.api.production " + expected) == 1
             assert text.count("ERROR rdp.api.production Web结束运行：失败退出 exit_code=1") == 1
         finally:
             event.remove(runtime.engine, "engine_disposed", disposed)

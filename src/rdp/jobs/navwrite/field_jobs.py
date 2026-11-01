@@ -6,6 +6,7 @@
 from collections.abc import Callable
 from functools import partial
 
+from rdp.accounts.types import Role
 from rdp.infra.diagnostics import DefectError, InputError
 from rdp.jobs.datasets.catalog import REQUIRED_DOCUMENTS
 from rdp.jobs.datasets.reading import discover_entries
@@ -58,6 +59,7 @@ def build_field_edit_definition(dependencies: NavWriteDependencies | None) -> Jo
         FieldEditParameters,
         RecoveryMode.RESTART,
         partial(_execute, dependencies),
+        submission_role=Role.MEMBER,
     )
 
 

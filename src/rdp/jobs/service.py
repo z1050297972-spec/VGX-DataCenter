@@ -11,12 +11,8 @@ from typing import cast
 
 from sqlalchemy import Engine, select
 
-from rdp.accounts.service import (
-    authorize_admin_job_actor,
-    authorize_job_actor,
-    existing_account_ids,
-)
-from rdp.accounts.types import SessionIdentity
+from rdp.accounts.service import authorize_job_actor, existing_account_ids
+from rdp.accounts.types import Role, SessionIdentity
 from rdp.audit.types import (
     AuditContext,
     AuditValues,
@@ -85,14 +81,21 @@ class JobService:
         self.engine, self.registry = engine, registry
 
     def submit(
-        self, request: JobRequest, type_name: str, parameters: dict[str, object]
+        self,
+        request: JobRequest,
+        type_name: str,
+        parameters: dict[str, object],
+        *,
+        confirmed_write: bool = False,
     ) -> JobRecord:
-        """提交经类型模型校验的作业；下载暂存清理另需管理员。
+        """按提交入口的授权契约登记参数合格的作业。
 
         Args:
-            request: 必填身份、唯一请求时刻和审计来源；暂存清理要求管理员。
+            request: 必填身份、唯一请求时刻和审计来源；通用提交须满足类型角色声明。
             type_name: 当前登记的稳定英文键。
             parameters: 不可信 JSON 对象，至多 JOB_PARAMETERS_MAX_BYTES，按当前模型严格校验。
+            confirmed_write: 默认 False，按类型声明校验角色；仅服务端专用确认入口已校验保存预览后传 True，
+                允许成员确认导航写入，不接受 HTTP 参数透传，不适用于删除暂存等非导航写入类型。
 
         Returns:
             已提交的 queued 记录，提交人为事务内当前账号；有编号且名字为“系统”的账号照常提交，按编号区别固定系统身份。
@@ -101,15 +104,16 @@ class JobService:
         Raises:
             AuthenticationError: 事务内会话已撤销/过期或账号停用、删除。
             PasswordChangeRequiredError: 当前账号必须先改口令。
-            AuthorizationError: 暂存清理作业由非管理员提交。
+            AuthorizationError: 通用提交中成员提交管理员类型，先于类型参数校验拒绝。
             JobInputError: 未登记类型、非法参数、额外字段或编码后超长；不回显原值。
             InputError: 数据库损坏。
             ConflictError: 写锁、约束或作业编号耗尽。
             ExternalError: 作业或审计写入/提交/清理失败。
-            DefectError: 注入时刻/审计上下文、类型定义、SQL 或序列化错误。
+            DefectError: 注入时刻/审计上下文、类型定义、SQL 或序列化错误，或确认入口传入非导航写入类型。
 
         Side Effects:
-            事务外先校验参数，写事务内重验身份；insert_job 与提交作业操作日志同事务提交。
+            通用提交参数校验前只读重验角色，写事务内再次重验；专用确认只放行已校验预览的导航写入，
+            事务内仍重验会话、启停和强制改密，不提升账号角色。insert_job 与提交作业操作日志同事务提交。
             对象 kind=job，object_id 为编号文本，object_name 为“显示名 #编号”（最多 61 码点）。
             明细 v1 仅含 job_id、job_type、job_state；before 为空，after 为已提交值，无参数。
             校验或权限拒绝不记日志；开始写入后失败整体回滚，短锁补记失败日志，补记失败不覆盖原错误。
@@ -119,14 +123,23 @@ class JobService:
             AUDIT_SHORT_LOCK_TIMEOUT_MS，无重试，外部计算不放在写事务。
         """
         _audit.validate_request(request)
+        # 专用确认先核验服务端保存的预览；通用提交没有这一步，必须遵守类型角色声明。
+        if not confirmed_write:
+            self.check_submission_role(request, type_name)
         definition, checked = _parameters(self.registry, type_name, parameters)
+        if confirmed_write and not definition.writes_navigation:
+            raise DefectError()
         attempted: OperationEvent | None = None
         try:
             with session_scope(self.engine) as session:
-                actor = authorize_job_actor(session, request.identity, now=request.now)
+                actor = authorize_job_actor(
+                    session,
+                    request.identity,
+                    now=request.now,
+                    admin=not confirmed_write and definition.submission_role is Role.ADMINISTRATOR,
+                )
                 if type_name == _download_cleanup.DELETE_TYPE:
-                    # 对新清理类型在提交事务内重验管理员权限并检查占用，通用接口不能绕过。
-                    actor = authorize_admin_job_actor(session, request.identity, now=request.now)
+                    # 管理员权限由类型声明统一重验；占用检查与插入同事务，避免并发绕过。
                     _download_cleanup.check_busy(session, checked)
                 attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
                 record = insert_job(session, NewJob(definition, checked, actor, request.now, None))
@@ -135,6 +148,43 @@ class JobService:
         except Exception as error:
             _audit.failed(self.engine, attempted, error)
             raise
+
+    def check_submission_role(self, request: JobRequest, type_name: str) -> None:
+        """在参数校验前重验当前身份与类型声明的最低角色。
+
+        Args:
+            request: 已认证的请求身份、UTC 时刻和审计来源。
+            type_name: 待提交的稳定类型键，未知键留给后续参数校验拒绝。
+
+        Returns:
+            无；当前角色满足声明才返回。
+
+        Raises:
+            AuthorizationError: 成员试图提交管理员类型。
+            AuthenticationError: 会话已经失效。
+            PasswordChangeRequiredError: 仍需修改口令。
+            InputError: 数据库数据损坏。
+            ConflictError: 读取锁超时。
+            ExternalError: 数据库读取失败。
+            DefectError: 类型键或请求上下文非法。
+
+        Side Effects:
+            只读账号和类型登记，不记提交日志或校验作业参数。
+
+        Time Semantics:
+            使用请求唯一 UTC 时刻；单次数据库等待沿用 BUSY_TIMEOUT_MS。
+        """
+        try:
+            definition = self.registry.lookup(type_name)
+        except DefectError:
+            definition = None
+        with session_scope(self.engine, read_only=True) as session:
+            authorize_job_actor(
+                session,
+                request.identity,
+                now=request.now,
+                admin=definition is not None and definition.submission_role is Role.ADMINISTRATOR,
+            )
 
     def submit_scheduled(
         self, definition: ScheduledJob, local_date: date, *, now: datetime
@@ -319,7 +369,7 @@ class JobService:
         """从终态作业复制参数，作为当前账号的新提交。
 
         Args:
-            request: 点重新提交按钮的账号上下文；暂存清理要求管理员。
+            request: 点重新提交按钮的账号上下文，不要求原提交人；仍须满足当前类型角色声明；暂存清理另需管理员。
             job_id: 原作业正编号，必须为 completed/cancelled/interrupted。
 
         Returns:
@@ -328,7 +378,7 @@ class JobService:
         Raises:
             AuthenticationError: 重验时会话或账号无效。
             PasswordChangeRequiredError: 账号须先改口令。
-            AuthorizationError: 非管理员重提暂存清理作业。
+            AuthorizationError: 成员重新提交管理员类型或暂存清理。
             JobNotFoundError: 原记录不存在。
             JobInputError: 编号非法、原类型已移除或原参数按当前模型无效；不回显原参数。
             ConflictError: 原记录非终态、写锁/约束冲突。
@@ -364,10 +414,17 @@ class JobService:
                             ),
                         )
                     )
+                definition = self.registry.lookup(original.type_name)
+                authorize_job_actor(
+                    session,
+                    request.identity,
+                    now=request.now,
+                    admin=definition is not None
+                    and definition.submission_role is Role.ADMINISTRATOR,
+                )
                 definition, _ = _parameters(self.registry, original.type_name, original.parameters)
                 if original.type_name == _download_cleanup.DELETE_TYPE:
-                    # 重提与首次提交使用相同管理员和占用边界，不能绕过专用入口。
-                    actor = authorize_admin_job_actor(session, request.identity, now=request.now)
+                    # 重提仍按类型声明校验管理员，并与首次提交共用事务内占用检查。
                     _download_cleanup.check_busy(session, original.parameters)
                 attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
                 record = insert_job(

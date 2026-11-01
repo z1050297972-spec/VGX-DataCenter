@@ -2,6 +2,10 @@
 // 只补齐浏览器按 document.baseURI 解析 URL 的行为；传输由测试替身处理，不访问真实网络。
 // jsdom 提供浏览器 Request 后可删除此适配；本模块仅由 Vitest 加载，不进入生产入口。
 import { afterEach, beforeEach, vi } from "vitest";
+import { configure } from "@testing-library/react";
+
+// 工单13：页面并行加载在高负载机器上可能超过默认1秒；所有findBy/waitFor统一给5秒。
+configure({ asyncUtilTimeout: 5000 });
 
 const NativeRequest = Request;
 

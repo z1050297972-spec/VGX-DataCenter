@@ -13,6 +13,7 @@ from functools import partial
 from pathlib import Path
 from typing import cast
 
+from rdp.accounts.types import Role
 from rdp.infra.config import StorageRootConfig
 from rdp.infra.db.connection import session_scope
 from rdp.infra.diagnostics import DefectError
@@ -381,6 +382,7 @@ def build_ingest_definitions(
             IngestParameters,
             RecoveryMode.RESTART,
             partial(_execute_preview, dependencies),
+            submission_role=Role.MEMBER,
         ),
         JobDefinition(
             INGEST_APPLY_TYPE,
@@ -388,6 +390,7 @@ def build_ingest_definitions(
             NavApplyParameters,
             RecoveryMode.INTERRUPT,
             partial(execute_ingest_apply, dependencies),
+            submission_role=Role.ADMINISTRATOR,
             writes_navigation=True,
         ),
     )

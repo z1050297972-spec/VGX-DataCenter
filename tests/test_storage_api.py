@@ -1,5 +1,6 @@
 """存储根API契约清单（10、L3），所有权限与错误经真实应用测试。"""
 
+import os
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import replace
@@ -123,8 +124,15 @@ def test_no_root_access_or_source_leak(tmp_path: Path, monkeypatch: pytest.Monke
     inspector, _ = _inspector(tmp_path)
     with _case(tmp_path, inspector) as case:
         case.login()
+        original_stat = Path.stat
+
+        def stat_without_storage(path: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+            if any(path.is_relative_to(root.path) for root in inspector.roots):
+                raise AssertionError("API不能stat存储根")
+            return original_stat(path, follow_symlinks=follow_symlinks)
+
         with monkeypatch.context() as patch:
-            patch.setattr(Path, "stat", Mock(side_effect=AssertionError("API不能stat根")))
+            patch.setattr(Path, "stat", stat_without_storage)
             response = case.client.get("/api/storage-roots")
         assert response.status_code == 200
         item = response.json()["items"][0]

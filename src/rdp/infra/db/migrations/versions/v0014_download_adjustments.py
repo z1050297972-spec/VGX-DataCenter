@@ -1,11 +1,11 @@
-"""0013 新建下载作业调参通道，不改变已有表或接口。"""
+"""0014 新建下载作业调参通道，不改变已有表或接口。"""
 
 from alembic import op
 
 from rdp.infra.db.migrations.versions.v0001_error_reports import downgrade as _reject_downgrade
 
-revision: str = "0013_download_adjustments"
-down_revision: str = "0012_scene_task_index"
+revision: str = "0014_download_adjustments"
+down_revision: str = "0013_login_wait_attempts"
 branch_labels: tuple[str, ...] | None = None
 depends_on: str | None = None
 

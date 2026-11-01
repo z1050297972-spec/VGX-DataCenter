@@ -29,7 +29,6 @@ from rdp.jobs.datasets.rebuild import clear_index, plan_rebuild
 from rdp.jobs.datasets.rescan import RescanDependencies
 from rdp.jobs.worker import worker_lock
 from rdp.ops.runtime import RuntimeInputs
-from rdp.ops.status import check_worker_stopped
 
 logger = logging.getLogger(__name__)
 
@@ -66,15 +65,7 @@ def rebuild_index(inputs: RuntimeInputs, *, stdout: TextIO) -> int:
     """
     config = load_config(environ=inputs.environ, home=inputs.home).config
     paths = state_paths(config, ())
-    available = check_worker_stopped(paths.worker_lock)
-    if not available.allowed:
-        raise ConflictError(
-            tuple(
-                item.model_copy(update={"next_step": "请改到网页上提交重新扫描作业"})
-                for item in available.diagnostics
-            )
-        )
-    # 预检只负责拒绝说明；必须真正取得锁，封闭预检后worker启动的竞争窗口。
+    # 真正取得非阻塞实例锁即可判断 worker 是否运行，并封闭并发启动的竞争窗口。
     try:
         lock = worker_lock(paths)
     except ConflictError as error:

@@ -422,6 +422,7 @@ def test_exception_subclass_status_validation() -> None:
             HTTPStatus.UNAUTHORIZED,
             HTTPStatus.FORBIDDEN,
             HTTPStatus.TOO_MANY_REQUESTS,
+            HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
         ),
         DiagnosticCategory.CONFLICT: (HTTPStatus.CONFLICT,),
         DiagnosticCategory.EXTERNAL: (HTTPStatus.BAD_GATEWAY,),

@@ -459,12 +459,12 @@ export interface paths {
          *
          *     Side Effects:
          *         调用 service.login；只有事务提交后才设置新 cookie，登录成功不复用传入的旧令牌。
-         *         本次增加的失败计数由领域提交后才响应；429 输出 Retry-After，失败不设置新 cookie、无登录日志。
+         *         本次增加的失败计数由领域提交后才响应；429 输出 Retry-After，失败不设置新 cookie；等待期只累加首条等待日志的次数。
          *
          *     Time Semantics:
-         *         POST 先检查 Origin，领域事务完成后才发新 cookie；本次增加的失败计数必须提交后才发送对应 401/429，已有等待的 429 不新增写入。
+         *         POST 先检查 Origin，领域事务完成后才发新 cookie；本次增加的失败计数必须提交后才发送对应 401/429，已有等待的429只累加同一等待期日志的次数。
          *         只用 context.now；先结束只读快照，在事务外核验/按需重哈希，释放 Argon2 名额后再重读写入。
-         *         Argon2 排队最多 1 秒，短写事务获锁最多约 5 秒，二者不重叠。
+         *         Argon2经CapacityLimiter异步排队最多1秒，计算使用专用线程名额；短写事务获锁最多约5秒。
          *         回拨不报 409、不改已有等待截止；请求取消不保证已经开始的提交被取消。
          */
         post: operations["login"];
@@ -1750,6 +1750,7 @@ export interface paths {
          *         JobInputError: 未登记类型或模型/容量校验失败，422，不回显值。
          *         AuthenticationError: 写事务内会话失效，401。
          *         PasswordChangeRequiredError: 必须改密，403。
+         *         AuthorizationError: 当前角色不满足类型提交声明，403，先于参数校验。
          *         InputError: 数据库损坏，400。
          *         ConflictError: 写入竞争/编号耗尽，409。
          *         ExternalError: 作业/日志事务失败，502。
@@ -2015,7 +2016,7 @@ export interface paths {
          * @description 提交示例占卡作业，不在请求进程访问 GPU。
          *
          *     Args:
-         *         context: 完成全局 Origin/认证/改密检查的当前账号上下文。
+         *         context: 完成全局 Origin/认证/改密检查的管理员上下文。
          *         body: 占用秒数 0 至 GPU_EXAMPLE_MAX_HOLD_S，不接受卡号或命令路径。
          *
          *     Returns:
@@ -2024,6 +2025,7 @@ export interface paths {
          *     Raises:
          *         JobInputError: 占用时长非法或类型未登记，422。
          *         AuthenticationError: 会话无效，401。
+         *         AuthorizationError: 非管理员提交，403，先于参数校验。
          *         PasswordChangeRequiredError: 必须改口令，403。
          *         ConflictError: 提交/审计事务竞争，409。
          *         InputError: 数据库损坏，400。
@@ -2057,7 +2059,7 @@ export interface paths {
          * @description 提交带预览期望值的写锁演示，不在 Web 核对或写示例文件。
          *
          *     Args:
-         *         context: 任意已登录且完成改密的账号与审计来源，Origin 已通过全局检查。
+         *         context: 已登录且完成改密的管理员与审计来源，Origin 已通过全局检查。
          *         body: 期望字符串 0-256 码点、锁内暂停 0-10 秒，拒绝文件路径和操作者声明。
          *
          *     Returns:
@@ -2066,6 +2068,7 @@ export interface paths {
          *     Raises:
          *         JobInputError: 参数不合格或类型未登记，422；不以当前文件状态拒绝提交。
          *         AuthenticationError: 事务内身份失效，401。
+         *         AuthorizationError: 当前账号不是管理员，403。
          *         PasswordChangeRequiredError: 账号须改口令，403。
          *         ConflictError: 提交写锁/约束冲突，409。
          *         InputError: 数据库损坏，400。
@@ -2386,7 +2389,8 @@ export interface paths {
          *         job_id: 正整数十进制文本，通过记录取得 log_path。
          *
          *     Returns:
-         *         HTTP 200，available/not_started/cleared 及最后至多 50 行；文件已清除不是 500。
+         *         HTTP 200，available/not_started/cleared 及最后至多 50 行；成员版本移除绝对路径、命令和stderr。
+         *         文件已清除不是 500。
          *
          *     Raises:
          *         JobInputError: 编号非法，422。
@@ -4979,10 +4983,16 @@ export interface components {
          *         result: LoginResult，必填。
          *         source_ip: ASGI client 的 IP；缺失 None。
          *         request_id: 请求编号；未知账号 None。
+         *         attempt_count: 同一等待期的尝试次数，正整数，普通日志为1。
          *         failure_category: 执行故障的四类类别；其他结果 None，不带内部异常文本。
          */
         LoginResponse: {
             account: components["schemas"]["HistoricalActorResponse"] | null;
+            /**
+             * Attempt Count
+             * @default 1
+             */
+            attempt_count: number;
             failure_category: components["schemas"]["DiagnosticCategory"] | null;
             kind: components["schemas"]["LoginKind"];
             /** Log Id */
@@ -5415,8 +5425,8 @@ export interface components {
          *         type: 问题类型 URI，固定 about:blank，无单位，默认 about:blank；不虚构文档 URI。
          *         title: 对应 HTTPStatus.phrase 的标准英文状态短语，非空白，无单位，必填，无默认值；
          *             中文说明放 detail，符合 about:blank 约定。
-         *         status: HTTP 状态码，严格整数，仅 400/404/422/401/403/429/409/502/500；拒绝 bool；
-         *             无单位，必填，无默认值。INPUT 对应前六种，其余类别依次对应后三种。
+         *         status: HTTP 状态码，严格整数，仅 400/404/422/401/403/413/429/409/502/500；拒绝 bool；
+         *             无单位，必填，无默认值。INPUT 对应前七种，其余类别依次对应后三种。
          *         detail: 一句安全的中文摘要，非空白，无单位，必填，无默认值；程序缺陷固定为
          *             “平台内部错误，请把错误编号交给维护者。”，不回显 str(error)。
          *         category: 四类 DiagnosticCategory 之一，无单位，必填，无默认值。
@@ -6146,6 +6156,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -6253,6 +6272,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -6349,6 +6377,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6465,6 +6502,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -6574,6 +6620,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -6676,6 +6731,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6794,6 +6858,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -6904,6 +6977,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -6998,6 +7080,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7110,6 +7201,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -7215,6 +7315,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -7309,6 +7418,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7419,6 +7537,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -7519,6 +7646,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7650,6 +7786,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -7744,6 +7889,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7856,6 +8010,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -7952,6 +8115,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8064,6 +8236,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -8160,6 +8341,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8268,6 +8458,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -8362,6 +8561,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8474,6 +8682,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -8579,6 +8796,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -8675,6 +8901,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8787,6 +9022,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -8885,6 +9129,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8994,6 +9247,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9121,6 +9383,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -9221,6 +9492,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9345,6 +9625,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description 范围不可满足；Content-Range为bytes *\/total */
             416: {
                 headers: {
@@ -9460,6 +9749,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -9568,6 +9866,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -9664,6 +9971,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9779,6 +10095,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -9887,6 +10212,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -9981,6 +10315,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10093,6 +10436,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -10187,6 +10539,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10297,6 +10658,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -10391,6 +10761,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10503,6 +10882,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -10601,6 +10989,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10713,6 +11110,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -10811,6 +11217,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10923,6 +11338,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11021,6 +11445,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11133,6 +11566,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11231,6 +11673,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11343,6 +11794,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11441,6 +11901,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11551,6 +12020,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11654,6 +12132,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11750,6 +12237,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11864,6 +12360,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11960,6 +12465,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12074,6 +12588,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12170,6 +12693,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12280,6 +12812,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12376,6 +12917,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12486,6 +13036,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12582,6 +13141,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12690,6 +13258,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -12784,6 +13361,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12892,6 +13478,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -12986,6 +13581,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13098,6 +13702,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13196,6 +13809,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13306,6 +13928,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13402,6 +14033,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13510,6 +14150,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -13604,6 +14253,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13716,6 +14374,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13810,6 +14477,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13918,6 +14594,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -14019,6 +14704,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -14113,6 +14807,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

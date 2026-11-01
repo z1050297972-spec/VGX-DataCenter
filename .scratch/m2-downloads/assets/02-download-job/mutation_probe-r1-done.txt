@@ -1,0 +1,11 @@
+被抓住：拒绝 huggingface.co
+被抓住：拒绝 huggingface.co 子域
+漏网：跳数上限
+被抓住：周期复探
+被抓住：续跑跳过已完成文件
+被抓住：权重目标不覆盖
+漏网：token 不发往非镜像
+被抓住：aria2 sha256 校验
+被抓住：运行中改并发
+被抓住：取消先 forceRemove
+被抓住：curl 限速

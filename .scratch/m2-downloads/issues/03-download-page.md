@@ -1,6 +1,6 @@
 # 下载页面
 
-Status: ready-for-agent
+Status: in-review
 
 分级：直做。理由：在第 01、02 张的契约上加接口和页面，不新增领域对象。如果需要改第 02 张的作业参数或表结构，升为骨架关卡。
 
@@ -42,3 +42,18 @@ Status: ready-for-agent
 - 浏览器演练：在探针工作目录起一个开发实例，走一遍"填表 → 预览失败（开着 VPN，镜像 308）→ 显示诊断"，截图存 assets。
 
 ## Comments
+- 2026-11-01 01:15，开票，派工 A（直做，一次派工）。分支 `t/m2-downloads`（`0f7bebd`），新会话 `01a195f6-be78-73b3-9457-5501fada829a`，模型 `gpt-6.1-terra` high，unit `rdp-m2-03-A`，快照 `refs/rdp/m2-03/A`，提示 `assets/03-download-page/prompt-A.md`。测试按 spec「测试范围」只列关键行为。
+- 2026-11-01 01:20，派工 A 交回（约 5 分钟）：只做了一个提交下载的接口就交了，自己也说没碰到停下条件。续接派工 A2，要求一轮内做完全部项再交（不计打回）。unit `rdp-m2-03-A2`，快照 `refs/rdp/m2-03/A2`，提示 `assets/03-download-page/prompt-A2.md`。
+- 2026-11-01 01:29，派工 A2 交回（约 9 分钟）：后端做了提交、调参、token 三个接口和测试，预览、暂存、前端都还没做。Codex 自己说"又提前结束了"。看来 gpt-6.1-terra 每轮只工作 5–10 分钟。改用自动续接循环（`~/.cache/rdp-dispatch/m2-03/run-loop.sh`，unit `rdp-m2-03-loop`）：每轮结束看回复第一行，是"状态：全部完成"就停，最多 10 轮。提示 `assets/03-download-page/prompt-loop.md`，快照 `refs/rdp/m2-03/loop`，每轮的结果记在 `~/.cache/rdp-dispatch/m2-03/loop.log`。
+- 2026-11-01 02:03，自动续接循环跑满 10 轮，每轮都报"未完成"，功能基本做齐。剩下两件：token 操作审计、浏览器演练。执行线批准给审计操作码只增不改地加"设置/清除下载 token"两个值，派工 final 补上审计。之后派工 fix 修了两处页面问题：预览里"已在暂存区"的说法不准确；作业详情只显示了 2 个参数，补齐到 7 个。
+- 2026-11-01，评审（按 spec「测试范围」）：
+  - 文件归属：只有 `src/`、`tests/`、生成的接口类型、迁移 0015（`v0015_download_staging`，暂接 0013，合并时统一改号）。主仓库无改动。通过。
+  - 运行日志：所有轮次无旧项目路径、安装或联网命令、`/mnt` 命令。通过。
+  - 变异抽查（`assets/03-download-page/mutation_probe.py`，结果 `mutation_probe-A-done.txt`）：token 接口要管理员、token 文件 0600、token 操作写日志、删暂存要管理员（提交和重提两处）、删暂存被占用返回 409，全部抓住。"占用判断按仓库"是执行线写错的等价变异，不计。
+  - 浏览器演练（`assets/03-download-page/browser-drill.sh`、`.mjs`，日志 `browser-drill-run.log`，截图 `drill/m203-*.png`）：在探针工作目录起 Web 和 worker，空导航层，端口 8633，dataset1 在演练配置里登记为可写（只用来预览）。结果：
+    - 导航里有"下载"；高级参数 6 项（默认值、范围）都在；1280 宽度没有横向溢出。
+    - 开着 VPN 预览 `lerobot/pusht`：页面显示诊断卡片 `download.mirror_redirect`"镜像不生效，返回重定向"，提示"关闭 VPN，或让 hf-mirror.com 走直连后重试"。
+    - 暂存区刷新后显示生成时间和空列表。
+    - token 设置后页面只显示"已设置"，不回显明文；清除后显示"未设置"。操作日志有 `set_download_token`、`clear_download_token` 各一条；web/worker 的输出和日志里 token 明文出现 0 次。
+    - 两块数据盘写入扇区数前后相同。
+  - 实现提交 `b42b696`（`实现：下载页面`），钩子全绿（2727 passed、Vitest 378）。第 03 张完成，等 M2 整体合并。

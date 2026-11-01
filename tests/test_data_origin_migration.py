@@ -26,7 +26,7 @@ def test_migration_preserves_populated_index_and_expands_origins(
     shutil.copytree(
         source,
         historical,
-        ignore=shutil.ignore_patterns("v0011*", "v0012*", "v0013*", "v0015*", "v0016*"),
+        ignore=shutil.ignore_patterns("v0011*", "v0012*", "v0013*", "v0014*", "v0015*", "v0016*"),
     )
     with monkeypatch.context() as patch:
         patch.setattr("rdp.infra.db.migration.__file__", str(historical.parent / "migration.py"))

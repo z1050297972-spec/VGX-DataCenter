@@ -10,6 +10,7 @@ from collections.abc import Callable
 from functools import partial
 from pathlib import PurePosixPath
 
+from rdp.accounts.types import Role
 from rdp.infra.db.connection import session_scope
 from rdp.infra.diagnostics import DefectError
 from rdp.infra.timeutil import ensure_utc
@@ -69,6 +70,7 @@ def build_data_origin_definition(dependencies: NavWriteDependencies | None) -> J
         DataOriginParameters,
         RecoveryMode.RESTART,
         partial(_execute, dependencies),
+        submission_role=Role.MEMBER,
     )
 
 

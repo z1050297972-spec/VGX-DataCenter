@@ -94,6 +94,7 @@ const login: LoginLogPage["items"][number] = {
   source_ip: null,
   request_id: null,
   failure_category: null,
+  attempt_count: 1,
 };
 function mount(path: string, fetchImpl: FetchImplementation = transport()) {
   const queryClient = newCache();

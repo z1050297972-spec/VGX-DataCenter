@@ -11,8 +11,8 @@
 .field-editor label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 12px 0;
+  gap: var(--rdp-space-2);
+  margin: var(--rdp-space-4) 0;
 }
 .field-editor .ant-select,
 .field-editor textarea {
@@ -22,15 +22,15 @@
 .field-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--rdp-space-3);
 }
 .field-differences article {
-  border: 1px solid #d9d9d9;
-  padding: 8px;
-  margin: 8px 0;
+  border: var(--rdp-line) solid var(--rdp-border);
+  padding: var(--rdp-space-3);
+  margin: var(--rdp-space-3) 0;
 }
 .field-differences dd {
-  margin: 0 0 12px;
+  margin: 0 0 var(--rdp-space-4);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

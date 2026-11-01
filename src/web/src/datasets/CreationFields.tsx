@@ -1,6 +1,7 @@
+import "./creation.css";
 // 创建表单中的单条链接输入；只编辑生成的类型，不复制服务端格式目录映射。
 import type { ReactElement } from "react";
-import { Input } from "antd";
+import { Input, Select } from "antd";
 import type { CreationOptions, LinkPreviewInput } from "../api/datasetCreation";
 
 /** 链接字段的受控属性。 */
@@ -50,20 +51,20 @@ export function LinkFields(props: LinkFieldsProps): ReactElement {
       </label>
       <label>
         无元信息时的格式
-        <select
+        <Select<string>
+          virtual={false}
           aria-label="无元信息时的格式"
+          disabled={props.disabled}
+          className="creation-select-full"
           value={props.value.fallback_format ?? ""}
-          onChange={(event) => {
-            props.onChange({ ...props.value, fallback_format: event.target.value || null });
+          options={[
+            { value: "", label: "有 meta/info.json 时使用文件内容" },
+            ...props.options.formats.map((item) => ({ value: item.format, label: item.directory })),
+          ]}
+          onChange={(value) => {
+            props.onChange({ ...props.value, fallback_format: value || null });
           }}
-        >
-          <option value="">有 meta/info.json 时使用文件内容</option>
-          {props.options.formats.map((item) => (
-            <option key={item.format} value={item.format}>
-              {item.directory}
-            </option>
-          ))}
-        </select>
+        />
       </label>
       <p className="creation-note">
         没有 meta/info.json 时请选格式；存在元信息时以文件为准。链接不会修改目标数据。

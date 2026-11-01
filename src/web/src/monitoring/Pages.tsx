@@ -141,12 +141,7 @@ function NetworkChart({ history }: { history: Resources["history"] }): ReactElem
         <p>等待下一次采样</p>
       )}
       <p>曲线：蓝色为接收，橙色为发送</p>
-      <svg
-        role="img"
-        aria-label="网速折线"
-        viewBox="0 0 600 120"
-        style={{ width: "100%", height: 120 }}
-      >
+      <svg role="img" aria-label="网速折线" viewBox="0 0 600 120" width="100%" height={120}>
         <polyline points={coordinates("receive")} fill="none" stroke="#1677ff" strokeWidth="2" />
         <polyline points={coordinates("send")} fill="none" stroke="#d46b08" strokeWidth="2" />
       </svg>

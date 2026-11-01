@@ -111,7 +111,8 @@ def submit_ingest_preview(
     return _response(
         context.service.submit(
             _request(context), INGEST_PREVIEW_TYPE, parameters.model_dump(mode="json")
-        )
+        ),
+        role=identity(context.account).account.role,
     )
 
 
@@ -175,5 +176,11 @@ def confirm_ingest(context: JobContext, body: IngestConfirmation) -> JobResponse
     identifier = int(body.preview_job_id)
     _read(context, identifier)
     return _response(
-        context.service.submit(_request(context), INGEST_APPLY_TYPE, {"preview_job_id": identifier})
+        context.service.submit(
+            _request(context),
+            INGEST_APPLY_TYPE,
+            {"preview_job_id": identifier},
+            confirmed_write=True,
+        ),
+        role=identity(context.account).account.role,
     )

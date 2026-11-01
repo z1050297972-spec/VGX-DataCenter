@@ -2,6 +2,7 @@
 
 from functools import partial
 
+from rdp.accounts.types import Role
 from rdp.infra.diagnostics import DefectError
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.navwrite.jobs import run_preview
@@ -36,6 +37,7 @@ def build_repoint_definition(dependencies: NavWriteDependencies | None) -> JobDe
         RepointParameters,
         RecoveryMode.RESTART,
         partial(_execute, dependencies),
+        submission_role=Role.MEMBER,
     )
 
 

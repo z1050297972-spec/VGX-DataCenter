@@ -177,8 +177,11 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
             timeout_graceful_shutdown=WEB_REQUEST_STOP_TIMEOUT_S,
         )
         code = 0
+    except FileNotFoundError:
+        logger.error("前端构建产物缺失，请先构建")
+        code = 1
     except (Exception, SystemExit):
-        logger.error("Web运行失败；数据库版本不匹配时请运行 rdp migrate", exc_info=True)
+        logger.error("Web运行失败，请查看诊断", exc_info=True)
         code = 1
     finally:
         try:

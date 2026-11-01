@@ -121,7 +121,11 @@ def test_upgrade_schema(tmp_path: Path) -> None:
             }
             assert (
                 compare_metadata(
-                    MigrationContext.configure(connection, opts={"compare_type": True}), metadata
+                    MigrationContext.configure(
+                        connection,
+                        opts={"compare_type": True, "include_object": _historical_object},
+                    ),
+                    metadata,
                 )
                 == []
             )
@@ -254,4 +258,16 @@ def test_frozen_sql_matches_models(tmp_path: Path) -> None:
             sql = "SELECT sql FROM sqlite_master WHERE name=?"
             actual_sql = actual.execute(sql, (table,)).fetchone()[0]
             expected_sql = expected.execute(sql, (table,)).fetchone()[0]
-            assert re.sub(r"\s+", " ", actual_sql) == re.sub(r"\s+", " ", expected_sql)
+            expected_sql = re.sub(r"\s+", " ", expected_sql)
+            if table == "login_logs":
+                expected_sql = expected_sql.replace(
+                    ", attempt_count INTEGER DEFAULT '1' NOT NULL, waiting_until TEXT", ""
+                ).replace(", CONSTRAINT ck_login_logs_attempt_count CHECK (attempt_count > 0)", "")
+            assert re.sub(r"\s+", " ", actual_sql) == expected_sql
+
+
+def _historical_object(
+    item: object, name: str | None, type_name: str, reflected: bool, compared: object
+) -> bool:
+    """历史0003只比较其自身字段，0013新增列由当前head的元数据检查负责。"""
+    return type_name != "column" or name not in {"attempt_count", "waiting_until"}

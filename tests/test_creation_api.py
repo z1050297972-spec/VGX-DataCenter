@@ -332,6 +332,7 @@ def test_submitter_and_storage_failures(tmp_path: Path, fake_nav: FakeNavigation
         from sqlalchemy import event
 
         identifier = preview_job(api, deps, fake_nav)
+        # 专用确认已核验保存的预览，成员仍可确认；通用提交另受 D2 角色限制。
         add_actor(api)
         assert api.login("member", SecretStr("member-updated-value")).status_code == 200
         submitted = api.client.post(

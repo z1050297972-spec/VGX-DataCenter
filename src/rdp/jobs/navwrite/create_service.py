@@ -271,7 +271,9 @@ def submit_creation_write(
     query.validate_queue_ids(acknowledged_queue_job_ids)
     preview, _parameters = query.load(access, request, preview_job_id)
     query.confirm_queue(access, request, preview.plan.dataset_ids, acknowledged_queue_job_ids)
-    return access.jobs.submit(request, NAV_APPLY_TYPE, {"preview_job_id": preview_job_id})
+    return access.jobs.submit(
+        request, NAV_APPLY_TYPE, {"preview_job_id": preview_job_id}, confirmed_write=True
+    )
 
 
 def _format_options(

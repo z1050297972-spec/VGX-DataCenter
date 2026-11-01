@@ -53,7 +53,8 @@ def test_active_declarations() -> None:
         "0010_nav_write_foundation",
         "0011_data_origin",
         "0012_scene_task_index",
-        "0013_download_adjustments",
+        "0013_login_wait_attempts",
+        "0014_download_adjustments",
         "0015_download_staging",
         "0016_monitoring",
     }

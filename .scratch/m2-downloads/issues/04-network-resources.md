@@ -1,6 +1,6 @@
 # 网络与资源监控
 
-Status: ready-for-agent
+Status: in-review
 
 分级：直做。理由：只读系统状态的展示页，复用第 01 张的镜像探测。
 
@@ -41,3 +41,7 @@ Status: ready-for-agent
 - 浏览器演练：开发实例上打开页面，截图；把页面上的 VPN 结论、网速与 `ip -br link`、`/proc/net/dev` 当时的值对照，记进 Comments。
 
 ## Comments
+- 2026-11-01 02:28，开票（直做）。一开始就用自动续接循环（`~/.cache/rdp-dispatch/m2-04/run-loop.sh`，unit `rdp-m2-04-loop`）：第一轮新会话，之后最多续接 12 轮，直到回复第一行是"状态：全部完成"。提示 `assets/04-network-resources/prompt-A.md`、`prompt-loop.md`；测试按 spec「测试范围」只列关键行为；新迁移用 0016。快照 `refs/rdp/m2-04/A`。
+- 2026-11-01 03:20，续接到第 6 轮，功能做齐，Codex 仍标"未完成"（只因为执行线说过不用做的两项）。执行线停掉循环。期间执行线指出"每分钟提交一个镜像检查作业"会每天堆出约 1440 条作业记录，已改成 worker 内部的周期线程，结果写单行状态表。
+- 2026-11-01，评审：日志无违规；文件归属只在 `src/`、`tests/`、迁移 0016、生成的接口类型。变异抽查（`assets/04-network-resources/mutation_probe.py`）：TUN 判开、代理进程判开、代理变量判开、代理变量去口令、网速按时间算、308 判不生效，6 个全部抓住。浏览器演练（`browser-drill.sh`、`.mjs`、`browser-drill-run.log`、`drill/m204-1-monitoring.png`）：镜像状态显示"镜像不生效"并带检查时间；网卡列表和 `ip -br link` 一致；网速、磁盘、GPU、CPU、内存都有数；1280 宽度无溢出。**发现漏判**：开着 Clash Verge，页面却显示"隧道网卡 off、代理进程 off"。原因是 TUN 网卡名叫 `Mihomo`（不是 tun 前缀），进程名是 `verge-mihomo`、`clash-verge-ser`。
+- 2026-11-01，修复轮 r1（第 1 轮打回，按负责人"换成6.1 sol"改用 `gpt-6.1-sol` 续接）：网卡改按 `tun_flags` 判断，排除 `tailscale` 开头的网卡（负责人经 Tailscale SSH 登录）；进程改成子串匹配；补了回归用例。执行线在本机直接调用 `vpn_status` 核对：三项都是 on。实现提交 `5096e81`（`实现：网络与资源监控`），钩子全绿（2740 passed）。第 04 张完成。

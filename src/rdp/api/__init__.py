@@ -21,6 +21,7 @@ from rdp.api._asgi import ASGIApp as _ASGIApp
 from rdp.api._asgi import ASGIMessage as _ASGIMessage
 from rdp.api._asgi import Receive as _Receive
 from rdp.api._asgi import Send as _Send
+from rdp.api._body_limit import RequestBodyLimit, install_body_limit
 from rdp.api.account_auth import install_account_security
 from rdp.api.accounts import router as accounts_router
 from rdp.api.audit import router as audit_router
@@ -130,7 +131,9 @@ class _RequestContextApp(FastAPI):
         """返回 RequestIdMiddleware 包装的父类中间件栈；构建时不绑定编号或改变路由。"""
         # 依赖 Starlette 的 build_middleware_stack 包含错误处理中间件这一行为。
         # 升级 FastAPI/Starlette 时重看此方法，并重跑框架 500 的响应头契约测试。
-        return RequestIdMiddleware(ErrorBoundary(super().build_middleware_stack()))
+        return RequestIdMiddleware(
+            ErrorBoundary(RequestBodyLimit(super().build_middleware_stack()))
+        )
 
 
 def _unknown_api() -> Response:
@@ -139,9 +142,10 @@ def _unknown_api() -> Response:
 
 
 def _install_job_and_monitoring_routes(app: FastAPI) -> None:
-    """一次登记作业和监控入口；只装配路由，不执行采样。"""
+    """一次登记作业、下载凭据和监控入口；只装配路由，不执行采样。"""
     app.include_router(jobs_router)
     app.include_router(download_ingest_router)
+    app.include_router(download_tokens_router)
     app.include_router(monitoring_router)
 
 
@@ -226,6 +230,7 @@ def create_app(
     app = _RequestContextApp(
         title="机器人数据管理平台", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None
     )
+    install_body_limit(app)
     app.state.monitoring_sampler, app.state.accounts_clock = ResourceSampler(), clock
     if database is not None:
         configure_database(app, database)
@@ -244,7 +249,6 @@ def create_app(
     app.include_router(audit_router)
     # 08 作业和心跳均允许全部登录账号，复用全局鉴权和同源写请求边界。
     _install_job_and_monitoring_routes(app)
-    app.include_router(download_tokens_router)
     # 数据集路由与M0共享认证/Origin及统一诊断；必须先于API兜底登记，离线可导出类型。
     app.include_router(datasets_router)
     app.include_router(dataset_creation_router)
