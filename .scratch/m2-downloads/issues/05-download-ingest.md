@@ -1,6 +1,6 @@
 # 下载入库
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：直做（负责人 2026-10-30 已预授权骨架按建议过）。理由：复用 M1 的"新增数据集"写入底座（预览 → 确认 → 写入，可撤回），本票只加一个入口和入库前的检查；不改 M1 的公开契约。如果做的时候发现必须改 M1 的写入底座或 `来源.json` 格式，停下来。
 
@@ -58,3 +58,4 @@ Status: ready-for-agent
 7. 演练（执行线做）：在假导航层副本上用一个本地伪造的"已下载暂存目录"（小 LeRobot 样本）走一遍入库，截图。
 
 ## Comments
+- 2026-11-01 03:37，开票（直做），派工 A，模型 `gpt-6.1-sol` high（负责人"换成6.1 sol"），unit `rdp-m2-05-A`，快照 `refs/rdp/m2-05/A`，提示 `assets/05-download-ingest/prompt-A.md`。
