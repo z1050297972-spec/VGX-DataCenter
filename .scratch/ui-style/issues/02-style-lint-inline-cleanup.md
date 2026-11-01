@@ -1,6 +1,6 @@
 # 样式机检与内联 style 清理
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：直做。理由：不新增领域对象，不改行为；只把内联 style 挪到 CSS 类，加样式检查。
 
@@ -69,3 +69,8 @@ Status: ready-for-agent
 - M1/M0 线 datasets-e9 回复：他们现在没在改 Makefile、eslint.config.js 和这 10 个 tsx。M0-13 已合并；他们的下一张是 M0 第 12 张备份，以后端为主，开工前会先 pull main。真实部署由他们统一升级。
 - 安装 stylelint 被自动权限检查拦下（判定为外部代码），等负责人亲自执行 `pnpm add`。
 - 负责人决定（datasets-e9 转达）：M2 下载线和前端样式线手上的任务都合进 main 后，真实部署统一升级一次。**本票合并后，给 datasets-e9 发消息，写上合并提交号。**升级由他们做。
+
+### 2026-11-01 依赖与派工（执行线）
+
+- 负责人用 `!` 亲自执行了 `pnpm add -D stylelint@17.16.0 stylelint-config-standard@40.0.0`。核对过：只改了 `package.json`（两行）和锁文件（只有新增条目）。依赖提交 `36977d4`，钩子跑的 `make check` 全绿。
+- 派工 A：Codex gpt-6.1-terra high，systemd 单元 `rdp-codex-ui-02`，会话 `01a19644-6bb2-7192-95b5-ee69e07ecfd2`，日志 `~/.cache/rdp-dispatch/ui-02/`，提示 `assets/02/prompt-A.md`。
