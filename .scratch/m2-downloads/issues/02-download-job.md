@@ -1,6 +1,6 @@
 # 下载作业
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：骨架关卡（负责人 2026-10-30 预授权"骨架按建议过"，执行线审完直接进实现，决定记 Comments）。理由：新作业类型、外部进程（aria2 RPC）的协议边界、续跑语义。
 
@@ -58,3 +58,20 @@ Status: ready-for-agent
 - `make check` 全绿。
 
 ## Comments
+- 2026-10-30，开票：分支 `t/m2-downloads` 已含第 01 张实现（`0e9d39d`）和 main 合并（`b57c7bc`，迁移 head 是 0012，本票迁移用 0013）。合并提交时钩子全绿。
+- 2026-10-30 20:01，派工 A。新会话 `01a18fb0-7a1e-7db2-b0fc-fc59b6526c3e`，模型 `gpt-6.1-terra` high，快照 `refs/rdp/m2-02/A`，提示 `assets/02-download-job/prompt-A.md`，日志 `~/.cache/rdp-dispatch/m2-02/ev-A.jsonl`，PID 2069384。骨架关卡已预授权，执行线审完直接进实现。
+- 2026-10-30 20:21，派工 A 交回（约 20 分钟）。日志无违规；文件归属只在 `src/`、`tests/` 和迁移 0013。骨架关卡（预授权，执行线定）：
+  - 本机下载网关：不批准，太重。改成逐文件预解析跳转（最多 5 跳，拒绝 huggingface.co）+ 每 60 秒复探镜像 + 签名过期时重解析。残余风险是预解析和真正请求之间的时间窗，写进 docstring。
+  - curl 兜底：aria2 这一轮结束后串行补下，手动校验每一跳，token 不放命令行。
+  - 429 自适应降速：不做（拿不到可靠的 429 信号），记遗留。
+  - 校验缓存、接口放第 03 张、`download_adjustments` 表：按 Codex 方案；限速上限 10 GiB/s。
+  - 下载类型并发覆盖大于 1 时启动报错；测试挪到 `tests/jobs/downloads/test_job.py`；worker 装配真实依赖。
+  快照 `refs/rdp/m2-02/A-done`，契约提交 `c52221b`（钩子全绿）。
+- 2026-10-30 20:25，派工 B。续接会话 `01a18fb0-7a1e-7db2-b0fc-fc59b6526c3e`，快照 `refs/rdp/m2-02/B`，提示 `assets/02-download-job/prompt-B.md`，PID 3046769。
+- 2026-10-30 20:32，派工 B 交回（约 7 分钟）：只改了契约，没开始实现。停下的原因成立：第 01 张的传输只允许连镜像主机，逐跳解析却要访问 CDN。执行线批准方案 1：第 01 张不动，另加一个可注入的单跳传输（不带 token，只强制 HTTPS）；每一跳用 `GET` + `Range: bytes=0-0`。
+- 2026-10-30，派工 B2（续接，不计打回）。快照 `refs/rdp/m2-02/B2`，提示 `assets/02-download-job/prompt-B2.md`。
+- 2026-10-30 21:23，派工 B2 交回（约 50 分钟）：21 个测试去掉了跳过，还剩 15 个，aria2 进程、curl、装配、集成测试都没做。又停下来问首跳的 Range 处理。执行线批准方案 1（首跳也用受控的 Range 单跳传输，第 01 张不动），并放宽停下条件：内部设计选择 Codex 自己定，写进回复，只有三种情况才停。
+- 2026-10-30，派工 B3（续接，不计打回）。快照 `refs/rdp/m2-02/B3`，提示 `assets/02-download-job/prompt-B3.md`。
+- 2026-10-30 21:53，派工 B3 中断：运行约 30 分钟，日志停在接入周期复探那一步，没有 `turn.completed`。执行线会话结束时它被一起杀掉了，`setsid` 没挡住；10-31 22:24 机器还重启过。工作区改动都在。
+- 2026-11-01 00:24，派工 B4（中断后续接，不计打回）。改用 `systemd-run --user` 启动（unit `rdp-m2-02-B4b`，Linger=yes，不受会话退出影响）。快照 `refs/rdp/m2-02/B4`，提示 `assets/02-download-job/prompt-B4.md`，启动脚本 `~/.cache/rdp-dispatch/m2-02/run-B4.sh`。
+- 2026-11-01，负责人："gpt模型时长会做过多防御性的工作，导致时间被托的很长，能否让他只做关键性的测试，我觉得这样也能加快一些速度"。执行线停掉 B4（unit 已 stop，跑了约 10 分钟），按 spec「测试范围」收窄：只留 8 类关键测试，还在跳过的、不在名单里的直接删掉，不加罕见情况的防御分支。派工 B5（续接，不计打回），unit `rdp-m2-02-B5`，快照 `refs/rdp/m2-02/B5`，提示 `assets/02-download-job/prompt-B5.md`。

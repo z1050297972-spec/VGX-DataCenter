@@ -1,0 +1,84 @@
+{
+  "issue": "M1.5-04",
+  "date": "2026-10-30",
+  "seams": [
+    "工单指定的真实认证ASGI接口和临时假导航层",
+    "真实Router/Query/HTTP前端交互",
+    "ffmpeg/ffprobe子进程及pyarrow文件对象边界"
+  ],
+  "red_green": [
+    {
+      "test": "test_parquet_schema_paging_and_noatime",
+      "red": "新接口404",
+      "log": "/tmp/m15-04-red-parquet.log"
+    },
+    {
+      "test": "test_video_probe_and_transcode_use_inherited_noatime_fd",
+      "red": "video-info接口404",
+      "log": "/tmp/m15-04-red-video.log"
+    },
+    {
+      "test": "视频unsupported/error自动转码并按段跳转",
+      "red": "原文件URL未切换到video接口",
+      "log": "/tmp/m15-04-red-video-ui.log"
+    },
+    {
+      "test": "test_disconnect_before_video_headers_kills_process[False]",
+      "red": "断开后真实子进程仍存活",
+      "log": "/tmp/m15-04-red-disconnect.log"
+    },
+    {
+      "test": "parquet显示表结构、截断标记并分页",
+      "red": "没有parquet预览区域",
+      "log": "/tmp/m15-04-red-parquet-ui.log"
+    },
+    {
+      "test": "test_video_missing_tool_reports_file_identity",
+      "red": "工具诊断缺dataset_id",
+      "log": "/tmp/m15-04-red-identity.log"
+    },
+    {
+      "test": "test_parquet_openapi_declares_200_row_limit",
+      "red": "OpenAPI仍声明目录页长500",
+      "log": "/tmp/m15-04-red-openapi-limit.log"
+    }
+  ],
+  "initial_green_regressions": {
+    "reason": "以下验收补测所覆盖的行为已由前面的纵向切片实现；初跑为绿，不伪称实现前红灯。大文件契约另做阈值变异，断开补测还覆盖流发送中取消。",
+    "tests": [
+      "test_parquet_large_schema_only_and_invalid_input",
+      "test_video_concurrency_is_two_and_recovers",
+      "test_video_timeout_and_bad_parameters",
+      "test_disconnect_before_video_headers_kills_process[True]"
+    ]
+  },
+  "mutations": [
+    {
+      "change": "删除pass_fds继承列表",
+      "result": "killed",
+      "test": "test_video_probe_and_transcode_use_inherited_noatime_fd",
+      "log": "/tmp/m15-04-mutation-fd.log"
+    },
+    {
+      "change": "parquet只读结构阈值从2GiB错改为4GiB",
+      "result": "killed",
+      "test": "test_parquet_large_schema_only_and_invalid_input",
+      "log": "/tmp/m15-04-mutation-parquet.log"
+    }
+  ],
+  "mutation_isolation": "仅在/tmp/m15-04-fd-mutation和/tmp/m15-04-parquet-mutation源码副本中变异，通过PYTHONPATH和make check运行；工作区实现未被变异。",
+  "real_rehearsal": "未访问/mnt、真实部署、systemctl或8600。临时假数据服务18764已停止。CUA返回No browser is available，1280×900实际布局及真实数据演练留给执行线。",
+  "verification": {
+    "check_log": "/tmp/m15-04-final-check.log",
+    "build_log": "/tmp/m15-04-vite-build.log",
+    "entry_name": "index-Dn5aXEK2.js",
+    "entry_bytes": 55857,
+    "dist_removed": true,
+    "make_check_exit_code": 0,
+    "python_tests_passed": 2627,
+    "python_skipped": 0,
+    "vitest_files_passed": 39,
+    "vitest_tests_passed": 373,
+    "vitest_skipped": 0
+  }
+}
