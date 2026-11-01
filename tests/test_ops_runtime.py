@@ -239,3 +239,30 @@ def test_gpu_lookup_faults(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             resolve_nvidia_smi(
                 replace(inputs, which=Mock(return_value=str(tmp_path / "gpu"))), gpus=(0,)
             )
+
+
+def test_worker_download_dependencies_are_wired_only_for_worker(tmp_path: Path) -> None:
+    """验证 worker 的下载登记绑定真实外部适配器，Web 登记不具备执行能力。"""
+    from rdp.jobs.downloads.adapters import Aria2Supervisor, CurlDownloader, HashFileVerifier
+    from rdp.jobs.downloads.adjustments import SqlAdjustmentChannel
+    from rdp.jobs.downloads.job import DownloadExecutor
+
+    inputs = runtime_inputs(tmp_path)
+    for process in ("web", "worker"):
+        runtime = prepare_service(process, no_stderr=True, inputs=inputs)
+        try:
+            definition = runtime.registry.lookup("download")
+            assert definition is not None
+            executor = getattr(definition.execute, "__self__", None)
+            assert isinstance(executor, DownloadExecutor)
+            if process == "web":
+                assert executor.dependencies is None
+            else:
+                deps = executor.dependencies
+                assert deps is not None
+                assert isinstance(deps.process, Aria2Supervisor)
+                assert isinstance(deps.curl, CurlDownloader)
+                assert isinstance(deps.verifier, HashFileVerifier)
+                assert isinstance(deps.adjustments, SqlAdjustmentChannel)
+        finally:
+            runtime.engine.dispose()

@@ -10,8 +10,10 @@ import math
 import os
 import signal
 import subprocess
+import tempfile
 import time
 import unicodedata
+from contextlib import ExitStack
 from contextvars import copy_context
 from dataclasses import dataclass
 from pathlib import Path
@@ -123,6 +125,145 @@ def run_external_process(
     return _ProcessRun(command, reporter, log, reader, environment).run()
 
 
+class ManagedExternalProcess:
+    """可由作业驱动 RPC 的长进程，复用 M0 捕获与进程组清理设施。"""
+
+    def __init__(
+        self,
+        command: ToolCommand,
+        reporter: ProgressReporter,
+        log: JobLog,
+        clock: JobClock,
+        *,
+        stdin_data: bytes | None = None,
+    ) -> None:
+        """验证命令并绑定此次作业的日志和停止上下文。
+
+        Args:
+            command: 非秘密参数、绝对路径及有限超时。
+            reporter: 当前作业的信号和输出线程登记对象。
+            log: 作业日志。
+            clock: UTC 与单调时钟。
+            stdin_data: 可选标准输入，可能含凭据，不放命令行或日志。
+
+        Returns:
+            无，尚未启动进程。
+
+        Raises:
+            DefectError: 命令或时钟非法。
+
+        Side Effects:
+            无。
+
+        Time Semantics:
+            启动前校验，不等待外部进程。
+        """
+        _validate_command(command)
+        self._run = _ProcessRun(command, reporter, log, ClockReader(clock), None)
+        self._stopped = False
+        self._stdin_data = stdin_data
+
+    def start(self) -> None:
+        """启动独立进程组及受管输出读取线程。
+
+        Args:
+            无。
+
+        Returns:
+            无；进程创建后返回，不等待应用就绪。
+
+        Raises:
+            DefectError: 重复启动。
+            ExternalError: 子进程或日志输出线程启动失败。
+
+        Side Effects:
+            启动并登记子进程及输出线程；失败尝试有界清理。
+
+        Time Semantics:
+            应用层必须另设就绪等待预算。
+        """
+        if self._run.process is not None or self._stopped:
+            raise DefectError()
+        try:
+            with ExitStack() as stack:
+                if self._stdin_data is not None:
+                    # 匿名临时文件不携带可见路径，避免凭据进入命令行或残留文件。
+                    input_file = stack.enter_context(tempfile.TemporaryFile(mode="w+b"))
+                    input_file.write(self._stdin_data)
+                    input_file.seek(0)
+                    self._run.stdin = input_file
+                self._run.start()
+        except BaseException:
+            self._run.cleanup(terminate=True)
+            raise
+        finally:
+            self._stdin_data = None
+
+    def running(self) -> bool:
+        """观察直接子进程是否仍存活。
+
+        Args:
+            无。
+
+        Returns:
+            已启动且尚未退出时为 True。
+
+        Raises:
+            无。
+
+        Side Effects:
+            无；只读取进程状态。
+
+        Time Semantics:
+            观察值可能在返回后立即变化。
+        """
+        process = self._run.process
+        return process is not None and process.poll() is None
+
+    def returncode(self) -> int | None:
+        """读取直接子进程退出码。
+
+        Args:
+            无。
+
+        Returns:
+            进程未退出或未启动时为 None，否则为退出码。
+
+        Raises:
+            无。
+
+        Side Effects:
+            无；只读取进程状态。
+
+        Time Semantics:
+            非阻塞，返回的是本次轮询快照。
+        """
+        process = self._run.process
+        return None if process is None else process.poll()
+
+    def stop(self) -> None:
+        """按 M0 的 TERM、KILL 和线程回收规则停止进程组。
+
+        Args:
+            无。
+
+        Returns:
+            无；重复停止无操作。
+
+        Raises:
+            ExternalError: 进程组或输出线程无法在预算内回收。
+
+        Side Effects:
+            终止进程组并登记退出码。
+
+        Time Semantics:
+            遵循 PROCESS_TERM_GRACE_S 和 PROCESS_REAP_TIMEOUT_S。
+        """
+        if not self._stopped:
+            self._run.cleanup(terminate=True)
+            self._stopped = True
+
+
 class _ProcessRun:
     """一个直接进程及其两个读线程；独立进程组便于取消工具派生的后代。"""
 
@@ -137,6 +278,7 @@ class _ProcessRun:
         """保存当前命令及上报依赖，进程和读线程由run显式启动。"""
         self.command, self.reporter, self.log, self.clock = command, reporter, log, clock
         self.environment = environment
+        self.stdin: BinaryIO | None = None
         self.process: subprocess.Popen[bytes] | None = None
         self.readers: list[OutputReader] = []
         self.threads: list[Thread] = []
@@ -144,13 +286,13 @@ class _ProcessRun:
     def run(self) -> int:
         """任何路径都进入有限清理；清理失败优先报告，不能伪称取消已完成。"""
         try:
-            self._start()
+            self.start()
             reason = self._poll()
         except BaseException:
-            self._cleanup(terminate=True)
+            self.cleanup(terminate=True)
             raise
         else:
-            self._cleanup(terminate=reason is not None)
+            self.cleanup(terminate=reason is not None)
         if reason is not None:
             failure = self._failure(reason)
             raise failure
@@ -163,7 +305,7 @@ class _ProcessRun:
         self.reporter.check_cancelled()
         return 0
 
-    def _start(self) -> None:
+    def start(self) -> None:
         """绝对程序及无shell参数来自登记执行函数，锁fd不可继承。"""
         if self.environment is not None:
             self.log.write_line(
@@ -178,6 +320,7 @@ class _ProcessRun:
                 self.command.argv,
                 cwd=self.command.cwd,
                 env=self.environment,
+                stdin=self.stdin,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 start_new_session=True,
@@ -217,7 +360,7 @@ class _ProcessRun:
             self.reporter.wait(min(PROCESS_POLL_INTERVAL_S, remaining))
         return None
 
-    def _cleanup(self, *, terminate: bool) -> None:
+    def cleanup(self, *, terminate: bool) -> None:
         """TERM有宽限，KILL后仍有独立回收上限；存活daemon读线程交monitor保留。"""
         process = self.process
         if process is None:

@@ -166,9 +166,9 @@ class DownloadAdjustmentRow(Base):
         requested_version: 已提交的非负版本。
         applied_version: 已成功应用的非负版本，不超过请求版本。
         requested_concurrency: 待生效文件并发，1 至 16。
-        requested_limit_bytes_per_s: 待生效速率，0 或至少 1024 bytes/s。
+        requested_limit_bytes_per_s: 待生效速率，0 或 1024 至 10737418240 bytes/s。
         effective_concurrency: 已生效文件并发，1 至 16。
-        effective_limit_bytes_per_s: 已生测速率，0 或至少 1024 bytes/s。
+        effective_limit_bytes_per_s: 已生测速率，0 或 1024 至 10737418240 bytes/s。
         speed_bytes_per_s: 当前传输速度，非负 bytes/s。
         total_files: 文件总数，非负。
         completed_files: 完成文件数，非负。
@@ -189,12 +189,12 @@ class DownloadAdjustmentRow(Base):
         ),
         CheckConstraint("requested_concurrency BETWEEN 1 AND 16", name="requested_concurrency"),
         CheckConstraint(
-            "requested_limit_bytes_per_s = 0 OR requested_limit_bytes_per_s >= 1024",
+            "requested_limit_bytes_per_s = 0 OR requested_limit_bytes_per_s BETWEEN 1024 AND 10737418240",
             name="requested_limit",
         ),
         CheckConstraint("effective_concurrency BETWEEN 1 AND 16", name="effective_concurrency"),
         CheckConstraint(
-            "effective_limit_bytes_per_s = 0 OR effective_limit_bytes_per_s >= 1024",
+            "effective_limit_bytes_per_s = 0 OR effective_limit_bytes_per_s BETWEEN 1024 AND 10737418240",
             name="effective_limit",
         ),
     )

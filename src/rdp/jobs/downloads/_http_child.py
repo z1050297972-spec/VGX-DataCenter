@@ -29,8 +29,14 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _urllib_request(
-    method: str, url: str, headers: Mapping[str, str], timeout_s: float, max_body_bytes: int
+def _urllib_request(  # noqa: PLR0913 - 子进程协议复用五项旧参数；协议迁移后可合并配置。
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    timeout_s: float,
+    max_body_bytes: int,
+    *,
+    first_byte_only: bool = False,
 ) -> HttpResponse:
     """在隔离进程中执行单次无代理且不跟随跳转的 urllib 请求。"""
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
@@ -44,7 +50,12 @@ def _urllib_request(
         chunks: list[bytes] = []
         size = 0
         while True:
-            chunk = response.read(min(_READ_CHUNK_BYTES, max_body_bytes + 1 - size))
+            # Range 被服务器忽略时也只读首字节，不能为探测而下载完整大文件。
+            if first_byte_only and size >= 1:
+                break
+            chunk = response.read(
+                1 if first_byte_only else min(_READ_CHUNK_BYTES, max_body_bytes + 1 - size)
+            )
             size += len(chunk)
             if size > max_body_bytes:
                 raise _BodyTooLargeError
@@ -77,6 +88,7 @@ def _main() -> None:
             request["headers"],
             request["timeout_s"],
             request["max_body_bytes"],
+            first_byte_only=request.get("first_byte_only", False),
         )
         data: dict[str, object] = {
             "status": result.status,

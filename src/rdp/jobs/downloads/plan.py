@@ -264,7 +264,12 @@ def _child_command() -> list[str]:
 
 
 def _bounded_request(
-    method: str, url: str, headers: Mapping[str, str], timeout_s: float
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    timeout_s: float,
+    *,
+    first_byte_only: bool = False,
 ) -> HttpResponse:
     """通过安全启动的子进程隔离 urllib，并按单调时钟终止和回收。"""
     deadline = time.monotonic() + HTTP_TOTAL_DEADLINE_S
@@ -275,6 +280,7 @@ def _bounded_request(
             "headers": dict(headers),
             "timeout_s": timeout_s,
             "max_body_bytes": HTTP_MAX_BODY_BYTES,
+            "first_byte_only": first_byte_only,
         }
     ).encode("utf-8")
     try:

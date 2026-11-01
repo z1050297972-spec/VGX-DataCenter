@@ -12,7 +12,7 @@ from typing import Literal, cast
 
 from sqlalchemy import Engine
 
-from rdp.infra.config import LoadedConfig, load_config
+from rdp.infra.config import LoadedConfig, PlatformConfig, load_config
 from rdp.infra.db.connection import create_database_engine
 from rdp.infra.db.migration import check_database_version
 from rdp.infra.diagnostics import (
@@ -41,6 +41,17 @@ from rdp.infra.storage import (
 from rdp.infra.version import DeploymentLayout, read_platform_version
 from rdp.jobs._clock import ClockReader
 from rdp.jobs.datasets.rescan import RescanDependencies
+from rdp.jobs.downloads._context import current as download_context
+from rdp.jobs.downloads.adapters import (
+    Aria2Supervisor,
+    CurlDownloader,
+    HashFileVerifier,
+    MirrorRangeHttpTransport,
+    RedirectHttpTransport,
+)
+from rdp.jobs.downloads.adjustments import SqlAdjustmentChannel
+from rdp.jobs.downloads.job import DownloadDependencies
+from rdp.jobs.downloads.plan import PlanDependencies, UrllibTransport
 from rdp.jobs.navwrite.wiring import build_nav_write_dependencies
 from rdp.jobs.registry import JobRegistry, production_registry
 from rdp.jobs.schedules import local_timezone, production_schedules
@@ -171,11 +182,14 @@ def prepare_service(
             if process == "worker"
             else None
         )
-        registry = production_registry(
-            rescan,
-            # 写导航层的依赖只在 worker 装配；Web 传 None，只能校验提交参数（import-linter 合约）。
-            build_nav_write_dependencies(rescan, paths) if rescan is not None else None,
-        )
+        navigation = build_nav_write_dependencies(rescan, paths) if rescan is not None else None
+        if rescan is None:
+            # Web 不注入存储根访问、进程或散列能力。
+            registry = production_registry(rescan, navigation)
+        else:
+            download = _download_dependencies(config, rescan, engine, paths)
+            registry = production_registry(rescan, navigation, download)
+
         try:
             registry.validate_storage_roots(roots=config.storage_roots)
         except ValueError as error:
@@ -198,6 +212,26 @@ def prepare_service(
     except BaseException:
         engine.dispose()
         raise
+
+
+def _download_dependencies(
+    config: PlatformConfig, rescan: RescanDependencies, engine: Engine, paths: StatePaths
+) -> DownloadDependencies:
+    """只在 worker 装配下载存储、子进程、网络与持久化能力。"""
+    if rescan.storage is None:
+        raise DefectError()
+    mirror = MirrorRangeHttpTransport()
+    redirects = RedirectHttpTransport()
+    plan = PlanDependencies(config, rescan.storage, UrllibTransport(), lambda _: None, lambda: None)
+    return DownloadDependencies(
+        plan,
+        mirror,
+        redirects,
+        Aria2Supervisor(config.jobs, paths.root),
+        CurlDownloader(Path("curl"), mirror, redirects),
+        HashFileVerifier(lambda: download_context().reporter.check_cancelled()),
+        SqlAdjustmentChannel(engine),
+    )
 
 
 def resolve_nvidia_smi(inputs: RuntimeInputs, *, gpus: tuple[int, ...]) -> Path | None:
