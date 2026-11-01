@@ -1,6 +1,7 @@
 """工单06 HTTP、鉴权与OpenAPI契约清单；实施时只用临时库、固定时钟和本地ASGI传输。"""
 
 import json
+import logging
 import sqlite3
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -793,6 +794,7 @@ def test_error_contract_headers() -> None:
 
 def test_error_contract_both_paths(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：handle_error与ErrorBoundary均输出429 Retry-After和同一X-Request-ID，只报告一次。"""
+    caplog.set_level(logging.INFO, logger="rdp.api.errors")
     diagnostic = Diagnostic(
         level=DiagnosticLevel.ERROR,
         category=DiagnosticCategory.INPUT,
@@ -811,7 +813,7 @@ def test_error_contract_both_paths(tmp_path: Path, caplog: pytest.LogCaptureFixt
     assert status == 429 and headers["retry-after"] == "12"
     assert payload["error_id"] == headers["x-request-id"]
     assert (
-        len([r for r in caplog.records if r.name == "rdp.api.errors" and r.levelname == "ERROR"])
+        len([r for r in caplog.records if r.name == "rdp.api.errors" and r.levelname == "INFO"])
         == 1
     )
     with api_case(tmp_path) as case:
@@ -826,9 +828,7 @@ def test_error_contract_both_paths(tmp_path: Path, caplog: pytest.LogCaptureFixt
         response = case.client.get("/api/wait-probe")
         assert response.status_code == 429 and response.headers["Retry-After"] == "12"
         assert (
-            len(
-                [r for r in caplog.records if r.name == "rdp.api.errors" and r.levelname == "ERROR"]
-            )
+            len([r for r in caplog.records if r.name == "rdp.api.errors" and r.levelname == "INFO"])
             == 1
         )
 

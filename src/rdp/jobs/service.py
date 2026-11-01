@@ -12,7 +12,7 @@ from typing import cast
 from sqlalchemy import Engine, select
 
 from rdp.accounts.service import authorize_job_actor, existing_account_ids
-from rdp.accounts.types import SessionIdentity
+from rdp.accounts.types import Role, SessionIdentity
 from rdp.audit.types import (
     AuditContext,
     AuditValues,
@@ -83,10 +83,10 @@ class JobService:
     def submit(
         self, request: JobRequest, type_name: str, parameters: dict[str, object]
     ) -> JobRecord:
-        """任何登录账号提交一个经类型模型校验的作业。
+        """按类型声明授权当前账号，再提交参数合格的作业。
 
         Args:
-            request: 必填身份、唯一请求时刻和审计来源；不要求管理员。
+            request: 必填身份、唯一请求时刻和审计来源；当前角色必须满足类型声明。
             type_name: 当前登记的稳定英文键。
             parameters: 不可信 JSON 对象，至多 JOB_PARAMETERS_MAX_BYTES，按当前模型严格校验。
 
@@ -97,6 +97,7 @@ class JobService:
         Raises:
             AuthenticationError: 事务内会话已撤销/过期或账号停用、删除。
             PasswordChangeRequiredError: 当前账号必须先改口令。
+            AuthorizationError: 成员提交管理员类型，先于类型参数校验拒绝。
             JobInputError: 未登记类型、非法参数、额外字段或编码后超长；不回显原值。
             InputError: 数据库损坏。
             ConflictError: 写锁、约束或作业编号耗尽。
@@ -104,7 +105,7 @@ class JobService:
             DefectError: 注入时刻/审计上下文、类型定义、SQL 或序列化错误。
 
         Side Effects:
-            事务外先校验参数，写事务内重验身份；insert_job 与提交作业操作日志同事务提交。
+            参数校验前先只读重验角色，写事务内再次重验；insert_job 与提交作业操作日志同事务提交。
             对象 kind=job，object_id 为编号文本，object_name 为“显示名 #编号”（最多 61 码点）。
             明细 v1 仅含 job_id、job_type、job_state；before 为空，after 为已提交值，无参数。
             校验或权限拒绝不记日志；开始写入后失败整体回滚，短锁补记失败日志，补记失败不覆盖原错误。
@@ -114,11 +115,17 @@ class JobService:
             AUDIT_SHORT_LOCK_TIMEOUT_MS，无重试，外部计算不放在写事务。
         """
         _audit.validate_request(request)
+        self.check_submission_role(request, type_name)
         definition, checked = _parameters(self.registry, type_name, parameters)
         attempted: OperationEvent | None = None
         try:
             with session_scope(self.engine) as session:
-                actor = authorize_job_actor(session, request.identity, now=request.now)
+                actor = authorize_job_actor(
+                    session,
+                    request.identity,
+                    now=request.now,
+                    admin=definition.submission_role is Role.ADMINISTRATOR,
+                )
                 attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
                 record = insert_job(session, NewJob(definition, checked, actor, request.now, None))
                 _audit.finish(session, attempted, record)
@@ -126,6 +133,43 @@ class JobService:
         except Exception as error:
             _audit.failed(self.engine, attempted, error)
             raise
+
+    def check_submission_role(self, request: JobRequest, type_name: str) -> None:
+        """在参数校验前重验当前身份与类型声明的最低角色。
+
+        Args:
+            request: 已认证的请求身份、UTC 时刻和审计来源。
+            type_name: 待提交的稳定类型键，未知键留给后续参数校验拒绝。
+
+        Returns:
+            无；当前角色满足声明才返回。
+
+        Raises:
+            AuthorizationError: 成员试图提交管理员类型。
+            AuthenticationError: 会话已经失效。
+            PasswordChangeRequiredError: 仍需修改口令。
+            InputError: 数据库数据损坏。
+            ConflictError: 读取锁超时。
+            ExternalError: 数据库读取失败。
+            DefectError: 类型键或请求上下文非法。
+
+        Side Effects:
+            只读账号和类型登记，不记提交日志或校验作业参数。
+
+        Time Semantics:
+            使用请求唯一 UTC 时刻；单次数据库等待沿用 BUSY_TIMEOUT_MS。
+        """
+        try:
+            definition = self.registry.lookup(type_name)
+        except DefectError:
+            definition = None
+        with session_scope(self.engine, read_only=True) as session:
+            authorize_job_actor(
+                session,
+                request.identity,
+                now=request.now,
+                admin=definition is not None and definition.submission_role is Role.ADMINISTRATOR,
+            )
 
     def submit_scheduled(
         self, definition: ScheduledJob, local_date: date, *, now: datetime
@@ -310,7 +354,7 @@ class JobService:
         """从终态作业复制参数，作为当前账号的新提交。
 
         Args:
-            request: 点重新提交按钮的账号上下文，不要求原提交人或管理员。
+            request: 点重新提交按钮的账号上下文，不要求原提交人；仍须满足当前类型角色声明。
             job_id: 原作业正编号，必须为 completed/cancelled/interrupted。
 
         Returns:
@@ -319,6 +363,7 @@ class JobService:
         Raises:
             AuthenticationError: 重验时会话或账号无效。
             PasswordChangeRequiredError: 账号须先改口令。
+            AuthorizationError: 成员重新提交管理员类型。
             JobNotFoundError: 原记录不存在。
             JobInputError: 编号非法、原类型已移除或原参数按当前模型无效；不回显原参数。
             ConflictError: 原记录非终态、写锁/约束冲突。
@@ -354,6 +399,14 @@ class JobService:
                             ),
                         )
                     )
+                definition = self.registry.lookup(original.type_name)
+                authorize_job_actor(
+                    session,
+                    request.identity,
+                    now=request.now,
+                    admin=definition is not None
+                    and definition.submission_role is Role.ADMINISTRATOR,
+                )
                 definition, _ = _parameters(self.registry, original.type_name, original.parameters)
                 attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
                 record = insert_job(

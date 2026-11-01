@@ -1,5 +1,5 @@
 // M1-08 创建表单组件；负责受控输入与交互，不读文件、不自行生成计划。
-import { Button, Input } from "antd";
+import { Button, Input, Select } from "antd";
 import { LinkFields } from "./CreationFields";
 import type { ReactElement } from "react";
 import type {
@@ -44,33 +44,35 @@ export function CreateLinkForm(props: CreateLinkFormProps): ReactElement {
       className="creation-form"
       onSubmit={(event) => {
         event.preventDefault();
-        props.onPreview(props.value);
+        // antd Select不参加浏览器原生required校验，键盘提交也须有数据集。
+        if (props.value.dataset_id) props.onPreview(props.value);
       }}
     >
       <fieldset disabled={props.pending} className="creation-fields">
         <label>
           数据集
-          <select
+          <Select<string>
+            virtual={false}
             aria-label="数据集"
-            required
-            value={props.value.dataset_id}
-            onChange={(event) => {
-              props.onChange({ ...props.value, dataset_id: event.target.value });
+            aria-required="true"
+            disabled={props.pending}
+            style={{ width: "100%" }}
+            placeholder="请选择数据集"
+            value={props.value.dataset_id || undefined}
+            options={[
+              ...(!props.datasets.items.some(
+                (item) => item.dataset_id === props.value.dataset_id,
+              ) && props.value.dataset_id
+                ? [{ value: props.value.dataset_id, label: props.value.dataset_id }]
+                : []),
+              ...props.datasets.items.flatMap((item) =>
+                item.dataset_id ? [{ value: item.dataset_id, label: item.name }] : [],
+              ),
+            ]}
+            onChange={(value) => {
+              props.onChange({ ...props.value, dataset_id: value });
             }}
-          >
-            <option value="">请选择数据集</option>
-            {!props.datasets.items.some((item) => item.dataset_id === props.value.dataset_id) &&
-              props.value.dataset_id && (
-                <option value={props.value.dataset_id}>{props.value.dataset_id}</option>
-              )}
-            {props.datasets.items
-              .filter((item) => item.dataset_id)
-              .map((item) => (
-                <option key={item.dataset_id} value={item.dataset_id ?? ""}>
-                  {item.name}
-                </option>
-              ))}
-          </select>
+          />
         </label>
         <div className="creation-actions">
           <Button
@@ -116,7 +118,7 @@ export function CreateLinkForm(props: CreateLinkFormProps): ReactElement {
         type="primary"
         htmlType="submit"
         aria-label="生成预览"
-        disabled={props.pending}
+        disabled={props.pending || !props.value.dataset_id}
         loading={props.pending}
       >
         生成预览
@@ -155,7 +157,8 @@ export function CreateDatasetForm(props: CreateDatasetFormProps): ReactElement {
       className="creation-form"
       onSubmit={(event) => {
         event.preventDefault();
-        props.onPreview(props.value);
+        // 保留原生下拉框的必选语义，不能通过键盘提交空来源。
+        if (props.value.data_origin) props.onPreview(props.value);
       }}
     >
       <fieldset disabled={props.pending} className="creation-fields">
@@ -172,21 +175,19 @@ export function CreateDatasetForm(props: CreateDatasetFormProps): ReactElement {
         </label>
         <label>
           数据来源
-          <select
+          <Select<string>
+            virtual={false}
             aria-label="数据来源"
-            required
-            value={props.value.data_origin}
-            onChange={(event) => {
-              props.onChange({ ...props.value, data_origin: event.target.value });
+            aria-required="true"
+            disabled={props.pending}
+            style={{ width: "100%" }}
+            placeholder="请选择数据来源"
+            value={props.value.data_origin || undefined}
+            options={props.options.data_origins.map((value) => ({ value, label: value }))}
+            onChange={(value) => {
+              props.onChange({ ...props.value, data_origin: value });
             }}
-          >
-            <option value="">请选择数据来源</option>
-            {props.options.data_origins.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
+          />
         </label>
       </fieldset>
       <LinkFields
@@ -210,7 +211,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps): ReactElement {
         type="primary"
         htmlType="submit"
         aria-label="生成预览"
-        disabled={props.pending}
+        disabled={props.pending || !props.value.data_origin}
         loading={props.pending}
       >
         生成预览

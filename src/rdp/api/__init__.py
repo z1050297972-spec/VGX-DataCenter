@@ -21,6 +21,7 @@ from rdp.api._asgi import ASGIApp as _ASGIApp
 from rdp.api._asgi import ASGIMessage as _ASGIMessage
 from rdp.api._asgi import Receive as _Receive
 from rdp.api._asgi import Send as _Send
+from rdp.api._body_limit import RequestBodyLimit, install_body_limit
 from rdp.api.account_auth import install_account_security
 from rdp.api.accounts import router as accounts_router
 from rdp.api.audit import router as audit_router
@@ -126,7 +127,9 @@ class _RequestContextApp(FastAPI):
         """返回 RequestIdMiddleware 包装的父类中间件栈；构建时不绑定编号或改变路由。"""
         # 依赖 Starlette 的 build_middleware_stack 包含错误处理中间件这一行为。
         # 升级 FastAPI/Starlette 时重看此方法，并重跑框架 500 的响应头契约测试。
-        return RequestIdMiddleware(ErrorBoundary(super().build_middleware_stack()))
+        return RequestIdMiddleware(
+            ErrorBoundary(RequestBodyLimit(super().build_middleware_stack()))
+        )
 
 
 def _unknown_api() -> Response:
@@ -215,6 +218,7 @@ def create_app(
     app = _RequestContextApp(
         title="机器人数据管理平台", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None
     )
+    install_body_limit(app)
     app.state.accounts_clock = clock
     if database is not None:
         configure_database(app, database)

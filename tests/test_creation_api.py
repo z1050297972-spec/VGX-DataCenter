@@ -332,7 +332,9 @@ def test_submitter_and_storage_failures(tmp_path: Path, fake_nav: FakeNavigation
         from sqlalchemy import event
 
         identifier = preview_job(api, deps, fake_nav)
-        add_actor(api)
+        from rdp.accounts.types import Role
+
+        add_actor(api, role=Role.ADMINISTRATOR)
         assert api.login("member", SecretStr("member-updated-value")).status_code == 200
         submitted = api.client.post(
             "/api/datasets/creation-writes", json={"preview_job_id": identifier}

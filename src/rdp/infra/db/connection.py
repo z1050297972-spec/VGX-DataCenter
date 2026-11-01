@@ -11,6 +11,7 @@ import stat
 from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
+from sqlite3 import dbapi2
 from typing import cast
 
 from sqlalchemy import URL, Connection, Engine, create_engine, event
@@ -20,6 +21,7 @@ from sqlalchemy.pool import ConnectionPoolEntry, NullPool
 
 from rdp.infra.db._constants import BUSY_TIMEOUT_MS as BUSY_TIMEOUT_MS
 from rdp.infra.db._errors import database_path_error, database_problem, readonly_write_error
+from rdp.infra.db._permissions import secure_database_files, secure_file
 from rdp.infra.diagnostics import (
     ConflictError,
     DefectError,
@@ -50,7 +52,8 @@ def create_database_engine(database: Path) -> Engine:
         DefectError: 无法构造引擎或事件配置错误。
 
     Side Effects:
-        构造时只检查本地路径状态；首次连接可能创建数据库及 WAL/SHM 文件，不创建表。
+        构造时检查本地路径并收紧已有数据库、WAL/SHM和平台备份为0600；首次连接以0600创建主库，
+        SQLite据主库权限创建WAL/SHM，不创建表，不修改进程全局umask。
         连接初始化失败关闭该连接，可能留下空数据库或 SQLite 管理的辅助文件，不删除已有库。
         连接阶段数据库异常由 session_scope 按 translate_database_error 转换，不打日志。
         引擎由调用者最终 dispose；调用者不得绕过工作单元直接执行业务 SQL。
@@ -64,6 +67,7 @@ def create_database_engine(database: Path) -> Engine:
         raise path_error
     try:
         _check_database_file(database)
+        secure_database_files(database)
     except OSError as error:
         problem = translate_database_error(error, database=database, operation="校验路径")
         raise problem from error
@@ -72,7 +76,7 @@ def create_database_engine(database: Path) -> Engine:
         engine = create_engine(
             URL.create("sqlite", database=str(database)),
             poolclass=NullPool,
-            connect_args={"check_same_thread": False},
+            creator=lambda: _open_database(database),
             hide_parameters=True,
             execution_options={"rdp_managed": True},
         )
@@ -84,6 +88,12 @@ def create_database_engine(database: Path) -> Engine:
             engine.dispose()
         problem = database_problem(DefectError, database, "构造引擎", 0)
         raise problem from error
+
+
+def _open_database(database: Path) -> sqlite3.Connection:
+    """先以0600创建主库，SQLite据此创建同权限WAL/SHM，不改变进程全局umask。"""
+    secure_file(database, create=True)
+    return dbapi2.connect(database, check_same_thread=False)
 
 
 def _initialize_connection(connection: sqlite3.Connection, _record: ConnectionPoolEntry) -> None:

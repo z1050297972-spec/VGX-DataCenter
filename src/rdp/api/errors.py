@@ -15,6 +15,7 @@
 | 401 | 输入或数据问题 | 未登录、会话失效或登录凭据错误 | problem+json，带诊断并清会话 cookie |
 | 403 | 输入或数据问题 | 角色不足、必须先改口令或 Origin 拒绝 | problem+json，带诊断 |
 | 429 | 输入或数据问题 | G2 等待 | problem+json，带诊断；Retry-After 为向上取整的剩余秒数 |
+| 413 | 输入或数据问题 | 请求体超过16MiB | problem+json，带诊断 |
 | 404 | （框架格式） | /api 路径不存在，由 S1 兜底返回 | 保持框架 JSON 格式；前端显示"请求失败" |
 | 405 | （框架格式） | /api 路径存在但方法不对，由 S1 兜底返回 | 保持框架 JSON 格式，带 Allow 头 |
 | 405 | （框架） | /api 以外页面路径使用非 GET 方法 | 保持框架原格式；前端显示"请求失败" |
@@ -46,8 +47,10 @@ from pydantic.json_schema import models_json_schema
 from sqlalchemy import Engine
 
 from rdp.accounts.errors import LoginWaitError
+from rdp.accounts.types import Role
 from rdp.api._asgi import ASGIApp, ASGIMessage, Receive, Send
-from rdp.api.account_auth import clear_session_cookie
+from rdp.api._redaction import member_diagnostic
+from rdp.api.account_auth import AccountRequestContext, clear_session_cookie
 from rdp.api.audit import report_audit_append_failure
 from rdp.api.shutdown import TrackedReport
 from rdp.infra.db.connection import BUSY_TIMEOUT_MS, session_scope
@@ -83,8 +86,8 @@ class ProblemResponse(BaseModel):
         type: 问题类型 URI，固定 about:blank，无单位，默认 about:blank；不虚构文档 URI。
         title: 对应 HTTPStatus.phrase 的标准英文状态短语，非空白，无单位，必填，无默认值；
             中文说明放 detail，符合 about:blank 约定。
-        status: HTTP 状态码，严格整数，仅 400/404/422/401/403/429/409/502/500；拒绝 bool；
-            无单位，必填，无默认值。INPUT 对应前六种，其余类别依次对应后三种。
+        status: HTTP 状态码，严格整数，仅 400/404/422/401/403/413/429/409/502/500；拒绝 bool；
+            无单位，必填，无默认值。INPUT 对应前七种，其余类别依次对应后三种。
         detail: 一句安全的中文摘要，非空白，无单位，必填，无默认值；程序缺陷固定为
             “平台内部错误，请把错误编号交给维护者。”，不回显 str(error)。
         category: 四类 DiagnosticCategory 之一，无单位，必填，无默认值。
@@ -176,7 +179,7 @@ def build_problem(request: Request, error: Exception) -> ProblemResponse:
 
     Returns:
         四类映射为 INPUT 的 400/404/422/401/403/429（基类 400）、CONFLICT 409、EXTERNAL 502、DEFECT 500。
-        输入/冲突/外部失败保留全部诊断和顺序，不用聚合样例替代；detail 固定为
+        输入/冲突/外部失败保留诊断顺序；成员响应过滤路径、命令和stderr，管理员保持完整。detail 固定为
         “输入或数据不符合要求，请查看诊断。”、“操作发生冲突，请查看诊断。”、
         “外部服务或工具失败，请查看诊断。”。参数校验映射 INPUT 422，使用
         validation_diagnostics；detail=“请求参数不符合要求，请查看诊断。”。
@@ -211,6 +214,14 @@ def build_problem(request: Request, error: Exception) -> ProblemResponse:
         status, category = HTTPStatus.UNPROCESSABLE_ENTITY, DiagnosticCategory.INPUT
         diagnostics = validation_diagnostics(request, error)
         detail = "请求参数不符合要求，请查看诊断。"
+    context = getattr(request.state, "account_context", None)
+    if (
+        isinstance(context, AccountRequestContext)
+        and context.identity is not None
+        and context.identity.account.role is Role.MEMBER
+    ):
+        # 失败的作业查询也可能携带数据库/工具路径；同成功响应共用成员脱敏规则。
+        diagnostics = tuple(member_diagnostic(item) for item in diagnostics)
     return ProblemResponse(
         title=status.phrase,
         status=status,
@@ -231,7 +242,7 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
     Returns:
         status_code 与载荷 status 相同、Content-Type=application/problem+json 的 JSONResponse；
         X-Request-ID 由最外层 RequestIdMiddleware 统一添加，不能重造编号。
-        显式四类异常和校验失败由本处理器在 rdp.api.errors 记录一条 ERROR；诊断以五段追加。
+        显式四类异常和校验失败由本处理器在 rdp.api.errors 记录一次；4xx为INFO、5xx为ERROR。诊断以五段追加。
         DefectError 的响应不含诊断，日志包含安全完整异常报告；其他领域异常有 cause 时
         同样附安全错误链。没有 traceback 的参数校验不记录框架异常正文。
         未知 Exception 这里只构造响应、不记录日志，等待 ServerErrorMiddleware 重抛后
@@ -248,7 +259,7 @@ async def handle_error(request: Request, error: Exception) -> JSONResponse:
     Side Effects:
         缺陷使用独立报错事务，失败语义见
         report_error_with_database；不直接调用 send，不读取请求体或凭据。
-        参数校验失败将安全的字段位置和五段诊断追加到同一条 ERROR；
+        参数校验失败将安全的字段位置和五段诊断追加到同一条 INFO；
         不格式化 RequestValidationError，不记录请求原值。
         日志 fields 只含 method 和 path，不含查询串；路径使用匹配路由模板，
         无已匹配模板时写“未匹配路径”，避免敏感值藏在路径参数或未知路径里。
@@ -372,9 +383,9 @@ def install_error_handlers(app: FastAPI) -> None:
         无；登记四类异常、RequestValidationError 和 Exception → handle_error；
         不覆盖 Starlette HTTPException、404 的 SPA 处理器或 _unknown_api，保留其 JSON/头。
         _RequestContextApp.build_middleware_stack 返回
-        RequestIdMiddleware(ErrorBoundary(super().build_middleware_stack()))，
+        RequestIdMiddleware(ErrorBoundary(RequestBodyLimit(super().build_middleware_stack())))，
         请求编号中间件包在错误报告边界之外，保持工厂签名。
-        OpenAPI 登记 ProblemResponse 及其引用的组件；每个 /api 已知路由的 400/401/403/404/409/422/429/502/500
+        OpenAPI 登记 ProblemResponse 及其引用的组件；每个 /api 已知路由的 400/401/403/404/409/413/422/429/502/500
         responses 增加 application/problem+json 的 $ref，同时保留原有合法 application/json
         错误（如框架 404）。使用 FastAPI responses 元数据和 Pydantic schema，不手写字段。
         生成 schema 时合并，支持后挂的测试路由；重复安装幂等，不重复包裹或记日志。
@@ -437,7 +448,7 @@ async def report_error_with_database(
             测试传固定时钟，不在数据库里重新读时钟。
 
     Returns:
-        无；原错误按现有 _report_error 的规则只写一条 ERROR；仅未知异常或 DefectError
+        无；原错误按 _report_error 的规则只写一条日志，4xx为INFO，5xx为ERROR；仅未知异常或 DefectError
         在配置引擎时写一条报错，其他三类/参数校验或无引擎只记日志。
         格式化一次，日志的 traceback 段和 ErrorRecord.report 逐字相同（含超长标记），
         摘要使用固定 problem.detail，来源 request、编号 problem.error_id；保留 D2 的
@@ -630,17 +641,24 @@ def _logged_report(request: Request, error: Exception, problem: ProblemResponse)
         messages.extend(render_diagnostic(item) for item in problem.diagnostics)
     elif isinstance(error, (InputError, ConflictError, ExternalError, DefectError)):
         messages.extend(render_diagnostic(item) for item in error.diagnostics)
-    if not isinstance(error, RequestValidationError) and (
-        isinstance(error, DefectError)
-        or not isinstance(error, (InputError, ConflictError, ExternalError))
-        or error.__cause__ is not None
+    if (
+        problem.status >= 500
+        and not isinstance(error, RequestValidationError)
+        and (
+            isinstance(error, DefectError)
+            or not isinstance(error, (InputError, ConflictError, ExternalError))
+            or error.__cause__ is not None
+        )
     ):
         report = format_exception_report(error)
         messages.append(report)
     route = request.scope.get("route")
     path = route.path if isinstance(route, APIRoute) else "未匹配路径"
-    logger.error(
-        "%s", "\n".join(messages), extra={"fields": {"method": request.method, "path": path}}
+    logger.log(
+        logging.ERROR if problem.status >= 500 else logging.INFO,
+        "%s",
+        "\n".join(messages),
+        extra={"fields": {"method": request.method, "path": path}},
     )
 
     return report

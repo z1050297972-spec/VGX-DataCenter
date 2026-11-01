@@ -89,6 +89,7 @@ def login(value: LoginView) -> LoginResponse:
             source_ip=event.context.source_ip,
             request_id=event.context.request_id,
             failure_category=event.failure_category,
+            attempt_count=value.attempt_count,
         )
     except (ValueError, TypeError, AttributeError):
         raise DefectError() from None

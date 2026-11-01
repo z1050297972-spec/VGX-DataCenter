@@ -354,11 +354,13 @@ class LoginView:
         log_id: 自动分配的 1 至 2^63-1 编号，必填。
         event: 保存的 LoginEvent，必填。
         account_deleted: 原编号不存在为 True；未知账号为 False，必填。
+        attempt_count: 同一等待期合并的尝试次数，正整数，默认1。
     """
 
     log_id: int
     event: LoginEvent
     account_deleted: bool
+    attempt_count: int = 1
 
 
 @dataclass(frozen=True)

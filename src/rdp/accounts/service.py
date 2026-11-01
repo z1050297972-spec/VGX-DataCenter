@@ -1245,7 +1245,9 @@ def existing_account_ids(session: Session, identifiers: frozenset[int]) -> froze
 
 
 @protect
-def authorize_job_actor(session: Session, identity: SessionIdentity, *, now: datetime) -> ActorRef:
+def authorize_job_actor(
+    session: Session, identity: SessionIdentity, *, now: datetime, admin: bool = False
+) -> ActorRef:
     """在作业业务事务内重验登录身份并返回当前操作者快照。
 
     Args:
@@ -1253,12 +1255,15 @@ def authorize_job_actor(session: Session, identity: SessionIdentity, *, now: dat
         identity: 入口认证的SessionIdentity，仅作会话定位，不信任其中缓存的角色或账号状态。
         now: 入口注入的aware时刻，统一UTC微秒；非法值归DefectError，不归用户输入错误。
 
+        admin: True 时要求事务内当前账号为管理员，默认 False 允许成员。
+
     Returns:
-        当前启用且完成强制改密的账号编号和显示名ActorRef；成员/管理员同等允许，不要求原作业提交人。
+        当前启用且完成强制改密的账号编号和显示名ActorRef；admin=False时成员/管理员均允许，True时要求管理员；不要求原作业提交人。
 
     Raises:
         AuthenticationError: 会话已撤销/过期或账号停用/删除，拒绝过时身份。
         PasswordChangeRequiredError: 当前账号仍须改口令。
+        AuthorizationError: admin=True 且当前账号不是管理员。
         InputError: 账号/会话行或数据库损坏。
         ConflictError: 查询遇数据库锁冲突。
         ExternalError: 数据库读取I/O失败。
@@ -1277,5 +1282,5 @@ def authorize_job_actor(session: Session, identity: SessionIdentity, *, now: dat
     except (AttributeError, TypeError, ValueError, OverflowError):
         raise DefectError() from None
     with audit_storage(session):
-        account = sessions.authorize(session, identity, moment)
+        account = sessions.authorize(session, identity, moment, admin=admin)
         return ActorRef(account.account_id, account.display_name)

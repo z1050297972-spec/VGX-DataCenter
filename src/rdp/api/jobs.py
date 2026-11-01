@@ -4,6 +4,7 @@
 应用工厂只登记路由；第 11 张 Web 入口显式构造 registry/StatePaths 并调用 configure_jobs。
 """
 
+import json
 import re
 from dataclasses import asdict, dataclass
 from dataclasses import field as dataclass_field
@@ -11,11 +12,14 @@ from pathlib import Path
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import Engine
 
+from rdp.accounts.types import Role
 from rdp.api._account_context import identity
-from rdp.api._job_views import response as _response
-from rdp.api.account_auth import AccountRequestContext, get_authenticated_context
+from rdp.api._job_views import response as _raw_response
+from rdp.api._redaction import member_log_tail
+from rdp.api.account_auth import AccountRequestContext, get_admin_context, get_authenticated_context
 from rdp.api.job_schemas import (
     JobFilters,
     JobListResponse,
@@ -48,7 +52,7 @@ from rdp.jobs.resource_examples import GpuExampleParameters, NavigationExamplePa
 from rdp.jobs.scheduling_service import SchedulingService
 from rdp.jobs.scheduling_types import SchedulingCatalog
 from rdp.jobs.service import JobRequest, JobService
-from rdp.jobs.types import JobQuery
+from rdp.jobs.types import JobQuery, JobRecord
 from rdp.jobs.worker import heartbeat_online
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -166,6 +170,28 @@ def get_job_context(request: Request, account: AuthenticatedContext) -> JobApiCo
 JobContext = Annotated[JobApiContext, Depends(get_job_context)]
 
 
+def _response(context: JobApiContext, record: JobRecord) -> JobResponse:
+    """所有作业响应都依据当前身份过滤诊断，包括取消和重新提交的返回值。"""
+    return _raw_response(record, role=identity(context.account).account.role)
+
+
+async def _submission_context(request: Request, context: JobContext) -> JobApiContext:
+    """只取类型键先做权限检查，其他字段留给原请求模型校验。"""
+    try:
+        payload = await request.json()
+    except json.JSONDecodeError:
+        return context
+    type_name = (
+        cast(dict[str, object], payload).get("type_name") if isinstance(payload, dict) else None
+    )
+    if isinstance(type_name, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", type_name):
+        await run_in_threadpool(context.service.check_submission_role, _request(context), type_name)
+    return context
+
+
+SubmissionContext = Annotated[JobApiContext, Depends(_submission_context)]
+
+
 @router.get("", response_model=JobListResponse, operation_id="list_jobs")
 def list_jobs(context: JobContext, filters: Annotated[JobFilters, Query()]) -> JobListResponse:
     """返回按状态筛选、按自增编号倒序的作业游标页。
@@ -196,12 +222,13 @@ def list_jobs(context: JobContext, filters: Annotated[JobFilters, Query()]) -> J
         _request(context), JobQuery(filters.state, filters.cursor, filters.limit)
     )
     return JobListResponse(
-        items=tuple(_response(record) for record in page.items), next_cursor=page.next_cursor
+        items=tuple(_response(context, record) for record in page.items),
+        next_cursor=page.next_cursor,
     )
 
 
 @router.post("", response_model=JobResponse, status_code=201, operation_id="submit_job")
-def submit_job(context: JobContext, body: SubmitJobPayload) -> JobResponse:
+def submit_job(context: SubmissionContext, body: SubmitJobPayload) -> JobResponse:
     """提交登记类型并原子写操作日志。
 
     Args:
@@ -215,6 +242,7 @@ def submit_job(context: JobContext, body: SubmitJobPayload) -> JobResponse:
         JobInputError: 未登记类型或模型/容量校验失败，422，不回显值。
         AuthenticationError: 写事务内会话失效，401。
         PasswordChangeRequiredError: 必须改密，403。
+        AuthorizationError: 当前角色不满足类型提交声明，403，先于参数校验。
         InputError: 数据库损坏，400。
         ConflictError: 写入竞争/编号耗尽，409。
         ExternalError: 作业/日志事务失败，502。
@@ -227,7 +255,7 @@ def submit_job(context: JobContext, body: SubmitJobPayload) -> JobResponse:
         一次请求唯一 UTC 时刻；普通写锁预算 5 秒、失败补记 100 毫秒，不重试 POST。
     """
     return _response(
-        context.service.submit(_request(context), body.type_name, dict(body.parameters))
+        context, context.service.submit(_request(context), body.type_name, dict(body.parameters))
     )
 
 
@@ -262,17 +290,21 @@ def submit_count_job(context: JobContext, body: CountParameters) -> JobResponse:
     record = context.service.submit(
         _request(context), "example_count", body.model_dump(mode="json")
     )
-    return _response(record)
+    return _response(context, record)
 
 
 @router.post(
-    "/example/gpu", response_model=JobResponse, status_code=201, operation_id="submit_gpu_job"
+    "/example/gpu",
+    response_model=JobResponse,
+    status_code=201,
+    operation_id="submit_gpu_job",
+    dependencies=[Depends(get_admin_context)],
 )
 def submit_gpu_job(context: JobContext, body: GpuExampleParameters) -> JobResponse:
     """提交示例占卡作业，不在请求进程访问 GPU。
 
     Args:
-        context: 完成全局 Origin/认证/改密检查的当前账号上下文。
+        context: 完成全局 Origin/认证/改密检查的管理员上下文。
         body: 占用秒数 0 至 GPU_EXAMPLE_MAX_HOLD_S，不接受卡号或命令路径。
 
     Returns:
@@ -281,6 +313,7 @@ def submit_gpu_job(context: JobContext, body: GpuExampleParameters) -> JobRespon
     Raises:
         JobInputError: 占用时长非法或类型未登记，422。
         AuthenticationError: 会话无效，401。
+        AuthorizationError: 非管理员提交，403，先于参数校验。
         PasswordChangeRequiredError: 必须改口令，403。
         ConflictError: 提交/审计事务竞争，409。
         InputError: 数据库损坏，400。
@@ -294,7 +327,8 @@ def submit_gpu_job(context: JobContext, body: GpuExampleParameters) -> JobRespon
         用请求唯一 UTC 时刻，普通写锁 5 秒；执行时长只作用于 worker，不在 HTTP 等待。
     """
     return _response(
-        context.service.submit(_request(context), EXAMPLE_GPU_TYPE, body.model_dump(mode="json"))
+        context,
+        context.service.submit(_request(context), EXAMPLE_GPU_TYPE, body.model_dump(mode="json")),
     )
 
 
@@ -303,12 +337,13 @@ def submit_gpu_job(context: JobContext, body: GpuExampleParameters) -> JobRespon
     response_model=JobResponse,
     status_code=201,
     operation_id="submit_navigation_job",
+    dependencies=[Depends(get_admin_context)],
 )
 def submit_navigation_job(context: JobContext, body: NavigationExampleParameters) -> JobResponse:
     """提交带预览期望值的写锁演示，不在 Web 核对或写示例文件。
 
     Args:
-        context: 任意已登录且完成改密的账号与审计来源，Origin 已通过全局检查。
+        context: 已登录且完成改密的管理员与审计来源，Origin 已通过全局检查。
         body: 期望字符串 0-256 码点、锁内暂停 0-10 秒，拒绝文件路径和操作者声明。
 
     Returns:
@@ -317,6 +352,7 @@ def submit_navigation_job(context: JobContext, body: NavigationExampleParameters
     Raises:
         JobInputError: 参数不合格或类型未登记，422；不以当前文件状态拒绝提交。
         AuthenticationError: 事务内身份失效，401。
+        AuthorizationError: 当前账号不是管理员，403。
         PasswordChangeRequiredError: 账号须改口令，403。
         ConflictError: 提交写锁/约束冲突，409。
         InputError: 数据库损坏，400。
@@ -330,9 +366,10 @@ def submit_navigation_job(context: JobContext, body: NavigationExampleParameters
         本请求单次普通事务，无重试；pause_s 在后台持锁阶段才生效。
     """
     return _response(
+        context,
         context.service.submit(
             _request(context), EXAMPLE_NAVIGATION_TYPE, body.model_dump(mode="json")
-        )
+        ),
     )
 
 
@@ -363,7 +400,10 @@ def get_job(context: JobContext, job_id: str) -> JobResponse:
     Time Semantics:
         UTC 微秒输出，浏览器转本地；单次普通读锁预算，无重试。
     """
-    return _response(context.service.get(_request(context), _identifier(job_id)))
+    return _response(
+        context,
+        context.service.get(_request(context), _identifier(job_id)),
+    )
 
 
 @router.post("/{job_id}/cancel", response_model=JobResponse, operation_id="cancel_job")
@@ -393,7 +433,7 @@ def cancel_job(context: JobContext, job_id: str) -> JobResponse:
     Time Semantics:
         最多普通 5 秒锁等待，补记最多 100 毫秒；worker 下次轮询才传播运行中取消。
     """
-    return _response(context.service.cancel(_request(context), _identifier(job_id)))
+    return _response(context, context.service.cancel(_request(context), _identifier(job_id)))
 
 
 @router.post(
@@ -425,7 +465,7 @@ def resubmit_job(context: JobContext, job_id: str) -> JobResponse:
     Time Semantics:
         新提交采用请求 UTC 时刻，不继承旧起止时间；不等待 worker 运行，无自动重试。
     """
-    return _response(context.service.resubmit(_request(context), _identifier(job_id)))
+    return _response(context, context.service.resubmit(_request(context), _identifier(job_id)))
 
 
 @router.get("/{job_id}/log", response_model=JobLogResponse, operation_id="get_job_log")
@@ -437,7 +477,8 @@ def get_job_log(context: JobContext, job_id: str) -> JobLogResponse:
         job_id: 正整数十进制文本，通过记录取得 log_path。
 
     Returns:
-        HTTP 200，available/not_started/cleared 及最后至多 50 行；文件已清除不是 500。
+        HTTP 200，available/not_started/cleared 及最后至多 50 行；成员版本移除绝对路径、命令和stderr。
+        文件已清除不是 500。
 
     Raises:
         JobInputError: 编号非法，422。
@@ -456,7 +497,10 @@ def get_job_log(context: JobContext, job_id: str) -> JobLogResponse:
         返回当次末尾完整行，终态后页面停止轮询；不等待新输出或锁住 worker。
     """
     record = context.service.get(_request(context), _identifier(job_id))
-    return JobLogResponse(tail=read_log_tail(context.paths, record.log_path))
+    tail = read_log_tail(context.paths, record.log_path)
+    if identity(context.account).account.role is Role.MEMBER:
+        tail = member_log_tail(tail)
+    return JobLogResponse(tail=tail)
 
 
 @worker_router.get("/status", response_model=WorkerStatusResponse, operation_id="get_worker_status")

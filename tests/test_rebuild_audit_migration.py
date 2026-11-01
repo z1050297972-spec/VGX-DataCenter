@@ -47,7 +47,7 @@ def test_upgrade_preserves_audit_history_and_sequence(
         result = migrate(paths, now=NOW)
         assert result.previous_revision == "0008_dataset_layout"
         # 历史包仅保留到 0008，真实升级入口走完后续迁移；0009 的对象种类扩展与历史行保留由此覆盖。
-        assert result.current_revision == "0012_scene_task_index"
+        assert result.current_revision == "0013_login_wait_attempts"
         assert result.backup is not None
         with session_scope(engine, read_only=True) as session:
             assert (

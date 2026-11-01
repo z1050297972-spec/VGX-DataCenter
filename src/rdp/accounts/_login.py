@@ -111,6 +111,7 @@ def reject(engine: Engine, state: LoginAttempt, failure: InputError, result: Log
                 append_login(
                     session,
                     event(state, row, LoginResult.ACCOUNT_MISSING if row is None else result),
+                    waiting_until=None if row is None else row.blocked_until,
                 )
     except Exception:
         failure.add_note(AUDIT_APPEND_FAILED)
@@ -146,7 +147,11 @@ def apply(
                     row.password_hash = checked.replacement_hash
                 grant = sessions.grant(session, row, state.now)
                 result = LoginResult.SUCCESS
-        append_login(session, event(state, row, result))
+        append_login(
+            session,
+            event(state, row, result),
+            waiting_until=None if row is None else row.blocked_until,
+        )
     return grant, failure
 
 
