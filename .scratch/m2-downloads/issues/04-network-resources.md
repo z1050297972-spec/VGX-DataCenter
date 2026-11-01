@@ -1,6 +1,6 @@
 # 网络与资源监控
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：直做。理由：只读系统状态的展示页，复用第 01 张的镜像探测。
 
@@ -41,3 +41,4 @@ Status: ready-for-agent
 - 浏览器演练：开发实例上打开页面，截图；把页面上的 VPN 结论、网速与 `ip -br link`、`/proc/net/dev` 当时的值对照，记进 Comments。
 
 ## Comments
+- 2026-11-01 02:28，开票（直做）。一开始就用自动续接循环（`~/.cache/rdp-dispatch/m2-04/run-loop.sh`，unit `rdp-m2-04-loop`）：第一轮新会话，之后最多续接 12 轮，直到回复第一行是"状态：全部完成"。提示 `assets/04-network-resources/prompt-A.md`、`prompt-loop.md`；测试按 spec「测试范围」只列关键行为；新迁移用 0016。快照 `refs/rdp/m2-04/A`。

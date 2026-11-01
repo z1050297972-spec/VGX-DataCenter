@@ -1,0 +1,1 @@
+继续做这张工单剩下的部分（范围、边界、关键测试清单见 /home/shawn/桌面/robot-data-platform/.scratch/m2-downloads/assets/04-network-resources/prompt-A.md）。先看 `git status` 了解已经做了什么，然后接着做。最终回复第一行写 `状态：全部完成` 或 `状态：未完成`，格式同 prompt-A.md。这一轮结束前跑一次 `make check`（只跑一份）。
