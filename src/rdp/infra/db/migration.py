@@ -25,6 +25,9 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import Connection
 
+from rdp.infra.db._constants import BACKUP_FILENAME_PATTERN as BACKUP_FILENAME_PATTERN
+from rdp.infra.db._constants import BACKUPS_DIRECTORY_NAME as BACKUPS_DIRECTORY_NAME
+from rdp.infra.db._permissions import secure_database_files
 from rdp.infra.db.connection import (
     BUSY_TIMEOUT_MS,
     create_database_engine,
@@ -48,14 +51,6 @@ from rdp.infra.timeutil import ensure_utc
 
 # F1：只留最新 5 份平台自动升级备份，单位份；不清理人工备份和不完整产物。
 MIGRATION_BACKUP_LIMIT = 5
-# F1 的状态目录内固定相对位置；只由本模块管理，目录权限复用 STATE_DIRECTORY_MODE。
-BACKUPS_DIRECTORY_NAME = "backups"
-# 备份名由 uuid4().hex 生成；独立约束小写、版本位和 variant 位，与请求编号无关。
-BACKUP_UUID_HEX_PATTERN = r"[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}"
-# F1：只识别平台生成的 UTC 时间戳、revision 和 uuid 后缀，避免清理人工备份。
-BACKUP_FILENAME_PATTERN = (
-    r"rdp-before-[0-9]{8}T[0-9]{12}Z-[A-Za-z0-9_]+-" + BACKUP_UUID_HEX_PATTERN + r"\.sqlite3"
-)
 # 备份 progress 回调以 monotonic 检查预算，防止 backup 在繁忙源库上无限等待；单位秒。
 BACKUP_TIMEOUT_S = 5.0
 # 本票的备份预算：分批页数限制 progress 检查间隔，单位 SQLite 页，不改变页大小。
@@ -229,7 +224,7 @@ def migrate(paths: StatePaths, *, now: datetime) -> MigrationResult:
         now: 注入的 aware 墙钟时刻，内部 ensure_utc，微秒精度；测试固定，不能为 naive。
 
     Returns:
-        MigrationResult；相同 head 返回 changed=False、backup=None，不改数据库/目录/备份。
+        MigrationResult；相同 head 返回 changed=False、backup=None，除收紧文件权限外不改数据库/目录/备份。
         无数据库文件属于有待执行迁移，建新库但不备份不存在的空库；已有空文件/无版本库
         先备份，previous_revision=None，备份版本标签 base；绝不对已有未知表执行 stamp。
         有合法祖先版本时升级全部待执行脚本；第一版只建 error_reports 和 Alembic 版本表。
@@ -244,7 +239,7 @@ def migrate(paths: StatePaths, *, now: datetime) -> MigrationResult:
         DefectError: 迁移图错误、升级脚本或其他程序错误；拒绝降级。
 
     Side Effects:
-        先锁 root，再只读核对版本；无待执行脚本立即释放锁，无持久改动。
+        先锁 root，再只读核对版本；先收紧已有数据库、WAL/SHM及平台完整备份到0600；无待执行脚本立即释放锁，不改文件内容。
         待升级时创建 root/backups（新目录精确 STATE_DIRECTORY_MODE=0700），
         已有 backups 不能为软链接且权限必须为 0700，否则 ExternalError 拒绝，不擅自 chmod。
         已有数据库先用 sqlite3.Connection.backup 分批复制到同目录 0600 临时文件，
@@ -288,6 +283,10 @@ def migrate(paths: StatePaths, *, now: datetime) -> MigrationResult:
 
 def _migrate_locked(paths: StatePaths, now: datetime) -> MigrationResult:
     """目录锁覆盖版本判断、备份、升级和保留清理，避免两个迁移互相踩踏。"""
+    try:
+        secure_database_files(paths.database)
+    except OSError as error:
+        raise _migration_external(paths, "数据库权限", paths.database) from error
     config = migration_config()
     head = cast(str, ScriptDirectory.from_config(config).get_current_head())
     current, business = _read_revision(paths.database, migration=True)

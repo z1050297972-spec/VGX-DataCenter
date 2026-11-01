@@ -35,14 +35,16 @@ describe("建链与新增数据集的契约行为", () => {
     try {
       const name = await screen.findByLabelText("数据集名");
       expect(name.hasAttribute("required")).toBe(true);
-      expect(screen.getByLabelText("数据来源").hasAttribute("required")).toBe(true);
+      expect(screen.getByLabelText("数据来源").getAttribute("aria-required")).toBe("true");
+      expect(document.querySelector("select")).toBeNull();
+      expect(document.querySelectorAll(".creation-form .ant-select")).toHaveLength(2);
       fireEvent.click(screen.getByRole("button", { name: "生成预览" }));
       expect(requests.filter((request) => request.method === "POST")).toHaveLength(0);
       fireEvent.change(name, { target: { value: "接口新数据集" } });
-      fireEvent.change(screen.getByLabelText("数据来源"), { target: { value: "开源下载" } });
+      await choose("数据来源", "开源下载");
       fireEvent.change(screen.getByLabelText("链接名"), { target: { value: "新链接" } });
       fireEvent.change(screen.getByLabelText("目标路径"), { target: { value: "/fake/disk/new" } });
-      fireEvent.change(screen.getByLabelText("无元信息时的格式"), { target: { value: "mcap" } });
+      await choose("无元信息时的格式", "mcap");
       fireEvent.click(screen.getByLabelText("格式入口 mcap"));
       fireEvent.click(screen.getByRole("button", { name: "生成预览" }));
       expect(await screen.findByRole("heading", { name: "预览差异" })).toBeTruthy();
@@ -494,12 +496,14 @@ describe("建链与新增数据集的契约行为", () => {
       }),
     );
     try {
+      fireEvent.mouseDown(await screen.findByLabelText("数据集"));
       expect(await screen.findByRole("option", { name: "libero_10" })).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "下一页数据集" }));
       expect(await screen.findByRole("option", { name: "other" })).toBeTruthy();
-      fireEvent.change(screen.getByLabelText("数据集"), { target: { value: second.dataset_id } });
-      expect(screen.getByLabelText<HTMLSelectElement>("数据集").value).toBe(second.dataset_id);
-      expect(screen.getByRole("option", { name: "tar、tar.gz（含分卷）" })).toBeTruthy();
+      fireEvent.click(screen.getByRole("option", { name: "other" }));
+      expect(screen.getByText("other", { selector: ".ant-select-content" })).toBeTruthy();
+      fireEvent.mouseDown(screen.getByLabelText("无元信息时的格式"));
+      expect(await screen.findByRole("option", { name: "tar、tar.gz（含分卷）" })).toBeTruthy();
     } finally {
       page.close();
     }
@@ -541,12 +545,18 @@ async function previewPage(
   try {
     fireEvent.change(await screen.findByLabelText("链接名"), { target: { value: "新链接" } });
     fireEvent.change(screen.getByLabelText("目标路径"), { target: { value: "/fake/disk/new" } });
-    fireEvent.change(screen.getByLabelText("无元信息时的格式"), { target: { value: "mcap" } });
+    await choose("无元信息时的格式", "mcap");
     fireEvent.click(screen.getByRole("button", { name: "生成预览" }));
-    await screen.findByRole("heading", { name: "预览差异" }, { timeout: 2500 });
+    await screen.findByRole("heading", { name: "预览差异" });
     return page;
   } catch (error) {
     page.close();
     throw error;
   }
+}
+
+// 选择真实antd下拉选项，避免把原生change事件发给只读的combobox输入。
+async function choose(label: string, option: string): Promise<void> {
+  fireEvent.mouseDown(screen.getByLabelText(label));
+  fireEvent.click(await screen.findByRole("option", { name: option }));
 }

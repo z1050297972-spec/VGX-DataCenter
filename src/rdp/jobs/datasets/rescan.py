@@ -14,6 +14,7 @@ from typing import cast
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Engine
 
+from rdp.accounts.types import Role
 from rdp.infra.config import StorageRootConfig
 from rdp.infra.db.connection import session_scope
 from rdp.infra.diagnostics import DefectError
@@ -202,6 +203,7 @@ def build_rescan_definition(dependencies: RescanDependencies | None) -> JobDefin
         RescanParameters,
         RecoveryMode.RESTART,
         RescanExecutor(dependencies).execute,
+        submission_role=Role.MEMBER,
     )
 
 

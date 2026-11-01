@@ -19,6 +19,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
+from rdp.accounts.types import Role
 from rdp.infra.diagnostics import DefectError
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.navwrite.changes import plan_revert, read_change_record
@@ -239,6 +240,7 @@ def build_navwrite_definitions(
             RecoveryMode.INTERRUPT,
             partial(execute_apply, dependencies),
             writes_navigation=True,
+            submission_role=Role.ADMINISTRATOR,
         ),
         JobDefinition(
             NAV_REVERT_PREVIEW_TYPE,
@@ -246,5 +248,6 @@ def build_navwrite_definitions(
             NavRevertPreviewParameters,
             RecoveryMode.RESTART,
             partial(execute_revert_preview, dependencies),
+            submission_role=Role.MEMBER,
         ),
     )

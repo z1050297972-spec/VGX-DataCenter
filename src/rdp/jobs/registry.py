@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, cast, get_args
 
 from pydantic import AliasChoices, AliasPath, BaseModel, SecretBytes, SecretStr
 
+from rdp.accounts.types import Role
 from rdp.infra.actors import is_display_name
 from rdp.infra.config import MAX_JOB_CONCURRENCY, StorageRootConfig
 from rdp.infra.diagnostics import DefectError
@@ -68,6 +69,7 @@ class JobDefinition:
             名字须在启动配置中登记，用户不能用作业参数扩大该声明。
         writes_navigation: 默认 False，严格布尔（M1-07，ADR 0005 修订）。True 表示该类型会写导航层：
             "导航层恢复失败"标记存在时，worker 不领取这类作业，它们留在排队中；其他类型不受影响。
+        submission_role: 提交所需最低角色；管理员可提交全部，成员仅可提交 MEMBER 类型，系统提交不受限。
         execute: 仅接收 ExecutionContext 的同步函数，成功返回 None；每一步至多 JOB_CHECKPOINT_MAX_S
             到达检查点，所有等待经上下文；异常由执行器外层收口，不自行写作业状态或结果。
     """
@@ -81,6 +83,7 @@ class JobDefinition:
     requires_gpu: bool = False
     storage: tuple[StorageUse, ...] = ()
     writes_navigation: bool = False
+    submission_role: Role = Role.MEMBER
 
 
 class JobRegistry:
@@ -136,6 +139,7 @@ class JobRegistry:
             type(definition.concurrency) is not int
             or not 1 <= definition.concurrency <= MAX_JOB_CONCURRENCY
             or type(definition.requires_gpu) is not bool
+            or not isinstance(cast(object, definition.submission_role), Role)
         ):
             raise DefectError()
         if definition.type_name in self._definitions:
@@ -279,7 +283,12 @@ def production_registry(
     registry = JobRegistry()
     registry.register(
         JobDefinition(
-            "example_count", "示例：数数", CountParameters, RecoveryMode.INTERRUPT, execute_count
+            "example_count",
+            "示例：数数",
+            CountParameters,
+            RecoveryMode.INTERRUPT,
+            execute_count,
+            submission_role=Role.MEMBER,
         )
     )
     for definition in (
@@ -289,6 +298,7 @@ def production_registry(
             GpuExampleParameters,
             RecoveryMode.INTERRUPT,
             execute_gpu_example,
+            submission_role=Role.ADMINISTRATOR,
             requires_gpu=True,
         ),
         JobDefinition(
@@ -297,6 +307,7 @@ def production_registry(
             NavigationExampleParameters,
             RecoveryMode.INTERRUPT,
             execute_navigation_example,
+            submission_role=Role.ADMINISTRATOR,
         ),
         JobDefinition(
             PURGE_ERRORS_TYPE,
@@ -304,6 +315,7 @@ def production_registry(
             PurgeParameters,
             RecoveryMode.RESTART,
             execute_purge_errors,
+            submission_role=Role.ADMINISTRATOR,
         ),
         JobDefinition(
             PURGE_AUDIT_LOGS_TYPE,
@@ -311,6 +323,7 @@ def production_registry(
             PurgeParameters,
             RecoveryMode.RESTART,
             execute_purge_logs,
+            submission_role=Role.ADMINISTRATOR,
         ),
     ):
         registry.register(definition)

@@ -96,11 +96,14 @@ class LoginLogRow(Base):
         source_ip: ASGI client 的规范 IP，1-45 字符；缺失 NULL。
         request_id: 已知账号的当前请求编号，32 位 hex；未知账号 NULL（H2）。
         failure_category: failure 结果必填四类之一，其他结果 NULL；不存异常消息。
+        attempt_count: 同一等待期的尝试次数，正整数，普通日志为1。
+        waiting_until: 合并等待日志的UTC截止时刻；普通日志为NULL。
     """
 
     __tablename__ = "login_logs"
     __table_args__ = (
         CheckConstraint("log_id > 0", name="positive_id"),
+        CheckConstraint("attempt_count > 0", name="attempt_count"),
         CheckConstraint("account_id IS NULL OR account_id > 0", name="account_id"),
         CheckConstraint("kind IN ('login','logout','session_expired')", name="kind"),
         CheckConstraint(
@@ -144,6 +147,10 @@ class LoginLogRow(Base):
     source_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
     request_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     failure_category: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    attempt_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="1", default=1
+    )
+    waiting_until: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
 
 
 class AuditSettingsRow(Base):

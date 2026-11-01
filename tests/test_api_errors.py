@@ -446,7 +446,8 @@ def test_handler_mappings_and_media(tmp_path: Path) -> None:
 
 
 def test_handler_known_log_once(caplog: pytest.LogCaptureFixture) -> None:
-    """验证契约：显式四类和校验异常各在rdp.api.errors记一条ERROR；按6.4精确核对模块logger名；诊断五段/安全异常链按契约追加；未知异常处理器不记日志。"""
+    """验证契约：已处理4xx记INFO，5xx记ERROR；每次仅记一条安全诊断，未知异常处理器不重复记。"""
+    caplog.set_level(logging.INFO, logger="rdp.api.errors")
     with log_context(request_id=_REQUEST_ID):
         for error in (
             InputError((_diagnostic(),)),
@@ -460,7 +461,9 @@ def test_handler_known_log_once(caplog: pytest.LogCaptureFixture) -> None:
             assert response.status_code in (400, 409, 502, 500, 422)
             assert len(caplog.records) == 1
             assert caplog.records[0].name == "rdp.api.errors"
-            assert caplog.records[0].levelno == logging.ERROR
+            assert caplog.records[0].levelno == (
+                logging.ERROR if response.status_code >= 500 else logging.INFO
+            )
         caplog.clear()
         asyncio.run(handle_error(_request(), RuntimeError("未知")))
         assert not caplog.records
@@ -468,6 +471,7 @@ def test_handler_known_log_once(caplog: pytest.LogCaptureFixture) -> None:
 
 def test_handler_request_log_privacy(caplog: pytest.LogCaptureFixture) -> None:
     """验证契约：日志请求行只含method、匹配路由模板path；未知路由写未匹配路径；查询串、路径实值、headers、cookie、请求体不出现。"""
+    caplog.set_level(logging.INFO, logger="rdp.api.errors")
     app = FastAPI()
 
     async def endpoint(item: str) -> None:
@@ -921,6 +925,7 @@ def test_validation_log_field_locations_without_values(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """验证契约：真实 422 日志包含各字段五段诊断，但不含口令、其他原值或校验异常正文。"""
+    caplog.set_level(logging.INFO, logger="rdp.api.errors")
 
     class LoginParameters(BaseModel):
         """只为触发字段约束失败构造测试载荷，不是真实登录接口。"""
@@ -942,7 +947,7 @@ def test_validation_log_field_locations_without_values(
     assert response.status_code == 422
     assert len(caplog.records) == 1
     assert caplog.records[0].name == "rdp.api.errors"
-    assert caplog.records[0].levelno == logging.ERROR
+    assert caplog.records[0].levelno == logging.INFO
     message = caplog.records[0].getMessage()
     assert '对象："field"="body.password"' in message
     assert '对象："field"="body.count"' in message

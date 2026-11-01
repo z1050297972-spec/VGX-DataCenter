@@ -146,6 +146,7 @@ class LoginResponse(AuditPayload):
         result: LoginResult，必填。
         source_ip: ASGI client 的 IP；缺失 None。
         request_id: 请求编号；未知账号 None。
+        attempt_count: 同一等待期的尝试次数，正整数，普通日志为1。
         failure_category: 执行故障的四类类别；其他结果 None，不带内部异常文本。
     """
 
@@ -158,6 +159,7 @@ class LoginResponse(AuditPayload):
     source_ip: str | None = Field(max_length=45)
     request_id: str | None = Field(min_length=32, max_length=32)
     failure_category: DiagnosticCategory | None
+    attempt_count: int = Field(default=1, ge=1)
 
 
 class OperationListResponse(AuditPayload):

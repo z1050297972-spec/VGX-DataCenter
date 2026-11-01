@@ -658,7 +658,7 @@ def test_file_io(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         with pytest.raises(ExternalError) as caught:
             read_example_value(path)
         assert isinstance(caught.value.__cause__, OSError)
-    original = os.fdopen
+    original, original_open = os.fdopen, os.open
     for phase in ("open", "append", "flush", "fsync", "close"):
         with navigation_jobs(tmp_path / phase) as dependencies:
             work, signals = navigation_work(dependencies, 71, "")
@@ -672,7 +672,13 @@ def test_file_io(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
             with monkeypatch.context() as patch:
                 if phase == "open":
-                    patch.setattr(os, "open", denied)
+
+                    def deny_example(file: str | Path, flags: int, mode: int = 0o777) -> int:
+                        if str(file).endswith("navigation-example.jsonl"):
+                            raise PermissionError("模拟权限失败")
+                        return original_open(file, flags, mode)
+
+                    patch.setattr(os, "open", deny_example)
                 elif phase == "fsync":
                     patch.setattr(os, "fsync", denied)
                 else:

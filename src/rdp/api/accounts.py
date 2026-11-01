@@ -6,13 +6,17 @@
 注入时钟统一由 get_account_now 校验；非法时钟是 DefectError，不把它混入用户字段的 422。
 """
 
+from collections.abc import Callable
+from functools import partial
 from typing import Annotated, cast
 
+import anyio
 from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import Response
 
 from rdp.accounts._issues import problem
 from rdp.accounts.errors import AccountInputError
+from rdp.accounts.policy import ARGON2_MAX_CONCURRENCY, ARGON2_QUEUE_TIMEOUT_S
 from rdp.accounts.types import Credentials, NewAccount, PasswordChange
 from rdp.api._account_context import identity as _identity
 from rdp.api.account_auth import (
@@ -34,6 +38,7 @@ from rdp.api.account_schemas import (
     StatusRequest,
     account_response,
 )
+from rdp.infra.diagnostics import ExternalError
 from rdp.infra.ids import MAX_SQLITE_INTEGER
 
 # 所有失败响应由 install_error_handlers 合并 ProblemResponse；这里额外声明 G2 的安全重试头。
@@ -58,8 +63,26 @@ LoginContext = Annotated[AccountRequestContext, Depends(get_login_context)]
 TargetId = Annotated[str, Path(pattern=r"^[1-9][0-9]{0,18}$", max_length=19)]
 
 
+# Web与同步运维共用既有并发常量；专用token不占AnyIO公共线程池，等待最多一秒。
+_password_slots = anyio.CapacityLimiter(ARGON2_MAX_CONCURRENCY)
+_password_threads = anyio.CapacityLimiter(ARGON2_MAX_CONCURRENCY)
+
+
+async def _password_work[T](callback: Callable[[], T]) -> T:
+    """先异步等计算名额，再在独立token下执行完整领域操作，结束后释放资源。"""
+    try:
+        with anyio.fail_after(ARGON2_QUEUE_TIMEOUT_S):
+            await _password_slots.acquire()
+    except TimeoutError:
+        raise problem(ExternalError, "哈希资源繁忙，请稍后重试。", field="password") from None
+    try:
+        return await anyio.to_thread.run_sync(callback, limiter=_password_threads)
+    finally:
+        _password_slots.release()
+
+
 @router.post("/auth/login", response_model=AccountResponse, status_code=200, operation_id="login")
-def login(body: LoginRequest, response: Response, context: LoginContext) -> AccountResponse:
+async def login(body: LoginRequest, response: Response, context: LoginContext) -> AccountResponse:
     """验证登录并设置新会话 cookie。
 
     Args:
@@ -82,16 +105,21 @@ def login(body: LoginRequest, response: Response, context: LoginContext) -> Acco
 
     Side Effects:
         调用 service.login；只有事务提交后才设置新 cookie，登录成功不复用传入的旧令牌。
-        本次增加的失败计数由领域提交后才响应；429 输出 Retry-After，失败不设置新 cookie、无登录日志。
+        本次增加的失败计数由领域提交后才响应；429 输出 Retry-After，失败不设置新 cookie；等待期只累加首条等待日志的次数。
 
     Time Semantics:
-        POST 先检查 Origin，领域事务完成后才发新 cookie；本次增加的失败计数必须提交后才发送对应 401/429，已有等待的 429 不新增写入。
+        POST 先检查 Origin，领域事务完成后才发新 cookie；本次增加的失败计数必须提交后才发送对应 401/429，已有等待的429只累加同一等待期日志的次数。
         只用 context.now；先结束只读快照，在事务外核验/按需重哈希，释放 Argon2 名额后再重读写入。
-        Argon2 排队最多 1 秒，短写事务获锁最多约 5 秒，二者不重叠。
+        Argon2经CapacityLimiter异步排队最多1秒，计算使用专用线程名额；短写事务获锁最多约5秒。
         回拨不报 409、不改已有等待截止；请求取消不保证已经开始的提交被取消。
     """
-    grant = context.service.login(
-        Credentials(body.login_name, body.password), now=context.now, audit=context.audit
+    grant = await _password_work(
+        partial(
+            context.service.login,
+            Credentials(body.login_name, body.password),
+            now=context.now,
+            audit=context.audit,
+        )
     )
     set_session_cookie(response, grant)
     return account_response(grant.identity.account)
@@ -163,7 +191,7 @@ def who_am_i(context: AuthenticatedContext) -> AccountResponse:
     status_code=200,
     operation_id="change_own_password",
 )
-def change_own_password(
+async def change_own_password(
     body: ChangePasswordRequest, response: Response, context: AuthenticatedContext
 ) -> AccountResponse:
     """本人改口令并轮换 cookie。
@@ -196,11 +224,14 @@ def change_own_password(
         只读快照结束后在事务外核验旧口令并算好新哈希，再进短写事务复核、提交，之后才发送 200/新 cookie；旧口令失败计数提交后才发送 400/429。
         Argon2 入场及运算不持有数据库事务；每次排队最多 1 秒，完成并释放名额后写锁最多约 5 秒，无重试。
     """
-    grant = context.service.change_password(
-        _identity(context),
-        PasswordChange(body.current_password, body.new_password),
-        now=context.now,
-        audit=context.audit,
+    grant = await _password_work(
+        partial(
+            context.service.change_password,
+            _identity(context),
+            PasswordChange(body.current_password, body.new_password),
+            now=context.now,
+            audit=context.audit,
+        )
     )
     set_session_cookie(response, grant)
     return account_response(grant.identity.account)
@@ -252,7 +283,7 @@ def list_accounts(
 @router.post(
     "/accounts", response_model=AccountResponse, status_code=201, operation_id="create_account"
 )
-def create_account(body: CreateAccountRequest, context: AdminContext) -> AccountResponse:
+async def create_account(body: CreateAccountRequest, context: AdminContext) -> AccountResponse:
     """管理员新建启用且首次必须改口令的账号。
 
     Args:
@@ -281,8 +312,14 @@ def create_account(body: CreateAccountRequest, context: AdminContext) -> Account
     """
     command = NewAccount(Credentials(body.login_name, body.password), body.display_name, body.role)
     return account_response(
-        context.service.create_account(
-            _identity(context), command, now=context.now, audit=context.audit
+        await _password_work(
+            partial(
+                context.service.create_account,
+                _identity(context),
+                command,
+                now=context.now,
+                audit=context.audit,
+            )
         )
     )
 
@@ -391,7 +428,7 @@ def set_account_status(
     status_code=200,
     operation_id="reset_account_password",
 )
-def reset_account_password(
+async def reset_account_password(
     account_id: TargetId, body: ResetPasswordRequest, context: AdminContext
 ) -> AccountResponse:
     """管理员重置口令并要求目标再次登录后改密。
@@ -424,12 +461,15 @@ def reset_account_password(
         保存已计算结果、强制改密和删除会话同事务提交后发 200，不签发目标 cookie、不自动重试。
     """
     return account_response(
-        context.service.reset_password(
-            _identity(context),
-            _identifier(account_id),
-            body.password,
-            now=context.now,
-            audit=context.audit,
+        await _password_work(
+            partial(
+                context.service.reset_password,
+                _identity(context),
+                _identifier(account_id),
+                body.password,
+                now=context.now,
+                audit=context.audit,
+            )
         )
     )
 

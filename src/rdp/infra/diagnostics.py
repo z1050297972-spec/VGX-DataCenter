@@ -66,6 +66,7 @@ ALLOWED_HTTP_STATUSES: Final[Mapping[DiagnosticCategory, tuple[HTTPStatus, ...]]
                 HTTPStatus.UNAUTHORIZED,
                 HTTPStatus.FORBIDDEN,
                 HTTPStatus.TOO_MANY_REQUESTS,
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
             ),
             DiagnosticCategory.CONFLICT: (HTTPStatus.CONFLICT,),
             DiagnosticCategory.EXTERNAL: (HTTPStatus.BAD_GATEWAY,),

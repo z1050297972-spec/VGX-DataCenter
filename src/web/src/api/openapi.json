@@ -3352,7 +3352,7 @@
       },
       "LoginResponse": {
         "additionalProperties": false,
-        "description": "一条登录日志；未知账号不输出输入的登录名。\n\nAttributes:\n    log_id: 正整数十进制编号，必填。\n    occurred_at: aware UTC ISO 8601，微秒，必填。\n    account: 已确认历史身份；未知账号 None。\n    login_name: 已存账号登录名；未知账号 None。\n    kind: 登录、登出或过期删除类型，必填。\n    result: LoginResult，必填。\n    source_ip: ASGI client 的 IP；缺失 None。\n    request_id: 请求编号；未知账号 None。\n    failure_category: 执行故障的四类类别；其他结果 None，不带内部异常文本。",
+        "description": "一条登录日志；未知账号不输出输入的登录名。\n\nAttributes:\n    log_id: 正整数十进制编号，必填。\n    occurred_at: aware UTC ISO 8601，微秒，必填。\n    account: 已确认历史身份；未知账号 None。\n    login_name: 已存账号登录名；未知账号 None。\n    kind: 登录、登出或过期删除类型，必填。\n    result: LoginResult，必填。\n    source_ip: ASGI client 的 IP；缺失 None。\n    request_id: 请求编号；未知账号 None。\n    attempt_count: 同一等待期的尝试次数，正整数，普通日志为1。\n    failure_category: 执行故障的四类类别；其他结果 None，不带内部异常文本。",
         "properties": {
           "account": {
             "anyOf": [
@@ -3363,6 +3363,12 @@
                 "type": "null"
               }
             ]
+          },
+          "attempt_count": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Attempt Count",
+            "type": "integer"
           },
           "failure_category": {
             "anyOf": [
@@ -4169,7 +4175,7 @@
       },
       "ProblemResponse": {
         "additionalProperties": false,
-        "description": "RFC 9457 的不可变错误载荷；字段固定，不包含 traceback、错误链或请求内容。\n\nAttributes:\n    type: 问题类型 URI，固定 about:blank，无单位，默认 about:blank；不虚构文档 URI。\n    title: 对应 HTTPStatus.phrase 的标准英文状态短语，非空白，无单位，必填，无默认值；\n        中文说明放 detail，符合 about:blank 约定。\n    status: HTTP 状态码，严格整数，仅 400/404/422/401/403/429/409/502/500；拒绝 bool；\n        无单位，必填，无默认值。INPUT 对应前六种，其余类别依次对应后三种。\n    detail: 一句安全的中文摘要，非空白，无单位，必填，无默认值；程序缺陷固定为\n        “平台内部错误，请把错误编号交给维护者。”，不回显 str(error)。\n    category: 四类 DiagnosticCategory 之一，无单位，必填，无默认值。\n    diagnostics: 有序 Diagnostic 元组，默认空元组；单位条；程序缺陷必须为空，\n        其他类别与顶层一致；通用载荷允许为空，但 build_problem 的领域异常/校验失败至少一条。\n    error_id: 服务端请求编号，32 位小写 uuid4.hex，匹配 v4/variant 位；无单位，必填，\n        无默认值；来自 request_id_context，与 X-Request-ID 一致，不接收客户端编号。",
+        "description": "RFC 9457 的不可变错误载荷；字段固定，不包含 traceback、错误链或请求内容。\n\nAttributes:\n    type: 问题类型 URI，固定 about:blank，无单位，默认 about:blank；不虚构文档 URI。\n    title: 对应 HTTPStatus.phrase 的标准英文状态短语，非空白，无单位，必填，无默认值；\n        中文说明放 detail，符合 about:blank 约定。\n    status: HTTP 状态码，严格整数，仅 400/404/422/401/403/413/429/409/502/500；拒绝 bool；\n        无单位，必填，无默认值。INPUT 对应前七种，其余类别依次对应后三种。\n    detail: 一句安全的中文摘要，非空白，无单位，必填，无默认值；程序缺陷固定为\n        “平台内部错误，请把错误编号交给维护者。”，不回显 str(error)。\n    category: 四类 DiagnosticCategory 之一，无单位，必填，无默认值。\n    diagnostics: 有序 Diagnostic 元组，默认空元组；单位条；程序缺陷必须为空，\n        其他类别与顶层一致；通用载荷允许为空，但 build_problem 的领域异常/校验失败至少一条。\n    error_id: 服务端请求编号，32 位小写 uuid4.hex，匹配 v4/variant 位；无单位，必填，\n        无默认值；来自 request_id_context，与 X-Request-ID 一致，不接收客户端编号。",
         "properties": {
           "category": {
             "$ref": "#/components/schemas/DiagnosticCategory"
@@ -5181,6 +5187,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -5316,6 +5332,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -5448,6 +5474,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -5599,6 +5635,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -5749,6 +5795,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -5898,6 +5954,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -6141,6 +6207,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -6393,6 +6469,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -6509,6 +6595,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -6635,6 +6731,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -6689,7 +6795,7 @@
     },
     "/api/auth/login": {
       "post": {
-        "description": "验证登录并设置新会话 cookie。\n\nArgs:\n    body: 登录名和 SecretStr 口令，无默认、不在 query 或日志中传递。\n    response: 未发送的响应，供设置 cookie。\n    context: 已验证 Origin 的免登录上下文，identity=None。\n\nReturns:\n    HTTP 200 AccountResponse，必须改口令标记原样返回；原文仅进入 HttpOnly cookie，不进入 JSON。\n\nRaises:\n    AccountInputError: 登录名/口令字段不合法，422；框架校验不回显 body。\n    AuthenticationError: 未知、停用或错口令，统一“账号或口令错误”的 401。\n    AuthorizationError: POST 登录缺失/null/非法或不同源 Origin，403。\n    LoginWaitError: 启用账号仍在 G2 等待或连续第五次错误，429 带 Retry-After，等待期间不哈希。\n    InputError: 数据库、UTC 列或已存口令编码损坏，400。\n    ConflictError: 重读哈希/G2 状态已变化需重试，或SQLite 写锁/约束冲突，409；不计失败、不签发会话。\n    ExternalError: 数据库不可用/I/O 失败或 Argon2 名额排队超过 1 秒，502，不计错口令。\n    DefectError: 注入时钟非法/回调失败，或登录装配、哈希、熵源或响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    调用 service.login；只有事务提交后才设置新 cookie，登录成功不复用传入的旧令牌。\n    本次增加的失败计数由领域提交后才响应；429 输出 Retry-After，失败不设置新 cookie、无登录日志。\n\nTime Semantics:\n    POST 先检查 Origin，领域事务完成后才发新 cookie；本次增加的失败计数必须提交后才发送对应 401/429，已有等待的 429 不新增写入。\n    只用 context.now；先结束只读快照，在事务外核验/按需重哈希，释放 Argon2 名额后再重读写入。\n    Argon2 排队最多 1 秒，短写事务获锁最多约 5 秒，二者不重叠。\n    回拨不报 409、不改已有等待截止；请求取消不保证已经开始的提交被取消。",
+        "description": "验证登录并设置新会话 cookie。\n\nArgs:\n    body: 登录名和 SecretStr 口令，无默认、不在 query 或日志中传递。\n    response: 未发送的响应，供设置 cookie。\n    context: 已验证 Origin 的免登录上下文，identity=None。\n\nReturns:\n    HTTP 200 AccountResponse，必须改口令标记原样返回；原文仅进入 HttpOnly cookie，不进入 JSON。\n\nRaises:\n    AccountInputError: 登录名/口令字段不合法，422；框架校验不回显 body。\n    AuthenticationError: 未知、停用或错口令，统一“账号或口令错误”的 401。\n    AuthorizationError: POST 登录缺失/null/非法或不同源 Origin，403。\n    LoginWaitError: 启用账号仍在 G2 等待或连续第五次错误，429 带 Retry-After，等待期间不哈希。\n    InputError: 数据库、UTC 列或已存口令编码损坏，400。\n    ConflictError: 重读哈希/G2 状态已变化需重试，或SQLite 写锁/约束冲突，409；不计失败、不签发会话。\n    ExternalError: 数据库不可用/I/O 失败或 Argon2 名额排队超过 1 秒，502，不计错口令。\n    DefectError: 注入时钟非法/回调失败，或登录装配、哈希、熵源或响应转换错误，500；报告前脱敏。\n\nSide Effects:\n    调用 service.login；只有事务提交后才设置新 cookie，登录成功不复用传入的旧令牌。\n    本次增加的失败计数由领域提交后才响应；429 输出 Retry-After，失败不设置新 cookie；等待期只累加首条等待日志的次数。\n\nTime Semantics:\n    POST 先检查 Origin，领域事务完成后才发新 cookie；本次增加的失败计数必须提交后才发送对应 401/429，已有等待的429只累加同一等待期日志的次数。\n    只用 context.now；先结束只读快照，在事务外核验/按需重哈希，释放 Argon2 名额后再重读写入。\n    Argon2经CapacityLimiter异步排队最多1秒，计算使用专用线程名额；短写事务获锁最多约5秒。\n    回拨不报 409、不改已有等待截止；请求取消不保证已经开始的提交被取消。",
         "operationId": "login",
         "requestBody": {
           "content": {
@@ -6761,6 +6867,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -6876,6 +6992,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -7003,6 +7129,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -7140,6 +7276,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -7480,6 +7626,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -7596,6 +7752,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -7723,6 +7889,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -7853,6 +8029,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -7979,6 +8165,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -8110,6 +8306,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -8227,6 +8433,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -8343,6 +8559,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -8468,6 +8694,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -8595,6 +8831,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -8734,6 +8980,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -8861,6 +9117,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -8987,6 +9253,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -9162,6 +9438,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -9468,6 +9754,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -9635,6 +9931,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -9825,6 +10131,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "416": {
             "description": "范围不可满足；Content-Range为bytes */total"
           },
@@ -10005,6 +10321,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -10182,6 +10508,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -10312,6 +10648,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -10488,6 +10834,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -10666,6 +11022,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -10797,6 +11163,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -10910,6 +11286,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -11068,6 +11454,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -11120,7 +11516,7 @@
         ]
       },
       "post": {
-        "description": "提交登记类型并原子写操作日志。\n\nArgs:\n    context: 通过全局 Origin/登录/改密检查的上下文，审计来源必填。\n    body: 稳定类型键及无秘密 JSON 参数，领域按对应模型校验。\n\nReturns:\n    HTTP 201，新 queued 记录；事务提交后才响应，不等待 worker 在线。\n\nRaises:\n    JobInputError: 未登记类型或模型/容量校验失败，422，不回显值。\n    AuthenticationError: 写事务内会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    InputError: 数据库损坏，400。\n    ConflictError: 写入竞争/编号耗尽，409。\n    ExternalError: 作业/日志事务失败，502。\n    DefectError: 上下文/时钟/响应错误，500；统一处理器报告审计补记失败。\n\nSide Effects:\n    新作业和提交操作日志同事务；参数不进审计明细，不在 Web 执行类型函数。\n\nTime Semantics:\n    一次请求唯一 UTC 时刻；普通写锁预算 5 秒、失败补记 100 毫秒，不重试 POST。",
+        "description": "提交登记类型并原子写操作日志。\n\nArgs:\n    context: 通过全局 Origin/登录/改密检查的上下文，审计来源必填。\n    body: 稳定类型键及无秘密 JSON 参数，领域按对应模型校验。\n\nReturns:\n    HTTP 201，新 queued 记录；事务提交后才响应，不等待 worker 在线。\n\nRaises:\n    JobInputError: 未登记类型或模型/容量校验失败，422，不回显值。\n    AuthenticationError: 写事务内会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    AuthorizationError: 当前角色不满足类型提交声明，403，先于参数校验。\n    InputError: 数据库损坏，400。\n    ConflictError: 写入竞争/编号耗尽，409。\n    ExternalError: 作业/日志事务失败，502。\n    DefectError: 上下文/时钟/响应错误，500；统一处理器报告审计补记失败。\n\nSide Effects:\n    新作业和提交操作日志同事务；参数不进审计明细，不在 Web 执行类型函数。\n\nTime Semantics:\n    一次请求唯一 UTC 时刻；普通写锁预算 5 秒、失败补记 100 毫秒，不重试 POST。",
         "operationId": "submit_job",
         "requestBody": {
           "content": {
@@ -11192,6 +11588,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -11320,6 +11726,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -11374,7 +11790,7 @@
     },
     "/api/jobs/example/gpu": {
       "post": {
-        "description": "提交示例占卡作业，不在请求进程访问 GPU。\n\nArgs:\n    context: 完成全局 Origin/认证/改密检查的当前账号上下文。\n    body: 占用秒数 0 至 GPU_EXAMPLE_MAX_HOLD_S，不接受卡号或命令路径。\n\nReturns:\n    HTTP 201，新 example_gpu queued 记录；提交人是当前账号。\n\nRaises:\n    JobInputError: 占用时长非法或类型未登记，422。\n    AuthenticationError: 会话无效，401。\n    PasswordChangeRequiredError: 必须改口令，403。\n    ConflictError: 提交/审计事务竞争，409。\n    InputError: 数据库损坏，400。\n    ExternalError: 持久化失败，502。\n    DefectError: 装配、时钟或响应映射错误，500；状态码以规范 6.2 为准。\n\nSide Effects:\n    调 JobService.submit，共享提交审计和参数校验；无 nvidia-smi 子进程或资源预留。\n\nTime Semantics:\n    用请求唯一 UTC 时刻，普通写锁 5 秒；执行时长只作用于 worker，不在 HTTP 等待。",
+        "description": "提交示例占卡作业，不在请求进程访问 GPU。\n\nArgs:\n    context: 完成全局 Origin/认证/改密检查的管理员上下文。\n    body: 占用秒数 0 至 GPU_EXAMPLE_MAX_HOLD_S，不接受卡号或命令路径。\n\nReturns:\n    HTTP 201，新 example_gpu queued 记录；提交人是当前账号。\n\nRaises:\n    JobInputError: 占用时长非法或类型未登记，422。\n    AuthenticationError: 会话无效，401。\n    AuthorizationError: 非管理员提交，403，先于参数校验。\n    PasswordChangeRequiredError: 必须改口令，403。\n    ConflictError: 提交/审计事务竞争，409。\n    InputError: 数据库损坏，400。\n    ExternalError: 持久化失败，502。\n    DefectError: 装配、时钟或响应映射错误，500；状态码以规范 6.2 为准。\n\nSide Effects:\n    调 JobService.submit，共享提交审计和参数校验；无 nvidia-smi 子进程或资源预留。\n\nTime Semantics:\n    用请求唯一 UTC 时刻，普通写锁 5 秒；执行时长只作用于 worker，不在 HTTP 等待。",
         "operationId": "submit_gpu_job",
         "requestBody": {
           "content": {
@@ -11447,6 +11863,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -11501,7 +11927,7 @@
     },
     "/api/jobs/example/navigation": {
       "post": {
-        "description": "提交带预览期望值的写锁演示，不在 Web 核对或写示例文件。\n\nArgs:\n    context: 任意已登录且完成改密的账号与审计来源，Origin 已通过全局检查。\n    body: 期望字符串 0-256 码点、锁内暂停 0-10 秒，拒绝文件路径和操作者声明。\n\nReturns:\n    HTTP 201，新 example_navigation queued 记录；期待值是否匹配交 worker 锁内核对。\n\nRaises:\n    JobInputError: 参数不合格或类型未登记，422；不以当前文件状态拒绝提交。\n    AuthenticationError: 事务内身份失效，401。\n    PasswordChangeRequiredError: 账号须改口令，403。\n    ConflictError: 提交写锁/约束冲突，409。\n    InputError: 数据库损坏，400。\n    ExternalError: 新作业或审计事务失败，502。\n    DefectError: 类型/时钟/响应转换缺陷，500。\n\nSide Effects:\n    仅经 JobService.submit 新增作业及操作日志；不读取导航层、数据盘或示例文件，不持写锁。\n\nTime Semantics:\n    本请求单次普通事务，无重试；pause_s 在后台持锁阶段才生效。",
+        "description": "提交带预览期望值的写锁演示，不在 Web 核对或写示例文件。\n\nArgs:\n    context: 已登录且完成改密的管理员与审计来源，Origin 已通过全局检查。\n    body: 期望字符串 0-256 码点、锁内暂停 0-10 秒，拒绝文件路径和操作者声明。\n\nReturns:\n    HTTP 201，新 example_navigation queued 记录；期待值是否匹配交 worker 锁内核对。\n\nRaises:\n    JobInputError: 参数不合格或类型未登记，422；不以当前文件状态拒绝提交。\n    AuthenticationError: 事务内身份失效，401。\n    AuthorizationError: 当前账号不是管理员，403。\n    PasswordChangeRequiredError: 账号须改口令，403。\n    ConflictError: 提交写锁/约束冲突，409。\n    InputError: 数据库损坏，400。\n    ExternalError: 新作业或审计事务失败，502。\n    DefectError: 类型/时钟/响应转换缺陷，500。\n\nSide Effects:\n    仅经 JobService.submit 新增作业及操作日志；不读取导航层、数据盘或示例文件，不持写锁。\n\nTime Semantics:\n    本请求单次普通事务，无重试；pause_s 在后台持锁阶段才生效。",
         "operationId": "submit_navigation_job",
         "requestBody": {
           "content": {
@@ -11573,6 +11999,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -11702,6 +12138,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -11830,6 +12276,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -11884,7 +12340,7 @@
     },
     "/api/jobs/{job_id}/log": {
       "get": {
-        "description": "读取指定作业的有界日志尾部。\n\nArgs:\n    context: 登录账号及可信状态目录；不得从请求接收文件路径。\n    job_id: 正整数十进制文本，通过记录取得 log_path。\n\nReturns:\n    HTTP 200，available/not_started/cleared 及最后至多 50 行；文件已清除不是 500。\n\nRaises:\n    JobInputError: 编号非法，422。\n    JobNotFoundError: 作业不存在，404。\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    InputError: 记录或数据库损坏，400。\n    ConflictError: 查询锁冲突，409。\n    ExternalError: 权限或文件/数据库 I/O 失败，502。\n    DefectError: 路径越界、非普通文件或响应构造错误，500。\n\nSide Effects:\n    先完成只读查询，再读 logs 内最多 64 KiB；不在文件 I/O 期间持数据库事务。\n\nTime Semantics:\n    返回当次末尾完整行，终态后页面停止轮询；不等待新输出或锁住 worker。",
+        "description": "读取指定作业的有界日志尾部。\n\nArgs:\n    context: 登录账号及可信状态目录；不得从请求接收文件路径。\n    job_id: 正整数十进制文本，通过记录取得 log_path。\n\nReturns:\n    HTTP 200，available/not_started/cleared 及最后至多 50 行；成员版本移除绝对路径、命令和stderr。\n    文件已清除不是 500。\n\nRaises:\n    JobInputError: 编号非法，422。\n    JobNotFoundError: 作业不存在，404。\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    InputError: 记录或数据库损坏，400。\n    ConflictError: 查询锁冲突，409。\n    ExternalError: 权限或文件/数据库 I/O 失败，502。\n    DefectError: 路径越界、非普通文件或响应构造错误，500。\n\nSide Effects:\n    先完成只读查询，再读 logs 内最多 64 KiB；不在文件 I/O 期间持数据库事务。\n\nTime Semantics:\n    返回当次末尾完整行，终态后页面停止轮询；不等待新输出或锁住 worker。",
         "operationId": "get_job_log",
         "parameters": [
           {
@@ -11957,6 +12413,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -12085,6 +12551,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -12215,6 +12691,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -12342,6 +12828,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -12468,6 +12964,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -12597,6 +13103,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -12725,6 +13241,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -12842,6 +13368,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -12958,6 +13494,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -13086,6 +13632,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -13202,6 +13758,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -13320,6 +13886,16 @@
             },
             "description": "Conflict"
           },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -13433,6 +14009,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -13550,6 +14136,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {

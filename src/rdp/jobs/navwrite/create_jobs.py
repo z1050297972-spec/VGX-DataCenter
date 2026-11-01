@@ -7,6 +7,7 @@
 import logging
 from functools import partial
 
+from rdp.accounts.types import Role
 from rdp.infra.db.connection import session_scope
 from rdp.infra.diagnostics import DefectError
 from rdp.infra.timeutil import ensure_utc
@@ -164,6 +165,7 @@ def build_creation_definitions(
             LinkPreviewParameters,
             RecoveryMode.RESTART,
             partial(execute_link_preview, dependencies),
+            submission_role=Role.MEMBER,
         ),
         JobDefinition(
             DATASET_PREVIEW_TYPE,
@@ -171,6 +173,7 @@ def build_creation_definitions(
             DatasetPreviewParameters,
             RecoveryMode.RESTART,
             partial(execute_dataset_preview, dependencies),
+            submission_role=Role.MEMBER,
         ),
     )
 

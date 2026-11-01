@@ -7,6 +7,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from rdp.accounts.types import Role
 from rdp.infra.db.connection import session_scope
 from rdp.infra.diagnostics import (
     DefectError,
@@ -58,6 +59,7 @@ def build_sizing_definition(dependencies: RescanDependencies | None) -> JobDefin
         SizingParameters,
         RecoveryMode.RESTART,
         _SizingExecutor(dependencies).execute,
+        submission_role=Role.MEMBER,
     )
 
 

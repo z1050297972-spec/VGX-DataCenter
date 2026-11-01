@@ -1,12 +1,13 @@
 """日志追加和读取契约（领域层，07），共享调用者的事务，不负责鉴权或提交。
 
 SQLAlchemy/UTCDateTime 负责存取和 UTC；错误沿用基础层四类，不记录运行日志。
-只提供追加与查询，以及设置保留期；没有改单条、删单条的函数。
+只提供记录结果、查询和设置保留期；等待期仅累加首条日志的次数，不改写原结果、来源或时间。
 """
 
+from datetime import datetime
 from typing import cast
 
-from sqlalchemy import ColumnElement
+from sqlalchemy import ColumnElement, select
 from sqlalchemy.orm import Session
 
 from rdp.audit import _query as queries
@@ -87,8 +88,10 @@ def append_operation(session: Session, event: OperationEvent) -> int:
         return row.log_id
 
 
-def append_login(session: Session, event: LoginEvent) -> int:
-    """在登录状态或会话删除事务里追加一条登录日志。
+def append_login(
+    session: Session, event: LoginEvent, *, waiting_until: datetime | None = None
+) -> int:
+    """在登录事务里记录结果，同一等待期的重复尝试累加到首条日志。
 
     Args:
         session: 已获锁的受管写 Session，不可空、不可并发。
@@ -96,8 +99,10 @@ def append_login(session: Session, event: LoginEvent) -> int:
             logout/session_expired 结果必须为 success，已知账号编号和快照必填；
             FAILURE 必须带四类失败类别，其余结果不带类别；未确认身份的 FAILURE 身份和请求编号均为空。
 
+        waiting_until: 已确认账号等待期的UTC截止；None不合并，等待结束后的新尝试另起记录。
+
     Returns:
-        已 flush 但尚未提交的正整数日志编号。
+        已 flush 但尚未提交的正整数日志编号；合并时返回首条编号。
 
     Raises:
         AuditInputError: 登录事件的类型、账号快照、时间或类型/结果组合非法，不回显输入原文。
@@ -107,7 +112,8 @@ def append_login(session: Session, event: LoginEvent) -> int:
         DefectError: 登录事件上下文类型/IP/请求编号非法，或不满足匿名事件去编号要求；以及非受管写会话、SQL/映射错误。
 
     Side Effects:
-        追加一行，不提交；与 G2 计数、会话签发或实际删除同时提交/回滚。
+        普通结果追加一行；同一账号和等待截止的WAITING结果只累加attempt_count，保留首条时间和来源。
+        不提交；与 G2 计数、会话签发或实际删除同时提交/回滚。
         不写口令、口令哈希、令牌、摘要、cookie，不为未知登录名创建账号。
         未获短锁的过期删除不调用本函数；并发已经删除的会话不重复记。
 
@@ -117,7 +123,22 @@ def append_login(session: Session, event: LoginEvent) -> int:
     """
     event = validate.login(event)
     with operation(session, write=True):
+        if event.result is LoginResult.WAITING and waiting_until is not None:
+            previous = session.scalar(
+                select(LoginLogRow).where(
+                    LoginLogRow.account_id
+                    == (None if event.account is None else event.account.account_id),
+                    LoginLogRow.kind == LoginKind.LOGIN.value,
+                    LoginLogRow.result == LoginResult.WAITING.value,
+                    LoginLogRow.waiting_until == waiting_until,
+                )
+            )
+            if previous is not None:
+                previous.attempt_count += 1
+                session.flush()
+                return previous.log_id
         row = LoginLogRow(
+            waiting_until=waiting_until if event.result is LoginResult.WAITING else None,
             occurred_at=event.occurred_at,
             account_id=None if event.account is None else event.account.account_id,
             account_name=None if event.account is None else event.account.name,
@@ -304,6 +325,7 @@ def query_logins(
                 row.log_id,
                 item,
                 item.account is not None and item.account.account_id not in present,
+                row.attempt_count,
             )
             for row, item in zip(selected, events, strict=True)
         )

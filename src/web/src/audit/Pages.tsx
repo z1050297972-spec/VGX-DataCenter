@@ -212,6 +212,7 @@ const loginColumns: TableColumnsType<LoginLogPage["items"][number]> = [
     render: (_, row) => (row.account ? historical(row.account) : "账号不存在"),
   },
   { title: "登录名", dataIndex: "login_name" },
+  { title: "次数", dataIndex: "attempt_count" },
   { title: "类型", key: "kind", render: (_, row) => LOGIN_KINDS[row.kind] },
   { title: "结果", key: "result", render: (_, row) => LOGIN_RESULTS[row.result] },
   { title: "失败类别", dataIndex: "failure_category" },
