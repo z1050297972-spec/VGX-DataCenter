@@ -1,5 +1,6 @@
 // 账号页面（06）：采用 antd 与 TanStack Router/Query；错误统一用 DiagnosticCard，秘密只在表单内存。
 import type { HealthClient } from "../api/client";
+import { changeToken, getTokenState } from "../api/downloadToken";
 import { VersionFooter } from "../VersionFooter";
 import { WorkerStatusBanner } from "../jobs/WorkerStatusBanner";
 import { RecoveryBlockBanner } from "../navigation/RecoveryBlockBanner";
@@ -353,6 +354,7 @@ export function AccountsPage(): ReactElement {
   ];
   return (
     <Card title="账号管理">
+      <DownloadTokenSection />
       {holder}
       <ActionFailure action={action} />
       {list.isError && <DiagnosticCard failure={toFailureView(list.error)} />}
@@ -508,6 +510,7 @@ export function AccountMenu(): ReactElement {
       <nav aria-label="主菜单" className="app-menu">
         <Link to="/change-password">修改口令</Link>
         <Link to="/jobs">作业</Link>
+        <Link to="/downloads">下载</Link>
         <Link to="/scheduling">调度</Link>
         <Link to="/datasets">数据集</Link>
         <Link to="/storage-roots">存储根</Link>
@@ -588,6 +591,62 @@ export function AccountLayout(): ReactElement {
 function returnTarget(search: string): string {
   const values = new URLSearchParams(search).getAll("returnTo");
   return safeReturnTo(values.length === 1 ? values[0] : values);
+}
+
+// 复用账号页短期写请求生命周期；token 不放入 Query mutation 缓存。
+function DownloadTokenSection(): ReactElement {
+  const client = useAccountClient();
+  const cache = useQueryClient();
+  const action = useAccountAction();
+  const [form] = Form.useForm<{ token: string }>();
+  const state = useQuery({
+    queryKey: ["downloads", "token-state"],
+    queryFn: ({ signal }) => getTokenState(client, signal),
+    retry: false,
+    gcTime: 0,
+  });
+  function apply(token: string | null): void {
+    void action.run(
+      (signal) => changeToken(client, token, signal),
+      (result) => {
+        cache.setQueryData(["downloads", "token-state"], result);
+      },
+      () => {
+        form.resetFields();
+      },
+    );
+  }
+  return (
+    <section>
+      <Typography.Title level={3}>Hugging Face token</Typography.Title>
+      {state.data && (
+        <Typography.Text>{state.data.configured ? "已设置" : "未设置"}</Typography.Text>
+      )}
+      {state.isError && <DiagnosticCard failure={toFailureView(state.error)} />}
+      <ActionFailure action={action} />
+      <Form
+        form={form}
+        onFinish={(values: { token: string }) => {
+          apply(values.token);
+        }}
+      >
+        <Form.Item name="token" label="token" rules={[{ required: true, message: "请输入 token" }]}>
+          <Input.Password autoComplete="off" />
+        </Form.Item>
+        <Button htmlType="submit" loading={action.busy} disabled={action.busy}>
+          设置 token
+        </Button>
+        <Button
+          disabled={action.busy || !state.data?.configured}
+          onClick={() => {
+            apply(null);
+          }}
+        >
+          清除 token
+        </Button>
+      </Form>
+    </section>
+  );
 }
 
 // 写操作不进 Query mutation 缓存，口令只由提交闭包短暂持有，退出必须取消并清理。

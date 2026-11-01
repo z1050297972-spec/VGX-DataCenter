@@ -83,11 +83,11 @@ def _future_package(root: Path, patch: pytest.MonkeyPatch, body: str) -> None:
     assert source is not None
     shutil.copytree(source, directory)
     script = (
-        "from alembic import op\nimport sqlalchemy as sa\nrevision = '0014_test'\ndown_revision = '0013_download_adjustments'\n\ndef upgrade():\n"
+        "from alembic import op\nimport sqlalchemy as sa\nrevision = '0016_test'\ndown_revision = '0015_download_staging'\n\ndef upgrade():\n"
         + textwrap.indent(body, "    ")
         + "\n"
     )
-    (directory / "versions" / "v0014_test.py").write_text(script)
+    (directory / "versions" / "v0016_test.py").write_text(script)
     patch.setattr("rdp.infra.db.migration.__file__", str(directory.parent / "migration.py"))
 
 
@@ -100,10 +100,7 @@ def test_config(tmp_path: Path) -> None:
             assert config.attributes["connection"] is connection
             location = config.get_main_option("script_location")
             assert location is not None and Path(location).is_absolute()
-            assert (
-                ScriptDirectory.from_config(config).get_current_head()
-                == "0013_download_adjustments"
-            )
+            assert ScriptDirectory.from_config(config).get_current_head() == "0015_download_staging"
     finally:
         engine.dispose()
 
@@ -114,7 +111,7 @@ def test_config_none(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     first, second = migration_config(), migration_config()
     assert first is not second
     assert "connection" not in first.attributes
-    assert ScriptDirectory.from_config(first).get_current_head() == "0013_download_adjustments"
+    assert ScriptDirectory.from_config(first).get_current_head() == "0015_download_staging"
     assert not list(tmp_path.iterdir())
 
 
@@ -236,11 +233,11 @@ def test_migrate_new(tmp_path: Path) -> None:
     result = migrate(paths, now=datetime(2026, 10, 24, tzinfo=UTC))
     assert result.changed is True
     assert result.previous_revision is None
-    assert result.current_revision == "0013_download_adjustments"
+    assert result.current_revision == "0015_download_staging"
     assert result.backup is None
     with sqlite_connection(paths.database) as connection:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            "0013_download_adjustments",
+            "0015_download_staging",
         )
         assert connection.execute("SELECT count(*) FROM error_reports").fetchone() == (0,)
 
@@ -268,8 +265,8 @@ def test_migrate_existing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     )
     result = migrate(paths, now=datetime(2026, 10, 25, tzinfo=UTC))
     assert (
-        result.previous_revision == "0013_download_adjustments"
-        and result.current_revision == "0014_test"
+        result.previous_revision == "0015_download_staging"
+        and result.current_revision == "0016_test"
     )
     assert result.changed is True and result.backup is not None
     assert check_database_version(paths.database) is None
@@ -367,7 +364,7 @@ def test_backup_contents(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
             "TypeError: example",
         )
         assert backup.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            "0013_download_adjustments",
+            "0015_download_staging",
         )
 
 
@@ -398,9 +395,7 @@ def test_backup_filename(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
         added = set((paths.root / "backups").glob("*.sqlite3")) - before
         assert len(added) == 1
         backup = added.pop()
-        assert backup.name.startswith(
-            "rdp-before-20261024T023040123456Z-0013_download_adjustments-"
-        )
+        assert backup.name.startswith("rdp-before-20261024T023040123456Z-0015_download_staging-")
         backups.append(backup)
     assert backups[0] != backups[1]
     assert all(path.is_file() for path in backups)
@@ -699,7 +694,7 @@ def test_migrate_upgrade_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         migrate(paths, now=datetime(2026, 10, 25, tzinfo=UTC))
     with sqlite_connection(paths.database) as connection:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            "0013_download_adjustments",
+            "0015_download_staging",
         )
         assert connection.execute(
             "SELECT count(*) FROM sqlite_master WHERE name='partial'"
@@ -765,7 +760,7 @@ def test_env_connection(tmp_path: Path) -> None:
             command.upgrade(migration_config(connection), "head")
             assert (
                 connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
-                == "0013_download_adjustments"
+                == "0015_download_staging"
             )
             assert compare_metadata(MigrationContext.configure(connection), metadata) == []
     finally:
@@ -851,7 +846,7 @@ def test_installed_package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     _future_package(directory, monkeypatch, "pass")
     monkeypatch.chdir(tmp_path)
     paths = _paths(tmp_path / "state")
-    assert migrate(paths, now=datetime(2026, 10, 24, tzinfo=UTC)).current_revision == "0014_test"
+    assert migrate(paths, now=datetime(2026, 10, 24, tzinfo=UTC)).current_revision == "0016_test"
     assert not (directory / "pyproject.toml").exists()
 
 

@@ -29,6 +29,7 @@ from rdp.api.database import configure_database
 from rdp.api.datasets import router as datasets_router
 from rdp.api.datasets.creation import router as dataset_creation_router
 from rdp.api.datasets.fields import router as field_edit_router
+from rdp.api.download_tokens import router as download_tokens_router
 from rdp.api.error_details import get_error_details
 from rdp.api.errors import ErrorBoundary, install_error_handlers
 from rdp.api.file_viewer import router as file_viewer_router
@@ -233,6 +234,7 @@ def create_app(
     app.include_router(audit_router)
     # 08 作业和心跳均允许全部登录账号，复用全局鉴权和同源写请求边界。
     app.include_router(jobs_router)
+    app.include_router(download_tokens_router)
     # 数据集路由与M0共享认证/Origin及统一诊断；必须先于API兜底登记，离线可导出类型。
     app.include_router(datasets_router)
     app.include_router(dataset_creation_router)

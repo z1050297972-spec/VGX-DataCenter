@@ -213,3 +213,19 @@ class DownloadAdjustmentRow(Base):
     completed_files: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     failed_files: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     skipped_files: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+
+class DownloadStagingSnapshotRow(Base):
+    """worker 为一次扫描持久化的完整数据库快照。
+
+    Attributes:
+        job_id: 扫描作业的正整数编号。
+        snapshot: 生成时刻及不含绝对路径的条目 JSON。
+    """
+
+    __tablename__ = "download_staging_snapshots"
+
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("jobs.job_id", ondelete="CASCADE"), primary_key=True
+    )
+    snapshot: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)

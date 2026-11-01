@@ -1538,6 +1538,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/downloads/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Download Token
+         * @description 读取状态目录中的凭据存在性。
+         *
+         *     Args:
+         *         request: 当前请求。
+         *         context: 管理员上下文。
+         *
+         *     Returns:
+         *         是否设置凭据，不包含凭据内容。
+         *
+         *     Raises:
+         *         ExternalError: 状态服务不可用。
+         *
+         *     Side Effects:
+         *         只查询状态目录。
+         *
+         *     Time Semantics:
+         *         返回读取时刻的快照。
+         */
+        get: operations["get_download_token"];
+        /**
+         * Set Download Token
+         * @description 将管理员提供的凭据写入私有状态目录。
+         *
+         *     Args:
+         *         request: 当前请求。
+         *         context: 管理员身份和请求时刻。
+         *         body: 不回显的密钥。
+         *
+         *     Returns:
+         *         设置完成状态，不包含密钥。
+         *
+         *     Raises:
+         *         AuthorizationError: 事务中会话或权限失效。
+         *         OSError: 状态目录不可写。
+         *
+         *     Side Effects:
+         *         在状态目录写入权限为 0600 的凭据文件，同时追加不含凭据的操作日志。
+         *
+         *     Time Semantics:
+         *         先重验管理员身份，再同步写入；不访问存储根。
+         */
+        put: operations["set_download_token"];
+        post?: never;
+        /**
+         * Clear Download Token
+         * @description 清除管理员设置的凭据。
+         *
+         *     Args:
+         *         request: 当前请求。
+         *         context: 管理员身份和请求时刻。
+         *
+         *     Returns:
+         *         未设置状态。
+         *
+         *     Raises:
+         *         AuthorizationError: 事务中会话或权限失效。
+         *         OSError: 凭据无法删除。
+         *
+         *     Side Effects:
+         *         删除状态目录中的凭据并追加不含凭据的操作日志，不访问存储根。
+         *
+         *     Time Semantics:
+         *         先重验管理员身份，再同步清除。
+         */
+        delete: operations["clear_download_token"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/errors/{error_id}": {
         parameters: {
             query?: never;
@@ -1683,6 +1762,158 @@ export interface paths {
          *         一次请求唯一 UTC 时刻；普通写锁预算 5 秒、失败补记 100 毫秒，不重试 POST。
          */
         post: operations["submit_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Download Job
+         * @description 提交下载作业，不在 Web 访问存储根。
+         *
+         *     Args:
+         *         context: 已认证请求上下文。
+         *         body: 下载参数，范围由下载参数模型校验。
+         *
+         *     Returns:
+         *         新建的排队作业。
+         *
+         *     Raises:
+         *         JobInputError: 参数或作业类型无效。
+         *         ConflictError: 数据库事务冲突。
+         *         ExternalError: 数据库不可用。
+         *
+         *     Side Effects:
+         *         在同一事务中写入作业和操作日志。
+         *
+         *     Time Semantics:
+         *         使用请求时刻，不等待 worker 执行。
+         */
+        post: operations["submit_download_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/download-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Download Preview
+         * @description 提交由 worker 执行的只读下载预览。
+         *
+         *     Args:
+         *         context: 已认证身份及作业服务。
+         *         body: 下载计划参数。
+         *
+         *     Returns:
+         *         排队中的预览作业。
+         *
+         *     Raises:
+         *         JobInputError: 参数不满足作业契约。
+         *         ExternalError: 数据库不可用。
+         *
+         *     Side Effects:
+         *         原子登记作业及提交日志，不访问存储根。
+         *
+         *     Time Semantics:
+         *         立即返回排队状态，不等待预览。
+         */
+        post: operations["submit_download_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/download-staging-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Download Staging Delete
+         * @description 请求 worker 清理管理员确认的暂存目录。
+         *
+         *     Args:
+         *         context: 已认证身份和作业服务。
+         *         admin: 全局路由守卫确认的管理员；事务内仍重验权限。
+         *         body: 已校验的根名、仓库身份和 commit 短码，不接收任意路径。
+         *
+         *     Returns:
+         *         已记录操作日志的排队清理作业。
+         *
+         *     Raises:
+         *         AuthorizationError: 非管理员或管理员身份已失效。
+         *         ConflictError: 目标仓库有下载或清理作业占用。
+         *         JobInputError: 目标参数非法。
+         *         ExternalError: 数据库或操作日志不可用。
+         *
+         *     Side Effects:
+         *         只在数据库提交作业与审计，不访问存储根。
+         *
+         *     Time Semantics:
+         *         入队时原子核对占用；worker 执行时还必须重新核对和互斥。
+         */
+        post: operations["submit_download_staging_delete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/download-staging-scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Download Staging Scan
+         * @description 提交 worker 只读扫描可写根的暂存目录。
+         *
+         *     Args:
+         *         context: 已认证身份和作业服务。
+         *         body: 空参数；客户端不提供路径。
+         *
+         *     Returns:
+         *         新建的排队扫描作业。
+         *
+         *     Raises:
+         *         JobInputError: 参数或作业类型无效。
+         *         ExternalError: 作业数据库不可用。
+         *
+         *     Side Effects:
+         *         原子写入作业和操作日志，不访问存储根。
+         *
+         *     Time Semantics:
+         *         不等待扫描完成；worker 在后续生成快照。
+         */
+        post: operations["submit_download_staging_scan"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1895,6 +2126,143 @@ export interface paths {
          *         最多普通 5 秒锁等待，补记最多 100 毫秒；worker 下次轮询才传播运行中取消。
          */
         post: operations["cancel_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/download-adjustment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Download Adjustment
+         * @description 读取下载运行快照。
+         *
+         *     Args:
+         *         request: 包含受管数据库的请求。
+         *         context: 已认证身份。
+         *         job_id: 正整数作业编号文本。
+         *
+         *     Returns:
+         *         请求值、实际值和文件计数的数据库快照。
+         *
+         *     Raises:
+         *         InputError: 作业不存在或尚未初始化。
+         *         ExternalError: 数据库不可用。
+         *
+         *     Side Effects:
+         *         只读数据库。
+         *
+         *     Time Semantics:
+         *         返回最近提交的快照，不保证实时。
+         */
+        get: operations["get_download_adjustment"];
+        put?: never;
+        /**
+         * Set Download Adjustment
+         * @description 提交运行中的下载调参请求。
+         *
+         *     Args:
+         *         request: 包含受管数据库的请求。
+         *         context: 已认证身份。
+         *         job_id: 正整数作业编号文本。
+         *         body: 并发数及字节每秒速率，至少指定一项。
+         *
+         *     Returns:
+         *         最近的调参状态；不保证 worker 已生效。
+         *
+         *     Raises:
+         *         InputError: 参数无效或通道不存在。
+         *         ConflictError: 作业不是运行状态。
+         *         ExternalError: 数据库不可用。
+         *
+         *     Side Effects:
+         *         写入下载调参通道，不直接访问下载进程。
+         *
+         *     Time Semantics:
+         *         写事务提交后可见，由 worker 异步应用。
+         */
+        post: operations["set_download_adjustment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/download-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Download Preview
+         * @description 从状态目录读取已发布的预览摘要。
+         *
+         *     Args:
+         *         context: 已认证身份及状态目录布局。
+         *         job_id: 正整数预览作业编号文本。
+         *
+         *     Returns:
+         *         不包含凭据或存储路径的预览摘要。
+         *
+         *     Raises:
+         *         InputError: 作业不是预览或结果不存在。
+         *         ExternalError: 状态目录不可读。
+         *
+         *     Side Effects:
+         *         只读作业记录和状态目录，不访问存储根。
+         *
+         *     Time Semantics:
+         *         结果为 worker 发布时的快照。
+         */
+        get: operations["get_download_preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/download-staging": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Download Staging
+         * @description 读取已成功完成的暂存扫描快照。
+         *
+         *     Args:
+         *         request: 包含受管数据库引擎的请求。
+         *         context: 已认证身份和作业服务。
+         *         job_id: 规范正整数作业编号文本。
+         *
+         *     Returns:
+         *         数据库中该作业发布的生成时刻和条目快照。
+         *
+         *     Raises:
+         *         InputError: 作业不是成功的扫描或快照不存在。
+         *         ExternalError: 数据库不可用。
+         *
+         *     Side Effects:
+         *         只读数据库，不访问存储根。
+         *
+         *     Time Semantics:
+         *         返回生成时的观察，占用标志不是删除许可。
+         */
+        get: operations["get_download_staging"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2634,6 +3002,29 @@ export interface components {
             status?: ("enabled" | "disabled") | null;
         };
         /**
+         * Capacity
+         * @description 本次只读容量观察，所有大小单位均为字节。
+         *
+         *     Attributes:
+         *         selected_bytes: 筛选后文件总大小。
+         *         complete_bytes: 已完整文件大小之和。
+         *         remaining_bytes: 筛选总量减已完整量。
+         *         available_bytes: 存储根当时的可用空间。
+         *         reserve_bytes: 留出的空间余量。
+         */
+        Capacity: {
+            /** Available Bytes */
+            available_bytes: number;
+            /** Complete Bytes */
+            complete_bytes: number;
+            /** Remaining Bytes */
+            remaining_bytes: number;
+            /** Reserve Bytes */
+            reserve_bytes: number;
+            /** Selected Bytes */
+            selected_bytes: number;
+        };
+        /**
          * ChangePasswordRequest
          * @description 本人改口令请求，无目标账号字段。
          *
@@ -3107,6 +3498,32 @@ export interface components {
             storage_roots: components["schemas"]["IndexedStorageRoot"][];
         };
         /**
+         * DatasetPreview
+         * @description meta/info.json 的数据集预览。
+         *
+         *     Attributes:
+         *         episodes: 非负 episode 数。
+         *         frames: 非负帧数。
+         *         fps: 正帧率，单位帧每秒。
+         *         robot_type: 机器人类型；未知为 None。
+         *         codebase_version: 数据集格式版本。
+         *         cameras: 视频特征的相机键，保持元数据顺序。
+         */
+        DatasetPreview: {
+            /** Cameras */
+            cameras: string[];
+            /** Codebase Version */
+            codebase_version: string;
+            /** Episodes */
+            episodes: number;
+            /** Fps */
+            fps: number;
+            /** Frames */
+            frames: number;
+            /** Robot Type */
+            robot_type: string | null;
+        };
+        /**
          * DatasetPreviewParameters
          * @description 新增数据集的预览参数；编号与入口路径只能由平台分配。
          *
@@ -3251,6 +3668,23 @@ export interface components {
             nodes: components["schemas"]["DatasetTreeNode"][];
         };
         /**
+         * DeleteParameters
+         * @description 只允许平台的规范仓库身份，绝不接受绝对路径。
+         */
+        DeleteParameters: {
+            /** Commit Prefix */
+            commit_prefix: string;
+            /** Repo Id */
+            repo_id: string;
+            /**
+             * Repo Type
+             * @enum {string}
+             */
+            repo_type: "dataset" | "model";
+            /** Storage Root */
+            storage_root: string;
+        };
+        /**
          * Diagnostic
          * @description 工具与平台共用的不可变五段诊断；JSON 字段名与属性同名，禁止额外字段。
          *
@@ -3359,6 +3793,141 @@ export interface components {
             value: components["schemas"]["DiagnosticText"];
         };
         DiagnosticText: string;
+        /**
+         * DownloadAdjustment
+         * @description 运行中唯一允许调整的两项；None 表示保持，不接受凭据或其他选项。
+         */
+        DownloadAdjustment: {
+            /** Max Concurrent Downloads */
+            max_concurrent_downloads?: number | null;
+            /** Max Overall Download Limit Bytes Per S */
+            max_overall_download_limit_bytes_per_s?: number | null;
+        };
+        /**
+         * DownloadParameters
+         * @description 可持久化的下载请求与 aria2 参数；凭据不属于请求，也不能通过额外字段注入。
+         *
+         *     Attributes:
+         *         repo_type: dataset 或 model。
+         *         repo_id: 命名空间/仓库名。
+         *         revision: 非空版本，具体合法性由下载计划检查。
+         *         storage_root: 已登记可写存储根名称。
+         *         include: 包含模式，空表示全部。
+         *         exclude: 排除模式，优先于 include。
+         *         exclude_video: 排除全部视频。
+         *         exclude_cameras: 排除的视频相机键。
+         *         target_subdir: 模型目标相对路径；数据集必须为 None，由计划校验。
+         *         max_concurrent_downloads: 同时下载文件数，1-16，默认 4。
+         *         max_connection_per_server: 每服务器连接数，1-16，默认 4。
+         *         split: 每文件分段数，1-16，默认 4。
+         *         min_split_size_bytes: 最小分段大小，1 MiB-1 GiB，默认 20 MiB。
+         *         max_overall_download_limit_bytes_per_s: 总速率，0 不限或 1024 至 10 GiB/s。
+         *         max_tries: 最大尝试次数，1-20，默认 5。
+         *         retry_wait_s: 重试间隔，0-600 秒，默认 10 秒。
+         */
+        DownloadParameters: {
+            /**
+             * Exclude
+             * @default []
+             */
+            exclude: string[];
+            /**
+             * Exclude Cameras
+             * @default []
+             */
+            exclude_cameras: string[];
+            /**
+             * Exclude Video
+             * @default false
+             */
+            exclude_video: boolean;
+            /**
+             * Include
+             * @default []
+             */
+            include: string[];
+            /**
+             * Max Concurrent Downloads
+             * @default 4
+             */
+            max_concurrent_downloads: number;
+            /**
+             * Max Connection Per Server
+             * @default 4
+             */
+            max_connection_per_server: number;
+            /**
+             * Max Overall Download Limit Bytes Per S
+             * @default 0
+             */
+            max_overall_download_limit_bytes_per_s: number;
+            /**
+             * Max Tries
+             * @default 5
+             */
+            max_tries: number;
+            /**
+             * Min Split Size Bytes
+             * @default 20971520
+             */
+            min_split_size_bytes: number;
+            /** Repo Id */
+            repo_id: string;
+            /**
+             * Repo Type
+             * @enum {string}
+             */
+            repo_type: "dataset" | "model";
+            /**
+             * Retry Wait S
+             * @default 10
+             */
+            retry_wait_s: number;
+            /** Revision */
+            revision: string;
+            /**
+             * Split
+             * @default 4
+             */
+            split: number;
+            /** Storage Root */
+            storage_root: string;
+            /** Target Subdir */
+            target_subdir?: string | null;
+        };
+        /**
+         * DownloadStatus
+         * @description 下载详情增量快照；其余通用进度仍由 M0 作业接口提供。
+         *
+         *     Attributes:
+         *         requested_version: 最近提交版本，非负。
+         *         applied_version: 最近应用版本，非负且不超过请求版本。
+         *         requested: 用户要求的完整并发和限速。
+         *         effective: 当前实际并发和限速。
+         *         speed_bytes_per_s: 传输速度，非负 bytes/s。
+         *         total_files: 清单文件总数，非负。
+         *         completed_files: 成功下载且校验的文件数，非负，不含跳过。
+         *         failed_files: 失败文件数，非负。
+         *         skipped_files: 已校验跳过文件数，非负。
+         */
+        DownloadStatus: {
+            /** Applied Version */
+            applied_version: number;
+            /** Completed Files */
+            completed_files: number;
+            effective: components["schemas"]["DownloadAdjustment"];
+            /** Failed Files */
+            failed_files: number;
+            requested: components["schemas"]["DownloadAdjustment"];
+            /** Requested Version */
+            requested_version: number;
+            /** Skipped Files */
+            skipped_files: number;
+            /** Speed Bytes Per S */
+            speed_bytes_per_s: number;
+            /** Total Files */
+            total_files: number;
+        };
         /** @enum {string} */
         EditableDocument: "数据集信息.json" | "子任务.json" | "原始路径.json";
         /**
@@ -4303,7 +4872,7 @@ export interface components {
          * @description 稳定的操作码；新增操作用新增枚举值，不改历史值（第 8 张可增加作业操作）。
          * @enum {string}
          */
-        OperationType: "create_account" | "set_role" | "disable_account" | "enable_account" | "reset_password" | "reset_password_from_ops" | "delete_account" | "change_password" | "create_first_admin" | "set_retention" | "submit_job" | "cancel_job" | "rebuild_index" | "create_link" | "create_dataset" | "repoint_dataset" | "edit_dataset_fields" | "set_data_origin" | "revert_change" | "rollback_navigation_write" | "confirm_navigation_recovery";
+        OperationType: "create_account" | "set_role" | "disable_account" | "enable_account" | "reset_password" | "reset_password_from_ops" | "delete_account" | "change_password" | "create_first_admin" | "set_retention" | "set_download_token" | "clear_download_token" | "submit_job" | "cancel_job" | "rebuild_index" | "create_link" | "create_dataset" | "repoint_dataset" | "edit_dataset_fields" | "set_data_origin" | "revert_change" | "rollback_navigation_write" | "confirm_navigation_recovery";
         /**
          * PanelGroup
          * @description 面板四组；存储相关两组由扫描第二段提供。
@@ -4420,6 +4989,25 @@ export interface components {
                 string,
                 string
             ][];
+        };
+        /**
+         * PreviewResult
+         * @description 仅包含页面所需的只读摘要，不包含文件清单、绝对路径或凭据。
+         */
+        PreviewResult: {
+            capacity: components["schemas"]["Capacity"];
+            /** Commit */
+            commit: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            dataset: components["schemas"]["DatasetPreview"] | null;
+            /** File Count */
+            file_count: number;
+            /** Sufficient */
+            sufficient: boolean;
         };
         /**
          * ProblemResponse
@@ -4623,6 +5211,11 @@ export interface components {
             role: components["schemas"]["Role"];
         };
         /**
+         * ScanParameters
+         * @description 扫描所有已登记可写根，客户端不指定任意路径。
+         */
+        ScanParameters: Record<string, never>;
+        /**
          * ScheduleResponse
          * @description 每日计划及最近一次提交的结果。
          *
@@ -4709,6 +5302,48 @@ export interface components {
             version: string | null;
         };
         /**
+         * StagingEntry
+         * @description 一个不含绝对路径的暂存目录观察。
+         */
+        StagingEntry: {
+            /** Commit Prefix */
+            commit_prefix: string;
+            /**
+             * In Use
+             * @default false
+             */
+            in_use: boolean;
+            /**
+             * Modified At
+             * Format: date-time
+             */
+            modified_at: string;
+            /** Repo Id */
+            repo_id: string;
+            /**
+             * Repo Type
+             * @enum {string}
+             */
+            repo_type: "dataset" | "model";
+            /** Size Bytes */
+            size_bytes: number;
+            /** Storage Root */
+            storage_root: string;
+        };
+        /**
+         * StagingSnapshot
+         * @description 扫描时刻与条目；使用标志是该时刻的保守观察，不是删除许可。
+         */
+        StagingSnapshot: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Items */
+            items: components["schemas"]["StagingEntry"][];
+        };
+        /**
          * StatusRequest
          * @description 启停修改请求。
          *
@@ -4772,6 +5407,25 @@ export interface components {
             };
             /** Type Name */
             type_name: string;
+        };
+        /**
+         * TokenInput
+         * @description 密钥仅存在于请求内存，不进入作业参数或模型 repr。
+         */
+        TokenInput: {
+            /**
+             * Token
+             * Format: password
+             */
+            token: string;
+        };
+        /**
+         * TokenState
+         * @description 只返回凭据是否存在，不返回内容。
+         */
+        TokenState: {
+            /** Configured */
+            configured: boolean;
         };
         /**
          * TreeSize
@@ -8760,6 +9414,313 @@ export interface operations {
             };
         };
     };
+    get_download_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenState"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    set_download_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenState"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    clear_download_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenState"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
     get_error_details_api_errors__error_id__get: {
         parameters: {
             query?: never;
@@ -9079,6 +10040,426 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SubmitJobPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    submit_download_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DownloadParameters"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    submit_download_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DownloadParameters"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    submit_download_staging_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteParameters"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    submit_download_staging_scan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanParameters"];
             };
         };
         responses: {
@@ -9610,6 +10991,422 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_download_adjustment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadStatus"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    set_download_adjustment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DownloadAdjustment"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadStatus"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_download_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewResult"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_download_staging: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagingSnapshot"];
                 };
             };
             /** @description Bad Request */

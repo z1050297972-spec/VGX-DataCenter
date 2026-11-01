@@ -29,6 +29,7 @@ from rdp.infra.diagnostics import (
     ExternalError,
 )
 from rdp.jobs._clock import ClockReader
+from rdp.jobs._inherited_fds import INHERITED_FDS
 from rdp.jobs._process_io import OutputReader
 from rdp.jobs.logs import JobLog
 from rdp.jobs.policy import (
@@ -306,7 +307,7 @@ class _ProcessRun:
         return 0
 
     def start(self) -> None:
-        """绝对程序及无shell参数来自登记执行函数，锁fd不可继承。"""
+        """绝对程序及无shell参数来自登记函数；worker锁不可继承，下载协调锁显式继承。"""
         if self.environment is not None:
             self.log.write_line(
                 "CUDA_VISIBLE_DEVICES="
@@ -325,6 +326,8 @@ class _ProcessRun:
                 stderr=subprocess.PIPE,
                 start_new_session=True,
                 close_fds=True,
+                # 只继承当前作业显式登记的下载协调锁；worker 锁仍不可继承。
+                pass_fds=INHERITED_FDS.get(),
             )
         except OSError as error:
             failure = self._failure("启动外部工具失败")

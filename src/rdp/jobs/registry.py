@@ -265,7 +265,14 @@ def production_registry(
     # 延迟导入避免登记定义和执行上下文的模块环；每次构造都返回独立对象。
     from rdp.jobs.datasets.rescan import build_rescan_definition
     from rdp.jobs.datasets.sizing import build_sizing_definition
-    from rdp.jobs.downloads.job import DownloadExecutor, DownloadParameters
+    from rdp.jobs.downloads.cleanup import (
+        DeleteParameters,
+        ProtectedDownloadExecutor,
+        StagingDeleteExecutor,
+    )
+    from rdp.jobs.downloads.job import DownloadParameters
+    from rdp.jobs.downloads.preview import PreviewExecutor
+    from rdp.jobs.downloads.staging import ScanParameters, StagingScanner
     from rdp.jobs.example import CountParameters, execute_count
     from rdp.jobs.maintenance import PurgeParameters, execute_purge_errors, execute_purge_logs
     from rdp.jobs.navwrite.create_jobs import build_creation_definitions
@@ -324,7 +331,34 @@ def production_registry(
             "下载",
             DownloadParameters,
             RecoveryMode.RESUME,
-            DownloadExecutor(download_dependencies).execute,
+            ProtectedDownloadExecutor(download_dependencies).execute,
+        )
+    )
+    registry.register(
+        JobDefinition(
+            "download_preview",
+            "下载预览",
+            DownloadParameters,
+            RecoveryMode.RESTART,
+            PreviewExecutor(download_dependencies).execute,
+        )
+    )
+    registry.register(
+        JobDefinition(
+            "download_staging_scan",
+            "扫描下载暂存",
+            ScanParameters,
+            RecoveryMode.RESTART,
+            StagingScanner(download_dependencies).execute,
+        )
+    )
+    registry.register(
+        JobDefinition(
+            "download_staging_delete",
+            "删除下载暂存",
+            DeleteParameters,
+            RecoveryMode.INTERRUPT,
+            StagingDeleteExecutor(download_dependencies).execute,
         )
     )
     registry.register(build_rescan_definition(rescan_dependencies))

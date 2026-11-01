@@ -11,7 +11,11 @@ from typing import cast
 
 from sqlalchemy import Engine, select
 
-from rdp.accounts.service import authorize_job_actor, existing_account_ids
+from rdp.accounts.service import (
+    authorize_admin_job_actor,
+    authorize_job_actor,
+    existing_account_ids,
+)
 from rdp.accounts.types import SessionIdentity
 from rdp.audit.types import (
     AuditContext,
@@ -24,7 +28,7 @@ from rdp.audit.types import (
 from rdp.infra.actors import SYSTEM_ACTOR, is_display_name
 from rdp.infra.db.connection import session_scope, session_scope_with_lock_timeout
 from rdp.infra.diagnostics import ConflictError, DefectError, DiagnosticCategory
-from rdp.jobs import _audit, _pagination, _storage, _views, policy
+from rdp.jobs import _audit, _download_cleanup, _pagination, _storage, _views, policy
 from rdp.jobs._parameters import validate as validate_parameters
 from rdp.jobs.models import JobRow, WorkerHeartbeatRow
 from rdp.jobs.records import NewJob, StateChange, find_job, insert_job, transition_job
@@ -83,10 +87,10 @@ class JobService:
     def submit(
         self, request: JobRequest, type_name: str, parameters: dict[str, object]
     ) -> JobRecord:
-        """任何登录账号提交一个经类型模型校验的作业。
+        """提交经类型模型校验的作业；下载暂存清理另需管理员。
 
         Args:
-            request: 必填身份、唯一请求时刻和审计来源；不要求管理员。
+            request: 必填身份、唯一请求时刻和审计来源；暂存清理要求管理员。
             type_name: 当前登记的稳定英文键。
             parameters: 不可信 JSON 对象，至多 JOB_PARAMETERS_MAX_BYTES，按当前模型严格校验。
 
@@ -97,6 +101,7 @@ class JobService:
         Raises:
             AuthenticationError: 事务内会话已撤销/过期或账号停用、删除。
             PasswordChangeRequiredError: 当前账号必须先改口令。
+            AuthorizationError: 暂存清理作业由非管理员提交。
             JobInputError: 未登记类型、非法参数、额外字段或编码后超长；不回显原值。
             InputError: 数据库损坏。
             ConflictError: 写锁、约束或作业编号耗尽。
@@ -119,6 +124,10 @@ class JobService:
         try:
             with session_scope(self.engine) as session:
                 actor = authorize_job_actor(session, request.identity, now=request.now)
+                if type_name == _download_cleanup.DELETE_TYPE:
+                    # 对新清理类型在提交事务内重验管理员权限并检查占用，通用接口不能绕过。
+                    actor = authorize_admin_job_actor(session, request.identity, now=request.now)
+                    _download_cleanup.check_busy(session, checked)
                 attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
                 record = insert_job(session, NewJob(definition, checked, actor, request.now, None))
                 _audit.finish(session, attempted, record)
@@ -310,7 +319,7 @@ class JobService:
         """从终态作业复制参数，作为当前账号的新提交。
 
         Args:
-            request: 点重新提交按钮的账号上下文，不要求原提交人或管理员。
+            request: 点重新提交按钮的账号上下文；暂存清理要求管理员。
             job_id: 原作业正编号，必须为 completed/cancelled/interrupted。
 
         Returns:
@@ -319,6 +328,7 @@ class JobService:
         Raises:
             AuthenticationError: 重验时会话或账号无效。
             PasswordChangeRequiredError: 账号须先改口令。
+            AuthorizationError: 非管理员重提暂存清理作业。
             JobNotFoundError: 原记录不存在。
             JobInputError: 编号非法、原类型已移除或原参数按当前模型无效；不回显原参数。
             ConflictError: 原记录非终态、写锁/约束冲突。
@@ -355,6 +365,10 @@ class JobService:
                         )
                     )
                 definition, _ = _parameters(self.registry, original.type_name, original.parameters)
+                if original.type_name == _download_cleanup.DELETE_TYPE:
+                    # 重提与首次提交使用相同管理员和占用边界，不能绕过专用入口。
+                    actor = authorize_admin_job_actor(session, request.identity, now=request.now)
+                    _download_cleanup.check_busy(session, original.parameters)
                 attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
                 record = insert_job(
                     session, NewJob(definition, original.parameters, actor, request.now, job_id)

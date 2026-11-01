@@ -23,7 +23,9 @@ def test_migration_preserves_populated_index_and_expands_origins(
     source = migration_config().get_main_option("script_location")
     assert source is not None
     historical = tmp_path / "old/migrations"
-    shutil.copytree(source, historical, ignore=shutil.ignore_patterns("v0011*", "v0012*", "v0013*"))
+    shutil.copytree(
+        source, historical, ignore=shutil.ignore_patterns("v0011*", "v0012*", "v0013*", "v0015*")
+    )
     with monkeypatch.context() as patch:
         patch.setattr("rdp.infra.db.migration.__file__", str(historical.parent / "migration.py"))
         with dataset_case(tmp_path / "state", fake_nav) as case:
@@ -52,7 +54,7 @@ def test_migration_preserves_populated_index_and_expands_origins(
                     str(Path(__file__).parents[1] / "src/rdp/infra/db/migration.py"),
                 )
                 result = migrate(paths, now=NOW)
-                assert result.changed and result.current_revision == "0013_download_adjustments"
+                assert result.changed and result.current_revision == "0015_download_staging"
                 with session_scope(engine, read_only=True) as session:
                     after = {
                         table: session.execute(

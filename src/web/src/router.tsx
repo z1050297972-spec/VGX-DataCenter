@@ -31,6 +31,8 @@ const SubmitResourceJobsPage = lazyRouteComponent(
   () => import("./scheduling/Pages"),
   "SubmitResourceJobsPage",
 );
+import { validateDownloadSearch } from "./downloads/search";
+const DownloadPage = lazyRouteComponent(() => import("./downloads/Pages"), "DownloadPage");
 const JobsPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobsPage");
 const RevertPage = lazyRouteComponent(() => import("./navwrites/Revert"), "RevertPage");
 const JobDetailPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobDetailPage");
@@ -134,6 +136,12 @@ export function createAppRouter(options: AppRouterOptions) {
       auditSearch(() => validateLoginSearch(search)),
     component: LoginLogsPage,
   });
+  const downloads = createRoute({
+    getParentRoute: () => root,
+    path: "/downloads",
+    validateSearch: validateDownloadSearch,
+    component: DownloadPage,
+  });
   const jobs = createRoute({
     getParentRoute: () => root,
     path: "/jobs",
@@ -202,6 +210,7 @@ export function createAppRouter(options: AppRouterOptions) {
       operationLogs,
       loginLogs,
       jobs,
+      downloads,
       jobDetail,
       revertJob,
       submitCount,

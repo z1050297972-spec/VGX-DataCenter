@@ -520,11 +520,11 @@ it("验证契约：所有页面卸载清理请求/倒计时，Query不持久化�
       passwordFields();
     }
     await waitFor(() => {
-      expect(signals.length).toBe(1);
+      expect(signals.length).toBe(path === "/accounts" ? 2 : 1);
     });
     expect(view.queryClient.getMutationCache().getAll()).toHaveLength(0);
     view.unmount();
-    expect(signals[0]?.aborted).toBe(true);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
   }
 });
 

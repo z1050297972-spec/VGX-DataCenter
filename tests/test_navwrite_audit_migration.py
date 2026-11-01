@@ -100,7 +100,8 @@ def _navigation_event(
 def test_new_operation_codes_are_stable_strings() -> None:
     """L15：导航写入操作码（含字段编辑扩展）的字符串值固定，旧值含义不变。"""
     new = {member.value for member in OperationType} - set(OLD_CODES)
-    assert new == NAV_CODES
+    # 下载凭据操作码只追加，不改变既有导航写入操作码。
+    assert new == NAV_CODES | {"set_download_token", "clear_download_token"}
     for name, value in OLD_CODES.items():
         assert OperationType(value).name == name.upper()
     assert OperationType.REVERT_CHANGE.value == "revert_change"
@@ -224,7 +225,7 @@ def test_old_rows_unchanged_by_0010(tmp_path: Path, monkeypatch: pytest.MonkeyPa
                 }
             result = migrate(paths, now=NOW)
             assert result.previous_revision == "0009_rebuild_index_audit"
-            assert result.current_revision == "0013_download_adjustments"
+            assert result.current_revision == "0015_download_staging"
             with session_scope(engine, read_only=True) as session:
                 after = query_operations(
                     session, OperationQuery(LogQuery()), lambda _s, _i: frozenset()

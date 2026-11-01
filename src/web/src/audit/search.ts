@@ -52,6 +52,8 @@ export const OPERATION_LABELS = {
   change_password: "改自己的口令",
   create_first_admin: "创建首个管理员",
   set_retention: "修改保留期",
+  set_download_token: "设置下载 token",
+  clear_download_token: "清除下载 token",
   submit_job: "提交作业",
   cancel_job: "取消作业",
   rebuild_index: "重建索引",
