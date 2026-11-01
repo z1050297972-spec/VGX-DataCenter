@@ -62,3 +62,9 @@ Status: ready-for-agent
 - 深色模式（`followups.md` 第 4 条）。
 
 ## Comments
+
+### 2026-11-01 开票（执行线）
+
+- 工作目录 `~/桌面/robot-data-platform.wt/ui-style`，分支 `t/ui-02-style-lint`，从 main@58f59c3 开。
+- M1/M0 线 datasets-e9 回复：他们现在没在改 Makefile、eslint.config.js 和这 10 个 tsx。M0-13 已合并；他们的下一张是 M0 第 12 张备份，以后端为主，开工前会先 pull main。真实部署由他们统一升级。
+- 安装 stylelint 被自动权限检查拦下（判定为外部代码），等负责人亲自执行 `pnpm add`。
