@@ -1,3 +1,4 @@
+import "./creation.css";
 // M1-08 创建表单组件；负责受控输入与交互，不读文件、不自行生成计划。
 import { Button, Input, Select } from "antd";
 import { LinkFields } from "./CreationFields";
@@ -56,7 +57,7 @@ export function CreateLinkForm(props: CreateLinkFormProps): ReactElement {
             aria-label="数据集"
             aria-required="true"
             disabled={props.pending}
-            style={{ width: "100%" }}
+            className="creation-select-full"
             placeholder="请选择数据集"
             value={props.value.dataset_id || undefined}
             options={[
@@ -180,7 +181,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps): ReactElement {
             aria-label="数据来源"
             aria-required="true"
             disabled={props.pending}
-            style={{ width: "100%" }}
+            className="creation-select-full"
             placeholder="请选择数据来源"
             value={props.value.data_origin || undefined}
             options={props.options.data_origins.map((value) => ({ value, label: value }))}

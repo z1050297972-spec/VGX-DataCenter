@@ -1,3 +1,4 @@
+import "./fieldSummary.css";
 // M1.5-02 导航层人工信息的只读投影；原文件事实继续由索引参考显示，不从Markdown猜型号。
 import type { ReactElement } from "react";
 import { useDatasetFilterOptions } from "./queries";
@@ -21,7 +22,7 @@ export function DatasetFieldSummary(props: Props): ReactElement {
   const data = parse(props.document.content);
   if (!data) return <></>;
   return (
-    <section aria-label="导航层结构化信息" style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+    <section aria-label="导航层结构化信息" className="field-summary">
       <p>导航层人工信息</p>
       <dl>
         <dt>标题</dt>

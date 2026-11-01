@@ -69,7 +69,7 @@ export function FileViewer(props: FileViewerProps & { datasetId: string }): Reac
         aria-label="选择原文件链接"
         placeholder="请选择链接"
         value={linkName || undefined}
-        style={{ width: "100%" }}
+        className="file-viewer-select-full"
         options={[...new Set(props.linkNames)].map((name) => ({ value: name, label: name }))}
         onChange={(name: string) => {
           setLinkName(name);

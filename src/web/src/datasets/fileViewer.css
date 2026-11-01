@@ -73,3 +73,7 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.file-viewer-select-full {
+  width: 100%;
+}

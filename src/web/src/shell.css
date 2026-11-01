@@ -52,6 +52,15 @@
   --rdp-space-8: 24px;
   --rdp-space-select-y: 7px;
   --rdp-space-select-x: 11px;
+  /* 既有筛选控件与差异表格的宽度，单位为像素，保持原有布局。 */
+  --rdp-width-120: 120px;
+  --rdp-width-150: 150px;
+  --rdp-width-160: 160px;
+  --rdp-width-180: 180px;
+  --rdp-width-200: 200px;
+  --rdp-width-210: 210px;
+  --rdp-width-280: 280px;
+  --rdp-width-640: 640px;
   /* 内容与顶栏、状态横幅共用的最大宽度。 */
   --rdp-content-width: 1280px;
   /* 停靠菜单滚动轨道保持透明，不遮住玻璃背景。 */
@@ -162,6 +171,7 @@ a:hover {
   backdrop-filter: blur(var(--rdp-blur)) saturate(var(--rdp-saturation));
 }
 /* 既有用户名、按钮和错误提示没有统一类名，放在玻璃伪元素之上。 */
+/* stylelint-disable-next-line selector-max-compound-selectors -- 既有顶栏结构无类名，必须限定菜单以外的子项。 */
 .app-shell > div:has(> nav.app-menu) > :not(.app-menu) {
   position: relative;
 }
@@ -246,6 +256,7 @@ a:hover {
   color: var(--rdp-muted);
   font-size: 12px;
 }
+/* stylelint-disable-next-line selector-max-id -- 登录卡片是既有结构，只能通过根节点限定范围。 */
 #root > .ant-card {
   width: min(440px, calc(100% - 2 * var(--rdp-space-8)));
   margin: max(10vh, var(--rdp-space-8)) auto;
@@ -311,6 +322,8 @@ html[data-rdp-plain] {
 html[data-rdp-plain] *,
 html[data-rdp-plain] *::before,
 html[data-rdp-plain] *::after {
+  /* stylelint-disable-next-line declaration-no-important -- 调试开关必须覆盖 antd 和内联动画时长。 */
   animation-duration: 0s !important;
+  /* stylelint-disable-next-line declaration-no-important -- 调试开关必须覆盖 antd 和内联过渡时长。 */
   transition-duration: 0s !important;
 }
