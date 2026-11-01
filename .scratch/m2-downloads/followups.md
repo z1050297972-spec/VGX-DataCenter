@@ -18,3 +18,6 @@ M0 第 13 张带着 `0013_login_wait_attempts`（down_revision 接 `0012_scene_t
 ## 合并后必做：通知部署（2026-11-01，负责人决定，datasets-e9 转达）
 
 M2 和前端样式第 02 张都合进 main 后，真实部署统一升级一次，由 datasets-e9 执行。M2 合并后，给 datasets-e9 发消息，写上合并提交号。
+- m2-05：入库前检查"有 `meta/info.json` 但缺 `codebase_version`"没有专门测试；"导航层入口已存在"靠 M1 新增数据集在下游兜底。
+- m2-05：没做浏览器演练，入库靠全链路集成测试，等负责人关掉 VPN 实测下载 + 入库时一并验证。
+- m2-04：GPU 采集用独立的只读 `nvidia-smi` 查询，没有复用 `gpu.py`。
