@@ -1,6 +1,6 @@
 # 下载页面
 
-Status: in-review
+Status: done
 
 分级：直做。理由：在第 01、02 张的契约上加接口和页面，不新增领域对象。如果需要改第 02 张的作业参数或表结构，升为骨架关卡。
 
@@ -57,3 +57,4 @@ Status: in-review
     - token 设置后页面只显示"已设置"，不回显明文；清除后显示"未设置"。操作日志有 `set_download_token`、`clear_download_token` 各一条；web/worker 的输出和日志里 token 明文出现 0 次。
     - 两块数据盘写入扇区数前后相同。
   - 实现提交 `b42b696`（`实现：下载页面`），钩子全绿（2727 passed、Vitest 378）。第 03 张完成，等 M2 整体合并。
+- 2026-11-01，负责人在执行线会话里说"合并"。分支先合入 main 最新改动（`9683de1`：解决 13 个冲突；迁移按和 M1 线的约定改号，0013_download_adjustments → 0014，链是 0013_login_wait_attempts → 0014 → 0015 → 0016；M2 的 6 个作业类型按 M0 第 13 张 D2 声明提交角色；按 main 新增的 ESLint 规则改了监控页的 SVG），钩子全绿；再按 3.7 合进 main：`b4d7997`（`合并：M2 开源下载……`），钩子全绿（2757 passed / Vitest 380）。工作目录、分支 `t/m2-downloads`、快照 `refs/rdp/m2-*` 已删除。

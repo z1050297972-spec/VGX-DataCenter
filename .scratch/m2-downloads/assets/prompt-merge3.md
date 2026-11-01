@@ -1,0 +1,1 @@
+批准：把 `src/web/src/monitoring/Pages.tsx:148` 改成 SVG 原生宽高属性（或 CSS 类）。同样批准修改 M2 的其他前端文件（`src/web/src/downloads/`、`src/web/src/monitoring/`、`src/web/src/jobs/DownloadDetail.tsx`、`src/web/src/api/download*.ts`），只要是为了通过 main 新加的 ESLint、Prettier 或 Vitest 规则，按规则的写法改，不改行为。然后把 `make check` 跑完（一份）到全绿。不要 git add、不要提交。最终回复第一行写 `状态：全部完成` 或 `状态：未完成`，后面写改了什么和 `make check` 末尾输出原样。

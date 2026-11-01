@@ -1,6 +1,6 @@
 # 下载作业
 
-Status: in-review
+Status: done
 
 分级：骨架关卡（负责人 2026-10-30 预授权"骨架按建议过"，执行线审完直接进实现，决定记 Comments）。理由：新作业类型、外部进程（aria2 RPC）的协议边界、续跑语义。
 
@@ -84,3 +84,4 @@ Status: in-review
 - 2026-11-01，修复轮 r1（第 1 轮打回）：补上述三处测试。unit `rdp-m2-02-r1`，快照 `refs/rdp/m2-02/r1`，提示 `assets/02-download-job/prompt-r1.md`。
 - 2026-11-01 01:10，r1 交回：补了 token 主机限制（首轮 / 重解析 × 镜像 / CDN 四种组合）、跳数边界、空目录目标不覆盖这三处测试。变异复跑（`mutation_probe-r1-done.txt`）：token 两层一起去掉会被抓住；剩下两个漏网是等价变异（双重防护里的一层；循环内另有 `hop == MAX_REDIRECT_HOPS` 守卫）。日志无违规。实现提交 `cf858d9`（`实现：下载作业`），钩子全绿（2710 passed）。第 02 张完成，等 M2 整体合并。
 - 2026-11-01，在分支上合并 main（`0e5ab52`，M1.5 第 04 张、pyarrow 依赖等）：没有冲突，迁移 head 仍是我们的 0013。合并提交 `0f7bebd`，钩子全绿（2719 passed）。
+- 2026-11-01，负责人在执行线会话里说"合并"。分支先合入 main 最新改动（`9683de1`：解决 13 个冲突；迁移按和 M1 线的约定改号，0013_download_adjustments → 0014，链是 0013_login_wait_attempts → 0014 → 0015 → 0016；M2 的 6 个作业类型按 M0 第 13 张 D2 声明提交角色；按 main 新增的 ESLint 规则改了监控页的 SVG），钩子全绿；再按 3.7 合进 main：`b4d7997`（`合并：M2 开源下载……`），钩子全绿（2757 passed / Vitest 380）。工作目录、分支 `t/m2-downloads`、快照 `refs/rdp/m2-*` 已删除。

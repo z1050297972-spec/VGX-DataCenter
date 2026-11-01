@@ -1,6 +1,6 @@
 # 下载计划
 
-Status: in-review
+Status: done
 
 分级：骨架关卡。理由：新领域对象（下载请求、文件清单、下载计划）和对外部服务的数据契约（Hub API 的版本、清单、分页），后面三张票都建在它上面。
 
@@ -79,3 +79,4 @@ Status: in-review
 - 2026-10-30，修复轮 r1（第 1 轮打回）：补"斜杠补星"和"容量余量"两个测试，加上批准的 docstring 补充。快照 `refs/rdp/m2-01/r1`，提示 `assets/01-download-plan/prompt-r1.md`，PID 1097896。
 - 2026-10-30 19:44，r1 交回。变异抽查复跑（`mutation_probe-r1-done.txt`）：只剩两个等价变异漏网。日志无违规。快照 `refs/rdp/m2-01/r1-done`。实现提交 `0e9d39d`（`实现：下载计划`），钩子跑全量 `make check` 全绿（132 秒）。第 01 张完成，等 M2 整体合并。
 - 2026-10-30，在分支上合并 main（`2cf390d`，M1、M1.5 全部）：没有冲突。提交合并时钩子连续三次被 M1/M1.5 的页面 Vitest 超时挂掉（JsonViewer、DataOrigin、FieldEditing、FileViewer、Repoint），单独跑能过，当时 load 8–18，M1 线的 Codex 正在跑 pytest。已按约定通知 M1 线（datasets-f5），对方确认是已知的不稳定用例，会开票处理。后台循环等到 load < 4 再提交合并。
+- 2026-11-01，负责人在执行线会话里说"合并"。分支先合入 main 最新改动（`9683de1`：解决 13 个冲突；迁移按和 M1 线的约定改号，0013_download_adjustments → 0014，链是 0013_login_wait_attempts → 0014 → 0015 → 0016；M2 的 6 个作业类型按 M0 第 13 张 D2 声明提交角色；按 main 新增的 ESLint 规则改了监控页的 SVG），钩子全绿；再按 3.7 合进 main：`b4d7997`（`合并：M2 开源下载……`），钩子全绿（2757 passed / Vitest 380）。工作目录、分支 `t/m2-downloads`、快照 `refs/rdp/m2-*` 已删除。
