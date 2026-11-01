@@ -1,6 +1,6 @@
 # 下载作业
 
-Status: in-progress
+Status: in-review
 
 分级：骨架关卡（负责人 2026-10-30 预授权"骨架按建议过"，执行线审完直接进实现，决定记 Comments）。理由：新作业类型、外部进程（aria2 RPC）的协议边界、续跑语义。
 
@@ -75,3 +75,12 @@ Status: in-progress
 - 2026-10-30 21:53，派工 B3 中断：运行约 30 分钟，日志停在接入周期复探那一步，没有 `turn.completed`。执行线会话结束时它被一起杀掉了，`setsid` 没挡住；10-31 22:24 机器还重启过。工作区改动都在。
 - 2026-11-01 00:24，派工 B4（中断后续接，不计打回）。改用 `systemd-run --user` 启动（unit `rdp-m2-02-B4b`，Linger=yes，不受会话退出影响）。快照 `refs/rdp/m2-02/B4`，提示 `assets/02-download-job/prompt-B4.md`，启动脚本 `~/.cache/rdp-dispatch/m2-02/run-B4.sh`。
 - 2026-11-01，负责人："gpt模型时长会做过多防御性的工作，导致时间被托的很长，能否让他只做关键性的测试，我觉得这样也能加快一些速度"。执行线停掉 B4（unit 已 stop，跑了约 10 分钟），按 spec「测试范围」收窄：只留 8 类关键测试，还在跳过的、不在名单里的直接删掉，不加罕见情况的防御分支。派工 B5（续接，不计打回），unit `rdp-m2-02-B5`，快照 `refs/rdp/m2-02/B5`，提示 `assets/02-download-job/prompt-B5.md`。
+- 2026-11-01 01:00，派工 B5 交回（约 35 分钟）：Codex 自报 `make check` 全绿（2703 passed），只剩集成测试在找不到 aria2c 时跳过。执行线确认本机会真跑这个集成测试（1 passed，2.9 秒）。快照 `refs/rdp/m2-02/B-done`。
+- 2026-11-01，评审（3.5，按 spec「测试范围」只抽关键行为）：
+  - 文件归属：只有 `src/`、`tests/` 和迁移 0013。改了 M0 的 `processes.py`（受管长进程、秘密标准输入）和 `ops/runtime.py`（worker 装配），在本票范围内。通过。
+  - 运行日志：B2–B5 无旧项目路径、安装或联网命令、`/mnt` 命令，也没有访问外网。通过。
+  - 变异抽查：`assets/02-download-job/mutation_probe.py`，结果 `mutation_probe-B-done.txt`。11 个变异抓住 8 个。漏网：(1) token 发往非镜像主机：调用处和适配器两层一起去掉也没被抓住，是安全底线，阻塞；(2) 预解析的跳数上限；(3) 权重目标"不覆盖"拦不住 `RENAME_NOREPLACE` 被改成 0。
+  - Codex 第 4 块的残余风险（时间窗、没做校验清单、多文件速度只取当前文件）：记遗留，不打回。
+- 2026-11-01，修复轮 r1（第 1 轮打回）：补上述三处测试。unit `rdp-m2-02-r1`，快照 `refs/rdp/m2-02/r1`，提示 `assets/02-download-job/prompt-r1.md`。
+- 2026-11-01 01:10，r1 交回：补了 token 主机限制（首轮 / 重解析 × 镜像 / CDN 四种组合）、跳数边界、空目录目标不覆盖这三处测试。变异复跑（`mutation_probe-r1-done.txt`）：token 两层一起去掉会被抓住；剩下两个漏网是等价变异（双重防护里的一层；循环内另有 `hop == MAX_REDIRECT_HOPS` 守卫）。日志无违规。实现提交 `cf858d9`（`实现：下载作业`），钩子全绿（2710 passed）。第 02 张完成，等 M2 整体合并。
+- 2026-11-01，在分支上合并 main（`0e5ab52`，M1.5 第 04 张、pyarrow 依赖等）：没有冲突，迁移 head 仍是我们的 0013。合并提交 `0f7bebd`，钩子全绿（2719 passed）。

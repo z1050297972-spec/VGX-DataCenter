@@ -1,6 +1,6 @@
 # 下载页面
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：直做。理由：在第 01、02 张的契约上加接口和页面，不新增领域对象。如果需要改第 02 张的作业参数或表结构，升为骨架关卡。
 
@@ -42,3 +42,4 @@ Status: ready-for-agent
 - 浏览器演练：在探针工作目录起一个开发实例，走一遍"填表 → 预览失败（开着 VPN，镜像 308）→ 显示诊断"，截图存 assets。
 
 ## Comments
+- 2026-11-01 01:15，开票，派工 A（直做，一次派工）。分支 `t/m2-downloads`（`0f7bebd`），新会话 `01a195f6-be78-73b3-9457-5501fada829a`，模型 `gpt-6.1-terra` high，unit `rdp-m2-03-A`，快照 `refs/rdp/m2-03/A`，提示 `assets/03-download-page/prompt-A.md`。测试按 spec「测试范围」只列关键行为。
