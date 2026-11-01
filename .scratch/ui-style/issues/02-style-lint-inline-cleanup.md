@@ -1,6 +1,6 @@
 # 样式机检与内联 style 清理
 
-Status: in-progress
+Status: in-review
 
 分级：直做。理由：不新增领域对象，不改行为；只把内联 style 挪到 CSS 类，加样式检查。
 
@@ -74,3 +74,13 @@ Status: in-progress
 
 - 负责人用 `!` 亲自执行了 `pnpm add -D stylelint@17.16.0 stylelint-config-standard@40.0.0`。核对过：只改了 `package.json`（两行）和锁文件（只有新增条目）。依赖提交 `36977d4`，钩子跑的 `make check` 全绿。
 - 派工 A：Codex gpt-6.1-terra high，systemd 单元 `rdp-codex-ui-02`，会话 `01a19644-6bb2-7192-95b5-ee69e07ecfd2`，日志 `~/.cache/rdp-dispatch/ui-02/`，提示 `assets/02/prompt-A.md`。
+
+### 2026-11-01 评审（执行线）：通过，等负责人说"合并"
+
+- 文件归属：10 个 tsx、6 个新模块 CSS、browser/creation/fileViewer/shell.css、eslint.config.js、stylelint.config.js、Makefile，都在工单允许的范围内。测试文件、accounts/Pages.tsx、jobs/Pages.tsx、package.json 都没动。运行日志里没有安装和联网命令。
+- tsx 的 diff 逐处看过：只把 style 换成 className，加了 import，结构和文案不变。
+- 自己重跑 `make check` 全绿（后端 2636 passed，前端 373 passed，新的第 11 步 stylelint 通过）。
+- 变异抽查：在 navigation/Pages.tsx 加 `style={{ color: "red" }}`，ESLint 报 10.9；在 navigation.css 加 `!important`，stylelint 报 declaration-no-important。已撤回，撤回后检查是干净的。
+- 截图对比（清理前用 main 起实例、端口 8612，清理后端口 8611）：6 页 × 1440/390，加登录页、调试开关首页。10 张逐字节相同；其余差异只是滚动条显隐（数据集页重复截图，清理前自己就会在两种状态间变化）和审计日志多了登录记录。筛选框宽度、段落间距都一致。
+- 实现提交见分支 t/ui-02-style-lint 最新一条。
+- 不阻塞，记进 followups 第 5 条：eslint.config.js 里新规则插在"后端分支数 ≤ 12…"注释和 complexity 规则之间，注释看起来像是在说明新规则。M2 合并时删临时关闭，顺手挪回去。另外，`--rdp-width-200` 这类按数值命名的变量是为了"只换写法"保留原值，以后设计调整时可以合并成语义化的名字。
