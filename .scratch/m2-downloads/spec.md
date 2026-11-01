@@ -72,7 +72,7 @@ M2 结束时：
 
 ## 执行安排
 
-- 实现：Codex，负责人 2026-10-30 指定模型 `gpt-6.1-terra`、`model_reasoning_effort="high"`（命令里 `-m gpt-6.1-terra`）。Codex 不可用时按 3.0 第 5 条由 Sonnet 子 agent 顶上。
+- 实现：Codex，负责人 2026-10-30 指定模型 `gpt-6.1-terra`、`model_reasoning_effort="high"`（命令里 `-m gpt-6.1-terra`）。2026-11-01 负责人："换成6.1 sol"（terra 每轮只工作 5–10 分钟，要反复续接）。第 04 张正在跑的续接轮跑完为止，第 05 张起用 `-m gpt-6.1-sol`。Codex 不可用时按 3.0 第 5 条由 Sonnet 子 agent 顶上。
 - 评审：执行线（Claude）按 3.5，变异抽查和真实演练照做。
 - 与 M1 执行线（datasets-1e）的约定：只用 `m2-*` 的工作目录、`t/m2-*` 分支、`.scratch/m2-*/`、`~/.cache/rdp-dispatch/m2-*`；不碰真实部署；迁移编号合并前对着 main 的 head 改号；共用文件（`registry.py`、`api/__init__.py`、`router.tsx`、外壳 `accounts/Pages.tsx`、生成的 `openapi.json`/`schema.d.ts`）冲突时生成文件用 `make api-types` 重新生成；改 ADR 0005/0006/0009 先和 M1 线商量。
 
