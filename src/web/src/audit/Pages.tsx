@@ -1,3 +1,4 @@
+import "./audit.css";
 // 管理员日志页面契约（07）：antd 只读表格、TanStack Router 类型化 search 和 Query 数据状态。
 // 历史名字和明细只做安全文本展示，页面不提供修改单条记录的入口。
 import { useRef, useState, type ReactElement } from "react";
@@ -49,7 +50,7 @@ function OperationContent({ search }: { search: OperationSearch }): ReactElement
   const logs = useOperationLogs(search);
   const navigate = operationRoute.useNavigate();
   return (
-    <section style={{ minWidth: 0, maxWidth: "100%" }}>
+    <section className="audit-page">
       <Typography.Title level={2}>操作日志</Typography.Title>
       <Retention />
       <Filters
@@ -265,14 +266,14 @@ function Filters(props: {
       >
         <Select
           allowClear
-          style={{ minWidth: 160 }}
+          className="audit-kind-select"
           options={options(props.operation ? OPERATION_LABELS : LOGIN_KINDS)}
         />
       </Form.Item>
       <Form.Item name="result" label="筛选结果">
         <Select
           allowClear
-          style={{ minWidth: 120 }}
+          className="audit-result-select"
           options={options(props.operation ? OPERATION_RESULTS : LOGIN_RESULTS)}
         />
       </Form.Item>

@@ -1,3 +1,4 @@
+import "./dataOrigin.css";
 // M1-10 来源标注部件：展示当前来源和标注印记，预览及写入仍由 worker 的统一流水线执行。
 import { useState, type ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -70,10 +71,7 @@ function OriginForm({ datasetId, provenance }: DataOriginProps): ReactElement {
   const block = useRecoveryBlock();
   const allowed = !block.isError && block.data?.blocked === false;
   return (
-    <section
-      aria-label="数据来源标注"
-      style={{ position: "relative", minWidth: 0, maxWidth: "100%", overflowWrap: "anywhere" }}
-    >
+    <section aria-label="数据来源标注" className="origin-section">
       <Typography.Title level={4}>数据来源</Typography.Title>
       <CurrentOrigin provenance={provenance} />
       <RecoveryStatus block={block} />
@@ -91,7 +89,7 @@ function OriginForm({ datasetId, provenance }: DataOriginProps): ReactElement {
           confirm.reset();
         }}
         options={ORIGINS.map((value) => ({ value, label: value }))}
-        style={{ width: 200, maxWidth: "100%", margin: "12px 0" }}
+        className="origin-select"
       />
       <Button
         aria-label="预览数据来源"
@@ -191,15 +189,8 @@ function OriginDifferences({ preview }: { preview: NavigationPreview }): ReactEl
       <p>
         预览时间：<time dateTime={preview.created_at}>{formatDateTime(preview.created_at)}</time>
       </p>
-      <div
-        role="region"
-        aria-label="数据来源预览差异"
-        tabIndex={0}
-        style={{ minWidth: 0, maxWidth: "100%", overflowX: "auto" }}
-      >
-        <table
-          style={{ minWidth: 640, width: "100%", tableLayout: "fixed", overflowWrap: "anywhere" }}
-        >
+      <div role="region" aria-label="数据来源预览差异" tabIndex={0} className="origin-scroll">
+        <table className="origin-table">
           <thead>
             <tr>
               <th>改动文件</th>

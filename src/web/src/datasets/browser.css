@@ -183,3 +183,18 @@
   font-size: 12px;
   color: var(--rdp-muted);
 }
+
+.browser-filter-wide {
+  min-width: var(--rdp-width-180);
+}
+.browser-filter-medium {
+  min-width: var(--rdp-width-150);
+}
+.browser-filter-scene {
+  width: var(--rdp-width-210);
+  max-width: 100%;
+}
+.browser-filter-tasks {
+  width: var(--rdp-width-280);
+  max-width: 100%;
+}

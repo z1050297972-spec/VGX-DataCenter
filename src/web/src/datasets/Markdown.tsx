@@ -1,3 +1,4 @@
+import "./markdown.css";
 // 快照 Markdown 展示（11 Q12、原型16）：沿用原型的行内代码与链接语法，补充常见块和强调。
 // 标准库和现有依赖没有 Markdown 渲染器；这里只渲染快照使用的语法，其余原样保留，绝不执行 HTML。
 // 数据路径不是 Web 地址，保持为可复制文本；外部链接只允许 HTTP(S)/mailto，不探测目标。
@@ -58,7 +59,7 @@ function Block({ text }: { text: string }): ReactElement {
     );
   if (text.startsWith("> ")) return <blockquote>{inline(text.replace(/^>\s?/gm, ""))}</blockquote>;
   if (/^#{1,6} /.test(text)) return <h4>{inline(text.replace(/^#{1,6} /, ""))}</h4>;
-  return <p style={{ whiteSpace: "pre-wrap" }}>{inline(text)}</p>;
+  return <p className="markdown-paragraph">{inline(text)}</p>;
 }
 
 // 行内匹配仅产生 React 元素，服务器文字永远不会进入 dangerouslySetInnerHTML。

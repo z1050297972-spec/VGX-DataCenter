@@ -1,3 +1,4 @@
+import "./navigation.css";
 // 导航层恢复失败：所有页面顶部的提示，以及列出对不上项、供管理员确认的独立页面（M1-07）。
 // 独立成页而不放进作业页：标记是全局事实，可跨多个作业；提示的链接直接到这里。
 import type { ReactElement } from "react";
@@ -22,7 +23,7 @@ export function NavigationRecoveryPage(): ReactElement {
   if (query.isError) return <DiagnosticCard failure={toFailureView(query.error)} />;
   if (!query.data) return <Typography.Text>正在读取…</Typography.Text>;
   return (
-    <section style={{ maxWidth: "100%" }}>
+    <section className="navigation-page">
       <Typography.Title level={2}>导航层写操作被挡住</Typography.Title>
       {query.data.blocked ? (
         <BlockDetails block={query.data} />
@@ -90,12 +91,12 @@ function BlockDetails({ block }: { block: RecoveryBlock }): ReactElement {
           aria-label="已处理，放行写操作"
           loading={acknowledge.isPending}
           onClick={confirm}
-          style={{ marginTop: 16 }}
+          className="navigation-action"
         >
           已处理，放行写操作
         </Button>
       ) : (
-        <Typography.Paragraph type="secondary" style={{ marginTop: 16 }}>
+        <Typography.Paragraph type="secondary" className="navigation-action">
           需要管理员处理后才能放行。
         </Typography.Paragraph>
       )}

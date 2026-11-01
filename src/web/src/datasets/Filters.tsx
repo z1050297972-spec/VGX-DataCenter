@@ -1,3 +1,4 @@
+import "./browser.css";
 // 共用筛选栏（16、M1-04）；筛选实际含义由后端决定，页面不从 Markdown 提取值。
 import { UNLABELED_FILTER } from "./classificationLabels";
 import { useState, type ReactElement } from "react";
@@ -30,7 +31,7 @@ export function DatasetFilterBar(props: FilterProps): ReactElement {
             aria-label="机器人型号"
             allowClear
             virtual={false}
-            style={{ minWidth: 180 }}
+            className="browser-filter-wide"
             value={props.search.robot_model_id ?? undefined}
             options={props.options.robot_model_options.map((item) => ({
               value: item.value,
@@ -49,7 +50,7 @@ export function DatasetFilterBar(props: FilterProps): ReactElement {
             aria-label="型号标签"
             allowClear
             virtual={false}
-            style={{ minWidth: 180 }}
+            className="browser-filter-wide"
             value={props.search.robot_type ?? undefined}
             options={props.options.robot_types.map((item) => ({
               value: item.value,
@@ -67,7 +68,7 @@ export function DatasetFilterBar(props: FilterProps): ReactElement {
           aria-label="FPS"
           allowClear
           virtual={false}
-          style={{ minWidth: 150 }}
+          className="browser-filter-medium"
           value={props.search.fps == null ? undefined : String(props.search.fps)}
           options={props.options.fps.map((item) => ({
             value: item.value,
@@ -89,7 +90,7 @@ export function DatasetFilterBar(props: FilterProps): ReactElement {
           aria-label="数据来源"
           allowClear
           virtual={false}
-          style={{ minWidth: 150 }}
+          className="browser-filter-medium"
           value={props.search.data_origin ?? undefined}
           options={props.options.data_origins.map((item) => ({
             value: item.value,
@@ -125,7 +126,7 @@ function ClassificationFilters(props: FilterProps): ReactElement {
           aria-label="筛选场景"
           allowClear
           virtual={false}
-          style={{ width: 210, maxWidth: "100%" }}
+          className="browser-filter-scene"
           value={props.search.scene ?? undefined}
           options={props.options.scenes.map((item) => ({
             value: item.value,
@@ -143,7 +144,7 @@ function ClassificationFilters(props: FilterProps): ReactElement {
           aria-label="筛选任务"
           allowClear
           virtual={false}
-          style={{ width: 280, maxWidth: "100%" }}
+          className="browser-filter-tasks"
           value={props.search.tasks ?? []}
           options={props.options.tasks.map((item) => ({
             value: item.value,

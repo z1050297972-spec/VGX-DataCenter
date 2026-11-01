@@ -1,3 +1,4 @@
+import "./repoint.css";
 // M1-09 详情改指向表单：默认目标来自服务端链接，修改参数立即丢弃旧预览。
 import { useState, type ReactElement } from "react";
 import { Alert, Button, Input, Select, Typography } from "antd";
@@ -73,7 +74,7 @@ function RepointFields({ targets, old, next, onChange }: FieldsProps): ReactElem
         现有链接目标
         <Select<string>
           aria-label="选择现有链接目标"
-          style={{ width: "100%" }}
+          className="repoint-select-full"
           value={targets.includes(old) ? old : undefined}
           options={targets.map((value) => ({ value, label: value }))}
           getPopupContainer={(trigger: HTMLElement) => trigger.parentElement ?? trigger}

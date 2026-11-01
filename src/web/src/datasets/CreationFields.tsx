@@ -1,3 +1,4 @@
+import "./creation.css";
 // 创建表单中的单条链接输入；只编辑生成的类型，不复制服务端格式目录映射。
 import type { ReactElement } from "react";
 import { Input, Select } from "antd";
@@ -54,7 +55,7 @@ export function LinkFields(props: LinkFieldsProps): ReactElement {
           virtual={false}
           aria-label="无元信息时的格式"
           disabled={props.disabled}
-          style={{ width: "100%" }}
+          className="creation-select-full"
           value={props.value.fallback_format ?? ""}
           options={[
             { value: "", label: "有 meta/info.json 时使用文件内容" },
