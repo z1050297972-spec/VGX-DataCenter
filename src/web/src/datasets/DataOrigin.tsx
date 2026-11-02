@@ -2,7 +2,7 @@ import "./dataOrigin.css";
 // M1-10 来源标注部件：展示当前来源和标注印记，预览及写入仍由 worker 的统一流水线执行。
 import { useState, type ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Select, Typography } from "antd";
+import { Alert, Button, Flex, Select, Typography } from "antd";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import {
   previewDataOrigin,
@@ -75,35 +75,39 @@ function OriginForm({ datasetId, provenance }: DataOriginProps): ReactElement {
       <Typography.Title level={4}>数据来源</Typography.Title>
       <CurrentOrigin provenance={provenance} />
       <RecoveryStatus block={block} />
-      <Select<DataOriginInput["data_origin"]>
-        // 下拉框随抽屉一起定位和裁剪，避免入场期间挂在 body 上的浮层撑宽整页。
-        getPopupContainer={(trigger: HTMLElement): HTMLElement => trigger.parentElement ?? trigger}
-        virtual={false}
-        aria-label="选择数据来源"
-        placeholder="选择数据来源"
-        value={origin}
-        disabled={busy}
-        onChange={(value) => {
-          setOrigin(value);
-          preview.reset();
-          confirm.reset();
-        }}
-        options={ORIGINS.map((value) => ({ value, label: value }))}
-        className="origin-select"
-      />
-      <Button
-        aria-label="预览数据来源"
-        loading={preview.isPending}
-        disabled={!allowed || sameOrigin || busy}
-        onClick={() => {
-          if (allowed && !sameOrigin) {
-            confirm.reset();
-            preview.mutate({ dataset_id: datasetId, data_origin: origin });
+      <Flex gap="small" align="center" wrap>
+        <Select<DataOriginInput["data_origin"]>
+          // 下拉框随抽屉一起定位和裁剪，避免入场期间挂在 body 上的浮层撑宽整页。
+          getPopupContainer={(trigger: HTMLElement): HTMLElement =>
+            trigger.parentElement ?? trigger
           }
-        }}
-      >
-        预览改动
-      </Button>
+          virtual={false}
+          aria-label="选择数据来源"
+          placeholder="选择数据来源"
+          value={origin}
+          disabled={busy}
+          onChange={(value) => {
+            setOrigin(value);
+            preview.reset();
+            confirm.reset();
+          }}
+          options={ORIGINS.map((value) => ({ value, label: value }))}
+          className="origin-select"
+        />
+        <Button
+          aria-label="预览数据来源"
+          loading={preview.isPending}
+          disabled={!allowed || sameOrigin || busy}
+          onClick={() => {
+            if (allowed && !sameOrigin) {
+              confirm.reset();
+              preview.mutate({ dataset_id: datasetId, data_origin: origin });
+            }
+          }}
+        >
+          预览改动
+        </Button>
+      </Flex>
       {sameOrigin && (
         <p role="status" aria-label="数据来源相同值提示">
           和当前一样

@@ -1,20 +1,6 @@
-/* M1-04 布局 A 的排布；共享部件不依赖此三栏容器，后续 B/C 可直接复用。 */
+/* A 的栅格由 antd 控制，留白使说明行与内容卡片分组。 */
 .dataset-layout-a {
-  display: grid;
-  grid-template-columns: minmax(320px, 360px) minmax(0, 1fr) minmax(160px, 220px);
-  gap: var(--rdp-space-7);
-  align-items: start;
-  max-width: 100%;
-}
-.dataset-layout-a > * {
-  min-width: 0;
-}
-.dataset-layout-a > aside {
-  background: var(--rdp-surface);
-  padding: var(--rdp-space-4);
-  border: var(--rdp-line) solid var(--rdp-border);
-  border-radius: var(--rdp-radius-control);
-  overflow-x: hidden;
+  margin-top: var(--rdp-space-5);
 }
 /* 名字单行、放不下用省略号（悬停看全名）；数量和大小在名字下一行。 */
 .dataset-tree-node {
@@ -39,38 +25,22 @@
   min-width: 0;
   overflow: hidden;
 }
-@media (max-width: 1000px) {
-  .dataset-layout-a {
-    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-  }
-  .dataset-layout-a > aside:last-child {
-    grid-column: 1 / -1;
-  }
-}
-@media (max-width: 650px) {
-  .dataset-layout-a {
-    display: block;
-  }
-}
-
 .dataset-json {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 65vh;
   overflow: auto;
   background: var(--rdp-subtle);
-  padding: var(--rdp-space-4);
+  padding: var(--rdp-space-3);
 }
 .dataset-filters {
-  display: flex;
-  gap: var(--rdp-space-5);
-  flex-wrap: wrap;
-  margin: var(--rdp-space-5) 0;
+  margin: 0;
 }
 .dataset-filters label {
   display: flex;
-  gap: var(--rdp-space-3);
-  align-items: center;
+  gap: var(--rdp-space-2);
+  flex-direction: column;
+  align-items: stretch;
   min-width: 0;
   max-width: 100%;
 }
@@ -82,10 +52,10 @@
 /* M1-05 布局 B、C 与切换器；部件样式沿用上面的 dataset-tree-*。 */
 .dataset-toolbar {
   display: flex;
-  gap: var(--rdp-space-5);
+  gap: var(--rdp-space-4);
   align-items: center;
   flex-wrap: wrap;
-  margin: var(--rdp-space-4) 0;
+  margin: var(--rdp-space-3) 0;
 }
 .dataset-layout-b,
 .dataset-layout-c {
@@ -96,6 +66,9 @@
 .dataset-table-name {
   max-width: 360px;
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dataset-layout-b .ant-btn.dataset-table-name {
   padding: 0;
@@ -108,7 +81,7 @@
 .dataset-miller-workspace {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-  gap: var(--rdp-space-5);
+  gap: var(--rdp-space-4);
   align-items: start;
 }
 .dataset-miller-scroll {
@@ -122,14 +95,14 @@
 }
 .dataset-miller-column {
   min-width: 0;
-  padding: var(--rdp-space-3);
+  padding: var(--rdp-space-2);
   border-right: var(--rdp-line) solid var(--rdp-border);
   max-height: 70vh;
   overflow-y: auto;
 }
 .dataset-miller-heading {
   font-weight: 600;
-  margin-bottom: var(--rdp-space-3);
+  margin-bottom: var(--rdp-space-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -137,7 +110,7 @@
 .dataset-miller-item.ant-btn {
   height: auto;
   text-align: left;
-  padding: var(--rdp-space-1) var(--rdp-space-3);
+  padding: var(--rdp-space-1) var(--rdp-space-2);
   display: block;
 }
 .dataset-miller-item .dataset-tree-meta {
@@ -176,25 +149,96 @@
 
 /* 分类文字允许换行，长任务列表不能撑宽页面或挤占相邻列。 */
 .dataset-classification {
-  display: grid;
-  max-width: 24rem;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rdp-space-2);
+  max-width: 100%;
   font-size: 12px;
   color: var(--rdp-muted);
 }
 
 .browser-filter-wide {
-  min-width: var(--rdp-width-180);
+  min-width: var(--rdp-width-filter-wide);
 }
 .browser-filter-medium {
-  min-width: var(--rdp-width-150);
+  min-width: var(--rdp-width-filter-medium);
 }
 .browser-filter-scene {
-  width: var(--rdp-width-210);
+  width: var(--rdp-width-filter-scene);
   max-width: 100%;
 }
 .browser-filter-tasks {
-  width: var(--rdp-width-280);
+  width: var(--rdp-width-filter-tasks);
   max-width: 100%;
+}
+
+.browser-header {
+  margin-bottom: var(--rdp-space-5);
+}
+.browser-filter-card {
+  margin-bottom: var(--rdp-space-5);
+}
+
+/* 筛选项由栅格分配宽度，覆盖共用控件原来的固定宽度。 */
+.dataset-filters .ant-select {
+  min-width: 0;
+  width: 100%;
+}
+
+/* 页头的 antd 标题有默认上边距，收紧以贴近面包屑。 */
+.browser-header .browser-page-title.ant-typography {
+  margin: var(--rdp-space-1) 0 0;
+}
+@media (min-width: 992px) {
+  .dataset-filters .browser-filter-column {
+    flex: 1 1 0;
+    max-width: none;
+  }
+  .dataset-filters .browser-filter-action {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
+  }
+}
+.browser-filter-action {
+  display: flex;
+  align-items: end;
+}
+.dataset-classification span + span::before {
+  content: "·";
+  margin-right: var(--rdp-space-2);
+}
+.browser-detail-title.ant-typography {
+  margin: 0;
+}
+.browser-detail-summary {
+  margin-top: var(--rdp-space-3);
+}
+.browser-detail-summary p {
+  margin: 0;
+}
+.browser-detail-mono {
+  font-family: var(--rdp-mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+/* 空分节不画线；后续非空分节仍与上一个非空分节分隔。 */
+.browser-detail-section:not(:empty) ~ .browser-detail-section:not(:empty) {
+  border-top: var(--rdp-line) solid var(--rdp-border);
+  margin-top: var(--rdp-space-5);
+  padding-top: var(--rdp-space-5);
+}
+/* 人工信息有内容时，才与同一信息容器中的 14 项标题分隔。 */
+.field-summary + .browser-information-title.ant-typography {
+  border-top: var(--rdp-line) solid var(--rdp-border);
+  padding-top: var(--rdp-space-5);
+  margin-top: var(--rdp-space-5);
+}
+/* 详情中的既有分节标题保留语义级别，仅统一显示尺寸。 */
+[aria-label="数据集详情"] .ant-typography:is(h4, h5) {
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: var(--rdp-space-3);
 }

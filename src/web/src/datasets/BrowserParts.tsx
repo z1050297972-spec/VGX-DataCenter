@@ -135,7 +135,7 @@ export function DatasetListTable(props: ListProps): ReactElement {
       <p>共 {props.data.total} 个数据集</p>
       <Table
         scroll={{ x: "max-content" }}
-        size="small"
+        size="middle"
         rowKey={(item) => item.dataset_id ?? item.entries[0]?.entry_path ?? item.name}
         dataSource={props.data.items}
         columns={[
@@ -146,6 +146,8 @@ export function DatasetListTable(props: ListProps): ReactElement {
               <div>
                 <Button
                   type="link"
+                  className="dataset-table-name"
+                  title={item.name}
                   aria-label={`打开 ${item.name}`}
                   onClick={() => {
                     const path = item.canonical_entry_path ?? item.entries[0]?.entry_path;

@@ -5,9 +5,9 @@
   overflow-wrap: anywhere;
 }
 .origin-select {
-  width: var(--rdp-width-200);
+  width: var(--rdp-width-origin-select);
   max-width: 100%;
-  margin: var(--rdp-space-4) 0;
+  margin: var(--rdp-space-3) 0;
 }
 .origin-scroll {
   min-width: 0;
@@ -15,7 +15,7 @@
   overflow-x: auto;
 }
 .origin-table {
-  min-width: var(--rdp-width-640);
+  min-width: var(--rdp-width-origin-table);
   width: 100%;
   table-layout: fixed;
   overflow-wrap: anywhere;

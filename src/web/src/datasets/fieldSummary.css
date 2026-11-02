@@ -2,3 +2,19 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* 人工字段保留 dl 语义，同时让标签和对应值逐行对齐。 */
+.field-summary dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--rdp-space-2) var(--rdp-space-3);
+}
+.field-summary dt {
+  color: var(--rdp-muted);
+}
+.field-summary dt::after {
+  content: "：";
+}
+.field-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
