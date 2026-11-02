@@ -325,3 +325,9 @@ export function useJobProgress(jobId: number): UseQueryResult<JobProgress> {
 - **10.11** `!important` 只用于覆盖内联 style 或 antd 无法用变量改的规则，每处写注释说明原因。〔审〕
 - **10.12** 样式不能改变可访问性和可测性：不用 CSS 隐藏 DOM 里已有的提示和诊断信息；`:focus-visible` 必须有可见的焦点环；当前状态不能只靠颜色区分；告警和错误的醒目程度不能调低。〔审〕
 - **10.13** 深浅色模式、`prefers-reduced-motion`、`prefers-reduced-transparency` 的降级都只在 `shell.css` 里通过重定义变量实现，页面 CSS 不写自己的媒体查询（响应式断点除外）。〔审〕
+- **10.14** 页面布局（负责人 2026-11-02 定，见 `.scratch/ui-style/layout-decisions.md`）：
+  - 页面结构用 antd 现成组件搭：`Card`、`Flex`、`Row`/`Col`、`Descriptions`、`Collapse`、`Affix`、`Breadcrumb`、`Tag`。不自己写组件，也不用 CSS 按 DOM 位置拼结构。不引入新组件库。
+  - 骨架统一为：页头 → 筛选卡 → 内容卡。页头是 `Breadcrumb` 小标签加 `Typography.Title`，操作按钮和标题同一行、靠右。
+  - 组与组之间用一张卡片隔开，卡片里再细分用小标题加细分隔线，不套卡片。
+  - 每块只有一个主样式按钮，其余是默认按钮或文字按钮，全部保持可见。不用"更多"菜单，因为按名字找按钮的测试会失败。〔审〕
+- **10.15** 间距只用 `--rdp-space-*` 的七档：4/8/12/16/24/32/48。组内用 ≤16，组与组之间用 ≥24。质感参考 shadcn/ui：卡片用细边框、不用阴影；颜色以黑白灰为主，强调色只给主按钮和选中状态；数字和标题用大字号，说明文字用灰色小字。〔审〕

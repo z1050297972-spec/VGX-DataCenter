@@ -19,3 +19,4 @@ Status: accepted（2026-11-01，负责人："可以使用工程框架，比如ta
 - 换肤、深色模式、降级开关都集中在 `shell.css` 一个文件里，开发者在浏览器开发者工具里改变量就能实时看效果，不需要重新构建。
 - antd 升级可能改 `--ant-*` 变量名。升级 antd 时，要检查 `shell.css` 里覆盖的变量是否还存在。
 - 内联 style 还有存量 24 处，等其他线合并后由 ui-style 第 02 张清理（`.scratch/ui-style/followups.md`）。
+- 2026-11-02 补充：负责人确认"使用开源的组件库，不要自己写组件了"，并选定布局 V3，质感参考 shadcn/ui。结论仍然是只用 antd，不引入新组件库，页面结构用 antd 布局组件搭（CODING_STANDARDS 10.14、10.15）。也比较过 shadcn/ui、Radix Themes、HeroUI、Mantine、Carbon、Semi、Arco：观感上 shadcn 和 Radix 最好，但换库要重写全部 tsx、大面积改测试，和"功能代码不动"冲突。等哪天前端大改版再评估。
