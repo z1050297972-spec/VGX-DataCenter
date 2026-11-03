@@ -51,5 +51,11 @@ Status: done
 
 - 钩子里失败的是 `tests/test_file_preview_api.py::test_video_concurrency_is_two_and_recovers`：第三路请求有时直接 200，不返回 429/502。在干净的 main 上单独跑也会失败，属于以前就有的不稳定测试，和本票无关（本票不动后端）。已记入 followups，交给文件查看器的负责线。
 - 重新提交后钩子 `make check` 全绿：实现提交 `3c3bc7b`，合并提交 `3f46f4e`。工作目录和分支 `t/ui-07-log` 已删除。
-- 待办：升级真实部署（`upgrade.sh --commit main --yes`）、推送 GitHub。这两步要负责人确认后再做。
+- 负责人 2026-11-04 说"可以升级和推送"。
+
+### 2026-11-04 升级真实部署与推送（执行线）
+
+- 用 systemd 单元跑 `scripts/upgrade.sh --commit main --yes`，日志在 `~/.cache/rdp-dispatch/upgrade-20261103/`。第一次因为 PATH 里没有 `~/.npm-global/bin`，在依赖检查一步停下（报缺 pnpm），什么都没改；补上 PATH 后重跑，退出码 0。
+- 核对：部署版本 `0.1.0 (cf3f797)`；rdp-web 和 rdp-worker 都是 active；`/api/health` 返回 ok；数据库仍是 `0016_monitoring`，没有迁移；构建产物里已经有 `.jobs-log` 的新声明；worker 日志没有 ERROR。
+- fetch 后远端没有新提交，扫过要推的内容，没有密钥，快进推送到 GitHub。
 
