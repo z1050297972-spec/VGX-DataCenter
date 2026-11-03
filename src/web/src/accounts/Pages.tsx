@@ -1,3 +1,4 @@
+import "./accounts.css";
 // 账号页面（06）：采用 antd 与 TanStack Router/Query；错误统一用 DiagnosticCard，秘密只在表单内存。
 import type { HealthClient } from "../api/client";
 import { changeToken, getTokenState } from "../api/downloadToken";
@@ -494,15 +495,7 @@ export function AccountMenu(): ReactElement {
   const action = useAccountAction();
   if (!identity.data) return <></>;
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "flex-end",
-        gap: 16,
-        alignItems: "center",
-        flexWrap: "wrap",
-      }}
-    >
+    <div className="accounts-menu-row">
       <Typography.Text>{identity.data.display_name}</Typography.Text>
       <Typography.Text>
         角色：{identity.data.role === "administrator" ? "管理员" : "成员"}
@@ -580,7 +573,7 @@ export function AccountLayout(): ReactElement {
       {new URLSearchParams(location.searchStr).get("permission") === "denied" && (
         <Alert type="warning" title="需要管理员权限" />
       )}
-      <main style={{ marginTop: 24 }}>
+      <main className="accounts-main">
         <Outlet />
       </main>
       {renderVersionFooter(identity.data, location.pathname, client)}

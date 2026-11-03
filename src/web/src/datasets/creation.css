@@ -84,3 +84,8 @@
 .creation-select-full {
   width: 100%;
 }
+
+/* 标题和首个表单分组分开，避免改变后续卡片之间的间距。 */
+.creation-page .creation-title {
+  margin-bottom: var(--rdp-space-4);
+}

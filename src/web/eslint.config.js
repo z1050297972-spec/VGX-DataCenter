@@ -35,7 +35,6 @@ export default tseslint.config(
       },
     },
     rules: {
-      // 后端分支数 ≤ 12 无 ESLint 对等规则，用圈复杂度 ≤ 10 兜底。
       "no-restricted-syntax": [
         "error",
         {
@@ -43,6 +42,7 @@ export default tseslint.config(
           message: "静态样式使用 CSS 类；运行时值须说明原因，见 CODING_STANDARDS 10.9。",
         },
       ],
+      // 后端分支数 ≤ 12 无 ESLint 对等规则，用圈复杂度 ≤ 10 兜底。
       complexity: ["error", 10],
       "max-params": ["error", 5],
       "max-statements": ["error", 40],
@@ -114,10 +114,5 @@ export default tseslint.config(
         },
       ],
     },
-  },
-  {
-    // 等 M2 合并后清理，见 ui-style followups。
-    files: ["src/accounts/Pages.tsx", "src/jobs/Pages.tsx"],
-    rules: { "no-restricted-syntax": "off" },
   },
 );

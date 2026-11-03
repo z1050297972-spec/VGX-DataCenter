@@ -1,7 +1,7 @@
 import "./creation.css";
 // 创建表单中的单条链接输入；只编辑生成的类型，不复制服务端格式目录映射。
 import type { ReactElement } from "react";
-import { Input, Select } from "antd";
+import { Card, Input, Select } from "antd";
 import type { CreationOptions, LinkPreviewInput } from "../api/datasetCreation";
 
 /** 链接字段的受控属性。 */
@@ -25,50 +25,55 @@ export interface LinkFieldsProps {
  */
 export function LinkFields(props: LinkFieldsProps): ReactElement {
   return (
-    <fieldset disabled={props.disabled} className="creation-fields">
-      <label>
-        链接名
-        <Input
-          aria-label="链接名"
-          required
-          value={props.value.name}
-          onChange={(event) => {
-            props.onChange({ ...props.value, name: event.target.value });
-          }}
-        />
-      </label>
-      <label>
-        目标路径
-        <Input
-          aria-label="目标路径"
-          required
-          pattern="/.*"
-          value={props.value.target_path}
-          onChange={(event) => {
-            props.onChange({ ...props.value, target_path: event.target.value });
-          }}
-        />
-      </label>
-      <label>
-        无元信息时的格式
-        <Select<string>
-          virtual={false}
-          aria-label="无元信息时的格式"
-          disabled={props.disabled}
-          className="creation-select-full"
-          value={props.value.fallback_format ?? ""}
-          options={[
-            { value: "", label: "有 meta/info.json 时使用文件内容" },
-            ...props.options.formats.map((item) => ({ value: item.format, label: item.directory })),
-          ]}
-          onChange={(value) => {
-            props.onChange({ ...props.value, fallback_format: value || null });
-          }}
-        />
-      </label>
-      <p className="creation-note">
-        没有 meta/info.json 时请选格式；存在元信息时以文件为准。链接不会修改目标数据。
-      </p>
-    </fieldset>
+    <Card title="02 链接">
+      <fieldset disabled={props.disabled} className="creation-fields">
+        <label>
+          链接名
+          <Input
+            aria-label="链接名"
+            required
+            value={props.value.name}
+            onChange={(event) => {
+              props.onChange({ ...props.value, name: event.target.value });
+            }}
+          />
+        </label>
+        <label>
+          目标路径
+          <Input
+            aria-label="目标路径"
+            required
+            pattern="/.*"
+            value={props.value.target_path}
+            onChange={(event) => {
+              props.onChange({ ...props.value, target_path: event.target.value });
+            }}
+          />
+        </label>
+        <label>
+          无元信息时的格式
+          <Select<string>
+            virtual={false}
+            aria-label="无元信息时的格式"
+            disabled={props.disabled}
+            className="creation-select-full"
+            value={props.value.fallback_format ?? ""}
+            options={[
+              { value: "", label: "有 meta/info.json 时使用文件内容" },
+              ...props.options.formats.map((item) => ({
+                value: item.format,
+                label: item.directory,
+              })),
+            ]}
+            onChange={(value) => {
+              props.onChange({ ...props.value, fallback_format: value || null });
+            }}
+          />
+        </label>
+        <p className="creation-note">
+          没有 meta/info.json 时请选格式；存在元信息时以文件为准。链接不会修改目标数据。
+        </p>
+      </fieldset>
+    </Card>
   );
 }
