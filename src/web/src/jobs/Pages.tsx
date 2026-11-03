@@ -1,9 +1,25 @@
+import "./jobs.css";
 // 作业页面契约（08）：Ant Design 与统一 DiagnosticCard；不直接 fetch、不计算后端结果。
 import { DownloadDetail } from "./DownloadDetail";
 import { IngestDownload } from "../downloads/Ingest";
 import { RevertEntry } from "../navwrites/Revert";
 import { useState, type ReactElement } from "react";
-import { Alert, Button, Select, Table, Typography, Progress, Form, Input } from "antd";
+import {
+  Alert,
+  Breadcrumb,
+  Button,
+  Card,
+  Col,
+  Flex,
+  Row,
+  Select,
+  Table,
+  Tag,
+  Typography,
+  Progress,
+  Form,
+  Input,
+} from "antd";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import type { Job, JobSearch, CountInput } from "../api/jobs";
 import { toFailureView } from "../api/problems";
@@ -31,16 +47,29 @@ const jobsRoute = getRouteApi("/jobs");
 export function JobsPage(): ReactElement {
   const search = jobsRoute.useSearch();
   return (
-    <section>
-      <Typography.Title level={2}>作业列表</Typography.Title>
-      <Link to="/jobs/new">提交示例作业</Link>
-      <Link to="/jobs/resources">提交资源示例</Link>
-      <JobFilters key={JSON.stringify(search)} search={search} />
-      {search.invalidJobSearch ? (
-        <Alert type="error" title="作业筛选参数不合法" />
-      ) : (
-        <JobListContent search={search} />
-      )}
+    <section className="jobs-page">
+      <header className="jobs-header">
+        <Breadcrumb items={[{ title: "作业" }, { title: "列表" }]} />
+        <Flex align="center" justify="space-between" wrap gap="middle">
+          <Typography.Title level={2} className="jobs-title">
+            作业列表
+          </Typography.Title>
+          <Flex gap="middle" wrap>
+            <Link to="/jobs/new">提交示例作业</Link>
+            <Link to="/jobs/resources">提交资源示例</Link>
+          </Flex>
+        </Flex>
+      </header>
+      <Card>
+        <div className="jobs-list-content">
+          <JobFilters key={JSON.stringify(search)} search={search} />
+          {search.invalidJobSearch ? (
+            <Alert type="error" title="作业筛选参数不合法" />
+          ) : (
+            <JobListContent search={search} />
+          )}
+        </div>
+      </Card>
     </section>
   );
 }
@@ -60,30 +89,57 @@ export function JobDetailPage(): ReactElement {
   if (!query.data) return <Typography.Text>正在读取作业…</Typography.Text>;
   const job = query.data;
   return (
-    <section>
-      <Typography.Title level={2}>
-        {job.display_name} #{job.job_id}
-      </Typography.Title>
-      <Typography.Text>{jobStatusLabel(job)}</Typography.Text>
-      {job.wait_reason && <div>{waitLabel(job)}</div>}
-      <div>提交人：{submitterLabel(job)}</div>
-      <div>GPU：{job.gpu_index ?? "未分配"}</div>
-      <JobProgressView job={job} timing={timing} />
+    <section className="jobs-page">
+      <header className="jobs-header">
+        <Breadcrumb items={[{ title: "作业" }, { title: "详情" }]} />
+        <Flex align="center" wrap gap="small">
+          <Typography.Title level={2} className="jobs-title">
+            {job.display_name} #{job.job_id}
+          </Typography.Title>
+          <Tag>{jobStatusLabel(job)}</Tag>
+        </Flex>
+      </header>
+      <Card title="概要">
+        {job.wait_reason && <div>{waitLabel(job)}</div>}
+        <div className="jobs-summary">
+          <Row gutter={[16, 8]}>
+            <Col xs={24} sm={8}>
+              <div>提交人：{submitterLabel(job)}</div>
+            </Col>
+            <Col xs={24} sm={8}>
+              <div>GPU：{job.gpu_index ?? "未分配"}</div>
+            </Col>
+            {job.progress && (
+              <Col xs={24} sm={8}>
+                <div>
+                  阶段 {job.progress.stage_index}/{job.progress.stage_count} ·{" "}
+                  {job.progress.stage_name}
+                </div>
+              </Col>
+            )}
+          </Row>
+          <JobProgressView job={job} timing={timing} />
+        </div>
+        {job.resubmitted_from && (
+          <Link to="/jobs/$jobId" params={{ jobId: job.resubmitted_from }}>
+            重新提交自 #{job.resubmitted_from}
+          </Link>
+        )}
+        <JobActions key={job.job_id} job={job} />
+      </Card>
       {job.type_name === "download" && (
         <>
           <DownloadDetail job={job} />
           <IngestDownload job={job} />
         </>
       )}
-      {job.resubmitted_from && (
-        <Link to="/jobs/$jobId" params={{ jobId: job.resubmitted_from }}>
-          重新提交自 #{job.resubmitted_from}
-        </Link>
-      )}
-      <JobActions key={job.job_id} job={job} />
       <RevertEntry job={job} />
-      <JobDiagnosticCard job={job} />
-      <JobLogPanel job={job} />
+      <Card title="作业日志">
+        <JobLogPanel job={job} />
+      </Card>
+      <Card title="诊断" className="jobs-diagnostics">
+        <JobDiagnosticCard job={job} />
+      </Card>
     </section>
   );
 }
@@ -203,12 +259,12 @@ function JobFilters({ search }: { search: JobSearch }): ReactElement {
   const [state, setState] = useState<JobSearch["state"]>(search.state);
   const navigate = jobsRoute.useNavigate();
   return (
-    <div>
+    <Flex gap="small" wrap>
       <Select
         aria-label="作业状态"
         value={state}
         allowClear
-        style={{ width: 180 }}
+        className="jobs-filter"
         onChange={setState}
         options={[
           { value: "queued", label: "排队中" },
@@ -226,7 +282,7 @@ function JobFilters({ search }: { search: JobSearch }): ReactElement {
       >
         筛选
       </Button>
-    </div>
+    </Flex>
   );
 }
 function JobListContent({ search }: { search: JobSearch }): ReactElement {
@@ -282,11 +338,12 @@ function JobLogPanel({ job }: { job: Job }): ReactElement {
   if (tail.status === "not_started") return <Typography.Text>作业未开始</Typography.Text>;
   return (
     <section>
-      <Typography.Title level={3}>作业日志</Typography.Title>
       {tail.truncated && <Typography.Text>仅显示日志末尾</Typography.Text>}
       <pre
         role="log"
         aria-label="作业日志"
+        className="jobs-log"
+        // eslint-disable-next-line no-restricted-syntax -- 现有测试直接断言内联样式值，测试调整后移除。
         style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxWidth: "100%", minWidth: 0 }}
       >
         {tail.lines.join("\n")}
@@ -397,40 +454,38 @@ function validateField(action: () => unknown): Promise<void> {
 function JobProgressView({ job, timing }: { job: Job; timing: JobTiming }): ReactElement {
   const progress = job.progress;
   return (
-    <>
-      {progress && (
-        <>
+    <div className="jobs-summary">
+      {progress &&
+        (progress.total === null ? (
           <div>
-            阶段 {progress.stage_index}/{progress.stage_count} · {progress.stage_name}
+            已处理 {progress.done} {progress.unit}
           </div>
-          {progress.total === null ? (
-            <div>
-              已处理 {progress.done} {progress.unit}
-            </div>
-          ) : (
-            <Progress
-              aria-label="作业进度"
-              percent={
-                progress.total === 0 ? 0 : Math.round((100 * progress.done) / progress.total)
-              }
-            />
-          )}
+        ) : (
+          <Progress
+            aria-label="作业进度"
+            percent={progress.total === 0 ? 0 : Math.round((100 * progress.done) / progress.total)}
+          />
+        ))}
+      <Flex gap="large" wrap>
+        {progress && (
           <div>
             条目 {progress.total_items} · 失败 {progress.failed_items} · 警告{" "}
             {progress.warning_count}
           </div>
-        </>
-      )}
-      {timing.elapsedSeconds !== null && <div>已用时间 {timing.elapsedSeconds.toFixed(1)} 秒</div>}
-      {timing.unitsPerSecond !== null && (
-        <div>
-          速度 {timing.unitsPerSecond.toFixed(1)} {progress?.unit}/秒
-        </div>
-      )}
-      {timing.remainingSeconds !== null && (
-        <div>剩余时间 {timing.remainingSeconds.toFixed(1)} 秒</div>
-      )}
-    </>
+        )}
+        {timing.elapsedSeconds !== null && (
+          <div>已用时间 {timing.elapsedSeconds.toFixed(1)} 秒</div>
+        )}
+        {timing.unitsPerSecond !== null && (
+          <div>
+            速度 {timing.unitsPerSecond.toFixed(1)} {progress?.unit}/秒
+          </div>
+        )}
+        {timing.remainingSeconds !== null && (
+          <div>剩余时间 {timing.remainingSeconds.toFixed(1)} 秒</div>
+        )}
+      </Flex>
+    </div>
   );
 }
 

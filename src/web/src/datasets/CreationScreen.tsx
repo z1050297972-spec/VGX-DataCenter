@@ -1,6 +1,6 @@
 // 两个创建路由的流程装配；参数只留内存，确认永远引用保存的同一份预览。
 import { useCallback, useState, type ReactElement } from "react";
-import { Alert, Button, Typography } from "antd";
+import { Alert, Breadcrumb, Button, Typography } from "antd";
 import { useNavigate } from "@tanstack/react-router";
 import { useDatasetBrowser } from "./queries";
 import { CreateDatasetForm, CreateLinkForm, FormatEntryPicker } from "./CreationForms";
@@ -92,7 +92,8 @@ export function CreationScreen(props: CreationScreenProps): ReactElement {
   }
   return (
     <section className="creation-page">
-      <Typography.Title level={2}>
+      <Breadcrumb items={[{ title: "数据集" }, { title: "新增" }]} />
+      <Typography.Title level={2} className="creation-title">
         {props.operation === "create_link" ? "建链" : "新增数据集"}
       </Typography.Title>
       <FlowFeedback flow={flow} onEdit={clearPreview} />

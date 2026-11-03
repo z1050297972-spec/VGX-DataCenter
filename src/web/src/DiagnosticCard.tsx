@@ -158,16 +158,18 @@ export function DiagnosticEntries(props: DiagnosticEntriesProps): ReactElement {
             {d.level === "error" ? "错误" : "警告"} · {CATEGORY_LABELS[d.category]} · {d.stage} ·
             来源：{d.source}
           </div>
-          <div>
-            对象：{d.objects.map((item) => item.key + "=" + item.value).join(" ") || "全局"}
+          <div className="jobs-diagnostic-fields">
+            <div>
+              对象：{d.objects.map((item) => item.key + "=" + item.value).join(" ") || "全局"}
+            </div>
+            <div>规则：{d.rule}</div>
+            <div>
+              实际：{d.actual}
+              {d.expected != null ? "；期望：" + d.expected : ""}
+            </div>
+            <div>后果：{d.consequence}</div>
+            <div>检查：{d.next_step}</div>
           </div>
-          <div>规则：{d.rule}</div>
-          <div>
-            实际：{d.actual}
-            {d.expected != null ? "；期望：" + d.expected : ""}
-          </div>
-          <div>后果：{d.consequence}</div>
-          <div>检查：{d.next_step}</div>
           {!!d.error_chain.length && (
             <Collapse
               items={[
@@ -207,8 +209,8 @@ export function JobDiagnosticCard(props: JobDiagnosticCardProps): ReactElement {
   return (
     <>
       {props.job.diagnostics.map((group) => (
-        <section key={JSON.stringify([group.source, group.rule])}>
-          <div>
+        <section className="jobs-diagnostic-group" key={JSON.stringify([group.source, group.rule])}>
+          <div className="jobs-diagnostic-group-title">
             {group.rule} · 共 {group.total} 条（展示 {group.samples.length} 条）
           </div>
           {group.samples.some((item) => item.category === "defect") && (

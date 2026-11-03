@@ -1,6 +1,6 @@
 // 下载详情只轮询 worker 已发布的快照，不能把已提交请求当作已生效参数。
 import { useEffect, useRef, useState, type ReactElement } from "react";
-import { Button, InputNumber, Typography } from "antd";
+import { Button, Card, InputNumber, Typography } from "antd";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccountClient } from "../accounts/runtime";
 import { adjustDownload, getDownloadStatus, type DownloadStatus } from "../api/downloadAdjustments";
@@ -32,8 +32,7 @@ export function DownloadDetail({ job }: { job: Job }): ReactElement {
   if (!status.data) return <Typography.Text>下载状态尚未就绪</Typography.Text>;
   const data = status.data;
   return (
-    <section>
-      <Typography.Title level={3}>下载详情</Typography.Title>
+    <Card title="下载详情">
       <div>当前速度：{data.speed_bytes_per_s} B/s</div>
       <div>
         文件：{data.completed_files} / {data.total_files}；失败 {data.failed_files}；跳过{" "}
@@ -53,7 +52,7 @@ export function DownloadDetail({ job }: { job: Job }): ReactElement {
       </div>
       <div>{adjustmentLabel(job, data)}</div>
       {job.state === "running" && <AdjustmentForm jobId={job.job_id} data={data} />}
-    </section>
+    </Card>
   );
 }
 

@@ -1,6 +1,6 @@
 import "./creation.css";
 // M1-08 创建表单组件；负责受控输入与交互，不读文件、不自行生成计划。
-import { Button, Input, Select } from "antd";
+import { Button, Card, Input, Select } from "antd";
 import { LinkFields } from "./CreationFields";
 import type { ReactElement } from "react";
 import type {
@@ -49,53 +49,55 @@ export function CreateLinkForm(props: CreateLinkFormProps): ReactElement {
         if (props.value.dataset_id) props.onPreview(props.value);
       }}
     >
-      <fieldset disabled={props.pending} className="creation-fields">
-        <label>
-          数据集
-          <Select<string>
-            virtual={false}
-            aria-label="数据集"
-            aria-required="true"
-            disabled={props.pending}
-            className="creation-select-full"
-            placeholder="请选择数据集"
-            value={props.value.dataset_id || undefined}
-            options={[
-              ...(!props.datasets.items.some(
-                (item) => item.dataset_id === props.value.dataset_id,
-              ) && props.value.dataset_id
-                ? [{ value: props.value.dataset_id, label: props.value.dataset_id }]
-                : []),
-              ...props.datasets.items.flatMap((item) =>
-                item.dataset_id ? [{ value: item.dataset_id, label: item.name }] : [],
-              ),
-            ]}
-            onChange={(value) => {
-              props.onChange({ ...props.value, dataset_id: value });
-            }}
-          />
-        </label>
-        <div className="creation-actions">
-          <Button
-            aria-label="上一页数据集"
-            disabled={props.datasets.offset === 0}
-            onClick={() => {
-              props.onDatasetPage(Math.max(0, props.datasets.offset - props.datasets.limit));
-            }}
-          >
-            上一页
-          </Button>
-          <Button
-            aria-label="下一页数据集"
-            disabled={props.datasets.offset + props.datasets.limit >= props.datasets.total}
-            onClick={() => {
-              props.onDatasetPage(props.datasets.offset + props.datasets.limit);
-            }}
-          >
-            下一页
-          </Button>
-        </div>
-      </fieldset>
+      <Card title="01 基本信息">
+        <fieldset disabled={props.pending} className="creation-fields">
+          <label>
+            数据集
+            <Select<string>
+              virtual={false}
+              aria-label="数据集"
+              aria-required="true"
+              disabled={props.pending}
+              className="creation-select-full"
+              placeholder="请选择数据集"
+              value={props.value.dataset_id || undefined}
+              options={[
+                ...(!props.datasets.items.some(
+                  (item) => item.dataset_id === props.value.dataset_id,
+                ) && props.value.dataset_id
+                  ? [{ value: props.value.dataset_id, label: props.value.dataset_id }]
+                  : []),
+                ...props.datasets.items.flatMap((item) =>
+                  item.dataset_id ? [{ value: item.dataset_id, label: item.name }] : [],
+                ),
+              ]}
+              onChange={(value) => {
+                props.onChange({ ...props.value, dataset_id: value });
+              }}
+            />
+          </label>
+          <div className="creation-actions">
+            <Button
+              aria-label="上一页数据集"
+              disabled={props.datasets.offset === 0}
+              onClick={() => {
+                props.onDatasetPage(Math.max(0, props.datasets.offset - props.datasets.limit));
+              }}
+            >
+              上一页
+            </Button>
+            <Button
+              aria-label="下一页数据集"
+              disabled={props.datasets.offset + props.datasets.limit >= props.datasets.total}
+              onClick={() => {
+                props.onDatasetPage(props.datasets.offset + props.datasets.limit);
+              }}
+            >
+              下一页
+            </Button>
+          </div>
+        </fieldset>
+      </Card>
       <LinkFields
         value={props.value.link}
         options={props.options}
@@ -162,35 +164,37 @@ export function CreateDatasetForm(props: CreateDatasetFormProps): ReactElement {
         if (props.value.data_origin) props.onPreview(props.value);
       }}
     >
-      <fieldset disabled={props.pending} className="creation-fields">
-        <label>
-          数据集名
-          <Input
-            aria-label="数据集名"
-            required
-            value={props.value.dataset_name}
-            onChange={(event) => {
-              props.onChange({ ...props.value, dataset_name: event.target.value });
-            }}
-          />
-        </label>
-        <label>
-          数据来源
-          <Select<string>
-            virtual={false}
-            aria-label="数据来源"
-            aria-required="true"
-            disabled={props.pending}
-            className="creation-select-full"
-            placeholder="请选择数据来源"
-            value={props.value.data_origin || undefined}
-            options={props.options.data_origins.map((value) => ({ value, label: value }))}
-            onChange={(value) => {
-              props.onChange({ ...props.value, data_origin: value });
-            }}
-          />
-        </label>
-      </fieldset>
+      <Card title="01 基本信息">
+        <fieldset disabled={props.pending} className="creation-fields">
+          <label>
+            数据集名
+            <Input
+              aria-label="数据集名"
+              required
+              value={props.value.dataset_name}
+              onChange={(event) => {
+                props.onChange({ ...props.value, dataset_name: event.target.value });
+              }}
+            />
+          </label>
+          <label>
+            数据来源
+            <Select<string>
+              virtual={false}
+              aria-label="数据来源"
+              aria-required="true"
+              disabled={props.pending}
+              className="creation-select-full"
+              placeholder="请选择数据来源"
+              value={props.value.data_origin || undefined}
+              options={props.options.data_origins.map((value) => ({ value, label: value }))}
+              onChange={(value) => {
+                props.onChange({ ...props.value, data_origin: value });
+              }}
+            />
+          </label>
+        </fieldset>
+      </Card>
       <LinkFields
         value={props.value.link}
         options={props.options}
@@ -252,41 +256,43 @@ export function FormatEntryPicker(props: FormatEntryPickerProps): ReactElement {
         : [{ format: item.format, version: null }],
     );
   return (
-    <fieldset disabled={props.disabled} className="creation-fields">
-      <legend>格式入口</legend>
-      {choices.map((item) => {
-        const selected = props.value.some(
-          (value) =>
-            value.format === item.format && (value.version ?? null) === (item.version ?? null),
-        );
-        const directory =
-          props.options.find((value) => value.format === item.format)?.directory ?? item.format;
-        const label = directory + (item.version ? "/" + item.version : "");
-        return (
-          <label className="creation-check" key={label}>
-            <input
-              type="checkbox"
-              aria-label={`格式入口 ${label}`}
-              checked={selected}
-              onChange={() => {
-                props.onChange(
-                  selected
-                    ? props.value.filter(
-                        (value) =>
-                          !(
-                            value.format === item.format &&
-                            (value.version ?? null) === (item.version ?? null)
-                          ),
-                      )
-                    : [...props.value, item],
-                );
-              }}
-            />
-            {label}
-          </label>
-        );
-      })}
-      {!choices.length && <p>当前没有可选格式入口，可先生成预览。</p>}
-    </fieldset>
+    <Card title="03 格式入口">
+      <fieldset disabled={props.disabled} className="creation-fields">
+        <legend>格式入口</legend>
+        {choices.map((item) => {
+          const selected = props.value.some(
+            (value) =>
+              value.format === item.format && (value.version ?? null) === (item.version ?? null),
+          );
+          const directory =
+            props.options.find((value) => value.format === item.format)?.directory ?? item.format;
+          const label = directory + (item.version ? "/" + item.version : "");
+          return (
+            <label className="creation-check" key={label}>
+              <input
+                type="checkbox"
+                aria-label={`格式入口 ${label}`}
+                checked={selected}
+                onChange={() => {
+                  props.onChange(
+                    selected
+                      ? props.value.filter(
+                          (value) =>
+                            !(
+                              value.format === item.format &&
+                              (value.version ?? null) === (item.version ?? null)
+                            ),
+                        )
+                      : [...props.value, item],
+                  );
+                }}
+              />
+              {label}
+            </label>
+          );
+        })}
+        {!choices.length && <p>当前没有可选格式入口，可先生成预览。</p>}
+      </fieldset>
+    </Card>
   );
 }
