@@ -50,3 +50,15 @@ Status: done
 - R1 查实了原因：ConfigProvider 生成了新的 `css-var-*` 作用域；另外，浅色下传入的种子 token 也改变了派生值。修法是把 `cssVar.key` 固定为 `css-var-root`，浅色不再传种子，深色的种子集中成常量并写明要和 `--rdp-*` 同步。
 - 逐像素对比浅色和合并前，只剩两处差异：详情页"本次读取"的时间，和作业列表里新增作业的编号，都是数据变化，不是样式。深色截图复查过，没问题。
 - 实现提交 `80d030d`；合并提交 `713a5d4`，钩子跑的 `make check` 全绿。工作目录和分支已删除。
+
+### 2026-11-02 升级真实部署（执行线）
+
+- 负责人授权（"再合并、升级"）。升级前查过：没有运行中的作业；`ed036c2..main` 只有前端改动，没有数据库迁移，后端代码也没变。
+- 用 systemd 单元 `rdp-upgrade-ui` 跑 `scripts/upgrade.sh --yes`，日志在 `~/.cache/rdp-dispatch/upgrade-20261102/upgrade.log`，退出码 0。
+- 核对结果：
+  - `rdp --version` 显示 `0.1.0 (0b33235)`；
+  - rdp-web 和 rdp-worker 都是 active；
+  - `/api/health` 返回 ok；
+  - 首页加载的是新构建的 `index-C9j_8TDc.js`。
+- 数据库仍是 0016_monitoring，没有迁移，所以没做新备份。
+- 这次升级带上了 ui-style 第 03–06 张：f496b99、826d79f、de767d2、713a5d4。
