@@ -8,3 +8,4 @@
 6. **[第 05 张已完成]（第 04 张遗留）共用组件里的模块类名。**`DiagnosticCard.tsx` 是共用组件，里面却加了 `jobs-diagnostic-fields`、`jobs-diagnostic-group` 这类作业模块前缀的类，样式写在 `jobs/jobs.css`，靠 `.jobs-page`、`.jobs-diagnostics` 限定作用范围。效果没问题，但不符合 10.10 的命名规则。以后动诊断样式时，改成 `diagnostic-` 前缀，样式移到共用位置。
 7. **[第 07 张已完成]（第 04 张遗留）作业日志框的内联 style。**`jobs/Pages.tsx` 里的日志 `<pre>` 保留了 `whiteSpace` 等内联样式，并带单条豁免，因为现有测试直接断言 `element.style`。以后测试改成检查计算后的样式时，一并挪进 CSS 类。
 8. **[第 05 张已完成] 第二批页面：**下载页（`/downloads`）、审计、存储根、调度、网络与资源、账号管理，还是旧排版，等负责人决定要不要做。
+9. **（第 07 张评审发现，不归本线）不稳定的后端测试。**`tests/test_file_preview_api.py::test_video_concurrency_is_two_and_recovers` 时过时不过：第三路请求有时直接返回 200，没有返回 429；失败回收那一步有时也是 200，没有返回 502。在干净的 main 上也能复现，负载高时更容易出现，会让提交钩子误拦。要交给文件查看器的负责线处理，样式线不动。

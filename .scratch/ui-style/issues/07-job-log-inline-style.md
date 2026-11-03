@@ -45,4 +45,11 @@ Status: done
 
 - Codex 自报"未完成"，原因只是自己截不了图，截图本来就是执行线的活。diff 只动了三个允许的文件：内联 style 删了，四个声明进了 `.jobs-log`，eslint 豁免也删了。改写后的测试断言日志元素带 `jobs-log` 类，并读取 `jobs.css` 检查四个声明。变异抽查（删掉 `white-space: pre-wrap`）时测试变红，原文见 `assets/07/out-A.md`。
 - 截图对比：作业详情的日志框和改前一致。整页错开 64px 是因为预览 worker 停了，多出一条"worker 没在运行"横幅，和本票无关。
-- 实现提交 `eb67bd4`，合并提交 `eb67bd4`，钩子跑的 `make check` 全绿。工作目录和分支已删除。
+- ~~实现提交 `eb67bd4`，合并提交 `eb67bd4`，钩子跑的 `make check` 全绿。工作目录和分支已删除。~~ 这一条记错了，`9df15f0` 只提交了工单文件：当时实现提交被钩子拦下（pytest 2 个失败），改动留在了暂存区。
+
+### 2026-11-03 补提交与合并（执行线，续接）
+
+- 钩子里失败的是 `tests/test_file_preview_api.py::test_video_concurrency_is_two_and_recovers`：第三路请求有时直接 200，不返回 429/502。在干净的 main 上单独跑也会失败，属于以前就有的不稳定测试，和本票无关（本票不动后端）。已记入 followups，交给文件查看器的负责线。
+- 重新提交后钩子 `make check` 全绿：实现提交 `3c3bc7b`，合并提交 `3f46f4e`。工作目录和分支 `t/ui-07-log` 已删除。
+- 待办：升级真实部署（`upgrade.sh --commit main --yes`）、推送 GitHub。这两步要负责人确认后再做。
+
