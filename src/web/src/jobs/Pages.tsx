@@ -348,13 +348,7 @@ function JobLogPanel({ job }: { job: Job }): ReactElement {
   return (
     <section>
       {tail.truncated && <Typography.Text>仅显示日志末尾</Typography.Text>}
-      <pre
-        role="log"
-        aria-label="作业日志"
-        className="jobs-log"
-        // eslint-disable-next-line no-restricted-syntax -- 现有测试直接断言内联样式值，测试调整后移除。
-        style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxWidth: "100%", minWidth: 0 }}
-      >
+      <pre role="log" aria-label="作业日志" className="jobs-log">
         {tail.lines.join("\n")}
       </pre>
     </section>

@@ -878,9 +878,18 @@ it("评审3：作业日志长行在有界日志框内换行", async () => {
   try {
     const log = await screen.findByRole("log");
     expect(log.textContent).toBe(line);
-    expect(log.style.whiteSpace).toBe("pre-wrap");
-    expect(log.style.overflowWrap).toBe("anywhere");
-    expect(log.style.maxWidth).toBe("100%");
+    // jsdom 不计算外部样式；同时验证类绑定和该规则的声明，守住长行换行及宽度边界。
+    expect(log.classList.contains("jobs-log")).toBe(true);
+    const fsModule = "node:fs/promises";
+    const fs = (await import(fsModule)) as {
+      readFile: (path: string, encoding: "utf8") => Promise<string>;
+    };
+    const css = await fs.readFile("src/jobs/jobs.css", "utf8");
+    const rule = css.match(/\.jobs-log\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(rule).toMatch(/(?:^|;)\s*white-space\s*:\s*pre-wrap\s*;/);
+    expect(rule).toMatch(/(?:^|;)\s*overflow-wrap\s*:\s*anywhere\s*;/);
+    expect(rule).toMatch(/(?:^|;)\s*max-width\s*:\s*100%\s*;/);
+    expect(rule).toMatch(/(?:^|;)\s*min-width\s*:\s*0\s*;/);
   } finally {
     view.close();
   }
