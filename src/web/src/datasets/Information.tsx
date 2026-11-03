@@ -27,7 +27,9 @@ export function DatasetInformation(props: Props): ReactElement {
   return (
     <section aria-label="14 项数据集信息">
       <DatasetFieldSummary document={props.document} />
-      <Typography.Title level={4}>14 项数据集信息</Typography.Title>
+      <Typography.Title level={4} className="browser-information-title">
+        14 项数据集信息
+      </Typography.Title>
       {fields ? (
         <>
           <p>来自按任务入口规范副本 · 10-12 记录</p>

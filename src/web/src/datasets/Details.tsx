@@ -1,6 +1,6 @@
 // 数据集详情共享部件（11、16、M1-04）；索引时间和现场 JSON 时间不混为一份快照。
 import { lazy, Suspense, useState, type ReactElement } from "react";
-import { Alert, Button, Card, Typography } from "antd";
+import { Alert, Button, Col, Flex, Row, Typography } from "antd";
 import { rescanDataset, sizeDataset, type DatasetDetail } from "../api/datasets";
 import { useAccountClient } from "../accounts/runtime";
 import { useJobAction } from "../jobs/_actions";
@@ -40,7 +40,24 @@ export function DatasetDetails(props: DetailProps): ReactElement {
   const query = useDatasetDetail(props.entryPath);
   return (
     <section aria-label="数据集详情">
-      <Button onClick={props.onClose}>返回列表</Button>
+      <Flex justify="space-between" align="center" gap="middle" wrap>
+        <Flex align="center" gap="small" wrap>
+          <Button type="text" onClick={props.onClose}>
+            返回列表
+          </Button>
+          {query.data && (
+            <Typography.Title level={3} className="browser-detail-title">
+              {query.data.entry.name}
+            </Typography.Title>
+          )}
+        </Flex>
+        {query.data && (
+          <Flex gap="small" wrap>
+            <CreateLinkEntry datasetId={query.data.entry.dataset_id} />
+            <RepointEditor detail={query.data} />
+          </Flex>
+        )}
+      </Flex>
       {query.isPending && <p role="status">正在加载详情</p>}
       {query.error && <DiagnosticCard failure={toFailureView(query.error)} />}
       {query.data && <DetailContent detail={query.data} onJump={props.onJump} />}
@@ -84,14 +101,24 @@ function DetailContent({
           }
         />
       )}
-      <Typography.Title level={3}>{detail.entry.name}</Typography.Title>
-      <CreateLinkEntry datasetId={detail.entry.dataset_id} />
-      <RepointEditor detail={detail} />
-      <p>{detail.entry.dataset_id ?? "身份未知"}</p>
-      <p>{detail.entry.entry_path}</p>
-      <p>索引时间：{formatDateTime(detail.indexed_at)}</p>
-      <p>本次读取：{formatDateTime(detail.observed_at)}</p>
-      <Card title="跨视图跳转">
+      <div className="browser-detail-section">
+        <Row gutter={[16, 8]} className="browser-detail-summary">
+          <Col xs={24} md={12}>
+            <p className="browser-detail-mono">{detail.entry.dataset_id ?? "身份未知"}</p>
+          </Col>
+          <Col xs={24} md={12}>
+            <p className="browser-detail-mono">{detail.entry.entry_path}</p>
+          </Col>
+          <Col xs={24} md={12}>
+            <p>索引时间：{formatDateTime(detail.indexed_at)}</p>
+          </Col>
+          <Col xs={24} md={12}>
+            <p>本次读取：{formatDateTime(detail.observed_at)}</p>
+          </Col>
+        </Row>
+      </div>
+      <section className="browser-detail-section">
+        <Typography.Title level={5}>跨视图跳转</Typography.Title>
         {detail.entries
           .filter((entry) => entry.entry_path !== detail.entry.entry_path)
           .map((entry) => (
@@ -105,49 +132,75 @@ function DetailContent({
               {entry.entry_path}
             </Button>
           ))}
-      </Card>
+      </section>
       {detail.entry.dataset_id && (
-        <DataOriginEditor datasetId={detail.entry.dataset_id} provenance={detail.provenance} />
+        <div className="browser-detail-section">
+          <DataOriginEditor datasetId={detail.entry.dataset_id} provenance={detail.provenance} />
+        </div>
       )}
-      <FieldEditEntry detail={detail} />
-      <DatasetSizeSummary size={detail.dataset_size} />
-      <Button
-        disabled={!detail.entry.dataset_id || rescan.isPending}
-        loading={rescan.isPending}
-        onClick={() => {
-          if (detail.entry.dataset_id) rescan.mutate(detail.entry.dataset_id);
-        }}
-      >
-        重新检查
-      </Button>
-      <Button
-        disabled={!detail.entry.dataset_id || sizing.isPending}
-        loading={sizing.isPending}
-        onClick={() => {
-          if (detail.entry.dataset_id) sizing.mutate(detail.entry.dataset_id);
-        }}
-      >
-        统计大小
-      </Button>
-      {sizing.error && <DiagnosticCard failure={toFailureView(sizing.error)} />}
-      {rescan.error && <DiagnosticCard failure={toFailureView(rescan.error)} />}
-      <FileViewerEntry
-        key={detail.entry.dataset_id}
-        datasetId={detail.entry.dataset_id}
-        linkNames={detail.links.map((link) => link.name)}
-      />
-      <DatasetLinks links={detail.links} />
-      <DatasetSources sources={detail.sources} />
-      <DatasetInformation document={detail.canonical_information} />
-      <DiagnosticEntries diagnostics={detail.diagnostics} />
-      <NavigationDocumentViewer document={detail.information} />
-      <NavigationDocumentViewer document={detail.original_paths} />
-      <SubtasksViewer
-        entryPath={detail.subtasks_entry_path}
-        onStale={() => {
-          setSubtaskStale(true);
-        }}
-      />
+      <div className="browser-detail-section">
+        <FieldEditEntry detail={detail} />
+      </div>
+      <div className="browser-detail-section">
+        <DatasetSizeSummary
+          size={detail.dataset_size}
+          actions={
+            <>
+              <Button
+                disabled={!detail.entry.dataset_id || rescan.isPending}
+                loading={rescan.isPending}
+                onClick={() => {
+                  if (detail.entry.dataset_id) rescan.mutate(detail.entry.dataset_id);
+                }}
+              >
+                重新检查
+              </Button>
+              <Button
+                disabled={!detail.entry.dataset_id || sizing.isPending}
+                loading={sizing.isPending}
+                onClick={() => {
+                  if (detail.entry.dataset_id) sizing.mutate(detail.entry.dataset_id);
+                }}
+              >
+                统计大小
+              </Button>
+            </>
+          }
+        />
+        {sizing.error && <DiagnosticCard failure={toFailureView(sizing.error)} />}
+        {rescan.error && <DiagnosticCard failure={toFailureView(rescan.error)} />}
+        <FileViewerEntry
+          key={detail.entry.dataset_id}
+          datasetId={detail.entry.dataset_id}
+          linkNames={detail.links.map((link) => link.name)}
+        />
+      </div>
+      <div className="browser-detail-section">
+        <DatasetLinks links={detail.links} />
+      </div>
+      <div className="browser-detail-section">
+        <DatasetSources sources={detail.sources} />
+      </div>
+      <div className="browser-detail-section">
+        <DatasetInformation document={detail.canonical_information} />
+      </div>
+      <div className="browser-detail-section">
+        <DiagnosticEntries diagnostics={detail.diagnostics} />
+      </div>
+      <div className="browser-detail-section">
+        <NavigationDocumentViewer document={detail.information} />
+      </div>
+      <div className="browser-detail-section">
+        <NavigationDocumentViewer document={detail.original_paths} />
+      </div>
+      <div className="browser-detail-section">
+        <SubtasksViewer
+          entryPath={detail.subtasks_entry_path}
+          onStale={() => {
+            setSubtaskStale(true);
+          }}
+        />
+      </div>
     </>
   );
 }

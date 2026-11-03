@@ -1,7 +1,7 @@
 // 数据集页面（M1-04、M1-05）：装配共用状态与部件，在布局 A、B、C 之间切换；不承担索引计算或导航层写入。
 import type { ReactElement } from "react";
 import { getRouteApi } from "@tanstack/react-router";
-import { Alert, Button, Segmented, Typography } from "antd";
+import { Affix, Alert, Breadcrumb, Button, Card, Flex, Segmented, Typography } from "antd";
 import { DATASET_PAGE_SIZE } from "../api/datasets";
 import { DiagnosticCard } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
@@ -63,8 +63,30 @@ function BrowserContent(): ReactElement {
   });
   return (
     <section>
-      <Typography.Title level={2}>数据集浏览</Typography.Title>
-      <CreateDatasetEntry />
+      <Flex justify="space-between" align="center" gap="middle" wrap className="browser-header">
+        <div>
+          <Breadcrumb items={[{ title: "数据集" }, { title: "浏览" }]} />
+          <Typography.Title level={2} className="browser-page-title">
+            数据集浏览
+          </Typography.Title>
+        </div>
+        <Flex align="center" gap="middle" wrap>
+          {!layout.pending && (
+            <Segmented<DatasetLayout>
+              aria-label="布局切换"
+              name="dataset-layout"
+              value={layout.layout}
+              onChange={layout.choose}
+              options={[
+                { value: "A", label: "布局 A" },
+                { value: "B", label: "布局 B" },
+                { value: "C", label: "布局 C" },
+              ]}
+            />
+          )}
+          <CreateDatasetEntry />
+        </Flex>
+      </Flex>
       {query.panel.data && <StorageWarnings roots={query.panel.data.storage_roots} />}
       {layout.loadError && (
         <>
@@ -90,18 +112,11 @@ function BrowserContent(): ReactElement {
         <p role="status">正在读取布局偏好</p>
       ) : (
         <>
-          <Segmented<DatasetLayout>
-            aria-label="布局切换"
-            name="dataset-layout"
-            value={layout.layout}
-            onChange={layout.choose}
-            options={[
-              { value: "A", label: "布局 A" },
-              { value: "B", label: "布局 B" },
-              { value: "C", label: "布局 C" },
-            ]}
-          />
-          <BrowserFilters query={query} />
+          <Affix offsetTop={72}>
+            <Card className="browser-filter-card">
+              <BrowserFilters query={query} />
+            </Card>
+          </Affix>
           {layout.layout === "B" ? (
             <LayoutB query={query} />
           ) : layout.layout === "C" ? (

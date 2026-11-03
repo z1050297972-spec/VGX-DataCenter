@@ -7,13 +7,13 @@
 }
 .creation-form {
   display: grid;
-  gap: var(--rdp-space-5);
+  gap: var(--rdp-space-4);
   max-width: 720px;
   width: 100%;
 }
 .creation-fields {
   display: grid;
-  gap: var(--rdp-space-4);
+  gap: var(--rdp-space-3);
   border: 0;
   padding: 0;
   margin: 0;
@@ -35,27 +35,27 @@
 .creation-fields .creation-check,
 .creation-check {
   display: flex;
-  gap: var(--rdp-space-3);
+  gap: var(--rdp-space-2);
   align-items: center;
   overflow-wrap: anywhere;
-  margin: var(--rdp-space-3) 0;
+  margin: var(--rdp-space-2) 0;
 }
 .creation-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--rdp-space-4);
-  margin: var(--rdp-space-4) 0;
+  gap: var(--rdp-space-3);
+  margin: var(--rdp-space-3) 0;
 }
 .creation-review-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
-  gap: var(--rdp-space-4);
+  gap: var(--rdp-space-3);
 }
 .creation-review-grid > * {
   min-width: 0;
 }
 .creation-paths {
-  padding-left: var(--rdp-space-6);
+  padding-left: var(--rdp-space-4);
   margin: 0;
   overflow-wrap: anywhere;
 }
@@ -74,10 +74,10 @@
 }
 .creation-page .ant-card {
   min-width: 0;
-  margin-bottom: var(--rdp-space-4);
+  margin-bottom: var(--rdp-space-3);
 }
 .creation-page .ant-alert {
-  margin-bottom: var(--rdp-space-4);
+  margin-bottom: var(--rdp-space-3);
   min-width: 0;
 }
 

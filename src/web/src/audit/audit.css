@@ -3,8 +3,8 @@
   max-width: 100%;
 }
 .audit-kind-select {
-  min-width: var(--rdp-width-160);
+  min-width: var(--rdp-width-audit-kind);
 }
 .audit-result-select {
-  min-width: var(--rdp-width-120);
+  min-width: var(--rdp-width-audit-result);
 }

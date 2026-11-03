@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--rdp-space-2);
-  margin: var(--rdp-space-4) 0;
+  margin: var(--rdp-space-3) 0;
 }
 .field-editor .ant-select,
 .field-editor textarea {
@@ -22,15 +22,19 @@
 .field-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--rdp-space-3);
+  gap: var(--rdp-space-2);
 }
 .field-differences article {
   border: var(--rdp-line) solid var(--rdp-border);
-  padding: var(--rdp-space-3);
-  margin: var(--rdp-space-3) 0;
+  padding: var(--rdp-space-2);
+  margin: var(--rdp-space-2) 0;
 }
 .field-differences dd {
-  margin: 0 0 var(--rdp-space-4);
+  margin: 0 0 var(--rdp-space-3);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.field-editor-note {
+  color: var(--rdp-muted);
+  font-size: 12px;
 }

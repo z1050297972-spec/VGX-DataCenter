@@ -1,6 +1,6 @@
-// 布局 A：视图树、列表或连续详情、说明三栏（M1-04）；状态与部件和 B、C 共用。
+// 布局 A：视图树、列表或连续详情与说明行（M1-04）；状态与部件和 B、C 共用。
 import type { ReactElement } from "react";
-import { Button, Tabs } from "antd";
+import { Button, Card, Col, Flex, Row, Tabs, Typography } from "antd";
 import { DiagnosticCard } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
 import { DatasetDetails } from "./Details";
@@ -8,10 +8,10 @@ import { DatasetTree, DatasetListTable } from "./BrowserParts";
 import { BrowserPanel, useBrowserActions, type BrowserQuery } from "./browserState";
 
 /**
- * 布局 A 的三栏排布。
+ * 布局 A 的双栏排布。
  * @param props - 共用查询结果。
  * @param props.query - 页面外层持有的共用查询。
- * @returns 一致性面板打开时替换内容区，否则三栏；单个请求失败不遮住其他内容。
+ * @returns 一致性面板打开时替换内容区，否则双栏；单个请求失败不遮住其他内容。
  * @throws 无。
  * @sideEffects 点击写 URL，不发额外请求。
  * @timeSemantics 沿用共用查询的快照。
@@ -21,18 +21,32 @@ export function LayoutA({ query }: { query: BrowserQuery }): ReactElement {
   const { search } = actions;
   return (
     <>
-      <Button onClick={actions.togglePanel}>{search.panel ? "返回数据集" : "一致性面板"}</Button>
+      <Flex justify={search.panel ? "end" : "space-between"} align="center" gap="middle" wrap>
+        {!search.panel && (
+          <Typography.Text type="secondary">
+            按任务入口代表完整数据集，按格式入口代表对应格式下可使用的部分。
+          </Typography.Text>
+        )}
+        <Button onClick={actions.togglePanel}>{search.panel ? "返回数据集" : "一致性面板"}</Button>
+      </Flex>
       {query.panel.error && <DiagnosticCard failure={toFailureView(query.panel.error)} />}
       {search.panel ? (
         <BrowserPanel query={query} />
       ) : (
-        <div className="dataset-layout-a">
-          <TreeColumn query={query} />
-          <main>
-            <MainColumn query={query} />
-          </main>
-          <aside>按任务入口代表完整数据集，按格式入口代表对应格式下可使用的部分。</aside>
-        </div>
+        <Row gutter={[24, 24]} className="dataset-layout-a">
+          <Col xs={24} md={7}>
+            <Card>
+              <TreeColumn query={query} />
+            </Card>
+          </Col>
+          <Col xs={24} md={17}>
+            <Card>
+              <main>
+                <MainColumn query={query} />
+              </main>
+            </Card>
+          </Col>
+        </Row>
       )}
     </>
   );

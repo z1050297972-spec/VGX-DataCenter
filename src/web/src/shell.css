@@ -43,24 +43,25 @@
   /* 共用间距，单位为像素。 */
   --rdp-line: 1px;
   --rdp-space-1: 4px;
-  --rdp-space-2: 6px;
-  --rdp-space-3: 8px;
-  --rdp-space-4: 12px;
-  --rdp-space-5: 16px;
-  --rdp-space-6: 18px;
-  --rdp-space-7: 20px;
-  --rdp-space-8: 24px;
+  --rdp-space-2: 8px;
+  --rdp-space-3: 12px;
+  --rdp-space-4: 16px;
+  --rdp-space-5: 24px;
+  --rdp-space-6: 32px;
+  --rdp-space-7: 48px;
+  /* dock 专用内边距：保持调整间距档位前的 6px 外观。 */
+  --rdp-space-dock: 6px;
   --rdp-space-select-y: 7px;
   --rdp-space-select-x: 11px;
   /* 既有筛选控件与差异表格的宽度，单位为像素，保持原有布局。 */
-  --rdp-width-120: 120px;
-  --rdp-width-150: 150px;
-  --rdp-width-160: 160px;
-  --rdp-width-180: 180px;
-  --rdp-width-200: 200px;
-  --rdp-width-210: 210px;
-  --rdp-width-280: 280px;
-  --rdp-width-640: 640px;
+  --rdp-width-audit-result: 120px;
+  --rdp-width-filter-medium: 150px;
+  --rdp-width-audit-kind: 160px;
+  --rdp-width-filter-wide: 180px;
+  --rdp-width-origin-select: 200px;
+  --rdp-width-filter-scene: 210px;
+  --rdp-width-filter-tasks: 280px;
+  --rdp-width-origin-table: 640px;
   /* 内容与顶栏、状态横幅共用的最大宽度。 */
   --rdp-content-width: 1280px;
   /* 停靠菜单滚动轨道保持透明，不遮住玻璃背景。 */
@@ -137,7 +138,7 @@ a:hover {
   box-sizing: border-box;
   max-width: 100%;
   min-width: 0;
-  padding: 0 var(--rdp-space-8) var(--rdp-dock-clearance);
+  padding: 0 var(--rdp-space-5) var(--rdp-dock-clearance);
 }
 /* 顶栏和无类名的状态横幅使用与内容区一致的宽度；正文的顶部间距由既有内联样式提供。 */
 .app-shell > :not(main):not(footer) {
@@ -148,14 +149,14 @@ a:hover {
 }
 /* 横幅可能不存在，按相邻直接子元素设置间距以避免留下空白。 */
 .app-shell > :not(main):not(footer) + :not(main):not(footer) {
-  margin-top: var(--rdp-space-8);
+  margin-top: var(--rdp-space-5);
 }
 /* 既有 AccountMenu 没有外层类名，只能根据其直接子菜单定位。 */
 .app-shell > div:has(> nav.app-menu) {
   position: sticky;
   top: 0;
   z-index: var(--rdp-z-header);
-  padding: var(--rdp-space-4) var(--rdp-space-5);
+  padding: var(--rdp-space-3) var(--rdp-space-4);
 }
 /* 模糊放在伪元素：backdrop-filter 若施加在祖先上会使 fixed 菜单相对顶栏定位。 */
 .app-shell > div:has(> nav.app-menu)::before {
@@ -180,14 +181,14 @@ a:hover {
 .app-menu {
   position: fixed;
   z-index: var(--rdp-z-dock);
-  bottom: calc(var(--rdp-space-5) + env(safe-area-inset-bottom));
+  bottom: calc(var(--rdp-space-4) + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   box-sizing: border-box;
   display: flex;
   gap: var(--rdp-space-1);
-  max-width: calc(100vw - 2 * var(--rdp-space-8));
-  padding: var(--rdp-space-2);
+  max-width: calc(100vw - 2 * var(--rdp-space-5));
+  padding: var(--rdp-space-dock);
   overflow-x: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--rdp-border) var(--rdp-scrollbar-track);
@@ -209,7 +210,7 @@ a:hover {
 /* 既有菜单链接没有类名，限定在菜单内选取。 */
 .app-menu a {
   flex: 0 0 auto;
-  padding: var(--rdp-space-3) var(--rdp-space-4);
+  padding: var(--rdp-space-2) var(--rdp-space-3);
   border-radius: var(--rdp-radius-pill);
   color: var(--rdp-text);
   text-decoration: none;
@@ -233,11 +234,11 @@ a:hover {
 }
 @media (max-width: 640px) {
   .app-shell {
-    padding-right: var(--rdp-space-4);
-    padding-left: var(--rdp-space-4);
+    padding-right: var(--rdp-space-3);
+    padding-left: var(--rdp-space-3);
   }
   .app-menu {
-    width: calc(100vw - 2 * var(--rdp-space-4));
+    width: calc(100vw - 2 * var(--rdp-space-3));
     max-width: none;
   }
 }
@@ -248,7 +249,7 @@ a:hover {
   max-width: var(--rdp-content-width);
   margin-right: auto;
   margin-left: auto;
-  padding-bottom: var(--rdp-space-8);
+  padding-bottom: var(--rdp-space-5);
 }
 .app-shell > footer {
   max-width: var(--rdp-content-width);
@@ -258,16 +259,25 @@ a:hover {
 }
 /* stylelint-disable-next-line selector-max-id -- 登录卡片是既有结构，只能通过根节点限定范围。 */
 #root > .ant-card {
-  width: min(440px, calc(100% - 2 * var(--rdp-space-8)));
-  margin: max(10vh, var(--rdp-space-8)) auto;
+  width: min(440px, calc(100% - 2 * var(--rdp-space-5)));
+  margin: max(10vh, var(--rdp-space-5)) auto;
 }
 /* antd 的卡片阴影和表格组件 token 不由全局表面 token 控制。 */
 .ant-card {
-  box-shadow: var(--rdp-shadow);
+  border: var(--rdp-line) solid var(--rdp-border);
+  border-radius: var(--rdp-radius-card);
+  background: var(--rdp-surface);
+  box-shadow: none;
 }
-.ant-table-thead .ant-table-cell {
+/* antd 表格使用组件局部 token，覆盖表头 token 避免运行时样式重新着色。 */
+.ant-table-wrapper {
+  --ant-table-header-bg: transparent;
+  --ant-table-header-color: var(--rdp-muted);
+}
+.ant-table-wrapper .ant-table-thead .ant-table-cell {
   color: var(--rdp-muted);
-  background: var(--rdp-subtle);
+  background: transparent;
+  font-size: 12px;
 }
 .ant-card[role="alert"] pre,
 .ant-card[role="alert"] code,

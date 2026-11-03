@@ -2,7 +2,7 @@
 .file-viewer {
   min-width: 0;
   max-width: 100%;
-  padding: var(--rdp-space-4) 0;
+  padding: var(--rdp-space-3) 0;
 }
 .file-viewer select {
   max-width: 100%;
@@ -10,7 +10,7 @@
 .file-viewer-columns {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  gap: var(--rdp-space-4);
+  gap: var(--rdp-space-3);
 }
 .file-viewer-directory,
 .file-viewer-preview {
@@ -65,7 +65,7 @@
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
-  margin-bottom: var(--rdp-space-4);
+  margin-bottom: var(--rdp-space-3);
 }
 .file-viewer-cell {
   display: inline-block;

@@ -36,7 +36,9 @@ export function DatasetFieldEditor(props: Props): ReactElement {
       >
         {open ? "取消编辑" : "编辑导航层字段"}
       </Button>
-      <p>大小、链接状态、在线状态、一致性、索引时间和位置字段：自动计算。数据盘文件：原文件。</p>
+      <p className="field-editor-note">
+        大小、链接状态、在线状态、一致性、索引时间和位置字段：自动计算。数据盘文件：原文件。
+      </p>
       {open && (
         <FieldForm
           key={JSON.stringify([account.data?.account_id, props.datasetId])}
