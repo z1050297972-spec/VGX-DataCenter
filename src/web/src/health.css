@@ -1,0 +1,9 @@
+/* 概览状态保持紧凑，不影响失败诊断的展示。 */
+.health-page {
+  display: grid;
+  gap: var(--rdp-space-5);
+}
+.health-status {
+  width: min(360px, 100%);
+  max-width: 100%;
+}

@@ -337,3 +337,22 @@ html[data-rdp-plain] *::after {
   /* stylelint-disable-next-line declaration-no-important -- 调试开关必须覆盖 antd 和内联过渡时长。 */
   transition-duration: 0s !important;
 }
+
+/* 本票页头共用紧凑的面包屑、标题间距，外层页面控制卡片间距。 */
+.app-page-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--rdp-space-1);
+  min-width: 0;
+}
+/* 提高针对 antd Typography 的优先级，移除标题默认外边距。 */
+.app-page-header .app-page-title {
+  margin: 0;
+}
+/* 保留原有标题语义，但与 antd Card 标题使用相同字号和字重。 */
+.app-card-heading.ant-typography {
+  margin: 0 0 var(--rdp-space-4);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}

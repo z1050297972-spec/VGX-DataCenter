@@ -1,8 +1,14 @@
+import "./downloads.css";
 // 下载页只管理表单与作业；计划、容量和文件系统操作均由 worker 完成。
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import {
   Alert,
+  Breadcrumb,
   Button,
+  Card,
+  Col,
+  Flex,
+  Row,
   Checkbox,
   Form,
   Input,
@@ -98,10 +104,18 @@ export function DownloadPage(): ReactElement {
   const search = route.useSearch();
   if (search.invalidDownloadSearch) return <Alert type="error" title="下载页面参数不合法" />;
   return (
-    <>
+    <section className="downloads-page">
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "数据" }, { title: "下载" }]} />
+        <Typography.Title level={2} className="app-page-title">
+          下载
+        </Typography.Title>
+      </header>
       <DownloadForm previewId={search.preview_job_id} />
-      <Staging jobId={search.staging_job_id} />
-    </>
+      <Card>
+        <Staging jobId={search.staging_job_id} />
+      </Card>
+    </section>
   );
 }
 
@@ -132,111 +146,133 @@ function DownloadForm({ previewId }: { previewId: string | undefined }): ReactEl
     [form, markDirty],
   );
   return (
-    <section>
-      <Typography.Title level={2}>下载</Typography.Title>
+    <section className="downloads-page">
       {roots.isError && <DiagnosticCard failure={toFailureView(roots.error)} />}
       {flow.failure && <DiagnosticCard failure={flow.failure} />}
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={defaults}
-        onValuesChange={() => {
-          flow.markDirty();
-          setFields([]);
-        }}
-      >
-        <Form.Item name="repo_type" label="仓库类型" rules={[{ required: true }]}>
-          <Select
-            options={[
-              { value: "dataset", label: "数据集" },
-              { value: "model", label: "模型" },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item
-          name="repo_id"
-          label="仓库编号"
-          rules={[{ required: true, whitespace: true, message: "请输入仓库编号" }]}
-        >
-          <Input placeholder="命名空间/仓库" />
-        </Form.Item>
-        <Form.Item
-          name="revision"
-          label="版本"
-          rules={[{ required: true, whitespace: true, message: "请输入版本" }]}
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="storage_root"
-          label="目标存储根"
-          rules={[{ required: true, message: "请选择可写存储根" }]}
-        >
-          <Select
-            options={(roots.data?.items ?? [])
-              .filter((root) => root.writable)
-              .map((root) => ({ value: root.name, label: root.name }))}
-          />
-        </Form.Item>
-        {repoType === "model" && (
-          <Form.Item name="target_subdir" label="子目录" extra="默认：命名空间/仓库@commit前12位">
-            <Input placeholder="命名空间/仓库@commit前12位" />
-          </Form.Item>
-        )}
-        <Form.Item name="exclude_video" valuePropName="checked">
-          <Checkbox>不要视频</Checkbox>
-        </Form.Item>
-        <Form.Item name="exclude_cameras" hidden>
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="max_overall_download_limit_bytes_per_s"
-          label="总限速（B/s）"
-          extra="默认不限（0）；范围 0 或 1024–10737418240 B/s"
-          rules={[
-            { required: true },
-            {
-              validator: (_, value: number) =>
-                value !== 0 && value < 1024
-                  ? Promise.reject(new Error("限速须为 0 或至少 1024 B/s"))
-                  : Promise.resolve(),
-            },
-          ]}
-        >
-          <InputNumber min={0} max={10737418240} precision={0} />
-        </Form.Item>
-        <Button
-          aria-label="高级参数"
-          onClick={() => {
-            setAdvanced(!advanced);
+      <Card>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={defaults}
+          onValuesChange={() => {
+            flow.markDirty();
+            setFields([]);
           }}
         >
-          高级参数
-        </Button>
-        {advanced && <AdvancedFields />}
-        <div>
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item name="repo_type" label="仓库类型" rules={[{ required: true }]}>
+                <Select
+                  options={[
+                    { value: "dataset", label: "数据集" },
+                    { value: "model", label: "模型" },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="repo_id"
+                label="仓库编号"
+                rules={[{ required: true, whitespace: true, message: "请输入仓库编号" }]}
+              >
+                <Input placeholder="命名空间/仓库" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="revision"
+                label="版本"
+                rules={[{ required: true, whitespace: true, message: "请输入版本" }]}
+              >
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="storage_root"
+                label="目标存储根"
+                rules={[{ required: true, message: "请选择可写存储根" }]}
+              >
+                <Select
+                  options={(roots.data?.items ?? [])
+                    .filter((root) => root.writable)
+                    .map((root) => ({ value: root.name, label: root.name }))}
+                />
+              </Form.Item>
+            </Col>
+            {repoType === "model" && (
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="target_subdir"
+                  label="子目录"
+                  extra="默认：命名空间/仓库@commit前12位"
+                >
+                  <Input placeholder="命名空间/仓库@commit前12位" />
+                </Form.Item>
+              </Col>
+            )}
+            <Col xs={24} md={12}>
+              <Form.Item name="exclude_video" valuePropName="checked">
+                <Checkbox>不要视频</Checkbox>
+              </Form.Item>
+            </Col>
+            <Form.Item name="exclude_cameras" hidden>
+              <Input />
+            </Form.Item>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="max_overall_download_limit_bytes_per_s"
+                label="总限速（B/s）"
+                extra="默认不限（0）；范围 0 或 1024–10737418240 B/s"
+                rules={[
+                  { required: true },
+                  {
+                    validator: (_, value: number) =>
+                      value !== 0 && value < 1024
+                        ? Promise.reject(new Error("限速须为 0 或至少 1024 B/s"))
+                        : Promise.resolve(),
+                  },
+                ]}
+              >
+                <InputNumber min={0} max={10737418240} precision={0} />
+              </Form.Item>
+            </Col>
+          </Row>
           <Button
-            aria-label="预览"
+            className="downloads-advanced-toggle"
+            aria-label="高级参数"
             onClick={() => {
-              void flow.send(true);
+              setAdvanced(!advanced);
             }}
-            loading={flow.busy}
-            disabled={flow.busy}
           >
-            预览
+            高级参数
           </Button>
-          <Button
-            aria-label="确认下载"
-            type="primary"
-            onClick={() => {
-              void flow.send(false);
-            }}
-            disabled={!flow.canSubmit}
-          >
-            确认下载
-          </Button>
-        </div>
-      </Form>
+          {advanced && <AdvancedFields />}
+          <Flex gap="small" wrap="wrap">
+            <Button
+              aria-label="预览"
+              onClick={() => {
+                void flow.send(true);
+              }}
+              loading={flow.busy}
+              disabled={flow.busy}
+            >
+              预览
+            </Button>
+            <Button
+              aria-label="确认下载"
+              type="primary"
+              onClick={() => {
+                void flow.send(false);
+              }}
+              disabled={!flow.canSubmit}
+            >
+              确认下载
+            </Button>
+          </Flex>
+        </Form>
+      </Card>
       {previewId && (
         <Preview
           key={previewId}
@@ -373,60 +409,78 @@ function AdvancedFields(): ReactElement {
   return (
     <section>
       <Typography.Text>除并发和总限速外，修改须取消后重新提交；续传不受影响。</Typography.Text>
-      <Form.Item
-        name="max_concurrent_downloads"
-        label="同时下几个文件"
-        extra="默认 4，范围 1–16，可运行中调整"
-        rules={[{ required: true }]}
-      >
-        <InputNumber min={1} max={16} precision={0} />
-      </Form.Item>
-      <Form.Item
-        name="max_connection_per_server"
-        label="每服务器连接数"
-        extra="默认 4，范围 1–16"
-        rules={[{ required: true }]}
-      >
-        <InputNumber min={1} max={16} precision={0} />
-      </Form.Item>
-      <Form.Item
-        name="split"
-        label="每文件分段数"
-        extra="默认 4，范围 1–16"
-        rules={[{ required: true }]}
-      >
-        <InputNumber min={1} max={16} precision={0} />
-      </Form.Item>
-      <Form.Item
-        name="min_split_mib"
-        label="最小分段大小（MiB）"
-        extra="默认 20 MiB，范围 1–1024 MiB"
-        rules={[{ required: true }]}
-      >
-        <InputNumber min={1} max={1024} precision={0} />
-      </Form.Item>
-      <Form.Item
-        name="max_tries"
-        label="重试次数"
-        extra="默认 5，范围 1–20"
-        rules={[{ required: true }]}
-      >
-        <InputNumber min={1} max={20} precision={0} />
-      </Form.Item>
-      <Form.Item
-        name="retry_wait_s"
-        label="重试间隔（秒）"
-        extra="默认 10 秒，范围 0–600 秒"
-        rules={[{ required: true }]}
-      >
-        <InputNumber min={0} max={600} precision={0} />
-      </Form.Item>
-      <Form.Item name="include_text" label="包含模式" extra="每行一个 glob，留空包含全部">
-        <Input.TextArea />
-      </Form.Item>
-      <Form.Item name="exclude_text" label="排除模式" extra="每行一个 glob，排除优先">
-        <Input.TextArea />
-      </Form.Item>
+      <Row gutter={16}>
+        <Col xs={24} md={12}>
+          <Form.Item
+            name="max_concurrent_downloads"
+            label="同时下几个文件"
+            extra="默认 4，范围 1–16，可运行中调整"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={1} max={16} precision={0} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12}>
+          <Form.Item
+            name="max_connection_per_server"
+            label="每服务器连接数"
+            extra="默认 4，范围 1–16"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={1} max={16} precision={0} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12}>
+          <Form.Item
+            name="split"
+            label="每文件分段数"
+            extra="默认 4，范围 1–16"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={1} max={16} precision={0} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12}>
+          <Form.Item
+            name="min_split_mib"
+            label="最小分段大小（MiB）"
+            extra="默认 20 MiB，范围 1–1024 MiB"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={1} max={1024} precision={0} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12}>
+          <Form.Item
+            name="max_tries"
+            label="重试次数"
+            extra="默认 5，范围 1–20"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={1} max={20} precision={0} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12}>
+          <Form.Item
+            name="retry_wait_s"
+            label="重试间隔（秒）"
+            extra="默认 10 秒，范围 0–600 秒"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={0} max={600} precision={0} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12}>
+          <Form.Item name="include_text" label="包含模式" extra="每行一个 glob，留空包含全部">
+            <Input.TextArea />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12}>
+          <Form.Item name="exclude_text" label="排除模式" extra="每行一个 glob，排除优先">
+            <Input.TextArea />
+          </Form.Item>
+        </Col>
+      </Row>
     </section>
   );
 }

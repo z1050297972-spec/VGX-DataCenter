@@ -2,7 +2,7 @@ import "./navigation.css";
 // 导航层恢复失败：所有页面顶部的提示，以及列出对不上项、供管理员确认的独立页面（M1-07）。
 // 独立成页而不放进作业页：标记是全局事实，可跨多个作业；提示的链接直接到这里。
 import type { ReactElement } from "react";
-import { Alert, Button, Modal, Table, Typography } from "antd";
+import { Alert, Breadcrumb, Button, Card, Modal, Table, Typography } from "antd";
 import { Link } from "@tanstack/react-router";
 import { useCurrentAccount } from "../accounts/runtime";
 import { DiagnosticCard } from "../DiagnosticCard";
@@ -24,11 +24,18 @@ export function NavigationRecoveryPage(): ReactElement {
   if (!query.data) return <Typography.Text>正在读取…</Typography.Text>;
   return (
     <section className="navigation-page">
-      <Typography.Title level={2}>导航层写操作被挡住</Typography.Title>
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "导航层" }, { title: "恢复" }]} />
+        <Typography.Title level={2} className="app-page-title">
+          导航层写操作被挡住
+        </Typography.Title>
+      </header>
       {query.data.blocked ? (
         <BlockDetails block={query.data} />
       ) : (
-        <Alert type="success" title="当前没有被挡住的写操作" />
+        <Card>
+          <Alert type="success" title="当前没有被挡住的写操作" />
+        </Card>
       )}
     </section>
   );
@@ -70,36 +77,38 @@ function BlockDetails({ block }: { block: RecoveryBlock }): ReactElement {
   return (
     <>
       {holder}
-      <BlockSummary block={block} />
-      <Table<MismatchItem>
-        rowKey={(row) => `${row.job_id}:${String(row.step_index)}:${row.path}`}
-        pagination={false}
-        scroll={{ x: "max-content" }}
-        dataSource={[...(block.items ?? [])]}
-        columns={[
-          { title: "作业", dataIndex: "job_id", width: 110, ellipsis: true },
-          { title: "路径", dataIndex: "path", width: 360, ellipsis: true },
-          { title: "期望前像", dataIndex: "expected_before", width: 220, ellipsis: true },
-          { title: "期望后像", dataIndex: "expected_after", width: 220, ellipsis: true },
-          { title: "现在的情况", dataIndex: "actual", width: 220, ellipsis: true },
-        ]}
-      />
-      {account.data?.role === "administrator" ? (
-        <Button
-          type="primary"
-          danger
-          aria-label="已处理，放行写操作"
-          loading={acknowledge.isPending}
-          onClick={confirm}
-          className="navigation-action"
-        >
-          已处理，放行写操作
-        </Button>
-      ) : (
-        <Typography.Paragraph type="secondary" className="navigation-action">
-          需要管理员处理后才能放行。
-        </Typography.Paragraph>
-      )}
+      <Card>
+        <BlockSummary block={block} />
+        <Table<MismatchItem>
+          rowKey={(row) => `${row.job_id}:${String(row.step_index)}:${row.path}`}
+          pagination={false}
+          scroll={{ x: "max-content" }}
+          dataSource={[...(block.items ?? [])]}
+          columns={[
+            { title: "作业", dataIndex: "job_id", width: 110, ellipsis: true },
+            { title: "路径", dataIndex: "path", width: 360, ellipsis: true },
+            { title: "期望前像", dataIndex: "expected_before", width: 220, ellipsis: true },
+            { title: "期望后像", dataIndex: "expected_after", width: 220, ellipsis: true },
+            { title: "现在的情况", dataIndex: "actual", width: 220, ellipsis: true },
+          ]}
+        />
+        {account.data?.role === "administrator" ? (
+          <Button
+            type="primary"
+            danger
+            aria-label="已处理，放行写操作"
+            loading={acknowledge.isPending}
+            onClick={confirm}
+            className="navigation-action"
+          >
+            已处理，放行写操作
+          </Button>
+        ) : (
+          <Typography.Paragraph type="secondary" className="navigation-action">
+            需要管理员处理后才能放行。
+          </Typography.Paragraph>
+        )}
+      </Card>
       {acknowledge.isError && <DiagnosticCard failure={toFailureView(acknowledge.error)} />}
     </>
   );

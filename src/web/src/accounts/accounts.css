@@ -9,3 +9,32 @@
 .accounts-main {
   margin-top: var(--rdp-space-5);
 }
+
+.accounts-page {
+  /* 表格宽度只决定自身滚动范围，不能反向撑宽页面轨道。 */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--rdp-space-5);
+  min-width: 0;
+}
+.accounts-password {
+  width: 100%;
+  max-width: 720px;
+}
+/* token 的请求错误与表单卡并列，避免诊断卡嵌套。 */
+.accounts-token {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: var(--rdp-space-4);
+}
+
+/* 小屏标题和操作分行，避免按钮挤压标题。 */
+@media (max-width: 640px) {
+  /* 两次类名覆盖 antd 的运行时 Flex 对齐规则。 */
+  .accounts-header-row.accounts-header-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--rdp-space-2);
+  }
+}

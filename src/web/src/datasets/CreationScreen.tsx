@@ -92,10 +92,17 @@ export function CreationScreen(props: CreationScreenProps): ReactElement {
   }
   return (
     <section className="creation-page">
-      <Breadcrumb items={[{ title: "数据集" }, { title: "新增" }]} />
-      <Typography.Title level={2} className="creation-title">
-        {props.operation === "create_link" ? "建链" : "新增数据集"}
-      </Typography.Title>
+      <header className="app-page-header creation-header">
+        <Breadcrumb
+          items={[
+            { title: "数据集" },
+            { title: props.operation === "create_link" ? "建链" : "新增" },
+          ]}
+        />
+        <Typography.Title level={2} className="app-page-title">
+          {props.operation === "create_link" ? "建链" : "新增数据集"}
+        </Typography.Title>
+      </header>
       <FlowFeedback flow={flow} onEdit={clearPreview} />
       <CreationBody
         flow={flow}

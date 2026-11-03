@@ -2,7 +2,20 @@ import "./audit.css";
 // 管理员日志页面契约（07）：antd 只读表格、TanStack Router 类型化 search 和 Query 数据状态。
 // 历史名字和明细只做安全文本展示，页面不提供修改单条记录的入口。
 import { useRef, useState, type ReactElement } from "react";
-import { Alert, Button, Form, Input, Select, Table, Typography } from "antd";
+import {
+  Alert,
+  Breadcrumb,
+  Button,
+  Card,
+  Col,
+  Flex,
+  Form,
+  Input,
+  Row,
+  Select,
+  Table,
+  Typography,
+} from "antd";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import type { TableColumnsType } from "antd";
 import type { OperationLogPage, LoginLogPage, OperationSearch, LoginSearch } from "../api/audit";
@@ -51,38 +64,48 @@ function OperationContent({ search }: { search: OperationSearch }): ReactElement
   const navigate = operationRoute.useNavigate();
   return (
     <section className="audit-page">
-      <Typography.Title level={2}>操作日志</Typography.Title>
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "审计" }, { title: "操作日志" }]} />
+        <Typography.Title level={2} className="app-page-title">
+          操作日志
+        </Typography.Title>
+      </header>
       <Retention />
-      <Filters
-        key={JSON.stringify(search)}
-        search={search}
-        operation
-        onApply={(raw) => {
-          void navigate({ search: validateOperationSearch(raw) });
-        }}
-      />
-      {!logs.isError && logs.data?.next_cursor && (
-        <Button
-          onClick={() => {
-            void navigate({ search: { ...search, cursor: logs.data.next_cursor ?? undefined } });
+      {logs.isError && <DiagnosticCard failure={toFailureView(logs.error)} />}
+      <Card className="audit-content">
+        <Filters
+          key={JSON.stringify(search)}
+          search={search}
+          operation
+          onApply={(raw) => {
+            void navigate({ search: validateOperationSearch(raw) });
           }}
-        >
-          下一页
-        </Button>
-      )}
-      {logs.isError ? (
-        <DiagnosticCard failure={toFailureView(logs.error)} />
-      ) : (
-        <Table
-          scroll={{ x: "max-content" }}
-          rowKey="log_id"
-          columns={operationColumns}
-          dataSource={logs.data?.items}
-          loading={logs.isPending}
-          pagination={false}
-          locale={{ emptyText: "暂无日志" }}
         />
-      )}
+        {!logs.isError && (
+          <Table
+            scroll={{ x: "max-content" }}
+            rowKey="log_id"
+            columns={operationColumns}
+            dataSource={logs.data?.items}
+            loading={logs.isPending}
+            pagination={false}
+            locale={{ emptyText: "暂无日志" }}
+          />
+        )}
+        <Flex justify="end">
+          {!logs.isError && logs.data?.next_cursor && (
+            <Button
+              onClick={() => {
+                void navigate({
+                  search: { ...search, cursor: logs.data.next_cursor ?? undefined },
+                });
+              }}
+            >
+              下一页
+            </Button>
+          )}
+        </Flex>
+      </Card>
     </section>
   );
 }
@@ -114,38 +137,48 @@ function LoginContent({ search }: { search: LoginSearch }): ReactElement {
   const logs = useLoginLogs(search);
   const navigate = loginRoute.useNavigate();
   return (
-    <section>
-      <Typography.Title level={2}>登录日志</Typography.Title>
-      <Filters
-        key={JSON.stringify(search)}
-        search={search}
-        operation={false}
-        onApply={(raw) => {
-          void navigate({ search: validateLoginSearch(raw) });
-        }}
-      />
-      {!logs.isError && logs.data?.next_cursor && (
-        <Button
-          onClick={() => {
-            void navigate({ search: { ...search, cursor: logs.data.next_cursor ?? undefined } });
+    <section className="audit-page">
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "审计" }, { title: "登录日志" }]} />
+        <Typography.Title level={2} className="app-page-title">
+          登录日志
+        </Typography.Title>
+      </header>
+      {logs.isError && <DiagnosticCard failure={toFailureView(logs.error)} />}
+      <Card className="audit-content">
+        <Filters
+          key={JSON.stringify(search)}
+          search={search}
+          operation={false}
+          onApply={(raw) => {
+            void navigate({ search: validateLoginSearch(raw) });
           }}
-        >
-          下一页
-        </Button>
-      )}
-      {logs.isError ? (
-        <DiagnosticCard failure={toFailureView(logs.error)} />
-      ) : (
-        <Table
-          scroll={{ x: "max-content" }}
-          rowKey="log_id"
-          columns={loginColumns}
-          dataSource={logs.data?.items}
-          loading={logs.isPending}
-          pagination={false}
-          locale={{ emptyText: "暂无日志" }}
         />
-      )}
+        {!logs.isError && (
+          <Table
+            scroll={{ x: "max-content" }}
+            rowKey="log_id"
+            columns={loginColumns}
+            dataSource={logs.data?.items}
+            loading={logs.isPending}
+            pagination={false}
+            locale={{ emptyText: "暂无日志" }}
+          />
+        )}
+        <Flex justify="end">
+          {!logs.isError && logs.data?.next_cursor && (
+            <Button
+              onClick={() => {
+                void navigate({
+                  search: { ...search, cursor: logs.data.next_cursor ?? undefined },
+                });
+              }}
+            >
+              下一页
+            </Button>
+          )}
+        </Flex>
+      </Card>
     </section>
   );
 }
@@ -187,7 +220,7 @@ const operationColumns: TableColumnsType<OperationLogPage["items"][number]> = [
   { title: "失败类别", dataIndex: "failure_category" },
   { title: "来源 IP", key: "ip", render: (_, row) => row.source_ip ?? "未知" },
   { title: "请求编号", dataIndex: "request_id" },
-  { title: "明细", key: "details", render: (_, row) => details(row.details) },
+  { title: "明细", key: "details", ellipsis: true, render: (_, row) => details(row.details) },
   {
     title: "导航操作",
     key: "navigation",
@@ -230,7 +263,8 @@ function Filters(props: {
   const [invalid, setInvalid] = useState(false);
   return (
     <Form<Record<string, unknown>>
-      layout="inline"
+      className="audit-filters"
+      layout="vertical"
       initialValues={props.search}
       onFinish={(values) => {
         const raw = Object.fromEntries(
@@ -246,43 +280,61 @@ function Filters(props: {
         }
       }}
     >
-      <Form.Item name="start" label="开始时间（含）">
-        <Input placeholder="带偏移的 ISO 时间" />
-      </Form.Item>
-      <Form.Item name="end" label="结束时间（不含）">
-        <Input placeholder="带偏移的 ISO 时间" />
-      </Form.Item>
-      <Form.Item name="account_id" label={props.operation ? "操作人编号" : "账号编号"}>
-        <Input />
-      </Form.Item>
-      {props.operation && (
-        <Form.Item name="target_account_id" label="对象账号编号">
-          <Input />
-        </Form.Item>
-      )}
-      <Form.Item
-        name={props.operation ? "operation" : "kind"}
-        label={props.operation ? "操作类型" : "登录类型"}
-      >
-        <Select
-          allowClear
-          className="audit-kind-select"
-          options={options(props.operation ? OPERATION_LABELS : LOGIN_KINDS)}
-        />
-      </Form.Item>
-      <Form.Item name="result" label="筛选结果">
-        <Select
-          allowClear
-          className="audit-result-select"
-          options={options(props.operation ? OPERATION_RESULTS : LOGIN_RESULTS)}
-        />
-      </Form.Item>
-      <Form.Item name="limit" label="每页条数">
-        <Input placeholder={`1–${String(AUDIT_PAGE_LIMIT)}`} />
-      </Form.Item>
-      <Button htmlType="submit" autoInsertSpace={false}>
-        筛选
-      </Button>
+      <Row gutter={[16, 0]}>
+        <Col xs={24} md={12} lg={6}>
+          <Form.Item name="start" label="开始时间（含）">
+            <Input placeholder="带偏移的 ISO 时间" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12} lg={6}>
+          <Form.Item name="end" label="结束时间（不含）">
+            <Input placeholder="带偏移的 ISO 时间" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12} lg={6}>
+          <Form.Item name="account_id" label={props.operation ? "操作人编号" : "账号编号"}>
+            <Input />
+          </Form.Item>
+        </Col>
+        {props.operation && (
+          <Col xs={24} md={12} lg={6}>
+            <Form.Item name="target_account_id" label="对象账号编号">
+              <Input />
+            </Form.Item>
+          </Col>
+        )}
+        <Col xs={24} md={12} lg={6}>
+          <Form.Item
+            name={props.operation ? "operation" : "kind"}
+            label={props.operation ? "操作类型" : "登录类型"}
+          >
+            <Select
+              allowClear
+              className="audit-kind-select"
+              options={options(props.operation ? OPERATION_LABELS : LOGIN_KINDS)}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12} lg={6}>
+          <Form.Item name="result" label="筛选结果">
+            <Select
+              allowClear
+              className="audit-result-select"
+              options={options(props.operation ? OPERATION_RESULTS : LOGIN_RESULTS)}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12} lg={6}>
+          <Form.Item name="limit" label="每页条数">
+            <Input placeholder={`1–${String(AUDIT_PAGE_LIMIT)}`} />
+          </Form.Item>
+        </Col>
+        <Col xs={24}>
+          <Button htmlType="submit" autoInsertSpace={false}>
+            筛选
+          </Button>
+        </Col>
+      </Row>
       {invalid && <Alert type="error" title="日志筛选参数不合法" />}
     </Form>
   );
@@ -326,31 +378,33 @@ function Retention(): ReactElement {
     <section aria-label="日志保留期">
       {setting.isError && <DiagnosticCard failure={toFailureView(setting.error)} />}
       {mutation.isError && <DiagnosticCard failure={toFailureView(mutation.error)} />}
-      <Form layout="inline" onFinish={submit}>
-        <Form.Item label="保留天数" htmlFor="audit-retention-days">
-          <Input
-            id="audit-retention-days"
-            value={value}
+      <Card className="audit-retention">
+        <Form layout="inline" onFinish={submit}>
+          <Form.Item label="保留天数" htmlFor="audit-retention-days">
+            <Input
+              id="audit-retention-days"
+              value={value}
+              disabled={!setting.isSuccess || mutation.isPending}
+              onChange={(event) => {
+                setDraft(event.target.value);
+              }}
+            />
+          </Form.Item>
+          <Button
+            htmlType="submit"
+            loading={mutation.isPending}
             disabled={!setting.isSuccess || mutation.isPending}
-            onChange={(event) => {
-              setDraft(event.target.value);
-            }}
+          >
+            保存保留期
+          </Button>
+        </Form>
+        {invalid && (
+          <Alert
+            type="error"
+            title={`保留期须为 ${String(AUDIT_MIN_RETENTION_DAYS)}–${String(AUDIT_MAX_RETENTION_DAYS)} 天的整数`}
           />
-        </Form.Item>
-        <Button
-          htmlType="submit"
-          loading={mutation.isPending}
-          disabled={!setting.isSuccess || mutation.isPending}
-        >
-          保存保留期
-        </Button>
-      </Form>
-      {invalid && (
-        <Alert
-          type="error"
-          title={`保留期须为 ${String(AUDIT_MIN_RETENTION_DAYS)}–${String(AUDIT_MAX_RETENTION_DAYS)} 天的整数`}
-        />
-      )}
+        )}
+      </Card>
     </section>
   );
 }
@@ -361,8 +415,15 @@ function InvalidFilters(props: {
   onApply: (raw: Record<string, unknown>) => void;
 }): ReactElement {
   return (
-    <section>
-      <Typography.Title level={2}>{props.operation ? "操作日志" : "登录日志"}</Typography.Title>
+    <section className="audit-page">
+      <header className="app-page-header">
+        <Breadcrumb
+          items={[{ title: "审计" }, { title: props.operation ? "操作日志" : "登录日志" }]}
+        />
+        <Typography.Title level={2} className="app-page-title">
+          {props.operation ? "操作日志" : "登录日志"}
+        </Typography.Title>
+      </header>
       <Alert role="alert" type="error" title="日志筛选参数不合法" />
       <Filters search={{}} operation={props.operation} onApply={props.onApply} />
     </section>

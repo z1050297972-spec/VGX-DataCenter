@@ -1,0 +1,12 @@
+/* 页面组间统一留白，表格自身处理窄屏滚动。 */
+.storage-page {
+  display: grid;
+  gap: var(--rdp-space-5);
+  min-width: 0;
+}
+/* 存储根路径供核对挂载身份，必须完整显示而不是省略。 */
+.storage-path {
+  font-family: var(--rdp-mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

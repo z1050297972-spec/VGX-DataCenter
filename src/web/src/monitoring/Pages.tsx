@@ -1,6 +1,7 @@
+import "./monitoring.css";
 // 网络与资源页只读取监控快照；镜像探测与存储根检查由 worker 负责。
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Alert, Button, Card, Typography } from "antd";
+import { Alert, Breadcrumb, Button, Card, Typography } from "antd";
 import { useEffect, useRef, type ReactElement } from "react";
 import { useAccountClient } from "../accounts/runtime";
 import { boundedRequest } from "../api/_request";
@@ -132,9 +133,12 @@ function NetworkChart({ history }: { history: Resources["history"] }): ReactElem
     <div>
       {last ? (
         Object.entries(last.network).map(([name, rate]) => (
-          <p key={name}>
-            {name}：接收 {rate.receive_bytes_per_s.toFixed(0)} B/s；发送{" "}
-            {rate.send_bytes_per_s.toFixed(0)} B/s
+          <p className="monitoring-rate" key={name}>
+            <span>{name}：</span>
+            <span>
+              接收 {rate.receive_bytes_per_s.toFixed(0)} B/s；发送{" "}
+              {rate.send_bytes_per_s.toFixed(0)} B/s
+            </span>
           </p>
         ))
       ) : (
@@ -171,46 +175,56 @@ export function MonitoringPage(): ReactElement {
   const mirrorText = mirrorLabel(mirror.status);
   const usedMemory = resources.memory_total_bytes - resources.memory_available_bytes;
   return (
-    <section>
-      <Typography.Title level={2}>网络与资源</Typography.Title>
-      <Card title="镜像状态">
-        <p>{mirrorText}</p>
-        <p>检查时间：{mirror.checked_at ?? "尚未检查"}</p>
-        <MirrorCheckButton />
-      </Card>
-      <Card title="VPN 与代理">
-        <Alert
-          title={vpnConclusion(vpn)}
-          type={
-            vpn.interfaces === "on" || vpn.processes === "on" || vpn.proxy === "on"
-              ? "warning"
-              : "info"
-          }
-        />
-        <p>
-          隧道网卡：{vpn.interfaces}；代理进程：{vpn.processes}；代理变量：{vpn.proxy}
-        </p>
-        <p>代理地址：{vpn.proxy_hosts.join("、") || "无"}</p>
-      </Card>
-      <Card title="网速">
-        <p>下载作业速度：{resources.download_speed_bytes_per_s} B/s</p>
-        <NetworkChart history={resources.history} />
-      </Card>
-      <Card title="资源占用">
-        <WorkerResources worker={resources.worker} />
-        <p>
-          CPU：
-          {resources.cpu_percent === null ? "等待采样" : `${resources.cpu_percent.toFixed(1)}%`}
-        </p>
-        <p>
-          内存：{(usedMemory / MIB).toFixed(1)} / {(resources.memory_total_bytes / MIB).toFixed(1)}{" "}
-          MiB
-        </p>
-        <p>
-          交换区：{((resources.swap_total_bytes - resources.swap_free_bytes) / MIB).toFixed(1)} /{" "}
-          {(resources.swap_total_bytes / MIB).toFixed(1)} MiB
-        </p>
-      </Card>
+    <section className="monitoring-page">
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "系统" }, { title: "网络与资源" }]} />
+        <Typography.Title level={2} className="app-page-title">
+          网络与资源
+        </Typography.Title>
+      </header>
+      <div className="monitoring-grid">
+        <Card title="镜像状态" className="monitoring-card">
+          <p>{mirrorText}</p>
+          <p>检查时间：{mirror.checked_at ?? "尚未检查"}</p>
+          <MirrorCheckButton />
+        </Card>
+
+        <Card title="VPN 与代理" className="monitoring-card">
+          <Alert
+            title={vpnConclusion(vpn)}
+            type={
+              vpn.interfaces === "on" || vpn.processes === "on" || vpn.proxy === "on"
+                ? "warning"
+                : "info"
+            }
+          />
+          <p>
+            隧道网卡：{vpn.interfaces}；代理进程：{vpn.processes}；代理变量：{vpn.proxy}
+          </p>
+          <p>代理地址：{vpn.proxy_hosts.join("、") || "无"}</p>
+        </Card>
+
+        <Card title="网速" className="monitoring-card">
+          <p>下载作业速度：{resources.download_speed_bytes_per_s} B/s</p>
+          <NetworkChart history={resources.history} />
+        </Card>
+
+        <Card title="资源占用" className="monitoring-card">
+          <WorkerResources worker={resources.worker} />
+          <p>
+            CPU：
+            {resources.cpu_percent === null ? "等待采样" : `${resources.cpu_percent.toFixed(1)}%`}
+          </p>
+          <p>
+            内存：{(usedMemory / MIB).toFixed(1)} /{" "}
+            {(resources.memory_total_bytes / MIB).toFixed(1)} MiB
+          </p>
+          <p>
+            交换区：{((resources.swap_total_bytes - resources.swap_free_bytes) / MIB).toFixed(1)} /{" "}
+            {(resources.swap_total_bytes / MIB).toFixed(1)} MiB
+          </p>
+        </Card>
+      </div>
     </section>
   );
 }

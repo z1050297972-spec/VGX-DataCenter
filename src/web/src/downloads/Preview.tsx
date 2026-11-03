@@ -1,6 +1,6 @@
 // 预览只显示 worker 的快照；作业失败时沿用统一诊断组件。
 import { useEffect, type ReactElement } from "react";
-import { Alert, Checkbox, Typography } from "antd";
+import { Card, Alert, Checkbox, Typography } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { useAccountClient } from "../accounts/runtime";
 import { getDownloadPreview, type DownloadPreview } from "../api/downloads";
@@ -92,7 +92,7 @@ function PreviewContent({
   onChange: (cameras: string[]) => void;
 }): ReactElement {
   return (
-    <section>
+    <Card>
       <Typography.Title level={3}>预览结果</Typography.Title>
       <div>版本：{data.commit}</div>
       {data.dataset && (
@@ -126,6 +126,6 @@ function PreviewContent({
       <div>已完整下载（续传中的不计）：{data.capacity.complete_bytes} B</div>
       <div>剩余空间：{data.capacity.available_bytes} B</div>
       <div>空间：{data.sufficient ? "足够" : "不足"}</div>
-    </section>
+    </Card>
   );
 }

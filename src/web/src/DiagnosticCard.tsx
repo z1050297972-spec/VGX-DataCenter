@@ -1,3 +1,4 @@
+import "./diagnostic.css";
 // 统一诊断展示组件（M0 工单 04、规范 10.5）；使用 Ant Design，不负责请求协议或作业结果。
 // 本票没有报错详情接口；可选回调为第 5 张存表后的接入点，缺省仅提示按编号查运行日志。
 import type { ReactElement } from "react";
@@ -158,7 +159,7 @@ export function DiagnosticEntries(props: DiagnosticEntriesProps): ReactElement {
             {d.level === "error" ? "错误" : "警告"} · {CATEGORY_LABELS[d.category]} · {d.stage} ·
             来源：{d.source}
           </div>
-          <div className="jobs-diagnostic-fields">
+          <div className="diagnostic-fields">
             <div>
               对象：{d.objects.map((item) => item.key + "=" + item.value).join(" ") || "全局"}
             </div>
@@ -209,8 +210,8 @@ export function JobDiagnosticCard(props: JobDiagnosticCardProps): ReactElement {
   return (
     <>
       {props.job.diagnostics.map((group) => (
-        <section className="jobs-diagnostic-group" key={JSON.stringify([group.source, group.rule])}>
-          <div className="jobs-diagnostic-group-title">
+        <section className="diagnostic-group" key={JSON.stringify([group.source, group.rule])}>
+          <div className="diagnostic-group-title">
             {group.rule} · 共 {group.total} 条（展示 {group.samples.length} 条）
           </div>
           {group.samples.some((item) => item.category === "defect") && (

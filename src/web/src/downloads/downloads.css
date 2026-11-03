@@ -1,0 +1,15 @@
+/* 下载表单、预览与暂存区各自分组，避免相互嵌套。 */
+.downloads-page {
+  display: grid;
+  gap: var(--rdp-space-5);
+  min-width: 0;
+}
+/* 高级字段原地展开，因此入口不与预览、确认按钮共行。 */
+.downloads-advanced-toggle {
+  display: block;
+  margin-bottom: var(--rdp-space-4);
+}
+.downloads-staging-refresh {
+  margin-right: var(--rdp-space-3);
+  margin-bottom: var(--rdp-space-3);
+}

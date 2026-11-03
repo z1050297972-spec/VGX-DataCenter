@@ -1,0 +1,26 @@
+/* 网格间距与其他页面卡片一致，列宽由 antd 的响应式栅格管理。 */
+.monitoring-page {
+  display: grid;
+  gap: var(--rdp-space-5);
+}
+.monitoring-card {
+  height: 100%;
+}
+/* 现有监控测试环境没有 matchMedia，不能挂载依赖它的 antd Row。 */
+.monitoring-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--rdp-space-5);
+}
+@media (max-width: 991px) {
+  .monitoring-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* 网卡名和速率分列，长名称仍允许自然换行。 */
+.monitoring-rate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 3fr);
+  gap: var(--rdp-space-2);
+  overflow-wrap: anywhere;
+}

@@ -1,10 +1,30 @@
 .audit-page {
   min-width: 0;
   max-width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--rdp-space-5);
 }
-.audit-kind-select {
-  min-width: var(--rdp-width-audit-kind);
+/* 表格可能很宽，网格、卡片与 antd 筛选列都必须允许收缩。 */
+.audit-content {
+  min-width: 0;
+  max-width: 100%;
 }
+.audit-filters .ant-col {
+  min-width: 0;
+}
+.audit-filters .ant-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.audit-kind-select,
 .audit-result-select {
-  min-width: var(--rdp-width-audit-result);
+  width: 100%;
+  max-width: 100%;
+}
+
+.audit-retention {
+  width: fit-content;
+  max-width: 100%;
 }

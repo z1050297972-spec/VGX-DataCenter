@@ -1,6 +1,7 @@
+import "./storage.css";
 // 存储根只读页面（10、L3）：成员与管理员相同，不提供配置编辑或文件访问入口。
 import type { ReactElement } from "react";
-import { Button, Table, Typography } from "antd";
+import { Breadcrumb, Button, Card, Flex, Table, Typography } from "antd";
 import type { StorageRoot } from "../api/storage";
 import { useStorageRoots } from "./queries";
 import schema from "../api/openapi.json";
@@ -23,44 +24,55 @@ const offlineLabels: Record<NonNullable<StorageRoot["reason"]>, string> = schema
 export function StorageRootsPage(): ReactElement {
   const query = useStorageRoots();
   return (
-    <>
-      <Typography.Title level={2}>存储根</Typography.Title>
-      <Typography.Paragraph>本页只核对挂载身份，访问超时只能由作业检查发现。</Typography.Paragraph>
-      <Button
-        aria-label="重新检查"
-        disabled={query.isFetching}
-        loading={query.isFetching}
-        onClick={() => {
-          void query.refetch();
-        }}
-      >
-        重新检查
-      </Button>
+    <section className="storage-page">
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "数据" }, { title: "存储根" }]} />
+        <Flex justify="space-between" align="center" wrap="wrap">
+          <Typography.Title level={2} className="app-page-title">
+            存储根
+          </Typography.Title>
+          <Button
+            aria-label="重新检查"
+            disabled={query.isFetching}
+            loading={query.isFetching}
+            onClick={() => {
+              void query.refetch();
+            }}
+          >
+            重新检查
+          </Button>
+        </Flex>
+      </header>
       {query.error && <DiagnosticCard failure={toFailureView(query.error)} />}
-      {query.isFetching && <Typography.Text role="status">正在检查</Typography.Text>}
-      <Table<StorageRoot>
-        scroll={{ x: "max-content" }}
-        rowKey="name"
-        pagination={false}
-        dataSource={query.data?.items}
-        locale={{ emptyText: query.data ? "未登记存储根" : "暂无检查结果" }}
-        columns={[
-          { title: "名字", dataIndex: "name" },
-          { title: "路径", dataIndex: "path" },
-          { title: "许可", render: (_, root) => (root.writable ? "可写" : "只读") },
-          {
-            title: "状态",
-            render: (_, root) =>
-              root.online ? "在线" : root.reason ? offlineLabels[root.reason] : "离线",
-          },
-          {
-            title: "检查时间",
-            render: (_, root) => (
-              <time dateTime={root.checked_at}>{formatDateTime(root.checked_at)}</time>
-            ),
-          },
-        ]}
-      />
-    </>
+      <Card>
+        <Typography.Paragraph>
+          本页只核对挂载身份，访问超时只能由作业检查发现。
+        </Typography.Paragraph>
+        {query.isFetching && <Typography.Text role="status">正在检查</Typography.Text>}
+        <Table<StorageRoot>
+          scroll={{ x: "max-content" }}
+          rowKey="name"
+          pagination={false}
+          dataSource={query.data?.items}
+          locale={{ emptyText: query.data ? "未登记存储根" : "暂无检查结果" }}
+          columns={[
+            { title: "名字", dataIndex: "name" },
+            { title: "路径", dataIndex: "path", className: "storage-path" },
+            { title: "许可", render: (_, root) => (root.writable ? "可写" : "只读") },
+            {
+              title: "状态",
+              render: (_, root) =>
+                root.online ? "在线" : root.reason ? offlineLabels[root.reason] : "离线",
+            },
+            {
+              title: "检查时间",
+              render: (_, root) => (
+                <time dateTime={root.checked_at}>{formatDateTime(root.checked_at)}</time>
+              ),
+            },
+          ]}
+        />
+      </Card>
+    </section>
   );
 }

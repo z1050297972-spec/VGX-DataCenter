@@ -86,6 +86,6 @@
 }
 
 /* 标题和首个表单分组分开，避免改变后续卡片之间的间距。 */
-.creation-page .creation-title {
+.creation-header {
   margin-bottom: var(--rdp-space-4);
 }

@@ -1,6 +1,6 @@
 // 入库预览由 worker 生成；修改任何选项后必须重新预览才能确认。
 import { useEffect, useRef, useState, type ReactElement } from "react";
-import { Alert, Button, Checkbox, Input, Space, Typography } from "antd";
+import { Alert, Button, Card, Checkbox, Input, Space, Typography } from "antd";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useAccountClient } from "../accounts/runtime";
@@ -136,7 +136,11 @@ function IngestForm({ job }: { job: Job }): ReactElement {
         }}
       />
       {waiting && <Typography.Text>正在生成入库预览…</Typography.Text>}
-      {result.data && <IngestContent data={result.data} />}
+      {result.data && (
+        <Card>
+          <IngestContent data={result.data} />
+        </Card>
+      )}
       {failedPreview(status.data) && status.data && (
         <>
           <Alert type="error" title="入库预览未成功" />
