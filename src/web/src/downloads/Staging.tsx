@@ -58,11 +58,14 @@ export function Staging({ jobId }: { jobId: string | undefined }): ReactElement 
   }
   return (
     <section>
-      <Typography.Title level={3}>下载暂存区</Typography.Title>
+      <Typography.Title level={3} className="app-card-heading">
+        下载暂存区
+      </Typography.Title>
       <Typography.Paragraph>
         快照仅反映扫描时的状态；删除前须重新确认占用情况。
       </Typography.Paragraph>
       <Button
+        className="downloads-staging-refresh"
         aria-label="刷新暂存列表"
         disabled={busy}
         loading={busy}

@@ -1,5 +1,7 @@
 .navigation-page {
   max-width: 100%;
+  display: grid;
+  gap: var(--rdp-space-5);
 }
 .navigation-action {
   margin-top: var(--rdp-space-4);

@@ -7,7 +7,20 @@ import { WorkerStatusBanner } from "../jobs/WorkerStatusBanner";
 import { RecoveryBlockBanner } from "../navigation/RecoveryBlockBanner";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Card, Form, Input, Button, Typography, Alert, Table, Modal, Select, Space } from "antd";
+import {
+  Breadcrumb,
+  Card,
+  Flex,
+  Form,
+  Input,
+  Button,
+  Typography,
+  Alert,
+  Table,
+  Modal,
+  Select,
+  Space,
+} from "antd";
 import { useLocation, useNavigate, Link, Outlet } from "@tanstack/react-router";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
@@ -149,73 +162,81 @@ export function PasswordPage(): ReactElement {
   const [form] = Form.useForm<PasswordInput & { confirmation: string }>();
   const action = useAccountAction();
   return (
-    <Card title="修改口令">
+    <section className="accounts-page">
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "账号" }, { title: "修改口令" }]} />
+        <Typography.Title level={2} className="app-page-title">
+          修改口令
+        </Typography.Title>
+      </header>
       <ActionFailure action={action} />
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={(values: PasswordInput & { confirmation: string }) => {
-          const payload: PasswordInput = {
-            current_password: values.current_password,
-            new_password: values.new_password,
-          };
-          void action.run(
-            (signal) => changePassword({ client, payload, signal }),
-            (account) => {
-              queryClient.setQueryData(ACCOUNT_QUERY_KEY, account);
-              void queryClient.invalidateQueries({
-                queryKey: ACCOUNT_QUERY_KEY,
-                refetchType: "none",
-              });
-              void navigate({ href: returnTarget(search), replace: true });
-            },
-            () => {
-              form.resetFields();
-            },
-          );
-        }}
-      >
-        <Form.Item
-          name="current_password"
-          label="当前口令"
-          rules={[{ required: true, message: "请输入当前口令" }]}
+      <Card className="accounts-password">
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(values: PasswordInput & { confirmation: string }) => {
+            const payload: PasswordInput = {
+              current_password: values.current_password,
+              new_password: values.new_password,
+            };
+            void action.run(
+              (signal) => changePassword({ client, payload, signal }),
+              (account) => {
+                queryClient.setQueryData(ACCOUNT_QUERY_KEY, account);
+                void queryClient.invalidateQueries({
+                  queryKey: ACCOUNT_QUERY_KEY,
+                  refetchType: "none",
+                });
+                void navigate({ href: returnTarget(search), replace: true });
+              },
+              () => {
+                form.resetFields();
+              },
+            );
+          }}
         >
-          <Input.Password autoComplete="current-password" />
-        </Form.Item>
-        <Form.Item
-          name="new_password"
-          label="新口令"
-          rules={[{ required: true, message: "请输入新口令" }]}
-        >
-          <Input.Password autoComplete="new-password" />
-        </Form.Item>
-        <Form.Item
-          name="confirmation"
-          label="确认新口令"
-          dependencies={["new_password"]}
-          rules={[
-            { required: true, message: "请再次输入新口令" },
-            ({ getFieldValue }) => ({
-              validator: (_rule, value: unknown) =>
-                value === getFieldValue("new_password")
-                  ? Promise.resolve()
-                  : Promise.reject(new Error("两次新口令不一致")),
-            }),
-          ]}
-        >
-          <Input.Password autoComplete="new-password" />
-        </Form.Item>
-        <Button
-          aria-label="保存口令"
-          htmlType="submit"
-          type="primary"
-          loading={action.busy}
-          disabled={action.waiting > 0}
-        >
-          保存口令
-        </Button>
-      </Form>
-    </Card>
+          <Form.Item
+            name="current_password"
+            label="当前口令"
+            rules={[{ required: true, message: "请输入当前口令" }]}
+          >
+            <Input.Password autoComplete="current-password" />
+          </Form.Item>
+          <Form.Item
+            name="new_password"
+            label="新口令"
+            rules={[{ required: true, message: "请输入新口令" }]}
+          >
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+          <Form.Item
+            name="confirmation"
+            label="确认新口令"
+            dependencies={["new_password"]}
+            rules={[
+              { required: true, message: "请再次输入新口令" },
+              ({ getFieldValue }) => ({
+                validator: (_rule, value: unknown) =>
+                  value === getFieldValue("new_password")
+                    ? Promise.resolve()
+                    : Promise.reject(new Error("两次新口令不一致")),
+              }),
+            ]}
+          >
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+          <Button
+            aria-label="保存口令"
+            htmlType="submit"
+            type="primary"
+            loading={action.busy}
+            disabled={action.waiting > 0}
+          >
+            保存口令
+          </Button>
+        </Form>
+      </Card>
+    </section>
   );
 }
 
@@ -354,50 +375,63 @@ export function AccountsPage(): ReactElement {
     },
   ];
   return (
-    <Card title="账号管理">
+    <section className="accounts-page">
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "系统" }, { title: "账号管理" }]} />
+        <Flex className="accounts-header-row" justify="space-between" align="center" wrap="wrap">
+          <Typography.Title level={2} className="app-page-title">
+            账号管理
+          </Typography.Title>
+          <Button
+            type="primary"
+            onClick={() => {
+              form.resetFields();
+              setEditor("create");
+            }}
+          >
+            新建账号
+          </Button>
+        </Flex>
+      </header>
       <DownloadTokenSection />
       {holder}
       <ActionFailure action={action} />
       {list.isError && <DiagnosticCard failure={toFailureView(list.error)} />}
-      <Button
-        onClick={() => {
-          form.resetFields();
-          setEditor("create");
-        }}
-      >
-        新建账号
-      </Button>
-      <Table<Account>
-        scroll={{ x: "max-content" }}
-        rowKey="account_id"
-        columns={columns}
-        dataSource={list.data?.items ?? []}
-        pagination={false}
-        loading={list.isFetching}
-      />
-      <Space>
-        <Button
-          disabled={previous.length === 0 || list.isFetching}
-          onClick={() => {
-            const copy = [...previous];
-            setAfterId(copy.pop() ?? "0");
-            setPrevious(copy);
-          }}
-        >
-          上一页
-        </Button>
-        <Button
-          disabled={!list.data?.next_after_id || list.isFetching}
-          onClick={() => {
-            if (list.data?.next_after_id) {
-              setPrevious([...previous, afterId]);
-              setAfterId(list.data.next_after_id);
-            }
-          }}
-        >
-          下一页
-        </Button>
-      </Space>
+      <Card>
+        <Table<Account>
+          scroll={{ x: "max-content" }}
+          rowKey="account_id"
+          columns={columns}
+          dataSource={list.data?.items ?? []}
+          pagination={false}
+          loading={list.isFetching}
+        />
+        <Flex justify="end">
+          <Space>
+            <Button
+              disabled={previous.length === 0 || list.isFetching}
+              onClick={() => {
+                const copy = [...previous];
+                setAfterId(copy.pop() ?? "0");
+                setPrevious(copy);
+              }}
+            >
+              上一页
+            </Button>
+            <Button
+              disabled={!list.data?.next_after_id || list.isFetching}
+              onClick={() => {
+                if (list.data?.next_after_id) {
+                  setPrevious([...previous, afterId]);
+                  setAfterId(list.data.next_after_id);
+                }
+              }}
+            >
+              下一页
+            </Button>
+          </Space>
+        </Flex>
+      </Card>
       <Modal
         open={editor !== null}
         title={editor === "create" ? "新建账号" : "重置口令"}
@@ -475,7 +509,7 @@ export function AccountsPage(): ReactElement {
           </Button>
         </Form>
       </Modal>
-    </Card>
+    </section>
   );
 }
 
@@ -611,34 +645,42 @@ function DownloadTokenSection(): ReactElement {
     );
   }
   return (
-    <section>
-      <Typography.Title level={3}>Hugging Face token</Typography.Title>
-      {state.data && (
-        <Typography.Text>{state.data.configured ? "已设置" : "未设置"}</Typography.Text>
-      )}
+    <section className="accounts-token">
       {state.isError && <DiagnosticCard failure={toFailureView(state.error)} />}
       <ActionFailure action={action} />
-      <Form
-        form={form}
-        onFinish={(values: { token: string }) => {
-          apply(values.token);
-        }}
-      >
-        <Form.Item name="token" label="token" rules={[{ required: true, message: "请输入 token" }]}>
-          <Input.Password autoComplete="off" />
-        </Form.Item>
-        <Button htmlType="submit" loading={action.busy} disabled={action.busy}>
-          设置 token
-        </Button>
-        <Button
-          disabled={action.busy || !state.data?.configured}
-          onClick={() => {
-            apply(null);
+      <Card>
+        <Typography.Title level={3} className="app-card-heading">
+          Hugging Face token
+        </Typography.Title>
+        {state.data && (
+          <Typography.Text>{state.data.configured ? "已设置" : "未设置"}</Typography.Text>
+        )}
+        <Form
+          form={form}
+          onFinish={(values: { token: string }) => {
+            apply(values.token);
           }}
         >
-          清除 token
-        </Button>
-      </Form>
+          <Form.Item
+            name="token"
+            label="token"
+            rules={[{ required: true, message: "请输入 token" }]}
+          >
+            <Input.Password autoComplete="off" />
+          </Form.Item>
+          <Button htmlType="submit" loading={action.busy} disabled={action.busy}>
+            设置 token
+          </Button>
+          <Button
+            disabled={action.busy || !state.data?.configured}
+            onClick={() => {
+              apply(null);
+            }}
+          >
+            清除 token
+          </Button>
+        </Form>
+      </Card>
     </section>
   );
 }

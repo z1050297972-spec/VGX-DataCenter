@@ -1,5 +1,6 @@
+import "./scheduling.css";
 // 调度与资源示例页面；沿用 Ant Design/DiagnosticCard，展示只读数据库快照。
-import { Typography, Table, Alert, Form, Input, Button } from "antd";
+import { Typography, Table, Alert, Form, Input, Button, Breadcrumb, Card } from "antd";
 import { Link } from "@tanstack/react-router";
 import { useScheduling, useSubmitGpuJob, useSubmitNavigationJob } from "./queries";
 import { DiagnosticCard, DiagnosticEntries } from "../DiagnosticCard";
@@ -22,103 +23,116 @@ export function SchedulingPage(): ReactElement {
   if (!query.data) return <Typography.Text>正在读取调度…</Typography.Text>;
   const data = query.data;
   return (
-    <section>
-      <Typography.Title level={2}>调度</Typography.Title>
+    <section className="scheduling-page">
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "作业" }, { title: "调度" }]} />
+        <Typography.Title level={2} className="app-page-title">
+          调度
+        </Typography.Title>
+      </header>
       {!data.worker_online && <Alert type="warning" title="worker 离线，以下为最后已保存状态" />}
-      <Table<Scheduling["types"][number]>
-        scroll={{ x: "max-content" }}
-        rowKey="type_name"
-        pagination={false}
-        dataSource={data.types}
-        columns={[
-          { title: "作业类型", dataIndex: "display_name" },
-          { title: "并发上限", dataIndex: "concurrency" },
-          { title: "正在运行", dataIndex: "running_count" },
-        ]}
-      />
-      <section aria-label="GPU 名额">
-        <Typography.Title level={3}>GPU 名额</Typography.Title>
-        {data.gpus.length === 0 && <Typography.Text>平台未配置 GPU</Typography.Text>}
-        {data.gpus.map((card) => (
-          <div key={card.gpu_index}>
-            <Typography.Text>GPU {card.gpu_index}：</Typography.Text>
-            {card.availability === "excluded" ? (
-              <>
-                <Typography.Text>已移出名额池</Typography.Text>
-                <div>修复后需重启 worker 重新核对</div>
-                {card.checked_at && (
-                  <div>
-                    核对时间：
-                    <time dateTime={card.checked_at}>{formatDateTime(card.checked_at)}</time>
-                  </div>
-                )}
-                <DiagnosticEntries diagnostics={card.diagnostics} />
-              </>
-            ) : card.job_id ? (
-              <Link to="/jobs/$jobId" params={{ jobId: card.job_id }}>
-                #{card.job_id}
-              </Link>
-            ) : (
-              <Typography.Text>
-                {card.availability === "available" ? "空闲" : "尚未核对"}
-              </Typography.Text>
-            )}
-          </div>
-        ))}
-      </section>
-      <section aria-label="导航层写锁">
-        <Typography.Title level={3}>导航层写锁</Typography.Title>
-        {data.navigation_job_id ? (
-          <Link to="/jobs/$jobId" params={{ jobId: data.navigation_job_id }}>
-            #{data.navigation_job_id}
-          </Link>
-        ) : (
-          "无人持有"
-        )}
-      </section>
-      <section aria-label="定时作业">
-        <Typography.Title level={3}>定时作业</Typography.Title>
-        <Table<Scheduling["schedules"][number]>
+      <Card>
+        <Table<Scheduling["types"][number]>
           scroll={{ x: "max-content" }}
-          rowKey="name"
+          rowKey="type_name"
           pagination={false}
-          dataSource={data.schedules}
+          dataSource={data.types}
           columns={[
-            { title: "名称", dataIndex: "name" },
-            {
-              title: "下次运行",
-              render: (_value: unknown, item) => (
-                <>
-                  <time dateTime={item.next_run_at}>{formatDateTime(item.next_run_at)}</time>
-                  {Date.parse(item.next_run_at) <= Date.parse(data.checked_at) && (
-                    <div>已到点，等待 worker</div>
-                  )}
-                </>
-              ),
-            },
-            {
-              title: "上次作业",
-              render: (_value: unknown, item) =>
-                item.last_job_id ? (
-                  <Link to="/jobs/$jobId" params={{ jobId: item.last_job_id }}>
-                    #{item.last_job_id}
-                  </Link>
-                ) : (
-                  "从未提交"
-                ),
-            },
-            {
-              title: "上次结果",
-              render: (_value: unknown, item) =>
-                item.last_outcome
-                  ? JOB_OUTCOME_LABELS[item.last_outcome]
-                  : item.last_state && item.last_state !== "completed"
-                    ? JOB_STATE_LABELS[item.last_state]
-                    : "—",
-            },
+            { title: "作业类型", dataIndex: "display_name" },
+            { title: "并发上限", dataIndex: "concurrency" },
+            { title: "正在运行", dataIndex: "running_count" },
           ]}
         />
-      </section>
+      </Card>
+      <Card>
+        <section aria-label="GPU 名额">
+          <Typography.Title level={3}>GPU 名额</Typography.Title>
+          {data.gpus.length === 0 && <Typography.Text>平台未配置 GPU</Typography.Text>}
+          {data.gpus.map((card) => (
+            <div key={card.gpu_index}>
+              <Typography.Text>GPU {card.gpu_index}：</Typography.Text>
+              {card.availability === "excluded" ? (
+                <>
+                  <Typography.Text>已移出名额池</Typography.Text>
+                  <div>修复后需重启 worker 重新核对</div>
+                  {card.checked_at && (
+                    <div>
+                      核对时间：
+                      <time dateTime={card.checked_at}>{formatDateTime(card.checked_at)}</time>
+                    </div>
+                  )}
+                  <DiagnosticEntries diagnostics={card.diagnostics} />
+                </>
+              ) : card.job_id ? (
+                <Link to="/jobs/$jobId" params={{ jobId: card.job_id }}>
+                  #{card.job_id}
+                </Link>
+              ) : (
+                <Typography.Text>
+                  {card.availability === "available" ? "空闲" : "尚未核对"}
+                </Typography.Text>
+              )}
+            </div>
+          ))}
+        </section>
+      </Card>
+      <Card>
+        <section aria-label="导航层写锁">
+          <Typography.Title level={3}>导航层写锁</Typography.Title>
+          {data.navigation_job_id ? (
+            <Link to="/jobs/$jobId" params={{ jobId: data.navigation_job_id }}>
+              #{data.navigation_job_id}
+            </Link>
+          ) : (
+            "无人持有"
+          )}
+        </section>
+      </Card>
+      <Card>
+        <section aria-label="定时作业">
+          <Typography.Title level={3}>定时作业</Typography.Title>
+          <Table<Scheduling["schedules"][number]>
+            scroll={{ x: "max-content" }}
+            rowKey="name"
+            pagination={false}
+            dataSource={data.schedules}
+            columns={[
+              { title: "名称", dataIndex: "name" },
+              {
+                title: "下次运行",
+                render: (_value: unknown, item) => (
+                  <>
+                    <time dateTime={item.next_run_at}>{formatDateTime(item.next_run_at)}</time>
+                    {Date.parse(item.next_run_at) <= Date.parse(data.checked_at) && (
+                      <div>已到点，等待 worker</div>
+                    )}
+                  </>
+                ),
+              },
+              {
+                title: "上次作业",
+                render: (_value: unknown, item) =>
+                  item.last_job_id ? (
+                    <Link to="/jobs/$jobId" params={{ jobId: item.last_job_id }}>
+                      #{item.last_job_id}
+                    </Link>
+                  ) : (
+                    "从未提交"
+                  ),
+              },
+              {
+                title: "上次结果",
+                render: (_value: unknown, item) =>
+                  item.last_outcome
+                    ? JOB_OUTCOME_LABELS[item.last_outcome]
+                    : item.last_state && item.last_state !== "completed"
+                      ? JOB_STATE_LABELS[item.last_state]
+                      : "—",
+              },
+            ]}
+          />
+        </section>
+      </Card>
     </section>
   );
 }
@@ -132,8 +146,13 @@ export function SchedulingPage(): ReactElement {
  */
 export function SubmitResourceJobsPage(): ReactElement {
   return (
-    <section>
-      <Typography.Title level={2}>资源示例作业</Typography.Title>
+    <section className="scheduling-page">
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "作业" }, { title: "资源示例作业" }]} />
+        <Typography.Title level={2} className="app-page-title">
+          资源示例作业
+        </Typography.Title>
+      </header>
       <GpuForm />
       <NavigationForm />
     </section>
@@ -159,39 +178,43 @@ function GpuForm(): ReactElement {
   const submit = useSubmitGpuJob();
   const message = `占用秒数须为0至${String(GPU_HOLD_MAX_S)}的整数`;
   return (
-    <section>
-      <Typography.Title level={3}>示例：占用 GPU</Typography.Title>
-      <Typography.Paragraph>等待 GPU 和占用名额期间可以取消作业。</Typography.Paragraph>
-      <Form<{ hold_s: string }>
-        layout="vertical"
-        initialValues={{ hold_s: "0" }}
-        disabled={submit.isPending}
-        onFinish={(values) => {
-          submit.mutate({ hold_s: integer(values.hold_s, GPU_HOLD_MAX_S, message) });
-        }}
-      >
-        <Form.Item
-          name="hold_s"
-          label="占用秒数"
-          rules={[
-            {
-              validator: (_rule, value: unknown) =>
-                validate(() => integer(value, GPU_HOLD_MAX_S, message)),
-            },
-          ]}
-        >
-          <Input inputMode="numeric" />
-        </Form.Item>
-        <Button
-          aria-label="提交占卡作业"
-          htmlType="submit"
-          type="primary"
+    <section className="scheduling-form-section">
+      <Card className="scheduling-form">
+        <Typography.Title level={3} className="app-card-heading">
+          示例：占用 GPU
+        </Typography.Title>
+        <Typography.Paragraph>等待 GPU 和占用名额期间可以取消作业。</Typography.Paragraph>
+        <Form<{ hold_s: string }>
+          layout="vertical"
+          initialValues={{ hold_s: "0" }}
           disabled={submit.isPending}
-          loading={submit.isPending}
+          onFinish={(values) => {
+            submit.mutate({ hold_s: integer(values.hold_s, GPU_HOLD_MAX_S, message) });
+          }}
         >
-          提交占卡作业
-        </Button>
-      </Form>
+          <Form.Item
+            name="hold_s"
+            label="占用秒数"
+            rules={[
+              {
+                validator: (_rule, value: unknown) =>
+                  validate(() => integer(value, GPU_HOLD_MAX_S, message)),
+              },
+            ]}
+          >
+            <Input inputMode="numeric" />
+          </Form.Item>
+          <Button
+            aria-label="提交占卡作业"
+            htmlType="submit"
+            type="primary"
+            disabled={submit.isPending}
+            loading={submit.isPending}
+          >
+            提交占卡作业
+          </Button>
+        </Form>
+      </Card>
       {submit.isError && <DiagnosticCard failure={toFailureView(submit.error)} />}
     </section>
   );
@@ -209,51 +232,55 @@ function NavigationForm(): ReactElement {
   const submit = useSubmitNavigationJob();
   const message = `暂停须为0至${String(NAVIGATION_PAUSE_MAX_S)}的整数秒`;
   return (
-    <section>
-      <Typography.Title level={3}>示例：写锁</Typography.Title>
-      <Typography.Paragraph>
-        首次期望值为空，后续填写上次成功写入的作业编号。等待写锁时可取消，写入开始后会在写完后处理取消。
-      </Typography.Paragraph>
-      <Form<{ expected_value: string; pause_s: string }>
-        layout="vertical"
-        initialValues={{ expected_value: "", pause_s: "0" }}
-        disabled={submit.isPending}
-        onFinish={(values) => {
-          submit.mutate({
-            expected_value: expectedValue(values.expected_value),
-            pause_s: integer(values.pause_s, NAVIGATION_PAUSE_MAX_S, message),
-          });
-        }}
-      >
-        <Form.Item
-          name="expected_value"
-          label="期望值"
-          rules={[{ validator: (_rule, value: unknown) => validate(() => expectedValue(value)) }]}
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="pause_s"
-          label="写入前暂停（秒）"
-          rules={[
-            {
-              validator: (_rule, value: unknown) =>
-                validate(() => integer(value, NAVIGATION_PAUSE_MAX_S, message)),
-            },
-          ]}
-        >
-          <Input inputMode="numeric" />
-        </Form.Item>
-        <Button
-          aria-label="提交写锁作业"
-          htmlType="submit"
-          type="primary"
+    <section className="scheduling-form-section">
+      <Card className="scheduling-form">
+        <Typography.Title level={3} className="app-card-heading">
+          示例：写锁
+        </Typography.Title>
+        <Typography.Paragraph>
+          首次期望值为空，后续填写上次成功写入的作业编号。等待写锁时可取消，写入开始后会在写完后处理取消。
+        </Typography.Paragraph>
+        <Form<{ expected_value: string; pause_s: string }>
+          layout="vertical"
+          initialValues={{ expected_value: "", pause_s: "0" }}
           disabled={submit.isPending}
-          loading={submit.isPending}
+          onFinish={(values) => {
+            submit.mutate({
+              expected_value: expectedValue(values.expected_value),
+              pause_s: integer(values.pause_s, NAVIGATION_PAUSE_MAX_S, message),
+            });
+          }}
         >
-          提交写锁作业
-        </Button>
-      </Form>
+          <Form.Item
+            name="expected_value"
+            label="期望值"
+            rules={[{ validator: (_rule, value: unknown) => validate(() => expectedValue(value)) }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="pause_s"
+            label="写入前暂停（秒）"
+            rules={[
+              {
+                validator: (_rule, value: unknown) =>
+                  validate(() => integer(value, NAVIGATION_PAUSE_MAX_S, message)),
+              },
+            ]}
+          >
+            <Input inputMode="numeric" />
+          </Form.Item>
+          <Button
+            aria-label="提交写锁作业"
+            htmlType="submit"
+            type="primary"
+            disabled={submit.isPending}
+            loading={submit.isPending}
+          >
+            提交写锁作业
+          </Button>
+        </Form>
+      </Card>
       {submit.isError && <DiagnosticCard failure={toFailureView(submit.error)} />}
     </section>
   );

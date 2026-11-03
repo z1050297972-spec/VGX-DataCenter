@@ -50,7 +50,7 @@ export function JobsPage(): ReactElement {
     <section className="jobs-page">
       <header className="jobs-header">
         <Breadcrumb items={[{ title: "作业" }, { title: "列表" }]} />
-        <Flex align="center" justify="space-between" wrap gap="middle">
+        <Flex className="jobs-header-row" align="center" justify="space-between" wrap gap="middle">
           <Typography.Title level={2} className="jobs-title">
             作业列表
           </Typography.Title>
@@ -155,98 +155,107 @@ export function SubmitCountJobPage(): ReactElement {
   const [form] = Form.useForm<CountFormValues>();
   const submit = useSubmitCountJob();
   return (
-    <section>
-      <Typography.Title level={2}>提交示例作业</Typography.Title>
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={{
-          steps: "30",
-          interval_ms: "1000",
-          failed_steps: "",
-          warning_steps: "",
-          abort_at_step: "",
-        }}
-        disabled={submit.isPending}
-        onFinish={(values) => {
-          submit.mutate(countInput(values));
-        }}
-      >
-        <Form.Item
-          name="steps"
-          label="总步数"
-          rules={[
-            {
-              validator: (_rule, value: unknown) =>
-                validateField(() => countInteger(value, 1, COUNT_MAX_STEPS, COUNT_MESSAGES.steps)),
-            },
-          ]}
-        >
-          <Input inputMode="numeric" />
-        </Form.Item>
-        <Form.Item
-          name="interval_ms"
-          label="每步间隔（毫秒）"
-          rules={[
-            {
-              validator: (_rule, value: unknown) =>
-                validateField(() =>
-                  countInteger(value, 0, COUNT_MAX_INTERVAL_MS, COUNT_MESSAGES.interval),
-                ),
-            },
-          ]}
-        >
-          <Input inputMode="numeric" />
-        </Form.Item>
-        <Form.Item
-          name="failed_steps"
-          label="失败步"
-          dependencies={["steps"]}
-          rules={[
-            {
-              validator: (_rule, value: unknown) =>
-                validateField(() => countSelection(value, form.getFieldValue("steps"))),
-            },
-          ]}
-        >
-          <Input placeholder="例如 2,4；可留空" />
-        </Form.Item>
-        <Form.Item
-          name="warning_steps"
-          label="警告步"
-          dependencies={["steps"]}
-          rules={[
-            {
-              validator: (_rule, value: unknown) =>
-                validateField(() => countSelection(value, form.getFieldValue("steps"))),
-            },
-          ]}
-        >
-          <Input placeholder="例如 2,4；可留空" />
-        </Form.Item>
-        <Form.Item
-          name="abort_at_step"
-          label="整体中止步"
-          dependencies={["steps"]}
-          rules={[
-            {
-              validator: (_rule, value: unknown) =>
-                validateField(() => abortStep(value, form.getFieldValue("steps"))),
-            },
-          ]}
-        >
-          <Input inputMode="numeric" placeholder="可留空" />
-        </Form.Item>
-        <Button
-          aria-label="提交作业"
-          htmlType="submit"
-          type="primary"
-          loading={submit.isPending}
+    <section className="jobs-page">
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "作业" }, { title: "示例作业" }]} />
+        <Typography.Title level={2} className="app-page-title">
+          提交示例作业
+        </Typography.Title>
+      </header>
+      <Card className="jobs-form">
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{
+            steps: "30",
+            interval_ms: "1000",
+            failed_steps: "",
+            warning_steps: "",
+            abort_at_step: "",
+          }}
           disabled={submit.isPending}
+          onFinish={(values) => {
+            submit.mutate(countInput(values));
+          }}
         >
-          提交作业
-        </Button>
-      </Form>
+          <Form.Item
+            name="steps"
+            label="总步数"
+            rules={[
+              {
+                validator: (_rule, value: unknown) =>
+                  validateField(() =>
+                    countInteger(value, 1, COUNT_MAX_STEPS, COUNT_MESSAGES.steps),
+                  ),
+              },
+            ]}
+          >
+            <Input inputMode="numeric" />
+          </Form.Item>
+          <Form.Item
+            name="interval_ms"
+            label="每步间隔（毫秒）"
+            rules={[
+              {
+                validator: (_rule, value: unknown) =>
+                  validateField(() =>
+                    countInteger(value, 0, COUNT_MAX_INTERVAL_MS, COUNT_MESSAGES.interval),
+                  ),
+              },
+            ]}
+          >
+            <Input inputMode="numeric" />
+          </Form.Item>
+          <Form.Item
+            name="failed_steps"
+            label="失败步"
+            dependencies={["steps"]}
+            rules={[
+              {
+                validator: (_rule, value: unknown) =>
+                  validateField(() => countSelection(value, form.getFieldValue("steps"))),
+              },
+            ]}
+          >
+            <Input placeholder="例如 2,4；可留空" />
+          </Form.Item>
+          <Form.Item
+            name="warning_steps"
+            label="警告步"
+            dependencies={["steps"]}
+            rules={[
+              {
+                validator: (_rule, value: unknown) =>
+                  validateField(() => countSelection(value, form.getFieldValue("steps"))),
+              },
+            ]}
+          >
+            <Input placeholder="例如 2,4；可留空" />
+          </Form.Item>
+          <Form.Item
+            name="abort_at_step"
+            label="整体中止步"
+            dependencies={["steps"]}
+            rules={[
+              {
+                validator: (_rule, value: unknown) =>
+                  validateField(() => abortStep(value, form.getFieldValue("steps"))),
+              },
+            ]}
+          >
+            <Input inputMode="numeric" placeholder="可留空" />
+          </Form.Item>
+          <Button
+            aria-label="提交作业"
+            htmlType="submit"
+            type="primary"
+            loading={submit.isPending}
+            disabled={submit.isPending}
+          >
+            提交作业
+          </Button>
+        </Form>
+      </Card>
       {submit.isError && <DiagnosticCard failure={toFailureView(submit.error)} />}
     </section>
   );

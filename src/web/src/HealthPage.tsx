@@ -2,7 +2,8 @@
 import type { ReactElement } from "react";
 import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Typography } from "antd";
+import { Breadcrumb, Card, Typography } from "antd";
+import "./health.css";
 import type { HealthClient } from "./api/client";
 import { createHealthClient } from "./api/client";
 import { DiagnosticCard } from "./DiagnosticCard";
@@ -37,8 +38,21 @@ export function HealthPage(props: HealthPageProps = {}): ReactElement {
     [client, queryClient],
   );
   const health = useHealth(client);
-  if (health.isError) {
-    return <DiagnosticCard failure={toFailureView(health.error)} loadDetails={loadDetails} />;
-  }
-  return <Typography.Text>{health.isSuccess ? "后端正常" : "正在检查后端…"}</Typography.Text>;
+  return (
+    <section className="health-page">
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "概览" }]} />
+        <Typography.Title level={2} className="app-page-title">
+          概览
+        </Typography.Title>
+      </header>
+      {health.isError ? (
+        <DiagnosticCard failure={toFailureView(health.error)} loadDetails={loadDetails} />
+      ) : (
+        <Card className="health-status">
+          <Typography.Text>{health.isSuccess ? "后端正常" : "正在检查后端…"}</Typography.Text>
+        </Card>
+      )}
+    </section>
+  );
 }

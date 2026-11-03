@@ -1,7 +1,7 @@
 // M1-09 撤回入口与路由：统一按 nav_write_apply 识别实际写作业，不按操作中文名猜测。
 import type { ReactElement } from "react";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
-import { Alert, Button, Typography } from "antd";
+import { Alert, Breadcrumb, Button, Card, Typography } from "antd";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import { previewRevert } from "../api/navigationWrites";
 import { useJobAction } from "../jobs/_actions";
@@ -66,8 +66,13 @@ export function RevertPage(): ReactElement {
   const job = useJob(jobId);
   const account = useCurrentAccount();
   return (
-    <section className="navigation-write">
-      <Typography.Title level={2}>撤回作业 #{jobId}</Typography.Title>
+    <section className="navigation-write navigation-write-page">
+      <header className="app-page-header">
+        <Breadcrumb items={[{ title: "作业" }, { title: "回滚" }]} />
+        <Typography.Title level={2} className="app-page-title">
+          撤回作业 #{jobId}
+        </Typography.Title>
+      </header>
       {job.error && <DiagnosticCard failure={toFailureView(job.error)} />}
       {job.data?.type_name === "nav_write_apply" && (
         <RevertForm key={JSON.stringify([account.data?.account_id, jobId])} job={job.data} />
@@ -126,21 +131,23 @@ function RevertForm({ job }: RevertEntryProps): ReactElement {
   const { submit } = flow;
   return (
     <>
-      <p>撤回会核对永久变更记录；当前内容不等于原作业后像时，一行都不写。</p>
-      {reason && <Alert aria-label="撤回限制" type="warning" title={reason} />}
-      <Button
-        aria-label={flow.retry ? "重新预览撤回" : "预览撤回"}
-        disabled={!allowed || submit.isPending}
-        loading={submit.isPending}
-        onClick={() => {
-          if (allowed) {
-            submit.reset();
-            submit.mutate(job.job_id);
-          }
-        }}
-      >
-        预览撤回
-      </Button>
+      <Card className="navigation-write-form">
+        <p>撤回会核对永久变更记录；当前内容不等于原作业后像时，一行都不写。</p>
+        {reason && <Alert aria-label="撤回限制" type="warning" title={reason} />}
+        <Button
+          aria-label={flow.retry ? "重新预览撤回" : "预览撤回"}
+          disabled={!allowed || submit.isPending}
+          loading={submit.isPending}
+          onClick={() => {
+            if (allowed) {
+              submit.reset();
+              submit.mutate(job.job_id);
+            }
+          }}
+        >
+          预览撤回
+        </Button>
+      </Card>
       <RevertResults flow={flow} allowed={allowed} />
     </>
   );

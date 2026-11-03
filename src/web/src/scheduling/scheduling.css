@@ -1,0 +1,17 @@
+/* 调度信息和表单按独立信息组分卡。 */
+.scheduling-page {
+  /* 表格宽度只决定自身滚动范围，不能反向撑宽页面轨道。 */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--rdp-space-5);
+  min-width: 0;
+}
+.scheduling-form {
+  max-width: 720px;
+  width: 100%;
+}
+/* 表单错误在表单卡外独立展示。 */
+.scheduling-form-section {
+  display: grid;
+  gap: var(--rdp-space-4);
+}

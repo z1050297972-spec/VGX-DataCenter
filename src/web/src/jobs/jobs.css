@@ -1,11 +1,15 @@
 /* 作业页面只管理布局，诊断和下载表单保持自身交互边界。 */
 .jobs-page {
+  /* 表格宽度只决定自身滚动范围，不能反向撑宽页面轨道。 */
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--rdp-space-5);
   min-width: 0;
 }
 .jobs-header {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: var(--rdp-space-1);
 }
 .jobs-page .jobs-title {
@@ -14,6 +18,8 @@
 .jobs-list-content,
 .jobs-summary {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: var(--rdp-space-4);
 }
 .jobs-filter {
@@ -29,24 +35,17 @@
   font-family: var(--rdp-mono);
   font-size: 12px;
 }
-/* 只在作业诊断区域覆盖普通 antd 卡片，保留告警卡片的醒目程度。 */
-.jobs-diagnostics .ant-card:not([role="alert"]) {
-  background: var(--rdp-subtle);
-  border: 0;
-  border-radius: var(--rdp-radius-small);
+
+.jobs-form {
+  width: 100%;
+  max-width: 720px;
 }
-.jobs-diagnostics .jobs-diagnostic-group {
-  display: grid;
-  gap: var(--rdp-space-2);
-  margin-bottom: var(--rdp-space-4);
-}
-.jobs-diagnostics .jobs-diagnostic-group-title {
-  font-weight: 600;
-}
-/* 共用诊断内容只在作业页分成两列，字段文本和可访问性保持不变。 */
-.jobs-page .jobs-diagnostic-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--rdp-space-1) var(--rdp-space-4);
-  overflow-wrap: anywhere;
+
+/* 窄屏先显示标题，再显示可换行的操作链接。 */
+@media (max-width: 640px) {
+  /* 两次类名覆盖 antd 的运行时 Flex 对齐规则。 */
+  .jobs-header-row.jobs-header-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

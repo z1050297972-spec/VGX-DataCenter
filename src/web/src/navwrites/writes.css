@@ -30,3 +30,12 @@
 .navigation-write .ant-btn {
   max-width: 100%;
 }
+
+.navigation-write-page {
+  display: grid;
+  gap: var(--rdp-space-5);
+}
+.navigation-write-form {
+  width: 100%;
+  max-width: 720px;
+}
