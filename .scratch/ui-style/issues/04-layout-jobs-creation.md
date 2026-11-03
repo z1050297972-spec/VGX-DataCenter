@@ -1,6 +1,6 @@
 # 布局优化二：作业页、新建数据集表单、accounts/jobs 内联 style 清理
 
-Status: blocked（等第 03 张合并：本票要用它定下的间距档位、宽度变量和质感）
+Status: in-progress
 
 分级：直做。理由同第 03 张。硬约束与第 03 张完全相同：tsx 只改布局容器；测试文件一个都不改，原样通过；不加依赖，不自己写组件。
 
@@ -33,3 +33,9 @@ Status: blocked（等第 03 张合并：本票要用它定下的间距档位、�
 3. 执行线截图验收：作业列表、作业详情（有失败和警告的示例作业）、下载详情、新建数据集，1440 和 1280 两种宽度。
 
 ## Comments
+
+### 2026-11-02 开票与派工（执行线）
+
+- 第 03 张已合并（f496b99），解除阻塞。负责人在第 03 张合并前已经同意"合并后开第 04 张"。
+- 工作目录 `~/桌面/robot-data-platform.wt/ui-style`，分支 `t/ui-04-layout`，从 main 开。
+- 派工 A：Codex gpt-6.1-terra high，单元 `rdp-codex-ui-04`，日志 `~/.cache/rdp-dispatch/ui-04/`，提示 `assets/04/prompt-A.md`。
