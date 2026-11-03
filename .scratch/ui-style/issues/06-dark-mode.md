@@ -1,6 +1,6 @@
 # 深色模式：跟随系统
 
-Status: blocked（等第 05 张合并：两张都会改 `shell.css`）
+Status: in-progress
 
 分级：直做。
 
