@@ -26,6 +26,10 @@
   width: var(--rdp-width-filter-wide);
 }
 .jobs-log {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  min-width: 0;
   max-height: 480px;
   overflow: auto;
   background: var(--rdp-subtle);
