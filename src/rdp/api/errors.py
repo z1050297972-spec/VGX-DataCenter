@@ -10,10 +10,10 @@
 | 404 | 输入或数据问题 | 要操作的对象不存在 | problem+json，带诊断 |
 | 422 | 输入或数据问题 | 参数类型、范围或缺项不合格；不回显原值 | problem+json，带诊断 |
 | 409 | 冲突 | 与当前状态冲突 | problem+json，带诊断 |
-| 502 | 外部失败 | 外部依赖失败；口令哈希资源繁忙、排队超时 | problem+json，带诊断 |
+| 502 | 外部失败 | 外部依赖失败；密码哈希资源繁忙、排队超时 | problem+json，带诊断 |
 | 500 | 程序缺陷 | 平台 bug 或未归入前三类的异常 | problem+json，安全摘要与错误编号 |
 | 401 | 输入或数据问题 | 未登录、会话失效或登录凭据错误 | problem+json，带诊断并清会话 cookie |
-| 403 | 输入或数据问题 | 角色不足、必须先改口令或 Origin 拒绝 | problem+json，带诊断 |
+| 403 | 输入或数据问题 | 角色不足、必须先改密码或 Origin 拒绝 | problem+json，带诊断 |
 | 429 | 输入或数据问题 | G2 等待 | problem+json，带诊断；Retry-After 为向上取整的剩余秒数 |
 | 413 | 输入或数据问题 | 请求体超过16MiB | problem+json，带诊断 |
 | 404 | （框架格式） | /api 路径不存在，由 S1 兜底返回 | 保持框架 JSON 格式；前端显示"请求失败" |
@@ -47,10 +47,17 @@ from pydantic.json_schema import models_json_schema
 from sqlalchemy import Engine
 
 from rdp.accounts.errors import LoginWaitError
+from rdp.accounts.policy import PASSWORD_TOO_LONG_MESSAGE, PASSWORD_TOO_SHORT_MESSAGE
 from rdp.accounts.types import Role
 from rdp.api._asgi import ASGIApp, ASGIMessage, Receive, Send
 from rdp.api._redaction import member_diagnostic
 from rdp.api.account_auth import AccountRequestContext, clear_session_cookie
+from rdp.api.account_schemas import (
+    ChangePasswordRequest,
+    CreateAccountRequest,
+    LoginRequest,
+    ResetPasswordRequest,
+)
 from rdp.api.audit import report_audit_append_failure
 from rdp.api.shutdown import TrackedReport
 from rdp.infra.db.connection import BUSY_TIMEOUT_MS, session_scope
@@ -138,7 +145,8 @@ def validation_diagnostics(
         rule=“请求字段必须满足接口声明”，actual=“字段缺失或格式不符合要求（原值不回显）”，
         expected=“符合接口声明的类型和约束”，consequence=“请求被拒绝，操作未执行”，
         next_step=“对照接口字段定义修正后重试”。空 errors() 返回一条 field=“请求”兜底诊断。
-        不使用 input/msg/ctx/body 或异常字符串，因校验器消息也可能拼入口令。
+        账号密码长度错误的 actual/next_step 改为同一句长度提示，数字来自账号策略常量。
+        不使用 input/msg/ctx/body 或异常字符串，因校验器消息也可能拼入密码。
 
     Raises:
         无。
@@ -149,25 +157,51 @@ def validation_diagnostics(
     Time Semantics:
         同步转换，不读时钟或重试；保持框架报告顺序。
     """
-    return tuple(
-        Diagnostic(
-            level=DiagnosticLevel.ERROR,
-            category=DiagnosticCategory.INPUT,
-            stage="请求校验",
-            source="平台",
-            objects=(
-                DiagnosticObject(
-                    key="field", value=_validation_location(request, item.get("loc", ()))
-                ),
-            ),
-            rule="请求字段必须满足接口声明",
-            actual="字段缺失或格式不符合要求（原值不回显）",
-            expected="符合接口声明的类型和约束",
-            consequence="请求被拒绝，操作未执行",
-            next_step="对照接口字段定义修正后重试",
+    diagnostics: list[Diagnostic] = []
+    for item in error.errors() or [{}]:
+        location = _validation_location(request, item.get("loc", ()))
+        hint = _password_length_hint(request, location, item.get("type"))
+        diagnostics.append(
+            Diagnostic(
+                level=DiagnosticLevel.ERROR,
+                category=DiagnosticCategory.INPUT,
+                stage="请求校验",
+                source="平台",
+                objects=(DiagnosticObject(key="field", value=location),),
+                rule="请求字段必须满足接口声明",
+                actual=hint or "字段缺失或格式不符合要求（原值不回显）",
+                expected="符合接口声明的类型和约束",
+                consequence="请求被拒绝，操作未执行",
+                next_step=hint or "对照接口字段定义修正后重试",
+            )
         )
-        for item in (error.errors() or [{}])
-    )
+    return tuple(diagnostics)
+
+
+def _password_length_hint(request: Request, location: str, error_type: object) -> str | None:
+    """只根据账号模型声明和错误类型生成长度提示，不读取校验器消息、上下文或秘密原文。"""
+    route = request.scope.get("route")
+    if not isinstance(route, APIRoute) or location not in (
+        "body.password",
+        "body.new_password",
+        "body.current_password",
+    ):
+        return None
+    # 同名字段可能属于其他业务模型；仅账号模型使用这一组密码边界。
+    if not any(
+        isinstance(field.field_info.annotation, type)
+        and issubclass(
+            field.field_info.annotation,
+            (LoginRequest, CreateAccountRequest, ChangePasswordRequest, ResetPasswordRequest),
+        )
+        for field in route.dependant.body_params
+    ):
+        return None
+    if error_type == "too_short":
+        return PASSWORD_TOO_SHORT_MESSAGE
+    if error_type == "too_long":
+        return PASSWORD_TOO_LONG_MESSAGE
+    return None
 
 
 def build_problem(request: Request, error: Exception) -> ProblemResponse:
@@ -731,8 +765,8 @@ def sanitize_account_error(error: Exception) -> Exception:
 
     Side Effects:
         不修改原异常、不记录日志；账号业务及任意路由认证失败的两个统一错误出口均先调用此函数，
-        再用既有 report_error_with_database 报告一次，避免未知错误把口令/cookie 写入完整报错。
-        口令、会话令牌、cookie 不得出现在响应、诊断、异常消息、运行日志或报错表。
+        再用既有 report_error_with_database 报告一次，避免未知错误把密码/cookie 写入完整报错。
+        密码、会话令牌、cookie 不得出现在响应、诊断、异常消息、运行日志或报错表。
         认证成功后的其他业务完整异常报告契约不变。
 
     Time Semantics:

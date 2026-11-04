@@ -81,9 +81,7 @@ it("所有已登录业务页面显示相同平台版本", async () => {
   for (const path of [
     "/",
     "/jobs",
-    "/jobs/new",
     "/jobs/1",
-    "/jobs/resources",
     "/accounts",
     "/audit/operations",
     "/audit/logins",
@@ -137,7 +135,7 @@ it("未完成登录或改密时不请求版本", async () => {
       return Promise.resolve(Response.json({ version: "不应显示" }));
     });
     const view = mountRoute(forced ? "/change-password" : "/login", transport);
-    await screen.findByLabelText(forced ? "新口令" : "登录名");
+    await screen.findByLabelText(forced ? "新密码" : "登录名");
     expect(
       transport.mock.calls.filter(([request]) => new URL(request.url).pathname === "/api/version"),
     ).toHaveLength(0);

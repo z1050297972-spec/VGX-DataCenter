@@ -148,7 +148,7 @@ def get_job_context(request: Request, account: AuthenticatedContext) -> JobApiCo
     Raises:
         AuthenticationError: 未登录，401 并清 cookie。
         AuthorizationError: 写请求 Origin 不合法，403，先于认证和参数。
-        PasswordChangeRequiredError: 必须改口令，403。
+        PasswordChangeRequiredError: 必须改密码，403。
         ExternalError: 作业服务未配置，502。
         DefectError: 依赖或时钟损坏，500。
 
@@ -531,7 +531,7 @@ def submit_gpu_job(context: JobContext, body: GpuExampleParameters) -> JobRespon
         JobInputError: 占用时长非法或类型未登记，422。
         AuthenticationError: 会话无效，401。
         AuthorizationError: 非管理员提交，403，先于参数校验。
-        PasswordChangeRequiredError: 必须改口令，403。
+        PasswordChangeRequiredError: 必须改密码，403。
         ConflictError: 提交/审计事务竞争，409。
         InputError: 数据库损坏，400。
         ExternalError: 持久化失败，502。
@@ -570,7 +570,7 @@ def submit_navigation_job(context: JobContext, body: NavigationExampleParameters
         JobInputError: 参数不合格或类型未登记，422；不以当前文件状态拒绝提交。
         AuthenticationError: 事务内身份失效，401。
         AuthorizationError: 当前账号不是管理员，403。
-        PasswordChangeRequiredError: 账号须改口令，403。
+        PasswordChangeRequiredError: 账号须改密码，403。
         ConflictError: 提交写锁/约束冲突，409。
         InputError: 数据库损坏，400。
         ExternalError: 新作业或审计事务失败，502。
@@ -862,10 +862,11 @@ def get_scheduling(context: JobContext) -> SchedulingResponse:
 
     Returns:
         HTTP 200，类型上限/数量、卡主、写锁持有人、每日下次时间及上次结果；编号文本、时刻 UTC。
+        每日计划同时带出规则定义中的用途说明。
 
     Raises:
         AuthenticationError: 未登录或会话重验失败，401。
-        PasswordChangeRequiredError: 必须先改口令，403。
+        PasswordChangeRequiredError: 必须先改密码，403。
         InputError: 数据库/历史记录损坏，400。
         ConflictError: 快照读取锁竞争，409。
         ExternalError: 未注入调度配置或数据库不可读，502，不能伪装为空闲。
@@ -903,6 +904,7 @@ def get_scheduling(context: JobContext) -> SchedulingResponse:
         schedules=tuple(
             ScheduleResponse(
                 name=item.name,
+                description=item.description,
                 next_run_at=item.next_run_at,
                 last_job_id=None
                 if item.last_submission is None

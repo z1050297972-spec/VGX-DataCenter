@@ -52,7 +52,7 @@ class ScheduleRegistry:
             无；登记完成后不可追加，空元组可用于不运行定时作业的测试。
 
         Raises:
-            DefectError: 重复/非法名字、超过容量、类型不存在、参数非法或时刻非整分钟本地时间。
+            DefectError: 重复/非法名字、说明非字符串或全空白、超过容量、类型不存在、参数非法或时刻非整分钟本地时间。
 
         Side Effects:
             仅复制有界参数和规则，不提交作业，不访问数据库、文件或时钟。
@@ -96,7 +96,7 @@ class ScheduleRegistry:
 
 
 def production_schedules(jobs: JobRegistry) -> ScheduleRegistry:
-    """登记每天 03:00 的报错清除与两种日志联合清除。
+    """登记每天 03:00 的报错清除、两种日志联合清除和数据集大小统计。
 
     Args:
         jobs: 包含两个清除类型及dataset_sizing的生产类型登记表。
@@ -104,6 +104,7 @@ def production_schedules(jobs: JobRegistry) -> ScheduleRegistry:
     Returns:
         三条规则：两个清除类型参数为空；统计数据集大小的dataset_id为None，表示全量。
         三类都按RESTART恢复；统计类型与手动入口共用永久键dataset_sizing。
+        每条规则包含调度页展示的用途说明，前端无需按规则名字推导。
 
     Raises:
         DefectError: 缺清除类型、参数模型/恢复声明不一致。
@@ -116,9 +117,24 @@ def production_schedules(jobs: JobRegistry) -> ScheduleRegistry:
     """
     return ScheduleRegistry(
         (
-            ScheduledJob(PURGE_ERRORS_NAME, PURGE_ERRORS_TYPE, {}),
-            ScheduledJob(PURGE_AUDIT_LOGS_NAME, PURGE_AUDIT_LOGS_TYPE, {}),
-            ScheduledJob(SIZING_NAME, SIZING_TYPE, {"dataset_id": None}),
+            ScheduledJob(
+                PURGE_ERRORS_NAME,
+                PURGE_ERRORS_TYPE,
+                {},
+                description="删除超过保留期的程序报错记录",
+            ),
+            ScheduledJob(
+                PURGE_AUDIT_LOGS_NAME,
+                PURGE_AUDIT_LOGS_TYPE,
+                {},
+                description="删除超过保留期的操作日志和登录日志",
+            ),
+            ScheduledJob(
+                SIZING_NAME,
+                SIZING_TYPE,
+                {"dataset_id": None},
+                description="重新统计每个数据集占用的空间",
+            ),
         ),
         jobs,
     )
@@ -313,6 +329,11 @@ def _validate_schedule(definition: ScheduledJob, jobs: JobRegistry) -> None:
     """登记是代码配置，参数拒绝统一归程序缺陷；复用提交的模型/容量校验，不回显秘密。"""
     if not isinstance(cast(object, definition), ScheduledJob) or not is_display_name(
         definition.name
+    ):
+        raise DefectError()
+    if (
+        not isinstance(cast(object, definition.description), str)
+        or not definition.description.strip()
     ):
         raise DefectError()
     moment = definition.local_time

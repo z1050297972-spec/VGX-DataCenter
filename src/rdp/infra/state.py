@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 DATABASE_FILENAME = "rdp.sqlite3"
 # ADR 0005 要求 worker 与运维命令共用单实例锁；basename 在本票统一，取锁属于第 08 张。
 WORKER_LOCK_FILENAME = "worker.lock"
-# 工单 03：数据库以后含口令哈希，新建目录只向属主开放，单位为 POSIX 权限位。
+# 工单 03：数据库以后含密码哈希，新建目录只向属主开放，单位为 POSIX 权限位。
 STATE_DIRECTORY_MODE = 0o700
 
 
@@ -153,7 +153,7 @@ def initialize_state(paths: StatePaths) -> tuple[DirectoryPermissionWarning, ...
         失败时保留已建空目录，不回滚、不删除任何既有对象，修正原因后可安全重试。
         全部已存在时只检查，第二次调用不写任何东西（验收 2），仍返回当前宽权限清单。
         不直接打警告；调用方在 configure_logging 完成后把返回值交给 log_state_warnings，
-        由启动边界记录路径、八进制权限及可能泄露口令哈希的后果（P4）。
+        由启动边界记录路径、八进制权限及可能泄露密码哈希的后果（P4）。
 
     Time Semantics:
         启动阶段同步执行，无重试；先检查已有目标，再逐层创建。

@@ -879,7 +879,7 @@ def test_state_permission_warning_after_logging(tmp_path: Path) -> None:
         text = (paths.logs / f"{process}.log").read_text(encoding="utf-8")
         assert text.startswith("2026-10-21 16:15:02.123+08:00 WARNING rdp.infra.logging ")
         assert "mode=0755" in text and f"path={root}" in text
-        assert "口令哈希" in text and "其他用户可能读到" in text
+        assert "密码哈希" in text and "其他用户可能读到" in text
         assert root.stat().st_mode & 0o777 == 0o755
 
 

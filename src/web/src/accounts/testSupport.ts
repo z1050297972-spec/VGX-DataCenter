@@ -42,11 +42,11 @@ export function problemResponse(status: number): Response {
     category: status === 409 ? "conflict" : status === 502 ? "external" : "input",
     detail:
       status === 400
-        ? "当前口令不正确"
+        ? "当前密码不正确"
         : status === 409
           ? "账号状态已变化，请重试"
           : status === 502
-            ? "口令核验资源繁忙"
+            ? "密码核验资源繁忙"
             : "请求被拒绝",
     error_id: "00000000000040008000000000000000",
     diagnostics: [],

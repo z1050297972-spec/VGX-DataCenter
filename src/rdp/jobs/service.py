@@ -103,7 +103,7 @@ class JobService:
 
         Raises:
             AuthenticationError: 事务内会话已撤销/过期或账号停用、删除。
-            PasswordChangeRequiredError: 当前账号必须先改口令。
+            PasswordChangeRequiredError: 当前账号必须先改密码。
             AuthorizationError: 通用提交中成员提交管理员类型，先于类型参数校验拒绝。
             JobInputError: 未登记类型、非法参数、额外字段或编码后超长；不回显原值。
             InputError: 数据库损坏。
@@ -162,7 +162,7 @@ class JobService:
         Raises:
             AuthorizationError: 成员试图提交管理员类型。
             AuthenticationError: 会话已经失效。
-            PasswordChangeRequiredError: 仍需修改口令。
+            PasswordChangeRequiredError: 仍需修改密码。
             InputError: 数据库数据损坏。
             ConflictError: 读取锁超时。
             ExternalError: 数据库读取失败。
@@ -317,7 +317,7 @@ class JobService:
 
         Raises:
             AuthenticationError: 事务内重验时身份失效。
-            PasswordChangeRequiredError: 当前账号必须先改口令。
+            PasswordChangeRequiredError: 当前账号必须先改密码。
             JobInputError: 编号格式/范围非法。
             JobNotFoundError: 原作业不存在。
             ConflictError: 已是 cancelling 或终态、条件 UPDATE 竞争失败，或写锁冲突。
@@ -377,7 +377,7 @@ class JobService:
 
         Raises:
             AuthenticationError: 重验时会话或账号无效。
-            PasswordChangeRequiredError: 账号须先改口令。
+            PasswordChangeRequiredError: 账号须先改密码。
             AuthorizationError: 成员重新提交管理员类型或暂存清理。
             JobNotFoundError: 原记录不存在。
             JobInputError: 编号非法、原类型已移除或原参数按当前模型无效；不回显原参数。
@@ -557,7 +557,7 @@ class JobService:
 
         Raises:
             AuthenticationError: 会话失效。
-            PasswordChangeRequiredError: 必须改口令。
+            PasswordChangeRequiredError: 必须改密码。
             InputError: 数据库损坏。
             ConflictError: 心跳读取锁冲突。
             ExternalError: 查询失败，不将故障伪装成离线。

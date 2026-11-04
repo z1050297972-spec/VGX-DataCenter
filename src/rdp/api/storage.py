@@ -60,7 +60,7 @@ def get_storage_inspector(request: Request, account: AuthenticatedContext) -> Mo
 
     Raises:
         AuthenticationError: 未登录或会话失效，沿用 401 和清 cookie。
-        PasswordChangeRequiredError: 必须改口令，沿用 403。
+        PasswordChangeRequiredError: 必须改密码，沿用 403。
         ExternalError: 没有装配存储依赖，返回带诊断的 502，不假装没有存储根。
         DefectError: app.state 中依赖损坏，沿用 500。
 

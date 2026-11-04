@@ -1,7 +1,7 @@
 """argparse 运维命令边界（11 M3），不实现账号、迁移或作业业务，也不依赖 Web 入口。
 
 参数解析复用标准库；生产 Web 回调由 rdp.cli 注入，保持 api 与 ops 的依赖隔离。
-口令只经已有 accounts 交互函数读取，不支持命令行口令或环境变量口令。
+密码只经已有 accounts 交互函数读取，不支持命令行密码或环境变量密码。
 """
 
 import argparse
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class Command:
-    """解析后的运维动作；不持有原始口令或 argparse Namespace。
+    """解析后的运维动作；不持有原始密码或 argparse Namespace。
 
     Attributes:
         name: web、worker、migrate、create-admin、reset-password、status、rebuild-index 或 version。
@@ -67,12 +67,12 @@ class Command:
 
 @dataclass(frozen=True)
 class Console:
-    """终端输入输出依赖；测试使用内存流和口令替身。
+    """终端输入输出依赖；测试使用内存流和密码替身。
 
     Attributes:
-        stdout: 帮助、版本及成功摘要流，不输出口令。
+        stdout: 帮助、版本及成功摘要流，不输出密码。
         stderr: 参数错误和运维失败诊断流；--no-stderr 禁止服务运行日志写入此流。
-        read_password: 无回显口令读取函数，接收中文提示；生产复用 getpass。
+        read_password: 无回显密码读取函数，接收中文提示；生产复用 getpass。
     """
 
     stdout: TextIO
@@ -84,8 +84,8 @@ def parse_command(argv: Sequence[str], *, console: Console) -> Command:
     """用 argparse 解析最小运维命令，不触发运行环境初始化。
 
     Args:
-        argv: 不含可执行文件名的字符串序列，可为空；不接受口令参数。
-        console: 帮助和参数诊断的输出流，此函数不读口令。
+        argv: 不含可执行文件名的字符串序列，可为空；不接受密码参数。
+        console: 帮助和参数诊断的输出流，此函数不读密码。
 
     Returns:
         Command；create-admin 接收 <登录名> <显示名>，reset-password 接收 <登录名>。
@@ -133,7 +133,7 @@ def run_cli(
     Args:
         argv: 不含程序名的参数；解析规则以 parse_command 为准。
         inputs: 显式环境、home、时钟和部署布局，测试不得使用真实默认目录。
-        console: 输出和口令输入；账号命令复用 create_first_admin/reset_account_password。
+        console: 输出和密码输入；账号命令复用 create_first_admin/reset_account_password。
         web: Web 生命周期回调，接收 prepare_service 的资源，负责等待报错线程并释放引擎。
         signals: worker 停止事件的信号上下文，生产为 stop_signals；测试传无全局副作用替身。
 
@@ -150,14 +150,14 @@ def run_cli(
         version 只读取版本事实并输出一行；status 走只读检查，不初始化目录或日志、不迁移。
         服务走 prepare_service；worker 传 StorageAccessChecker、版本和完整 WorkerScheduling，
         Web 必须传入真实引擎。启动失败只在此边界记录一次诊断，版本闸门明确提示 rdp migrate。
-        账号命令读取两次口令再调用现有领域事务；本层不另补成功操作日志。
+        账号命令读取两次密码再调用现有领域事务；本层不另补成功操作日志。
         rebuild-index同步独占worker锁清空并重建索引，成功日志与发布同事务；不统计大小。
         --no-stderr 下已配置日志的服务失败只进文件；日志初始化之前失败仍可输出终端诊断。
         不吞 worker 非零码，不在同进程重启；lock_retained=True 时不 dispose 仍被线程使用的引擎。
 
     Time Semantics:
         帮助先于配置读取；服务持续到停止，worker 停止预算沿用 WORKER_STOP_TIMEOUT_S。
-        维护命令的事务/口令等待分别沿用 migrate 与 accounts 的契约，无额外重试。
+        维护命令的事务/密码等待分别沿用 migrate 与 accounts 的契约，无额外重试。
     """
     previous_handlers = logging.getLogger().handlers
     try:
@@ -196,7 +196,7 @@ def run_maintenance(command: Command, *, inputs: RuntimeInputs, console: Console
     Args:
         command: 仅 migrate、create-admin、reset-password，账号参数必须完整。
         inputs: 配置和时钟依赖；不要求前端已构建，不探测 GPU 或装配调度。
-        console: 成功摘要和无回显输入；不接受明文口令参数。
+        console: 成功摘要和无回显输入；不接受明文密码参数。
 
     Returns:
         成功为 0；失败向外传播，由 run_cli 统一转换退出码。
@@ -208,8 +208,8 @@ def run_maintenance(command: Command, *, inputs: RuntimeInputs, console: Console
         DefectError: command 非维护命令、必填上下文缺失或注入时钟无效。
         ValueError: 配置或状态布局校验失败。
         OSError: 配置、状态目录、迁移备份或输出流访问失败。
-        EOFError: 口令输入结束；沿用现有无部分账号写入的保证。
-        KeyboardInterrupt: 操作者取消口令输入或迁移，传播给 run_cli。
+        EOFError: 密码输入结束；沿用现有无部分账号写入的保证。
+        KeyboardInterrupt: 操作者取消密码输入或迁移，传播给 run_cli。
 
     Side Effects:
         migrate 初始化状态目录并调用现有迁移入口，保留它的备份和失败回滚语义。
@@ -218,7 +218,7 @@ def run_maintenance(command: Command, *, inputs: RuntimeInputs, console: Console
 
     Time Semantics:
         migrate 要求操作者已停止 Web 和 worker；入口不会强制停止别的进程。
-        UTC 时刻每次维护动作取一次；口令交互不持事务，锁和备份预算复用已有入口。
+        UTC 时刻每次维护动作取一次；密码交互不持事务，锁和备份预算复用已有入口。
     """
     if command.name not in ("migrate", "create-admin", "reset-password"):
         raise DefectError
@@ -275,7 +275,7 @@ class _Parser(argparse.ArgumentParser):
 
 
 def _parser(console: Console) -> _Parser:
-    """在一处声明运维参数，不允许缩写、不接受口令字段。"""
+    """在一处声明运维参数，不允许缩写、不接受密码字段。"""
     parser = _Parser(prog="rdp", description="机器人数据平台运维入口", allow_abbrev=False)
     parser.console = console
     parser.add_argument("--version", action="store_true", help="显示包版本与构建提交")
@@ -285,7 +285,7 @@ def _parser(console: Console) -> _Parser:
         "worker": "启动后台作业 worker",
         "migrate": "升级数据库到当前版本",
         "create-admin": "创建首个管理员",
-        "reset-password": "重置账号口令并撤销旧会话",
+        "reset-password": "重置账号密码并撤销旧会话",
         "status": "只读检查作业、worker 锁或监听端口",
         "rebuild-index": "停止 worker 后清空并重建数据集索引",
     }
@@ -327,7 +327,7 @@ def _parser(console: Console) -> _Parser:
 
 
 def _failure_text(error: Exception) -> str:
-    """公开诊断逐条呈现；未知异常只给安全类别，不回显口令或异常载荷。"""
+    """公开诊断逐条呈现；未知异常只给安全类别，不回显密码或异常载荷。"""
     if isinstance(error, (InputError, ConflictError, ExternalError)):
         return (
             "\n".join(render_diagnostic(item) for item in error.diagnostics)

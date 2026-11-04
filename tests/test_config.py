@@ -281,7 +281,7 @@ def test_validation_error_translation(tmp_path: Path) -> None:
 
 
 def test_sensitive_error_values(tmp_path: Path) -> None:
-    """验证契约：规范 6.10：未知令牌字段和已知字段的容器载荷均不回显；异常链隐藏模型输入，不泄露嵌套口令。"""
+    """验证契约：规范 6.10：未知令牌字段和已知字段的容器载荷均不回显；异常链隐藏模型输入，不泄露嵌套密码。"""
     source = tmp_path / "secret.toml"
     source.write_text(
         "token = 'private-marker'\n[web]\nhost = {password = 'nested-marker'}", encoding="utf-8"

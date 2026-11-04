@@ -10,7 +10,7 @@ from sqlalchemy import text
 def test_vpn_api_never_exposes_proxy_credentials(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Worker 环境含凭据时，接口只返回代理主机端口，不返回用户名口令。"""
+    """Worker 环境含凭据时，接口只返回代理主机端口，不返回用户名密码。"""
     proc = tmp_path / "proc"
     worker = proc / "123"
     worker.mkdir(parents=True)

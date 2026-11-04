@@ -36,7 +36,7 @@ class VpnStatus:
 def vpn_status(
     interfaces: Path, processes: Sequence[str] | None, environment: Mapping[str, str] | None
 ) -> VpnStatus:
-    """汇总代理迹象，不向结果传递用户名或口令。
+    """汇总代理迹象，不向结果传递用户名或密码。
 
     Args:
         interfaces: 网卡目录；通过 tun_flags 或 wg 前缀识别，排除 Tailscale SSH 通道。

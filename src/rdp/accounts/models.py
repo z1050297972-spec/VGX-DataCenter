@@ -31,7 +31,7 @@ class AccountRow(Base):
         created_by_name: 当时显示名或运维，1-64 字符、不可空、无默认。
         updated_by_id: 修改人快照编号，同 created_by_id；运维为 NULL、无默认、不建外键。
         updated_by_name: 当时显示名或运维，1-64 字符、不可空、无默认。
-        failed_attempts: 连续错口令次数，0-5 次、不可空、默认 0；等待中不增长。
+        failed_attempts: 连续错密码次数，0-5 次、不可空、默认 0；等待中不增长。
         blocked_until: 等待截止 UTCDateTime、微秒、默认 NULL；未等待为 NULL。
     """
 

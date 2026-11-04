@@ -319,7 +319,7 @@ def test_failure_category(case: str, tmp_path: Path) -> None:
     ["success", "wrong_password", "fifth_wrong_password", "disabled", "waiting", "account_missing"],
 )
 def test_login_outcomes(case: str, tmp_path: Path) -> None:
-    """验收3：每类登录结果恰有一条且带ASGI来源IP；第五次错口令仍记wrong_password。"""
+    """验收3：每类登录结果恰有一条且带ASGI来源IP；第五次错密码仍记wrong_password。"""
     with scenario(tmp_path) as (service, _grant):
         wrong = Credentials("admin", SecretStr("wrong-password-value"))
         if case in {"fifth_wrong_password", "waiting"}:
@@ -401,7 +401,7 @@ def test_login_atomic(case: str, tmp_path: Path) -> None:
 
 
 def test_missing_login_privacy(tmp_path: Path) -> None:
-    """验收3/4/H2：未知登录名疑似口令也不落库或报错，仅时间类型结果IP，未建账号且不计G2。"""
+    """验收3/4/H2：未知登录名疑似密码也不落库或报错，仅时间类型结果IP，未建账号且不计G2。"""
     with scenario(tmp_path) as (service, _grant):
         state = persisted_account_state(service.engine)
         with pytest.raises(AuthenticationError) as caught:
@@ -638,7 +638,7 @@ def test_no_fabricated_logout(case: str, tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("case", ["admin_reset", "ops_reset", "own_change", "failed_hash"])
 def test_password_secrets(case: str, tmp_path: Path) -> None:
-    """验收4：重置和本人改密只记强制标记，不存口令哈希令牌摘要cookie或带秘密的异常链。"""
+    """验收4：重置和本人改密只记强制标记，不存密码哈希令牌摘要cookie或带秘密的异常链。"""
     actual = {
         "admin_reset": "reset_password",
         "ops_reset": "reset_password_from_ops",
@@ -666,7 +666,7 @@ def test_password_secrets(case: str, tmp_path: Path) -> None:
 
 
 def test_own_wrong_password(tmp_path: Path) -> None:
-    """H3：错旧口令的G2与失败操作日志同提交，错误后原会话仍有效，且不误写登录日志。"""
+    """H3：错旧密码的G2与失败操作日志同提交，错误后原会话仍有效，且不误写登录日志。"""
     with scenario(tmp_path) as (service, grant):
         before, logins = operations(service), _logins(service)
         with pytest.raises(CurrentPasswordError):
@@ -1080,7 +1080,7 @@ def test_write_reauthorization_rejection_is_not_logged(method: str, tmp_path: Pa
     "case", ["first_wrong", "fifth_wrong", "log_flush_failure", "commit_failure"]
 )
 def test_own_wrong_password_transaction(case: str, tmp_path: Path) -> None:
-    """修订2：第五次等待也和失败操作同提交，日志/提交故障回滚G2，不独立提交旧口令错误结果。"""
+    """修订2：第五次等待也和失败操作同提交，日志/提交故障回滚G2，不独立提交旧密码错误结果。"""
     with scenario(tmp_path) as (service, grant):
         change = PasswordChange(SecretStr("wrong-old-value"), SecretStr("new-password-value"))
         if case == "fifth_wrong":

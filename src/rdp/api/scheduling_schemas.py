@@ -52,6 +52,7 @@ class ScheduleResponse(JobPayload):
 
     Attributes:
         name: 稳定登记名。
+        description: 当前定时规则定义的非空用途说明，供页面原样展示。
         next_run_at: 按本机时区算出的下一次按点 UTC 时刻，浏览器仅负责本地显示。
         last_job_id: 最近提交的作业编号文本，从未提交 None。
         last_submitted_at: 最近提交的 UTC 时刻，从未提交 None。
@@ -60,6 +61,7 @@ class ScheduleResponse(JobPayload):
     """
 
     name: str
+    description: str = Field(min_length=1)
     next_run_at: AwareDatetime
     last_job_id: AccountId | None
     last_submitted_at: AwareDatetime | None

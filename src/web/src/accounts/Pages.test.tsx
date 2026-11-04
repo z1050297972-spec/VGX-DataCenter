@@ -59,7 +59,7 @@ function mount(path: string, fetchImpl: FetchImplementation) {
 }
 function credentials() {
   fireEvent.change(screen.getByLabelText("登录名"), { target: { value: "admin" } });
-  fireEvent.change(screen.getByLabelText("口令"), { target: { value: "private-credential" } });
+  fireEvent.change(screen.getByLabelText("密码"), { target: { value: "private-credential" } });
   fireEvent.click(screen.getByRole("button", { name: "登录" }));
 }
 
@@ -89,7 +89,7 @@ it("验证契约：LoginPage登录后返回原站内路径，外部回跳回退�
   }
 });
 
-it("验证契约：LoginPage必须改口令时直接进改密页，已登录账号不重复显示登录表单", async () => {
+it("验证契约：LoginPage必须改密码时直接进改密页，已登录账号不重复显示登录表单", async () => {
   for (const initiallyLoggedIn of [false, true]) {
     let logged = initiallyLoggedIn;
     const transport = vi.fn<FetchImplementation>((request) => {
@@ -107,7 +107,7 @@ it("验证契约：LoginPage必须改口令时直接进改密页，已登录账�
     await waitFor(() => {
       expect(view.router.state.location.pathname).toBe("/change-password");
     });
-    expect(await screen.findByLabelText("当前口令")).toBeTruthy();
+    expect(await screen.findByLabelText("当前密码")).toBeTruthy();
     expect(screen.queryByLabelText("登录名")).toBeNull();
     view.unmount();
   }
@@ -128,13 +128,13 @@ it("验证契约：LoginPage的401/403/422/429/网络错误均用DiagnosticCard�
     expect(
       await screen.findByText(status === 0 ? "请求失败，请检查网络或稍后重试。" : "请求被拒绝"),
     ).toBeTruthy();
-    expect(screen.getByLabelText<HTMLInputElement>("口令").value).toBe("");
+    expect(screen.getByLabelText<HTMLInputElement>("密码").value).toBe("");
     expect(screen.queryByText("private-network")).toBeNull();
     view.unmount();
   }
 });
 
-it("验证契约：LoginPage展示429剩余倒计时并禁用重复提交，不自动重试或在URL存口令", async () => {
+it("验证契约：LoginPage展示429剩余倒计时并禁用重复提交，不自动重试或在URL存密码", async () => {
   const transport = vi.fn<FetchImplementation>((request) =>
     Promise.resolve(problemResponse(new URL(request.url).pathname === "/api/auth/me" ? 401 : 429)),
   );
@@ -155,7 +155,7 @@ it("验证契约：LoginPage展示429剩余倒计时并禁用重复提交，不�
   expect(transport).toHaveBeenCalledTimes(count);
 });
 
-it("验证契约：PasswordPage强制改密不能绕过，成功清标记后回跳；旧口令400留在当前页、第五次429及新旧相同422可展示，真实401仍跳登录", async () => {
+it("验证契约：PasswordPage强制改密不能绕过，成功清标记后回跳；旧密码400留在当前页、第五次429及新旧相同422可展示，真实401仍跳登录", async () => {
   let forced = true;
   let result = 400;
   const transport = vi.fn<FetchImplementation>((request) => {
@@ -172,23 +172,23 @@ it("验证契约：PasswordPage强制改密不能绕过，成功清标记后回�
     return Promise.resolve(Response.json({ status: "ok" }));
   });
   const view = mount("/change-password?returnTo=%2F", transport);
-  await screen.findByLabelText("当前口令");
+  await screen.findByLabelText("当前密码");
   const submit = () => {
-    fireEvent.change(screen.getByLabelText("当前口令"), {
+    fireEvent.change(screen.getByLabelText("当前密码"), {
       target: { value: "current-credential" },
     });
-    fireEvent.change(screen.getByLabelText("新口令"), {
+    fireEvent.change(screen.getByLabelText("新密码"), {
       target: { value: "replacement-credential" },
     });
-    fireEvent.change(screen.getByLabelText("确认新口令"), {
+    fireEvent.change(screen.getByLabelText("确认新密码"), {
       target: { value: "replacement-credential" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "保存口令" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存密码" }));
   };
   submit();
-  expect(await screen.findByText("当前口令不正确")).toBeTruthy();
+  expect(await screen.findByText("当前密码不正确")).toBeTruthy();
   expect(view.router.state.location.pathname).toBe("/change-password");
-  expect(screen.getByLabelText<HTMLInputElement>("当前口令").value).toBe("");
+  expect(screen.getByLabelText<HTMLInputElement>("当前密码").value).toBe("");
   result = 200;
   submit();
   await waitFor(() => {
@@ -207,7 +207,7 @@ it("验证契约：PasswordPage所有结束路径清空秘密，卸载取消请�
     return Promise.resolve(Response.json(account));
   });
   const view = mount("/change-password", transport);
-  await screen.findByLabelText("当前口令");
+  await screen.findByLabelText("当前密码");
   passwordFields();
   await waitFor(() => {
     expect(pendingSignal).toBeDefined();
@@ -230,7 +230,7 @@ it("验证契约：AccountsPage显示安全字段和分页，新建、改角色�
   );
   mount("/accounts", transport);
   expect(await screen.findByText("目标账号")).toBeTruthy();
-  for (const name of ["新建账号", "改为成员", "停用", "重置口令", "删除", "下一页"])
+  for (const name of ["新建账号", "改为成员", "停用", "重置密码", "删除", "下一页"])
     expect(screen.getByRole("button", { name })).toBeTruthy();
   expect(screen.getByText("9007199254740993")).toBeTruthy();
   expect(screen.queryByText("password_hash")).toBeNull();
@@ -358,22 +358,22 @@ it("验证契约：AccountsPage成功操作刷新列表，密码输入结束后�
   await screen.findByRole("button", { name: "停用" });
   fireEvent.click(screen.getByRole("button", { name: "改为管理员" }));
   await screen.findByRole("button", { name: "改为成员" });
-  fireEvent.click(screen.getByRole("button", { name: "重置口令" }));
-  fireEvent.change(await screen.findByLabelText("初始口令"), {
+  fireEvent.click(screen.getByRole("button", { name: "重置密码" }));
+  fireEvent.change(await screen.findByLabelText("初始密码"), {
     target: { value: "replacement-credential" },
   });
   fireEvent.click(screen.getByRole("button", { name: "保存账号" }));
   await waitFor(() => {
-    expect(screen.queryByLabelText("初始口令")).toBeNull();
+    expect(screen.queryByLabelText("初始密码")).toBeNull();
   });
   fireEvent.click(screen.getByRole("button", { name: "新建账号" }));
   fireEvent.change(await screen.findByLabelText("登录名"), { target: { value: "new_member" } });
   fireEvent.change(screen.getByLabelText("显示名"), { target: { value: "新成员" } });
-  fireEvent.change(screen.getByLabelText("初始口令"), { target: { value: "private-credential" } });
+  fireEvent.change(screen.getByLabelText("初始密码"), { target: { value: "private-credential" } });
   fireEvent.click(screen.getByRole("button", { name: "保存账号" }));
   expect(await screen.findByText("新成员")).toBeTruthy();
   await waitFor(() => {
-    expect(screen.queryByLabelText("初始口令")).toBeNull();
+    expect(screen.queryByLabelText("初始密码")).toBeNull();
   });
   expect(JSON.stringify(view.queryClient.getQueryData(["accounts", "0"]))).not.toContain(
     "private-credential",
@@ -394,7 +394,7 @@ it("验证契约：AccountMenu右上角显示名字角色和登出/改密，只�
     expect(await screen.findByText("后端正常")).toBeTruthy();
     expect(screen.getByText("管理员", { selector: "span" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "登出" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "修改口令" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "修改密码" })).toBeTruthy();
     expect(Boolean(screen.queryByRole("link", { name: "账号管理" }))).toBe(
       role === "administrator",
     );
@@ -421,7 +421,7 @@ it("验证契约：AccountMenu登出成功或401清缓存跳登录，网络失�
     await screen.findByText("后端正常");
     fireEvent.click(screen.getByRole("button", { name: "登出" }));
     if (status === 502) {
-      expect(await screen.findByText("口令核验资源繁忙")).toBeTruthy();
+      expect(await screen.findByText("密码核验资源繁忙")).toBeTruthy();
       expect(view.router.state.location.pathname).toBe("/");
     } else {
       await waitFor(() => {
@@ -516,7 +516,7 @@ it("验证契约：所有页面卸载清理请求/倒计时，Query不持久化�
       credentials();
     }
     if (path === "/change-password") {
-      await screen.findByLabelText("当前口令");
+      await screen.findByLabelText("当前密码");
       passwordFields();
     }
     await waitFor(() => {
@@ -577,7 +577,7 @@ it("验证契约：窗口聚焦身份查询遇502显示诊断而非伪装匿名�
     focusManager.setFocused(false);
     focusManager.setFocused(true);
   });
-  expect(await screen.findByText("口令核验资源繁忙")).toBeTruthy();
+  expect(await screen.findByText("密码核验资源繁忙")).toBeTruthy();
   expect(view.router.state.location.pathname).toBe("/");
   busy = false;
   await act(async () => {
@@ -628,7 +628,7 @@ it("验证契约：管理员停用、删除、降级自己后下一请求401，�
   }
 });
 
-it("验证契约：改密页旧口令前四次错误400展示当前口令不正确并留在当前页，不清身份；第五次429显示G2等待，真实401才跳登录", async () => {
+it("验证契约：改密页旧密码前四次错误400展示当前密码不正确并留在当前页，不清身份；第五次429显示G2等待，真实401才跳登录", async () => {
   let attempts = 0,
     expired = false;
   const transport = vi.fn<FetchImplementation>((request) => {
@@ -638,15 +638,15 @@ it("验证契约：改密页旧口令前四次错误400展示当前口令不正�
     return Promise.resolve(problemResponse(attempts < 5 ? 400 : 429));
   });
   const view = mount("/change-password", transport);
-  await screen.findByLabelText("当前口令");
+  await screen.findByLabelText("当前密码");
   for (let number = 1; number <= 4; number++) {
     passwordFields();
     await waitFor(() => {
       expect(attempts).toBe(number);
     });
-    expect(await screen.findByText("当前口令不正确")).toBeTruthy();
+    expect(await screen.findByText("当前密码不正确")).toBeTruthy();
     await waitFor(() => {
-      expect(screen.getByLabelText<HTMLInputElement>("当前口令").value).toBe("");
+      expect(screen.getByLabelText<HTMLInputElement>("当前密码").value).toBe("");
     });
     expect(view.router.state.location.pathname).toBe("/change-password");
     expect(view.queryClient.getQueryData(["current-account"])).toBeTruthy();
@@ -672,7 +672,7 @@ it("验证契约：改密核验后状态竞争变化409展示重试建议，不�
     ),
   );
   const view = mount("/change-password", transport);
-  await screen.findByLabelText("当前口令");
+  await screen.findByLabelText("当前密码");
   passwordFields();
   expect(await screen.findByText("账号状态已变化，请重试")).toBeTruthy();
   expect(view.router.state.location.pathname).toBe("/change-password");
@@ -681,12 +681,139 @@ it("验证契约：改密核验后状态竞争变化409展示重试建议，不�
 });
 
 function passwordFields() {
-  fireEvent.change(screen.getByLabelText("当前口令"), { target: { value: "current-credential" } });
-  fireEvent.change(screen.getByLabelText("新口令"), {
+  fireEvent.change(screen.getByLabelText("当前密码"), { target: { value: "current-credential" } });
+  fireEvent.change(screen.getByLabelText("新密码"), {
     target: { value: "replacement-credential" },
   });
-  fireEvent.change(screen.getByLabelText("确认新口令"), {
+  fireEvent.change(screen.getByLabelText("确认新密码"), {
     target: { value: "replacement-credential" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "保存口令" }));
+  fireEvent.click(screen.getByRole("button", { name: "保存密码" }));
 }
+
+it.each(["修改密码", "新建账号", "重置密码"] as const)(
+  "验证验收14追加：%s的新密码只有9个字符时显示字段提示，不显示诊断卡片也不发请求",
+  async (operation) => {
+    const transport = vi.fn<FetchImplementation>((request) => {
+      const path = new URL(request.url).pathname;
+      if (request.method !== "GET") return Promise.resolve(problemResponse(422));
+      if (path === "/api/accounts")
+        return Promise.resolve(Response.json({ items: [account], next_after_id: null }));
+      if (path === "/api/downloads/token")
+        return Promise.resolve(Response.json({ configured: false }));
+      return Promise.resolve(Response.json(account));
+    });
+    mount(operation === "修改密码" ? "/change-password" : "/accounts", transport);
+    if (operation === "修改密码") {
+      fireEvent.change(await screen.findByLabelText("当前密码"), {
+        target: { value: "current-credential" },
+      });
+      fireEvent.change(screen.getByLabelText("确认新密码"), { target: { value: "123456789" } });
+    } else {
+      fireEvent.click(await screen.findByRole("button", { name: operation }));
+      if (operation === "新建账号") {
+        fireEvent.change(await screen.findByLabelText("登录名"), { target: { value: "new_user" } });
+        fireEvent.change(screen.getByLabelText("显示名"), { target: { value: "新账号" } });
+      }
+    }
+    const input = await screen.findByLabelText(operation === "修改密码" ? "新密码" : "初始密码");
+    fireEvent.change(input, { target: { value: "123456789" } });
+    fireEvent.click(
+      screen.getByRole("button", { name: operation === "修改密码" ? "保存密码" : "保存账号" }),
+    );
+    expect(await screen.findByText("密码至少需要 10 个字符")).toBeTruthy();
+    const errorId = input
+      .getAttribute("aria-describedby")
+      ?.split(" ")
+      .find((id) => id.endsWith("_help"));
+    expect(errorId && document.getElementById(errorId)?.textContent).toBe("密码至少需要 10 个字符");
+    expect(screen.queryByText(/错误编号：/)).toBeNull();
+    expect(transport.mock.calls.filter(([request]) => request.method !== "GET")).toHaveLength(0);
+  },
+);
+
+it.each(["administrator", "member"] as const)(
+  "验证验收14：%s强制改密码时显示原因和回跳提示，菜单只保留改密与登出",
+  async (role) => {
+    const transport = vi.fn<FetchImplementation>(() =>
+      Promise.resolve(Response.json({ ...account, role, must_change_password: true })),
+    );
+    mount("/", transport);
+    await screen.findByLabelText("当前密码");
+    const notice = screen.getByRole("alert");
+    expect(notice.textContent).toContain("首次登录");
+    expect(notice.textContent).toContain("管理员重置了密码");
+    expect(notice.textContent).toContain("先设置新密码");
+    expect(notice.textContent).toContain("自动回到刚才要去的页面");
+    expect(notice.textContent).toContain("其他功能");
+    expect(screen.getByText("至少 10 个字符")).toBeTruthy();
+    const menu = within(screen.getByRole("navigation", { name: "主菜单" }));
+    expect(menu.getAllByRole("link").map((link) => link.textContent)).toEqual(["修改密码"]);
+    expect(screen.getByRole("button", { name: "登出" })).toBeTruthy();
+  },
+);
+
+it.each(["administrator", "member"] as const)(
+  "验证验收14：%s自主改密码时没有强制提示，保留该角色的完整菜单",
+  async (role) => {
+    const transport = vi.fn<FetchImplementation>(() =>
+      Promise.resolve(Response.json({ ...account, role })),
+    );
+    mount("/change-password", transport);
+    await screen.findByLabelText("当前密码");
+    expect(screen.queryByRole("alert")).toBeNull();
+    const menu = within(screen.getByRole("navigation", { name: "主菜单" }));
+    expect(menu.getAllByRole("link").map((link) => link.textContent)).toEqual([
+      "修改密码",
+      "作业",
+      "下载",
+      "网络与资源",
+      "调度",
+      "数据集",
+      "存储根",
+      ...(role === "administrator" ? ["账号管理", "操作日志", "登录日志"] : []),
+    ]);
+    expect(screen.getByRole("button", { name: "登出" })).toBeTruthy();
+  },
+);
+
+it("验证验收14：强制改密码成功后恢复完整菜单，点击改密入口仍保留原目标页", async () => {
+  let forced = true;
+  const transport = vi.fn<FetchImplementation>((request) => {
+    const path = new URL(request.url).pathname;
+    if (path === "/api/auth/password") forced = false;
+    return Promise.resolve(
+      path === "/api/health"
+        ? Response.json({ status: "ok" })
+        : Response.json({ ...account, must_change_password: forced }),
+    );
+  });
+  const target = "/?tab=overview#details";
+  const view = mount(target, transport);
+  await screen.findByLabelText("当前密码");
+  expect(screen.queryByRole("link", { name: "作业" })).toBeNull();
+  const returnLocation = view.router.state.location.href;
+  fireEvent.click(screen.getByRole("link", { name: "修改密码" }));
+  await act(async () => {
+    await view.router.load();
+  });
+  expect(view.router.state.location.href).toBe(returnLocation);
+  passwordFields();
+  await screen.findByText("后端正常");
+  expect(view.router.state.location.href).toBe(target);
+  expect(screen.queryByRole("alert")).toBeNull();
+  const menu = within(screen.getByRole("navigation", { name: "主菜单" }));
+  expect(menu.getAllByRole("link").map((link) => link.textContent)).toEqual([
+    "修改密码",
+    "作业",
+    "下载",
+    "网络与资源",
+    "调度",
+    "数据集",
+    "存储根",
+    "账号管理",
+    "操作日志",
+    "登录日志",
+  ]);
+  expect(screen.getByRole("button", { name: "登出" })).toBeTruthy();
+});

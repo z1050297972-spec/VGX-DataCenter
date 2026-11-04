@@ -81,7 +81,7 @@ def list_operations(
 
     Raises:
         AuthenticationError: 未登录或会话无效，401 并清 cookie。
-        PasswordChangeRequiredError: 必须改口令，403。
+        PasswordChangeRequiredError: 必须改密码，403。
         AuthorizationError: 成员访问管理员模板（包括错方法、坏参数），403，先于 405/422。
         AuditInputError: 筛选范围、时区、任一账号编号上限、游标绑定或分页非法，422，不回显输入。
         InputError: 数据库/历史明细损坏，400。
@@ -124,7 +124,7 @@ def list_logins(
 
     Raises:
         AuthenticationError: 无有效身份，401 并清 cookie。
-        PasswordChangeRequiredError: 必须改口令，403。
+        PasswordChangeRequiredError: 必须改密码，403。
         AuthorizationError: 成员访问，403，优先于方法和参数错误。
         AuditInputError: 筛选、时间偏移、游标种类/筛选绑定或编号/limit 非法，422。
         InputError: 数据库或存量登录快照损坏，400。
@@ -161,7 +161,7 @@ def get_retention(context: AdminContext) -> RetentionPayload:
 
     Raises:
         AuthenticationError: 无有效身份，401。
-        PasswordChangeRequiredError: 必须改口令，403。
+        PasswordChangeRequiredError: 必须改密码，403。
         AuthorizationError: 成员，403；GET 不要求 Origin。
         InputError: 设置或数据库损坏，400，不能伪装默认值。
         ConflictError: 读取锁冲突，409。
@@ -196,7 +196,7 @@ def set_retention(
     Raises:
         AuthorizationError: Origin 缺失/非法/不同源或成员，403，优先于 body 校验。
         AuthenticationError: 非公开接口无有效会话，401 并清 cookie。
-        PasswordChangeRequiredError: 必须改口令，403。
+        PasswordChangeRequiredError: 必须改密码，403。
         AuditInputError: days 类型或范围不合法，422，不记操作日志。
         InputError: 既有设置或数据库损坏，400。
         ConflictError: 业务写锁或约束冲突，409。

@@ -31,7 +31,7 @@ class AuthorizationError(InputError):
 
 
 class PasswordChangeRequiredError(InputError):
-    """尚未完成强制改口令，拒绝其他业务访问。
+    """尚未完成强制改密码，拒绝其他业务访问。
 
     Attributes:
         http_status: 固定 HTTPStatus.FORBIDDEN，无单位、不可空、类默认值。
@@ -55,7 +55,7 @@ class AccountNotFoundError(InputError):
 
 
 class AccountInputError(InputError):
-    """账号字段、口令或时刻不满足输入约束。
+    """账号字段、密码或时刻不满足输入约束。
 
     Attributes:
         http_status: 固定 HTTPStatus.UNPROCESSABLE_ENTITY，无单位、不可空、类默认值。
@@ -67,13 +67,13 @@ class AccountInputError(InputError):
 
 
 class CurrentPasswordError(AccountInputError):
-    """改本人口令时当前口令不正确，保留会话并提示修正输入。
+    """改本人密码时当前密码不正确，保留会话并提示修正输入。
 
     Attributes:
         http_status: 固定 HTTPStatus.BAD_REQUEST（400），无单位、不可空、类默认值；
             是 AccountInputError 的业务输入子类，不改变普通字段校验的 422。
         category: 继承 INPUT，无单位、不可空、不覆盖。
-        diagnostics: 至少一条 INPUT/ERROR 诊断，提示“当前口令不正确”，不可空、无默认；
+        diagnostics: 至少一条 INPUT/ERROR 诊断，提示“当前密码不正确”，不可空、无默认；
             不含原文；不得触发清 cookie 或登录导航。连续第五次错误改抛 LoginWaitError。
     """
 
@@ -86,7 +86,7 @@ class LoginWaitError(InputError):
     Attributes:
         http_status: 固定 429 TOO_MANY_REQUESTS，无单位、不可空、类默认值。
         category: 继承 INPUT，无单位、不可空、不覆盖。
-        diagnostics: 至少一条 INPUT/ERROR 诊断，不含账号是否存在、口令或 cookie，无默认。
+        diagnostics: 至少一条 INPUT/ERROR 诊断，不含账号是否存在、密码或 cookie，无默认。
         retry_after_s: 向上取整的剩余等待秒数，1-60、不可空、无默认。
     """
 

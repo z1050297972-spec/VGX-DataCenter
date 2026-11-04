@@ -7,8 +7,10 @@ import {
   createRouter,
   Outlet,
   useLocation,
+  notFound,
   type RouterHistory,
 } from "@tanstack/react-router";
+import { Result } from "antd";
 // M1-04：鉴权外壳和轻量首页保持同步，业务页面按路由加载，离开页面时立即释放查询。
 import { AccountLayout, AccountsPage, LoginPage, PasswordPage } from "./accounts/Pages";
 import { AccountClientProvider } from "./accounts/runtime";
@@ -27,17 +29,12 @@ import { toFailureView } from "./api/problems";
 import { DiagnosticCard } from "./DiagnosticCard";
 import { HealthPage } from "./HealthPage";
 const SchedulingPage = lazyRouteComponent(() => import("./scheduling/Pages"), "SchedulingPage");
-const SubmitResourceJobsPage = lazyRouteComponent(
-  () => import("./scheduling/Pages"),
-  "SubmitResourceJobsPage",
-);
 import { validateDownloadSearch } from "./downloads/search";
 const DownloadPage = lazyRouteComponent(() => import("./downloads/Pages"), "DownloadPage");
 const MonitoringPage = lazyRouteComponent(() => import("./monitoring/Pages"), "MonitoringPage");
 const JobsPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobsPage");
 const RevertPage = lazyRouteComponent(() => import("./navwrites/Revert"), "RevertPage");
 const JobDetailPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobDetailPage");
-const SubmitCountJobPage = lazyRouteComponent(() => import("./jobs/Pages"), "SubmitCountJobPage");
 import type { JobSearch } from "./api/jobs";
 import { validateJobSearch } from "./jobs/search";
 import { validateDatasetSearch } from "./datasets/search";
@@ -69,7 +66,7 @@ interface AppRouterOptions {
 /**
  * 创建独立、默认需要登录的应用路由。
  * @param options - 缓存、传输和可选 history，无秘密。
- * @returns TanStack Router 实例；含所有登录账号可访问的 /scheduling 和 /jobs/resources；同实例所有 API 401 共用清理和 replace 导航。
+ * @returns TanStack Router 实例；含所有登录账号可访问的只读 /scheduling；未登记页面及非法作业编号显示前端404，同实例所有 API 401 共用清理和 replace 导航。
  * @throws 无；创建不发请求，导航失败由诊断视图呈现。
  * @sideEffects 导航前核验身份；仅登录页公开，服务器仍独立鉴权；不保存浏览器凭据。调度路由为单一只读页，不定义 search 参数。
  * @timeSemantics 每次导航使用守卫的取消信号，身份聚焦查询由布局负责，无自动重试。
@@ -88,6 +85,7 @@ export function createAppRouter(options: AppRouterOptions) {
     },
   });
   const root = createRootRoute({
+    notFoundComponent: () => <Result status="404" title="404" subTitle="页面不存在" />,
     component: function RootShell() {
       const pathname = useLocation({ select: (location) => location.pathname });
       return (
@@ -157,6 +155,10 @@ export function createAppRouter(options: AppRouterOptions) {
   const jobDetail = createRoute({
     getParentRoute: () => root,
     path: "/jobs/$jobId",
+    beforeLoad: ({ params }) => {
+      // 作业编号必须是正十进制文本；避免已删除的静态入口落入详情并发送无效 API 请求。
+      if (!/^[1-9][0-9]*$/u.test(params.jobId)) notFound({ throw: true });
+    },
     component: JobDetailPage,
   });
   const revertJob = createRoute({
@@ -164,20 +166,10 @@ export function createAppRouter(options: AppRouterOptions) {
     path: "/jobs/$jobId/revert",
     component: RevertPage,
   });
-  const submitCount = createRoute({
-    getParentRoute: () => root,
-    path: "/jobs/new",
-    component: SubmitCountJobPage,
-  });
   const scheduling = createRoute({
     getParentRoute: () => root,
     path: "/scheduling",
     component: SchedulingPage,
-  });
-  const resources = createRoute({
-    getParentRoute: () => root,
-    path: "/jobs/resources",
-    component: SubmitResourceJobsPage,
   });
   const storageRoots = createRoute({
     getParentRoute: () => root,
@@ -220,9 +212,7 @@ export function createAppRouter(options: AppRouterOptions) {
       monitoring,
       jobDetail,
       revertJob,
-      submitCount,
       scheduling,
-      resources,
       storageRoots,
       datasets,
       createLink,

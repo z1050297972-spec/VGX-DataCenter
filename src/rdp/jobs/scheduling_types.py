@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from enum import StrEnum
 from typing import TYPE_CHECKING, cast
@@ -101,6 +101,7 @@ class ScheduledJob:
         name: 唯一稳定名字，1-64 码点，无首尾空白及控制字符；用于跨重启去重，不随显示名改变。
         type_name: 当前登记表中的稳定类型键。
         parameters: 无秘密 JSON 对象，按类型模型校验；登记后复制，不让调用者后续修改。
+        description: 必填且非空白的用途说明，供调度页原样展示，不参与去重或提交。
         local_time: 无 tzinfo 的本地时刻，精确到分钟，默认 03:00；秒和微秒必须零。
     """
 
@@ -108,6 +109,7 @@ class ScheduledJob:
     type_name: str
     parameters: dict[str, object]
     local_time: time = time(3, 0)
+    description: str = field(kw_only=True)
 
 
 @dataclass(frozen=True)
@@ -165,6 +167,7 @@ class ScheduleView:
 
     Attributes:
         name: 稳定登记名。
+        description: 当前登记规则的用途说明，不从历史作业或名字推导。
         next_run_at: 下一次按点提交的 UTC 时刻；不预测下一次启动补跑。
         last_submission: 最近提交记录；从未提交为 None。
         last_state: 对应作业六态之一；从未提交为 None。
@@ -172,6 +175,7 @@ class ScheduleView:
     """
 
     name: str
+    description: str
     next_run_at: datetime
     last_submission: ScheduleSubmission | None
     last_state: JobState | None

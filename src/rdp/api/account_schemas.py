@@ -97,7 +97,7 @@ class StatusRequest(AccountPayload):
 
 
 class ResetPasswordRequest(AccountPayload):
-    """管理员重置口令请求，不接受解除强制改密标记。
+    """管理员重置密码请求，不接受解除强制改密标记。
 
     Attributes:
         password: 新 SecretStr，10-128 个 Unicode 码点，不可空、无默认、无单位。
@@ -107,11 +107,11 @@ class ResetPasswordRequest(AccountPayload):
 
 
 class ChangePasswordRequest(AccountPayload):
-    """本人改口令请求，无目标账号字段。
+    """本人改密码请求，无目标账号字段。
 
     Attributes:
         current_password: 当前 SecretStr，10-128 个码点，不可空、无默认、无单位。
-        new_password: 新 SecretStr，10-128 个码点，不可空、无默认、不得等于当前口令。
+        new_password: 新 SecretStr，10-128 个码点，不可空、无默认、不得等于当前密码。
     """
 
     current_password: Password

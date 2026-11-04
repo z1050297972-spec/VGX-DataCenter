@@ -44,7 +44,9 @@ def scheduled_case(
     from dataclasses import replace
 
     registry = production_registry()
-    definition = ScheduledJob("清除", "purge_errors", {}, local_time)
+    definition = ScheduledJob(
+        "清除", "purge_errors", {}, local_time, description="删除超过保留期的程序报错记录"
+    )
     resources = resources_fixture(registry)
     catalog = replace(
         resources.configuration.catalog,

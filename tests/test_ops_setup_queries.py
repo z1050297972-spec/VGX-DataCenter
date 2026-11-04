@@ -114,7 +114,7 @@ def test_admin_database_errors(tmp_path: Path) -> None:
 
 
 def test_admin_read_only_no_secrets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证契约：管理员检查使用只读连接、只取存在性，不select口令/会话、不改journal_mode、不写账号或审计。"""
+    """验证契约：管理员检查使用只读连接、只取存在性，不select密码/会话、不改journal_mode、不写账号或审计。"""
     inputs = runtime_inputs(tmp_path)
     database = state_paths(
         load_config(environ=inputs.environ, home=inputs.home).config, ()

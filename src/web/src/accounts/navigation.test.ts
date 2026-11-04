@@ -187,7 +187,7 @@ it("验证契约：handleUnauthorized并发401合并为一次replace并清除Que
   expect(queryClient.getMutationCache().getAll()).toHaveLength(0);
 });
 
-it("验证契约：handleUnauthorized已在登录页不重定向，保留错口令诊断；切换账号无旧数据残留", async () => {
+it("验证契约：handleUnauthorized已在登录页不重定向，保留错密码诊断；切换账号无旧数据残留", async () => {
   const queryClient = new QueryClient();
   queryClient.setQueryData(["account"], account);
   const replace = vi.fn();

@@ -45,7 +45,7 @@ class AdministratorPresence(StrEnum):
     Attributes:
         DATABASE_MISSING: 数据库普通文件尚不存在，常见于首次安装；没有创建数据库。
         ABSENT: 已迁移且版本匹配的数据库中没有administrator行。
-        PRESENT: 至少有一个administrator，包含停用账号；不返回身份、口令或会话。
+        PRESENT: 至少有一个administrator，包含停用账号；不返回身份、密码或会话。
     """
 
     DATABASE_MISSING = "database_missing"
@@ -127,7 +127,7 @@ def administrator_presence(database: Path) -> AdministratorPresence:
 
     Side Effects:
         无业务写入；已有库用sqlite3 mode=ro及query_only，finally关闭连接，不创建数据库或表，
-        不设journal_mode、不读口令哈希/会话令牌、不更新账号或审计；SQLite可维护自身WAL/SHM协调文件。
+        不设journal_mode、不读密码哈希/会话令牌、不更新账号或审计；SQLite可维护自身WAL/SHM协调文件。
         缺失路径先返回显式缺库状态，不打开可写连接。
 
     Time Semantics:
@@ -375,7 +375,7 @@ def run_setup_query(argv: Sequence[str], *, home: Path, stdout: TextIO, stderr: 
         argv: 不含程序名的参数；命令为validate-config --config FILE、administrator --database FILE、
             mounts --input FILE或urls --config FILE --input FILE；各命令及顶层支持--help。
         home: 显式绝对home，供配置路径展开；不从另一个账号发现路径。
-        stdout: 帮助或成功JSON输出流；不含口令、哈希、cookie或整个环境。
+        stdout: 帮助或成功JSON输出流；不含密码、哈希、cookie或整个环境。
         stderr: 参数/失败诊断流；没有日志配置也可使用，不把原始JSON或配置全文带入异常文本。
 
     Returns:

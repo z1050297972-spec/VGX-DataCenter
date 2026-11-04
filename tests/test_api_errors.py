@@ -237,8 +237,8 @@ def test_validation_locations() -> None:
 
 
 def test_validation_no_secret_echo() -> None:
-    """验证契约：口令、token、cookie、私钥及整份体出现在 input/msg/ctx/body/自定义校验器消息时不进入响应、诊断或日志；动态键也不回显。"""
-    secrets = ["口令不回显", "token不回显", "cookie不回显", "private-key不回显"]
+    """验证契约：密码、token、cookie、私钥及整份体出现在 input/msg/ctx/body/自定义校验器消息时不进入响应、诊断或日志；动态键也不回显。"""
+    secrets = ["密码不回显", "token不回显", "cookie不回显", "private-key不回显"]
     error = RequestValidationError(
         [
             dict(
@@ -924,7 +924,7 @@ def test_explicit_defect_diagnostics_and_cause(
 def test_validation_log_field_locations_without_values(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """验证契约：真实 422 日志包含各字段五段诊断，但不含口令、其他原值或校验异常正文。"""
+    """验证契约：真实 422 日志包含各字段五段诊断，但不含密码、其他原值或校验异常正文。"""
     caplog.set_level(logging.INFO, logger="rdp.api.errors")
 
     class LoginParameters(BaseModel):
@@ -941,7 +941,7 @@ def test_validation_log_field_locations_without_values(
 
     app.add_api_route("/api/test-validation", login, methods=["POST"])
     app.router.routes.insert(0, app.router.routes.pop())
-    raw_values = {"password": "不应出现在日志的原始口令", "count": "不应出现的数量原值"}
+    raw_values = {"password": "不应出现在日志的原始密码", "count": "不应出现的数量原值"}
     with authenticated_client(app, tmp_path) as client:
         response = client.post("/api/test-validation", json=raw_values)
     assert response.status_code == 422

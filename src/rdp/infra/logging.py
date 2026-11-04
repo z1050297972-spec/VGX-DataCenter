@@ -144,7 +144,7 @@ class RuntimeFormatter(logging.Formatter):
             record: 标准 LogRecord；消息由调用方提供中文，使用 getMessage() 合并参数。
                 可通过 extra={"fields": {...}} 传上下文，键须匹配 [A-Za-z_][A-Za-z0-9_]*；
                 值推荐为 str/int/有限 float/bool/None，不规范字段按 Returns 容错。
-                禁止口令、令牌、cookie、私钥及整份载荷；job_id/request_id 为保留键。
+                禁止密码、令牌、cookie、私钥及整份载荷；job_id/request_id 为保留键。
                 未设置 fields 等价于空映射。
 
         Returns:
@@ -532,7 +532,7 @@ def log_state_warnings(warnings: tuple[DirectoryPermissionWarning, ...]) -> None
 
     Returns:
         无。每项记录一条 WARNING，fields 含 path 和至少四位的八进制 mode；
-        消息说明数据库以后有口令哈希，其他用户可能读到。空清单不记录。
+        消息说明数据库以后有密码哈希，其他用户可能读到。空清单不记录。
         P4 的启动权限警告不受配置级别阈值抑制，ERROR 阈值下仍写入已配置的进程日志。
 
     Raises:
@@ -553,7 +553,7 @@ def log_state_warnings(warnings: tuple[DirectoryPermissionWarning, ...]) -> None
             logging.WARNING,
             __file__,
             0,
-            "状态目录权限宽于 0700；数据库以后有口令哈希，其他用户可能读到，请检查权限",
+            "状态目录权限宽于 0700；数据库以后有密码哈希，其他用户可能读到，请检查权限",
             (),
             None,
             extra={"fields": {"path": str(warning.path), "mode": f"{warning.mode:04o}"}},

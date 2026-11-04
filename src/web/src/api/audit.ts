@@ -52,7 +52,7 @@ export function listOperationLogs(_input: AccountCall<OperationSearch>): Promise
 
 /**
  * 按类型化筛选读取登录日志的一页。
- * @param _input - 已鉴权客户端、LoginSearch 和取消信号；不发送任何口令或未知登录名原文。
+ * @param _input - 已鉴权客户端、LoginSearch 和取消信号；不发送任何密码或未知登录名原文。
  * @returns GET /api/audit/logins 的倒序页，含未知账号、删除标记和可空来源 IP。
  * @throws Error 网络/取消/超时或服务端失败；权限不足保留统一诊断，不能把 502 当未登录。
  * @sideEffects 一次 GET，无自动翻页、全量拉取、凭据持久化或浏览器原生方法缓存。

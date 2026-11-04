@@ -77,10 +77,11 @@ class SchedulingService:
             类型数量用 running/cancelling 聚合，包括尚在恢复的记录；终态历史卡号不计占用。
             GPU 可用/移出池状态、核对诊断及持锁者全部由 worker 保存的数据库副本决定，心跳离线时仍保留最后观察并明确 worker_online=False。
             上次结果直接读 JobRecord，不自行从诊断样例计算；下次时刻用本机时区，返回 UTC。
+            每日计划的用途说明取自当前登记规则，不依赖历史作业是否存在。
 
         Raises:
             AuthenticationError: 会话过期、撤销、账号停用或删除。
-            PasswordChangeRequiredError: 账号需要先改口令。
+            PasswordChangeRequiredError: 账号需要先改密码。
             InputError: 数据库或存量去重/作业记录损坏。
             ConflictError: 只读快照锁竞争。
             ExternalError: 数据库查询或清理 I/O 失败，不伪装空闲资源。
@@ -158,6 +159,7 @@ class SchedulingService:
             views.append(
                 ScheduleView(
                     definition.name,
+                    definition.description,
                     next_run_at(definition, dates, now=now, zone=self.catalog.timezone),
                     previous,
                     None if record is None else record.state,

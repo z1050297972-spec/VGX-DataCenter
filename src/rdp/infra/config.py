@@ -345,7 +345,7 @@ def load_config(*, environ: Mapping[str, str], home: Path) -> LoadedConfig:
             捕获 pydantic.ValidationError，按 errors(include_input=False) 的 loc/type
             构建逐项中文消息，再 raise ValueError(...) from error；不直接 str(error)。
             只回显本票五个已知叶子字段的标量实际值；未知项或容器用 <已隐藏>，
-            后续敏感字段不加入回显白名单，避免异常链显示口令（模型隐藏输入）。
+            后续敏感字段不加入回显白名单，避免异常链显示密码（模型隐藏输入）。
             存储根重复名字、相等/嵌套路径、非绝对路径分别指出 storage_roots 的位置和原因；
             nav_root、storage.* 的错误同样使用来源、项名、实际值和期望，不回显整个登记表。
         FileNotFoundError: 非空 RDP_CONFIG 指定的文件不存在；含文件名，绝不回退默认值。
@@ -403,7 +403,7 @@ def load_config(*, environ: Mapping[str, str], home: Path) -> LoadedConfig:
     return LoadedConfig(config, source, False)
 
 
-# 只回显已批准且不含秘密的叶子字段；新增字段默认隐藏，不能靠黑名单猜口令名称。
+# 只回显已批准且不含秘密的叶子字段；新增字段默认隐藏，不能靠黑名单猜密码名称。
 _VISIBLE_FIELDS = frozenset(
     {"state_dir", "web.host", "web.port", "log.level", "log.retention_days"}
 )

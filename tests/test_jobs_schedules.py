@@ -131,7 +131,9 @@ def test_exact_day() -> None:
     from rdp.jobs.schedules import schedule_due
     from rdp.jobs.scheduling_types import ScheduleSubmission
 
-    definition = ScheduledJob("清除", "purge_errors", {}, time(23, 59))
+    definition = ScheduledJob(
+        "清除", "purge_errors", {}, time(23, 59), description="删除超过保留期的程序报错记录"
+    )
     previous = ScheduleSubmission(
         "清除", date(2026, 10, 26), 71, datetime(2026, 10, 26, 12, tzinfo=UTC)
     )
@@ -395,7 +397,7 @@ def test_registry_validation() -> None:
     from rdp.jobs.registry import JobRegistry
     from rdp.jobs.types import RecoveryMode
 
-    valid = ScheduledJob("清除", "purge_errors", {})
+    valid = ScheduledJob("清除", "purge_errors", {}, description="删除超过保留期的程序报错记录")
     cases = (
         (valid, valid),
         tuple(replace(valid, name=str(index)) for index in range(101)),
@@ -422,7 +424,10 @@ def test_registry_copy() -> None:
     """契约：登记参数深复制、返回副本不改内部数据，按稳定名字排序，空表合法。"""
     parameters: dict[str, object] = {"steps": 3, "interval_ms": 0, "failed_steps": [2]}
     registry = ScheduleRegistry(
-        (ScheduledJob("b", "example_count", parameters), ScheduledJob("a", "purge_errors", {})),
+        (
+            ScheduledJob("b", "example_count", parameters, description="按参数执行数数"),
+            ScheduledJob("a", "purge_errors", {}, description="删除超过保留期的程序报错记录"),
+        ),
         production_registry(),
     )
     parameters["failed_steps"] = [1]
@@ -464,7 +469,11 @@ def test_atomic_submit(tmp_path: Path) -> None:
             try:
                 with pytest.raises(ExternalError):
                     service.submit_scheduled(
-                        ScheduledJob("清除", "purge_errors", {}), NOW.date(), now=NOW
+                        ScheduledJob(
+                            "清除", "purge_errors", {}, description="删除超过保留期的程序报错记录"
+                        ),
+                        NOW.date(),
+                        now=NOW,
                     )
             finally:
                 event.remove(engine, "before_cursor_execute", fail)
@@ -507,7 +516,11 @@ def test_unique_race(tmp_path: Path) -> None:
                 barrier.wait(timeout=1)
                 results.append(
                     service.submit_scheduled(
-                        ScheduledJob("清除", "purge_errors", {}), NOW.date(), now=NOW
+                        ScheduledJob(
+                            "清除", "purge_errors", {}, description="删除超过保留期的程序报错记录"
+                        ),
+                        NOW.date(),
+                        now=NOW,
                     )
                 )
             except BaseException as error:
@@ -616,7 +629,9 @@ def test_latest_by_id(tmp_path: Path) -> None:
     from rdp.jobs.schedule_records import latest_submission
     from rdp.jobs.service import JobService
 
-    definition = ScheduledJob("清除", "purge_errors", {})
+    definition = ScheduledJob(
+        "清除", "purge_errors", {}, description="删除超过保留期的程序报错记录"
+    )
     with job_database(tmp_path) as (engine, _paths):
         service = JobService(engine, production_registry())
         with session_scope(engine, read_only=True) as session:
@@ -637,7 +652,9 @@ def test_next_deadline() -> None:
 
     from rdp.jobs.schedules import next_run_at
 
-    definition = ScheduledJob("清除", "purge_errors", {})
+    definition = ScheduledJob(
+        "清除", "purge_errors", {}, description="删除超过保留期的程序报错记录"
+    )
     now = datetime(2026, 10, 27, 12, tzinfo=UTC)
     assert next_run_at(definition, frozenset(), now=now, zone=ZoneInfo("UTC")) == datetime(
         2026, 10, 27, 3, tzinfo=UTC
@@ -666,7 +683,9 @@ def test_date_window(tmp_path: Path) -> None:
     from rdp.jobs.service import JobService
 
     today = date(2026, 10, 27)
-    definition = ScheduledJob("清除", "purge_errors", {})
+    definition = ScheduledJob(
+        "清除", "purge_errors", {}, description="删除超过保留期的程序报错记录"
+    )
     with job_database(tmp_path) as (engine, _paths):
         service = JobService(engine, production_registry())
         with session_scope(engine, read_only=True) as session:
@@ -702,7 +721,9 @@ def test_skipped_date() -> None:
 
     zone = ZoneInfo("Pacific/Apia")
     assert daily_deadline(date(2011, 12, 30), time(3), zone) is None
-    definition = ScheduledJob("清除", "purge_errors", {})
+    definition = ScheduledJob(
+        "清除", "purge_errors", {}, description="删除超过保留期的程序报错记录"
+    )
     assert next_run_at(
         definition,
         frozenset({date(2011, 12, 29)}),
@@ -733,7 +754,12 @@ def test_resubmit_system(tmp_path: Path) -> None:
         grant = member_grant(accounts, administrator)
         service = JobService(accounts.engine, production_registry())
         submission = service.submit_scheduled(
-            ScheduledJob("系统数数", "example_count", {"steps": 1, "interval_ms": 0}),
+            ScheduledJob(
+                "系统数数",
+                "example_count",
+                {"steps": 1, "interval_ms": 0},
+                description="按参数执行数数",
+            ),
             NOW.date(),
             now=NOW,
         )

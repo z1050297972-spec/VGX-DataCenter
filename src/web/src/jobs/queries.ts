@@ -4,7 +4,6 @@ import { useJobAction } from "./_actions";
 import { useDatasetWriteRefresh } from "../datasets/useDatasetWriteRefresh";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import {
-  submitCountJob,
   cancelJob,
   resubmitJob,
   getJob,
@@ -16,7 +15,7 @@ import {
   JOB_GC_TIME_MS,
 } from "../api/jobs";
 import { isJobTerminal } from "./progress";
-import type { CountInput, Job, JobList, JobLog, JobSearch, WorkerStatus } from "../api/jobs";
+import type { Job, JobList, JobLog, JobSearch, WorkerStatus } from "../api/jobs";
 
 /**
  * 按 URL 筛选轮询一页作业。
@@ -104,21 +103,6 @@ export function useWorkerStatus(): UseQueryResult<WorkerStatus> {
     staleTime: JOB_STALE_TIME_MS,
     gcTime: JOB_GC_TIME_MS,
   });
-}
-
-/**
- * 提交示例并在成功后进入新详情。
- * @returns Mutation，输入 CountInput，成功结果 Job。
- * @throws Error Provider 缺失；HTTP 失败放 mutation.error，不丢表单。
- * @sideEffects 调 submitCountJob，提交期间禁用重复按钮；成功失效列表缓存并导航新编号。
- * @timeSemantics 单次 10 秒，无重试；卸载取消，不声称取消请求使数据库回滚。
- */
-export function useSubmitCountJob(): UseMutationResult<Job, Error, CountInput> {
-  const client = useAccountClient();
-  return useJobAction<CountInput>(
-    (payload, signal) => submitCountJob({ client, payload, signal }),
-    true,
-  );
 }
 
 /**

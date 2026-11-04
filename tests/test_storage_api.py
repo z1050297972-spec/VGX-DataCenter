@@ -84,7 +84,7 @@ def test_member_can_read(tmp_path: Path) -> None:
 
 
 def test_password_change_required(tmp_path: Path) -> None:
-    """验证必须改口令的账号403且不检查挂载，沿用第6张请求边界。"""
+    """验证必须改密码的账号403且不检查挂载，沿用第6张请求边界。"""
     inspector, read = _inspector(tmp_path)
     with _case(tmp_path, inspector) as case:
         add_actor(case, ready=False)
