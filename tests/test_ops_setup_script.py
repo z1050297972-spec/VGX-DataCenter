@@ -122,7 +122,7 @@ def test_tool_refusal_stops(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_yes_skips_confirmations(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证契约：--yes不读取确认输入，可授权缺工具下载与linger；不能代答配置、存储写许可或口令。"""
+    """验证契约：--yes不读取确认输入，可授权缺工具下载与linger；不能代答配置、存储写许可或密码。"""
     case = setup_case(tmp_path)
     monkeypatch.setenv("HOME", str(case.home))
     case.config()
@@ -781,7 +781,7 @@ def test_install_failure_stops_setup(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 
 def test_existing_administrator_skipped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证契约：已有管理员包括disabled时跳过create-admin，不读取口令、不改账号、不新增操作日志。"""
+    """验证契约：已有管理员包括disabled时跳过create-admin，不读取密码、不改账号、不新增操作日志。"""
     case = setup_case(tmp_path)
     monkeypatch.setenv("HOME", str(case.home))
     case.config()
@@ -794,7 +794,7 @@ def test_existing_administrator_skipped(tmp_path: Path, monkeypatch: pytest.Monk
 def test_administrator_interaction_and_audit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """验证契约：仅无管理员且有TTY时询问名字，再用既有rdp create-admin无回显读两次口令；只保留领域原事务的一条审计。"""
+    """验证契约：仅无管理员且有TTY时询问名字，再用既有rdp create-admin无回显读两次密码；只保留领域原事务的一条审计。"""
     case = setup_case(tmp_path)
     monkeypatch.setenv("HOME", str(case.home))
     case.config()
@@ -802,7 +802,7 @@ def test_administrator_interaction_and_audit(
         "--yes",
         "--no-systemd",
         answers="chosen\n显示名字\nsecret-value\nsecret-value\n",
-        prompts=("登录名 [admin]：", "显示名 [管理员]：", "口令：", "再次口令："),
+        prompts=("登录名 [admin]：", "显示名 [管理员]：", "密码：", "再次密码："),
     )
     calls = [call for call in case.calls("rdp") if call["args"][:1] == ["create-admin"]]
     assert len(calls) == 1 and calls[0]["args"] == ["create-admin", "chosen", "显示名字"]
@@ -814,7 +814,7 @@ def test_administrator_interaction_and_audit(
 def test_skip_admin_and_no_password_transport(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """验证契约：--skip-admin打印后续命令且不调用建号；不存在口令argv/env选项，未skip又无TTY时不能卡住或降级回显。"""
+    """验证契约：--skip-admin打印后续命令且不调用建号；不存在密码argv/env选项，未skip又无TTY时不能卡住或降级回显。"""
     case = setup_case(tmp_path)
     monkeypatch.setenv("HOME", str(case.home))
     case.config()
@@ -1114,7 +1114,7 @@ def test_repeat_arguments_match_real_cli(tmp_path: Path, monkeypatch: pytest.Mon
     (deploy / "rdp-build.json").write_text('{"commit":"' + "a" * 40 + '"}')
     result = case.run("--no-systemd")
     assert result.returncode == 0, result.stderr
-    console = Console(StringIO(), StringIO(), lambda _: pytest.fail("解析参数不能读取口令"))
+    console = Console(StringIO(), StringIO(), lambda _: pytest.fail("解析参数不能读取密码"))
     calls = case.calls("rdp")
     assert calls
     for call in calls:

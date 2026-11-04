@@ -1,15 +1,6 @@
-// 调度轮询与演示提交；沿用第8张账号感知传输、身份缓存清理及取消生命周期。
-import { useQuery, type UseMutationResult, type UseQueryResult } from "@tanstack/react-query";
-import type { Job } from "../api/jobs";
-import {
-  submitNavigationJob,
-  submitGpuJob,
-  getScheduling,
-  type GpuInput,
-  type NavigationInput,
-  type Scheduling,
-} from "../api/scheduling";
-import { useJobAction } from "../jobs/_actions";
+// 只读调度轮询；沿用第8张账号感知传输、身份缓存清理及取消生命周期。
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { getScheduling, type Scheduling } from "../api/scheduling";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import { JOB_POLL_INTERVAL_MS, JOB_STALE_TIME_MS, JOB_GC_TIME_MS } from "../api/jobs";
 
@@ -32,34 +23,4 @@ export function useScheduling(): UseQueryResult<Scheduling> {
     gcTime: JOB_GC_TIME_MS,
     retry: false,
   });
-}
-
-/**
- * 提交 GPU 示例并进入新作业详情。
- * @returns 输入 GpuInput、输出 Job 的 Mutation；提交期间禁用重复按钮，错误保留表单。
- * @throws Error 依赖 Provider 缺失；请求失败进入 mutation.error。
- * @sideEffects 调 submitGpuJob，成功失效 jobs/scheduling 查询并导航 /jobs/$jobId；卸载或换号后迟到成功不导航。
- * @timeSemantics 单次请求 10 秒，不自动重试、不等待作业结束；组件卸载 abort。
- */
-export function useSubmitGpuJob(): UseMutationResult<Job, Error, GpuInput> {
-  const client = useAccountClient();
-  return useJobAction<GpuInput>(
-    (payload, signal) => submitGpuJob({ client, payload, signal }),
-    true,
-  );
-}
-
-/**
- * 提交写锁示例并跟随其冲突或完成结果。
- * @returns 输入 NavigationInput 的 Mutation，成功值为新 Job；不在浏览器核对期望值。
- * @throws Error 依赖 Provider 缺失；提交错误交 mutation.error，不吞 409、422。
- * @sideEffects 调 submitNavigationJob；提交成功刷新 jobs/scheduling 并导航新详情，取消传输不声称事务回滚。
- * @timeSemantics 请求上限 JOB_REQUEST_TIMEOUT_MS，无自动重试，换号/离页忽略迟到导航。
- */
-export function useSubmitNavigationJob(): UseMutationResult<Job, Error, NavigationInput> {
-  const client = useAccountClient();
-  return useJobAction<NavigationInput>(
-    (payload, signal) => submitNavigationJob({ client, payload, signal }),
-    true,
-  );
 }

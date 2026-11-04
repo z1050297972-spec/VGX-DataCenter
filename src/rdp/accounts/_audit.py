@@ -139,7 +139,7 @@ def attempt(engine: Engine, event: OperationEvent, *, started: bool = False) -> 
 
 
 def rejected(session: Session, event: OperationEvent, failure: InputError) -> None:
-    """旧口令验证失败与G2共用当前写事务，不在计数提交之后再另开事务。"""
+    """旧密码验证失败与G2共用当前写事务，不在计数提交之后再另开事务。"""
     append_operation(
         session,
         replace(

@@ -162,7 +162,7 @@ def login(
     now: datetime,
     audit: AuditContext,
 ) -> SessionGrant:
-    """将正常拒绝与执行故障区分，所有口令计算在数据库事务之外完成。"""
+    """将正常拒绝与执行故障区分，所有密码计算在数据库事务之外完成。"""
     with attempt(engine, now, audit) as state:
         with session_scope(engine, read_only=True) as session:
             state.row = session.scalar(

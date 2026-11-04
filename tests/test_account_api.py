@@ -335,7 +335,7 @@ def test_access_database_errors(tmp_path: Path) -> None:
 
 
 def test_access_order(tmp_path: Path) -> None:
-    """验证契约：写请求Origin失败在认证刷新、登录计数或业务写入前拒绝，读取口令体前执行。"""
+    """验证契约：写请求Origin失败在认证刷新、登录计数或业务写入前拒绝，读取密码体前执行。"""
     with api_case(tmp_path) as case:
         assert case.login().status_code == 200
         case.clock.value += timedelta(seconds=60)
@@ -847,7 +847,7 @@ def test_error_contract_sanitize() -> None:
 
 
 def test_error_contract_privacy(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """验证契约：模拟含口令/cookie/令牌/哈希的未知失败，响应、日志和error_reports都无原文，其他业务完整报告保持原契约。"""
+    """验证契约：模拟含密码/cookie/令牌/哈希的未知失败，响应、日志和error_reports都无原文，其他业务完整报告保持原契约。"""
     with api_case(tmp_path) as case:
         assert case.login().status_code == 200
         secrets = [
@@ -976,7 +976,7 @@ def test_login_success(tmp_path: Path) -> None:
 
 
 def test_login_failure(tmp_path: Path) -> None:
-    """验证契约：错口令/未知/停用统一401，G2等待429及向上取整Retry-After，Origin403、输入422。"""
+    """验证契约：错密码/未知/停用统一401，G2等待429及向上取整Retry-After，Origin403、输入422。"""
     with api_case(tmp_path) as case:
         replies = [case.login("missing"), case.login(secret=SecretStr("incorrect-value"))]
         assert all(response.status_code == 401 for response in replies)
@@ -1069,7 +1069,7 @@ def test_change_password_success(tmp_path: Path) -> None:
 
 
 def test_change_password_failures(tmp_path: Path) -> None:
-    """验证契约：旧口令错先提交G2计数再400并保留cookie，第五次429；新旧相同422，真正失效才401。"""
+    """验证契约：旧密码错先提交G2计数再400并保留cookie，第五次429；新旧相同422，真正失效才401。"""
     with api_case(tmp_path) as case:
         assert case.login().status_code == 200
         token = case.client.cookies["rdp_session"]
@@ -1253,7 +1253,7 @@ def test_reset_account_password_success(tmp_path: Path) -> None:
 
 
 def test_reset_account_password_failure(tmp_path: Path) -> None:
-    """验证契约：不存在404、非法口令422、成员403、存储失败全回滚。"""
+    """验证契约：不存在404、非法密码422、成员403、存储失败全回滚。"""
     with api_case(tmp_path) as case:
         assert case.login().status_code == 200
         assert (
@@ -1384,7 +1384,7 @@ def test_error_boundary_clear_cookie() -> None:
 def test_authentication_secrets_all_routes(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """验证契约：非账号业务/错误详情/未知路径在认证阶段抛含口令、令牌、cookie的异常，两个出口都脱敏，异常/诊断/日志/报错表均无原文。"""
+    """验证契约：非账号业务/错误详情/未知路径在认证阶段抛含密码、令牌、cookie的异常，两个出口都脱敏，异常/诊断/日志/报错表均无原文。"""
     with api_case(tmp_path) as case:
         assert case.login().status_code == 200
         secrets = [
@@ -1750,7 +1750,7 @@ def test_get_account_now_callback_failure() -> None:
 
 
 def test_clock_errors_not_user_errors(tmp_path: Path) -> None:
-    """验证契约：入口只将非法服务端时钟归500，不把用户口令长度/角色/编号错误转500；这些字段仍422，旧口令错误仍400。"""
+    """验证契约：入口只将非法服务端时钟归500，不把用户密码长度/角色/编号错误转500；这些字段仍422，旧密码错误仍400。"""
     with api_case(tmp_path) as case:
         assert case.login().status_code == 200
         case.app.state.accounts_clock = lambda: "private-invalid-clock"
@@ -1765,7 +1765,7 @@ def test_clock_errors_not_user_errors(tmp_path: Path) -> None:
 
 
 def test_password_mismatch_response(tmp_path: Path) -> None:
-    """验证契约：当前口令错误返回400 problem及当前口令不正确诊断，不发送清cookie头，G2第5次429；真实会话失效401仍清cookie。"""
+    """验证契约：当前密码错误返回400 problem及当前密码不正确诊断，不发送清cookie头，G2第5次429；真实会话失效401仍清cookie。"""
     with api_case(tmp_path) as case:
         assert case.login().status_code == 200
         response = case.client.post(
@@ -1775,7 +1775,7 @@ def test_password_mismatch_response(tmp_path: Path) -> None:
         assert response.status_code == 400 and response.headers["content-type"].startswith(
             "application/problem+json"
         )
-        assert "当前口令不正确" in response.text and "set-cookie" not in response.headers
+        assert "当前密码不正确" in response.text and "set-cookie" not in response.headers
         case.client.cookies.clear()
         response = case.client.post("/api/auth/password", json={})
         assert response.status_code == 401 and "Max-Age=0" in response.headers["set-cookie"]

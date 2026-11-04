@@ -561,7 +561,7 @@ def test_translate_diagnostic(tmp_path: Path, caplog: pytest.LogCaptureFixture) 
 
 
 def test_parameters_hidden(tmp_path: Path) -> None:
-    """验证契约：引擎 hide_parameters=True，异常链和日志不泄漏绑定参数中的口令、令牌、cookie、私钥。"""
+    """验证契约：引擎 hide_parameters=True，异常链和日志不泄漏绑定参数中的密码、令牌、cookie、私钥。"""
     engine = create_database_engine(tmp_path / "db")
     try:
         with session_scope(engine) as session:

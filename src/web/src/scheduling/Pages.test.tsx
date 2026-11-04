@@ -5,8 +5,76 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { mountPage, pageFetch } from "./pageTestSupport";
 import { scheduling } from "./testSupport";
 import { account, problemResponse } from "../accounts/testSupport";
-import { job } from "../jobs/testSupport";
 import type { Scheduling } from "../api/scheduling";
+
+it("调度页显示原文说明，定时作业每行的做什么取自接口规则说明", async () => {
+  // 验证第 14 票：三块说明和页头逐字展示，自定义规则也显示接口给出的用途。
+  const schedules = [
+    ...scheduling.schedules,
+    {
+      name: "统计数据集大小",
+      description: "重新统计每个数据集占用的空间",
+      next_run_at: "2026-10-27T03:00:00Z",
+      last_job_id: null,
+      last_submitted_at: null,
+      last_state: null,
+      last_outcome: null,
+    },
+    {
+      name: "自定义定时规则",
+      description: "执行接口定义的维护任务",
+      next_run_at: "2026-10-27T03:00:00Z",
+      last_job_id: null,
+      last_submitted_at: null,
+      last_state: null,
+      last_outcome: null,
+    },
+  ];
+  const view = mountPage(
+    "/scheduling",
+    pageFetch(() => ({ ...scheduling, schedules })),
+  );
+  try {
+    await screen.findByRole("heading", { name: "调度" });
+    expect(
+      screen.getByText(
+        "这里只读，显示后台 worker 现在在忙什么、资源被谁占着、定时任务的运行情况。作业一直排队或显示在等待时，来这里看卡在哪。",
+      ),
+    ).toBeTruthy();
+    for (const [section, explanation] of [
+      [
+        "GPU 名额",
+        '两张显卡各在给哪个作业用。worker 启动时会核对每张卡，核对不过的卡显示"已移出名额池"和原因，之后不再分配。需要 GPU 的作业领到卡才开始运行，领不到就排队。',
+      ],
+      [
+        "导航层写锁",
+        '导航层是数据集的唯一事实来源，同一时间只允许一个作业修改，例如建链、改字段、撤回，避免两个作业同时改坏同一份文件。某个作业一直显示"等待导航层写锁"时，在这里可以看到锁在谁手里。',
+      ],
+      [
+        "定时作业",
+        'worker 每天自动提交的作业，提交人显示为"系统"。机器关着错过了时间，下次 worker 启动时会补跑一次。另外，worker 每 10 分钟会自动重新扫描一次导航层，扫描作业出现在作业列表里，不列在这里。',
+      ],
+    ] as const) {
+      expect(
+        within(screen.getByRole("region", { name: section })).getByText(explanation),
+      ).toBeTruthy();
+    }
+    const table = within(screen.getByRole("region", { name: "定时作业" }));
+    expect(table.getByRole("columnheader", { name: "做什么" })).toBeTruthy();
+    for (const [name, description] of [
+      ["清除过期报错", "删除超过保留期的程序报错记录"],
+      ["清除过期日志", "删除超过保留期的操作日志和登录日志"],
+      ["统计数据集大小", "重新统计每个数据集占用的空间"],
+      ["自定义定时规则", "执行接口定义的维护任务"],
+    ] as const) {
+      const row = table.getByText(name).closest("tr");
+      expect(row).not.toBeNull();
+      if (row) expect(within(row).getByRole("cell", { name: description })).toBeTruthy();
+    }
+  } finally {
+    view.close();
+  }
+});
 
 it("真实 router 打开 /scheduling：成员与管理员均可见菜单及只读页面，未登录沿用认证跳转", async () => {
   for (const role of ["member", "administrator"] as const) {
@@ -58,6 +126,7 @@ it("同一只读页显示下一次本地时刻、上次作业链接和六种结�
     ...(["succeeded", "succeeded_with_warnings", "partially_succeeded", "failed"] as const).map(
       (outcome, index) => ({
         name: `计划${String(index)}`,
+        description: "定时执行维护任务",
         next_run_at: "2026-10-27T03:00:00Z",
         last_job_id: String(80 + index),
         last_submitted_at: "2026-10-26T03:00:00Z",
@@ -67,6 +136,7 @@ it("同一只读页显示下一次本地时刻、上次作业链接和六种结�
     ),
     ...(["cancelled", "interrupted"] as const).map((state, index) => ({
       name: `结束${String(index)}`,
+      description: "定时执行维护任务",
       next_run_at: "2026-10-27T03:00:00Z",
       last_job_id: String(90 + index),
       last_submitted_at: "2026-10-26T03:00:00Z",
@@ -75,6 +145,7 @@ it("同一只读页显示下一次本地时刻、上次作业链接和六种结�
     })),
     {
       name: "从未运行",
+      description: "定时执行维护任务",
       next_run_at: "2026-10-27T03:00:00Z",
       last_job_id: null,
       last_submitted_at: null,
@@ -231,7 +302,7 @@ it("401 按账号感知客户端清缓存并回登录，换账号不闪现上个
     await screen.findByLabelText("登录名");
     expect(pending?.signal.aborted).toBe(true);
     fireEvent.change(screen.getByLabelText("登录名"), { target: { value: "new" } });
-    fireEvent.change(screen.getByLabelText("口令"), { target: { value: "test-credential" } });
+    fireEvent.change(screen.getByLabelText("密码"), { target: { value: "test-credential" } });
     fireEvent.click(screen.getByRole("button", { name: "登录" }));
     await screen.findByText("新账号");
     await act(async () => {
@@ -287,6 +358,7 @@ it("到期但尚未提交显示等待 worker，不把旧到期时间伪造成明
       schedules: [
         {
           name: "到期清除",
+          description: "删除超过保留期的程序报错记录",
           next_run_at: due,
           last_job_id: null,
           last_submitted_at: null,
@@ -299,182 +371,6 @@ it("到期但尚未提交显示等待 worker，不把旧到期时间伪造成明
   try {
     expect(await screen.findByText("已到点，等待 worker")).toBeTruthy();
     expect(screen.getByText(formatDateTime(due))).toBeTruthy();
-  } finally {
-    view.close();
-  }
-});
-
-it("资源示例页面 GPU 时长接受0/600，拒绝bool语义/负数/601，非法表单不发请求", async () => {
-  const posts: Request[] = [];
-  const view = mountPage("/jobs/resources", (request) => {
-    if (request.method === "POST") {
-      posts.push(request);
-      return Promise.resolve(problemResponse(422));
-    }
-    return pageFetch()(request);
-  });
-  try {
-    const input = await screen.findByLabelText("占用秒数");
-    for (const value of ["true", "-1", "601"]) {
-      fireEvent.change(input, { target: { value } });
-      fireEvent.click(screen.getByRole("button", { name: "提交占卡作业" }));
-      expect(await screen.findByText("占用秒数须为0至600的整数")).toBeTruthy();
-    }
-    expect(posts).toHaveLength(0);
-    for (const value of ["0", "600"]) {
-      fireEvent.change(input, { target: { value } });
-      fireEvent.click(screen.getByRole("button", { name: "提交占卡作业" }));
-      await screen.findByText("请求被拒绝");
-      await waitFor(() => {
-        expect(posts).toHaveLength(value === "0" ? 1 : 2);
-      });
-      await waitFor(() => {
-        expect(
-          screen.getByRole<HTMLButtonElement>("button", { name: "提交占卡作业" }).disabled,
-        ).toBe(false);
-      });
-    }
-    expect(await posts[0]?.json()).toEqual({ hold_s: 0 });
-    expect(await posts[1]?.json()).toEqual({ hold_s: 600 });
-  } finally {
-    view.close();
-  }
-});
-
-it("写锁期望值允许空、暂停接受0/10秒；超界保留输入并提示，参数不包含路径", async () => {
-  const posts: Request[] = [];
-  const view = mountPage("/jobs/resources", (request) => {
-    if (request.method === "POST") {
-      posts.push(request);
-      return Promise.resolve(problemResponse(422));
-    }
-    return pageFetch()(request);
-  });
-  try {
-    const expected = await screen.findByLabelText<HTMLInputElement>("期望值");
-    const pause = screen.getByLabelText<HTMLInputElement>("写入前暂停（秒）");
-    fireEvent.change(expected, { target: { value: "x".repeat(257) } });
-    fireEvent.click(screen.getByRole("button", { name: "提交写锁作业" }));
-    expect(await screen.findByText("期望值最多256个字符")).toBeTruthy();
-    expect(expected.value).toHaveLength(257);
-    fireEvent.change(expected, { target: { value: "" } });
-    fireEvent.change(pause, { target: { value: "11" } });
-    fireEvent.click(screen.getByRole("button", { name: "提交写锁作业" }));
-    expect(await screen.findByText("暂停须为0至10的整数秒")).toBeTruthy();
-    expect(posts).toHaveLength(0);
-    for (const value of ["0", "10"]) {
-      fireEvent.change(pause, { target: { value } });
-      fireEvent.click(screen.getByRole("button", { name: "提交写锁作业" }));
-      await waitFor(() => {
-        expect(posts).toHaveLength(value === "0" ? 1 : 2);
-      });
-      await waitFor(() => {
-        expect(
-          screen.getByRole<HTMLButtonElement>("button", { name: "提交写锁作业" }).disabled,
-        ).toBe(false);
-      });
-    }
-    expect(await posts[0]?.json()).toEqual({ expected_value: "", pause_s: 0 });
-    expect(await posts[1]?.json()).toEqual({ expected_value: "", pause_s: 10 });
-  } finally {
-    view.close();
-  }
-});
-
-it("两个示例成功提交201后进入新详情，提交中禁重复，离页或换号后迟到成功不导航", async () => {
-  for (const name of ["提交占卡作业", "提交写锁作业"]) {
-    let finish: ((response: Response) => void) | undefined;
-    const posts: Request[] = [];
-    const fresh = { ...job, job_id: "9007199254740994" };
-    const view = mountPage("/jobs/resources", (request) => {
-      if (request.method === "POST") {
-        posts.push(request);
-        return new Promise<Response>((resolve) => {
-          finish = resolve;
-        });
-      }
-      return pageFetch(undefined, () => fresh)(request);
-    });
-    try {
-      fireEvent.click(await screen.findByRole("button", { name }));
-      await waitFor(() => {
-        expect(posts).toHaveLength(1);
-      });
-      const button = screen.getByRole<HTMLButtonElement>("button", { name });
-      expect(button.disabled).toBe(true);
-      fireEvent.click(button);
-      expect(posts).toHaveLength(1);
-      await act(async () => {
-        finish?.(Response.json(fresh, { status: 201 }));
-        await Promise.resolve();
-      });
-      await waitFor(() => {
-        expect(view.router.state.location.pathname).toBe("/jobs/9007199254740994");
-      });
-    } finally {
-      view.close();
-      finish?.(Response.json(fresh));
-    }
-  }
-  let finish: ((response: Response) => void) | undefined;
-  let sent: Request | undefined;
-  const late = mountPage("/jobs/resources", (request) => {
-    if (request.method === "POST") {
-      sent = request;
-      return new Promise<Response>((resolve) => {
-        finish = resolve;
-      });
-    }
-    return pageFetch()(request);
-  });
-  try {
-    fireEvent.click(await screen.findByRole("button", { name: "提交占卡作业" }));
-    await waitFor(() => {
-      expect(sent).toBeDefined();
-    });
-    await act(async () => {
-      late.cache.setQueryData(["current-account"], {
-        ...account,
-        account_id: "9",
-        display_name: "切换账号",
-      });
-      await Promise.resolve();
-    });
-    await screen.findByText("切换账号");
-    expect(sent?.signal.aborted).toBe(true);
-    await act(async () => {
-      await late.router.navigate({ to: "/" });
-      finish?.(Response.json({ ...job, job_id: "99" }, { status: 201 }));
-      await Promise.resolve();
-    });
-    expect(late.router.state.location.pathname).toBe("/");
-  } finally {
-    late.close();
-    finish?.(Response.json(job));
-  }
-});
-
-it("提交失败统一诊断且保留表单，不自动重试不确定写请求", async () => {
-  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-  let calls = 0;
-  const view = mountPage("/jobs/resources", (request) => {
-    if (request.method === "POST") {
-      calls++;
-      return Promise.resolve(problemResponse(409));
-    }
-    return pageFetch()(request);
-  });
-  try {
-    const input = await screen.findByLabelText<HTMLInputElement>("期望值");
-    fireEvent.change(input, { target: { value: "上次预览" } });
-    fireEvent.click(screen.getByRole("button", { name: "提交写锁作业" }));
-    expect(await screen.findByText("账号状态已变化，请重试")).toBeTruthy();
-    expect(input.value).toBe("上次预览");
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3000);
-    });
-    expect(calls).toBe(1);
-    expect(view.router.state.location.pathname).toBe("/jobs/resources");
   } finally {
     view.close();
   }

@@ -16,7 +16,7 @@ from rdp.ops.cli import Command, Console, parse_command, run_cli, run_maintenanc
 
 
 def _console() -> Console:
-    """用内存流和固定非真实口令代替终端。"""
+    """用内存流和固定非真实密码代替终端。"""
     return Console(io.StringIO(), io.StringIO(), lambda _: "test-password-value")
 
 
@@ -203,11 +203,11 @@ def test_migrate_dispatch(tmp_path: Path) -> None:
 
 
 def test_accounts_require_current_database(tmp_path: Path) -> None:
-    """验证契约：账号命令拒绝旧库，不自动迁移，不在读取口令前开始写事务；失败关闭引擎。"""
+    """验证契约：账号命令拒绝旧库，不自动迁移，不在读取密码前开始写事务；失败关闭引擎。"""
     from rdp.infra.diagnostics import InputError
 
     inputs = runtime_inputs(tmp_path, migrated=False)
-    read = Mock(side_effect=AssertionError("不能读口令"))
+    read = Mock(side_effect=AssertionError("不能读密码"))
     console = Console(io.StringIO(), io.StringIO(), read)
     for command in (
         Command("create-admin", login_name="admin", display_name="管理"),
@@ -252,7 +252,7 @@ def test_create_admin_dispatch(tmp_path: Path) -> None:
 
 
 def test_reset_password_sessions(tmp_path: Path) -> None:
-    """验证契约：验收4：经命令重置后原有全部会话失效，角色和启停状态不变，下次登录必须改口令。"""
+    """验证契约：验收4：经命令重置后原有全部会话失效，角色和启停状态不变，下次登录必须改密码。"""
     from account_api_support import api_case
     from accounts_support import AUDIT_CONTEXT, EXAMPLE_SECRET, NOW
 
@@ -285,7 +285,7 @@ def test_reset_password_sessions(tmp_path: Path) -> None:
 
 
 def test_reset_password_audit(tmp_path: Path) -> None:
-    """验证契约：验收4：重置成功恰好一条操作日志且操作人为“运维”，口令/哈希不得出现在日志或错误中。"""
+    """验证契约：验收4：重置成功恰好一条操作日志且操作人为“运维”，密码/哈希不得出现在日志或错误中。"""
     from account_api_support import api_case
     from sqlalchemy import select
 
@@ -316,7 +316,7 @@ def test_reset_password_audit(tmp_path: Path) -> None:
 
 
 def test_account_input_failure(tmp_path: Path) -> None:
-    """验证契约：两次口令不一致、账号不存在、已有管理员及无回显失败返回非0，不留下部分账号变更。"""
+    """验证契约：两次密码不一致、账号不存在、已有管理员及无回显失败返回非0，不留下部分账号变更。"""
     inputs = runtime_inputs(tmp_path)
     console = Console(
         io.StringIO(),
@@ -351,7 +351,7 @@ def test_account_input_failure(tmp_path: Path) -> None:
 
 
 def test_account_interrupt(tmp_path: Path) -> None:
-    """验证契约：输入 EOF/Ctrl-C 返回130，事务尚未开始，不输出口令。"""
+    """验证契约：输入 EOF/Ctrl-C 返回130，事务尚未开始，不输出密码。"""
     inputs = runtime_inputs(tmp_path)
     for error in (EOFError(), KeyboardInterrupt()):
         console = Console(io.StringIO(), io.StringIO(), Mock(side_effect=error))
@@ -499,7 +499,7 @@ def test_command_help_descriptions() -> None:
         "worker": "启动后台作业 worker",
         "migrate": "升级数据库到当前版本",
         "create-admin": "创建首个管理员",
-        "reset-password": "重置账号口令并撤销旧会话",
+        "reset-password": "重置账号密码并撤销旧会话",
         "status": "只读检查作业、worker 锁或监听端口",
     }
     console = _console()

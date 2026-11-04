@@ -216,7 +216,9 @@ def test_system_response(tmp_path: Path) -> None:
     with job_api_case(tmp_path) as case:
         service = JobService(case.engine, production_registry())
         submission = service.submit_scheduled(
-            ScheduledJob("清除", "purge_errors", {}), case.clock.value.date(), now=case.clock.value
+            ScheduledJob("清除", "purge_errors", {}, description="删除超过保留期的程序报错记录"),
+            case.clock.value.date(),
+            now=case.clock.value,
         )
         assert submission is not None
         case.login()

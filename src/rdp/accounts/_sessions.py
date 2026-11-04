@@ -30,8 +30,8 @@ from rdp.infra.diagnostics import ConflictError, InputError
 
 
 def authentication_error() -> AuthenticationError:
-    """统一凭据错误的外部诊断，不包含登录名、口令或令牌。"""
-    return problem(AuthenticationError, "账号或口令错误")
+    """统一凭据错误的外部诊断，不包含登录名、密码或令牌。"""
+    return problem(AuthenticationError, "账号或密码错误")
 
 
 def wait_error(row: AccountRow, now: datetime) -> LoginWaitError | None:
@@ -46,7 +46,7 @@ def wait_error(row: AccountRow, now: datetime) -> LoginWaitError | None:
 
 
 def confirm(row: AccountRow | None, previous: AccountRow, now: datetime) -> AccountRow:
-    """写锁内比较原始口令和G2状态，绝不把过时的验证结果用于提交。"""
+    """写锁内比较原始密码和G2状态，绝不把过时的验证结果用于提交。"""
     if row is None or row.status != AccountStatus.ENABLED.value:
         raise authentication_error()
     waiting = wait_error(row, now)
@@ -72,7 +72,7 @@ def wrong_password(row: AccountRow, now: datetime, *, current: bool = False) -> 
             return waiting
     row.blocked_until = None
     if current:
-        return problem(CurrentPasswordError, "当前口令不正确", field="current_password")
+        return problem(CurrentPasswordError, "当前密码不正确", field="current_password")
     return authentication_error()
 
 
@@ -131,7 +131,7 @@ def authorize(
     ):
         raise authentication_error()
     if account.must_change_password and not allow_change:
-        raise problem(PasswordChangeRequiredError, "必须先修改口令")
+        raise problem(PasswordChangeRequiredError, "必须先修改密码")
     if admin and account.role != Role.ADMINISTRATOR.value:
         raise problem(AuthorizationError, "需要管理员权限")
     return account

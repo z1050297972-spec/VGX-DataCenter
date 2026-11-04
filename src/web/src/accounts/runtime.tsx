@@ -1,4 +1,4 @@
-// 账号页面的应用依赖和内存身份查询；不存储口令或读取 cookie。
+// 账号页面的应用依赖和内存身份查询；不存储密码或读取 cookie。
 import { createContext, useContext, type ReactElement, type ReactNode } from "react";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import type { HealthClient } from "../api/client";
@@ -13,7 +13,7 @@ const ClientContext = createContext<HealthClient | null>(null);
 /** 当前应用的身份查询键；登出清空整个 QueryClient，不能跨账号复用。 */
 export const ACCOUNT_QUERY_KEY = ["current-account"] as const;
 
-/** 页面依赖属性，不含 cookie 或口令。 */
+/** 页面依赖属性，不含 cookie 或密码。 */
 interface ClientProviderProps {
   /** 必填的类型化同源客户端。 */
   client: HealthClient;

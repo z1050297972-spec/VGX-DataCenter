@@ -63,7 +63,9 @@ def maintenance_work(case: ScheduleCase, type_name: str) -> tuple[ExecutionWork,
     from rdp.jobs.scheduling_types import ScheduledJob
 
     submission = case.service.submit_scheduled(
-        ScheduledJob(type_name, type_name, {}), case.clock.wall.date(), now=case.clock.wall
+        ScheduledJob(type_name, type_name, {}, description="清除超过保留期的记录"),
+        case.clock.wall.date(),
+        now=case.clock.wall,
     )
     assert submission is not None
     work = case.scheduler.claim_next()

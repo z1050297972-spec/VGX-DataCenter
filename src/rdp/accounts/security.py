@@ -44,10 +44,10 @@ from rdp.infra.diagnostics import DefectError, ExternalError, InputError
 
 @dataclass(frozen=True)
 class PasswordCheck:
-    """口令核验结果；替代哈希仅由成功登录事务保存。
+    """密码核验结果；替代哈希仅由成功登录事务保存。
 
     Attributes:
-        matched: 是否匹配，布尔、无单位、不可空、无默认；未知账号和错口令均 False。
+        matched: 是否匹配，布尔、无单位、不可空、无默认；未知账号和错密码均 False。
         replacement_hash: 新的 Argon2id 编码，1-512 个字符、无单位、无默认；无需重哈希为 None，
             matched=False 时必须为 None；排除 repr，不返回接口。
     """
@@ -75,7 +75,7 @@ class PasswordCodec:
             hasher: 已配置的 Argon2id PasswordHasher，无单位；None 使用库默认值，测试可降成本。
 
         Returns:
-            无；保存 hasher 和随机 dummy_hash，不保留假口令原文。
+            无；保存 hasher 和随机 dummy_hash，不保留假密码原文。
 
         Raises:
             ExternalError: 共享 Argon2 名额排队超过 1 秒，安全资源繁忙诊断；不创建半初始化编码器。
@@ -103,13 +103,13 @@ class PasswordCodec:
             raise DefectError() from None
 
     def hash(self, password: SecretStr) -> str:
-        """校验长度并生成带独立随机盐的 Argon2id 口令哈希。
+        """校验长度并生成带独立随机盐的 Argon2id 密码哈希。
 
         Args:
             password: SecretStr，10-128 个 Unicode 码点，允许空格和任意组合；拒绝代理码点，不归一化。
 
         Returns:
-            不超过 512 字符的 Argon2id 编码，含盐和参数；同口令多次调用得到不同哈希。
+            不超过 512 字符的 Argon2id 编码，含盐和参数；同密码多次调用得到不同哈希。
 
         Raises:
             AccountInputError: 类型错误、码点数不在范围或含代理码点；不回显原文。
@@ -130,7 +130,7 @@ class PasswordCodec:
                 raise DefectError() from None
 
     def verify(self, encoded: str | None, password: SecretStr) -> PasswordCheck:
-        """验证口令，并在成功且参数过时时产生替代哈希。
+        """验证密码，并在成功且参数过时时产生替代哈希。
 
         Args:
             encoded: 1-512 字符的已存 Argon2id 编码；None 表示未知或停用账号，使用 dummy_hash。
@@ -138,7 +138,7 @@ class PasswordCodec:
 
         Returns:
             已知有效账号匹配时 matched=True，check_needs_rehash 为真时带替代哈希；
-            不匹配或 encoded=None 时 False/None。比较由 Argon2 库执行，禁止自行比较口令字符串。
+            不匹配或 encoded=None 时 False/None。比较由 Argon2 库执行，禁止自行比较密码字符串。
 
         Raises:
             AccountInputError: password 不满足 hash 的输入约束。
@@ -169,7 +169,7 @@ class PasswordCodec:
             except VerifyMismatchError:
                 return PasswordCheck(matched=False, replacement_hash=None)
             except (InvalidHashError, VerificationError):
-                failure = problem(InputError, "已存口令编码不合法", field="password_hash")
+                failure = problem(InputError, "已存密码编码不合法", field="password_hash")
                 raise failure from None
             except Exception:
                 raise DefectError() from None
@@ -248,7 +248,7 @@ def _check_encoded(encoded: object) -> None:
         ):
             raise ValueError()
     except Exception:
-        failure = problem(InputError, "已存口令编码或成本不合法", field="password_hash")
+        failure = problem(InputError, "已存密码编码或成本不合法", field="password_hash")
         raise failure from None
 
 

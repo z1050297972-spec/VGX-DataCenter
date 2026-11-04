@@ -3,7 +3,7 @@
 复用 session_scope：写事务先 BEGIN IMMEDIATE，再重读会话、角色和最后管理员计数。
 登录失败是必须提交的状态：在事务内记录结果，正常退出提交后才抛 401/429；
 其他失败回滚。认证与业务读事务分开，绝不把 get_read_session 升级为写会话。
-不写运行日志；口令库异常先在 security 边界脱敏，数据库只允许 hide_parameters 引擎。
+不写运行日志；密码库异常先在 security 边界脱敏，数据库只允许 hide_parameters 引擎。
 所有 Argon2 名额申请、排队、核验和哈希都在数据库事务之外；只读快照退出后才开始计算，
 计算完成并释放名额后才进入 BEGIN IMMEDIATE。写事务内只重验状态并保存已算好的结果，禁止调用 PasswordCodec。
 """
@@ -132,7 +132,7 @@ class AccountService:
         Raises:
             AuthenticationError: 会话无效、账号停用/删除或已过期。
             AuthorizationError: 当前账号不是管理员。
-            PasswordChangeRequiredError: 必须先改口令。
+            PasswordChangeRequiredError: 必须先改密码。
             AccountInputError: now 不合法。
             AuditInputError: 筛选或游标非法。
             InputError: 日志、账号或数据库损坏。
@@ -170,7 +170,7 @@ class AccountService:
         Raises:
             AuthenticationError: 会话或账号失效。
             AuthorizationError: 当前不是管理员。
-            PasswordChangeRequiredError: 必须改口令。
+            PasswordChangeRequiredError: 必须改密码。
             AccountInputError: now 非法。
             AuditInputError: 筛选/游标非法。
             InputError: 数据库、时间或登录快照损坏。
@@ -204,7 +204,7 @@ class AccountService:
         Raises:
             AuthenticationError: 会话或账号失效。
             AuthorizationError: 非管理员。
-            PasswordChangeRequiredError: 必须先改口令。
+            PasswordChangeRequiredError: 必须先改密码。
             AccountInputError: now 无效。
             InputError: 保留期值或数据库损坏，不回退默认值。
             ConflictError: 读取锁冲突。
@@ -240,7 +240,7 @@ class AccountService:
         Raises:
             AuthenticationError: 会话或账号失效。
             AuthorizationError: 非管理员。
-            PasswordChangeRequiredError: 必须先改口令。
+            PasswordChangeRequiredError: 必须先改密码。
             AccountInputError: now 无效。
             AuditInputError: days 不是 7-365 的非 bool 整数，在改设置前拒绝。
             InputError: 当前设置或数据库损坏。
@@ -306,30 +306,30 @@ class AccountService:
         """验证登录并签发新的服务端会话。
 
         Args:
-            credentials: Credentials，登录名和口令符合 policy 的严格边界；不允许 None。
+            credentials: Credentials，登录名和密码符合 policy 的严格边界；不允许 None。
             now: 请求开始时刻，aware datetime，精度微秒；所有等待与活动时刻均由它计算。
             audit: 本次登录入口提取的 AuditContext，必填；source_ip 无法取得可为 None，request_id 必须有效；未知账号落库时才按 H2 去掉编号。
 
         Returns:
-            仅启用账号口令正确时返回 SessionGrant；每次新建随机令牌，防止会话固定；忽略旧 cookie。
-            强制改口令账号仍可登录，快照保留 must_change_password=True；旧会话不复用。
+            仅启用账号密码正确时返回 SessionGrant；每次新建随机令牌，防止会话固定；忽略旧 cookie。
+            强制改密码账号仍可登录，快照保留 must_change_password=True；旧会话不复用。
 
         Raises:
-            AccountInputError: 登录名/口令不合格，或领域直接调用的 now 无时区、UTC 换算/新截止加时溢出。
-            AuthenticationError: 初始查询账号不存在/停用、重读账号已删除/停用或合法快照下核验口令错误；统一“账号或口令错误”。
+            AccountInputError: 登录名/密码不合格，或领域直接调用的 now 无时区、UTC 换算/新截止加时溢出。
+            AuthenticationError: 初始查询账号不存在/停用、重读账号已删除/停用或合法快照下核验密码错误；统一“账号或密码错误”。
             LoginWaitError: 初始快照或写事务重读发现启用账号正在等待，或成功提交连续第五次错误；剩余秒向上取整。
-            InputError: 数据库/UTC 列或已存口令编码损坏。
-            ConflictError: 账号仍启用且不在等待，但写事务重读的口令哈希或 G2 状态与快照不同，
+            InputError: 数据库/UTC 列或已存密码编码损坏。
+            ConflictError: 账号仍启用且不在等待，但写事务重读的密码哈希或 G2 状态与快照不同，
                 提示“账号状态已变化，请重试”，不计失败、不签发会话；以及 SQLite 写锁或约束冲突。
-            ExternalError: 数据库 I/O/清理失败或 Argon2 排队超时；均不计错口令。
+            ExternalError: 数据库 I/O/清理失败或 Argon2 排队超时；均不计错密码。
             DefectError: audit 不是有效的登录请求上下文（类型/IP/服务器编号错误），或登录哈希、熵源、SQL、映射错误；不附秘密异常链。
             TypeError: 调用 login 时遗漏必填关键字参数 audit，函数体尚未执行。
 
         Side Effects:
             输入校验不合格不记日志；未知账号完成 dummy verify 后经 append_missing_login 单独短事务记 ACCOUNT_MISSING，
-            只存时间、登录类型、结果和来源 IP，绝不存输入登录名、口令、请求编号，不建账号、不计 G2。
+            只存时间、登录类型、结果和来源 IP，绝不存输入登录名、密码、请求编号，不建账号、不计 G2。
             初始已停用或等待中的已知账号，在独立短写事务重读同一编号/状态后记 DISABLED/WAITING，不改 G2。
-            合法核验结果进入已有写事务：前四次错口令的 G2 与 WRONG_PASSWORD 日志一起提交；第五次也记 WRONG_PASSWORD，
+            合法核验结果进入已有写事务：前四次错密码的 G2 与 WRONG_PASSWORD 日志一起提交；第五次也记 WRONG_PASSWORD，
             然后抛原 LoginWaitError；等待期内的新尝试才记 WAITING。成功时 G2 清零、必要重哈希、会话签发及 SUCCESS 日志一起提交。
             并发重读发现已删除按 ACCOUNT_MISSING 脱敏；停用或等待记录对应结果。
             输入校验后读取账号状态时算开始执行；哈希/G2 并发冲突或计算/存储故障不编造凭据结论，
@@ -478,11 +478,11 @@ class AccountService:
         now: datetime,
         audit: AuditContext,
     ) -> SessionGrant:
-        """校验当前口令后改自己的口令并轮换全部会话。
+        """校验当前密码后改自己的密码并轮换全部会话。
 
         Args:
             identity: 当前会话身份，不接受目标账号编号；允许 must_change_password=True。
-            change: 当前和新口令的 SecretStr，均 10-128 个码点；不允许新旧相同。
+            change: 当前和新密码的 SecretStr，均 10-128 个码点；不允许新旧相同。
             now: aware 当前时刻，精度微秒。
             audit: 本人改密请求的来源上下文，必填；服务器请求编号不可空，IP 可因入口未取得 client 而为空。
 
@@ -490,33 +490,33 @@ class AccountService:
             新 SessionGrant；must_change_password=False，只保留本次新会话。
 
         Raises:
-            AccountInputError: 字段类型/长度、新旧口令相同，或领域直接调用的 now 无效、等待截止加时溢出。
-            CurrentPasswordError: 状态快照一致且当前口令错误，诊断“当前口令不正确”，保留会话。
-            AuthenticationError: 只读阶段或写事务重验发现当前会话失效/撤销、账号不存在/停用；不包含单纯旧口令错误。
-            LoginWaitError: 初始或重读状态处于 G2 等待，或本次提交第五次旧口令错误；不清 cookie。
-            InputError: 数据库/UTC 列或已存口令编码损坏。
-            ConflictError: 会话仍有效且账号启用、不在等待，但口令哈希或原始 G2 状态已变化，请用户重试；以及 SQLite 写锁/约束冲突。
+            AccountInputError: 字段类型/长度、新旧密码相同，或领域直接调用的 now 无效、等待截止加时溢出。
+            CurrentPasswordError: 状态快照一致且当前密码错误，诊断“当前密码不正确”，保留会话。
+            AuthenticationError: 只读阶段或写事务重验发现当前会话失效/撤销、账号不存在/停用；不包含单纯旧密码错误。
+            LoginWaitError: 初始或重读状态处于 G2 等待，或本次提交第五次旧密码错误；不清 cookie。
+            InputError: 数据库/UTC 列或已存密码编码损坏。
+            ConflictError: 会话仍有效且账号启用、不在等待，但密码哈希或原始 G2 状态已变化，请用户重试；以及 SQLite 写锁/约束冲突。
             ExternalError: 数据库 I/O/清理失败或事务外 Argon2 入场排队超时，不计失败。
-            DefectError: 本人改密上下文不合法，或旧口令核验、新哈希、会话熵源及 SQL 程序错误；输出不含秘密。
+            DefectError: 本人改密上下文不合法，或旧密码核验、新哈希、会话熵源及 SQL 程序错误；输出不含秘密。
             TypeError: 调用 change_password 时遗漏必填关键字参数 audit，函数体尚未执行。
 
         Side Effects:
-            先检查 audit、输入和新旧口令不相同，在只读事务核验当前身份及 G2；初始等待期拒绝不算开始。
-            退出只读事务并申请旧口令核验名额时算开始执行；验证正确才在事务外计算新哈希，释放所有名额后进入写事务。
-            锁内重新验证身份，并逐项比较原哈希与 G2 快照，不能将并发变化当成旧口令错误。
-            旧口令确实错误时，失败 CHANGE_PASSWORD 日志与递增 G2（第五次还设置等待截止）在同一个写事务提交；
+            先检查 audit、输入和新旧密码不相同，在只读事务核验当前身份及 G2；初始等待期拒绝不算开始。
+            退出只读事务并申请旧密码核验名额时算开始执行；验证正确才在事务外计算新哈希，释放所有名额后进入写事务。
+            锁内重新验证身份，并逐项比较原哈希与 G2 快照，不能将并发变化当成旧密码错误。
+            旧密码确实错误时，失败 CHANGE_PASSWORD 日志与递增 G2（第五次还设置等待截止）在同一个写事务提交；
             失败类别为 INPUT，before 仅已有 must_change_password，after={}；提交后前四次抛 CurrentPasswordError，第五次抛 LoginWaitError。
-            这一分支不得另开短事务补写旧口令失败日志，也不写登录日志、不撤销或轮换当前会话；日志追加/提交失败则 G2 一起回滚。
-            只有实际判定可提交时才返回口令拒绝；若 G2/日志事务本身失败，按存储故障回滚，再独立记录该执行故障，不伪装为已提交的错口令结果。
-            旧口令正确时，新哈希、清 G2/强制标记、更新操作人、全部旧会话撤销及当前新会话，与成功操作日志原子提交。
-            哈希计算故障、快照冲突及已开始后的数据库故障，原工作单元退出后短事务补记失败；明细只取安全标记，禁止写口令或会话摘要。
+            这一分支不得另开短事务补写旧密码失败日志，也不写登录日志、不撤销或轮换当前会话；日志追加/提交失败则 G2 一起回滚。
+            只有实际判定可提交时才返回密码拒绝；若 G2/日志事务本身失败，按存储故障回滚，再独立记录该执行故障，不伪装为已提交的错密码结果。
+            旧密码正确时，新哈希、清 G2/强制标记、更新操作人、全部旧会话撤销及当前新会话，与成功操作日志原子提交。
+            哈希计算故障、快照冲突及已开始后的数据库故障，原工作单元退出后短事务补记失败；明细只取安全标记，禁止写密码或会话摘要。
             字段/audit 不合法、初始身份/G2预检拒绝及后来重验的 AuthenticationError 不记；进入执行后重读 G2 已等待的 LoginWaitError 则补记输入类别失败。
             故障补记失败仍返回原计算、冲突或存储异常，仅增加 AUDIT_APPEND_FAILED 供入口报告，不能把第二异常变成新的业务结果。
 
         Time Semantics:
             会话/G2 计算都用同一 aware now 转 UTC；负经过时长为 0，回拨不重设等待截止，截止相等允许尝试。
-            核验旧口令与计算新哈希分别最多排队 1 秒，均在读事务结束后、业务写事务开始前进行；业务写锁最多 5000 毫秒。
-            错旧口令时，G2 与失败操作日志必须在同一次提交后才抛 CurrentPasswordError/LoginWaitError；没有第二个追加锁等待。
+            核验旧密码与计算新哈希分别最多排队 1 秒，均在读事务结束后、业务写事务开始前进行；业务写锁最多 5000 毫秒。
+            错旧密码时，G2 与失败操作日志必须在同一次提交后才抛 CurrentPasswordError/LoginWaitError；没有第二个追加锁等待。
             其他执行故障回滚后的补记锁等待限 AUDIT_SHORT_LOCK_TIMEOUT_MS=100 毫秒；无自动重试，账号更新时间不倒退，新会话用原 now。
         """
         validate_context(audit)
@@ -615,7 +615,7 @@ class AccountService:
         now: datetime,
         audit: AuditContext,
     ) -> AccountView:
-        """由管理员新建启用账号并强制首次改口令。
+        """由管理员新建启用账号并强制首次改密码。
 
         Args:
             identity: 管理员会话身份；事务内重验，不能从客户端声明操作者。
@@ -630,7 +630,7 @@ class AccountService:
             AccountInputError: 字段、角色或 now 无效。
             AuthenticationError: 写事务内重新检查会话失效、过期或账号不可用。
             AuthorizationError: 当前角色不是管理员。
-            PasswordChangeRequiredError: 尚未完成强制改口令。
+            PasswordChangeRequiredError: 尚未完成强制改密码。
             ConflictError: 登录名已存在或 SQLite 写锁/约束冲突。
             InputError: 数据库/UTC 列损坏；不修复存量数据。
             ExternalError: 数据库打开、提交或清理 I/O 失败，或 Argon2 名额排队超过 1 秒；失败不提交。
@@ -638,11 +638,11 @@ class AccountService:
             TypeError: 调用 create_account 时遗漏必填关键字参数 audit，函数体尚未执行。
 
         Side Effects:
-            输入、audit 和只读管理员预检通过，关闭读事务并开始申请初始口令哈希名额时算开始执行；保存预检操作人快照。
+            输入、audit 和只读管理员预检通过，关闭读事务并开始申请初始密码哈希名额时算开始执行；保存预检操作人快照。
             Argon2 在事务外完成后，BEGIN IMMEDIATE 内再验管理员，并尝试创建启用、首次必须改密的账号；不为目标签发会话。
             CREATE_ACCOUNT 成功日志与新账号同事务提交，before={}，after 只含账号白名单；日志写入失败必须撤销账号创建。
             开始后的重名/锁/约束 ConflictError、存储 InputError/ExternalError 或哈希/SQL DefectError，退出原工作单元后单独补记失败。
-            新建失败的对象编号始终为空，即使 flush 曾分配编号也不能保留；名字固定“新账号”，after={}，不复制原始命令或口令。
+            新建失败的对象编号始终为空，即使 flush 曾分配编号也不能保留；名字固定“新账号”，after={}，不复制原始命令或密码。
             初始字段或上下文错误、管理员预检失败，以及写事务重验抛出的 AuthenticationError、AuthorizationError、PasswordChangeRequiredError 不记日志。
             失败补记只尝试一次；补记错误给原建号异常加 AUDIT_APPEND_FAILED，交 API 边界 ERROR，不能替换原失败。
 
@@ -701,7 +701,7 @@ class AccountService:
             AccountInputError: 目标编号、枚举或 now 无效。
             AuthenticationError: 写事务内重新检查会话失效、过期或账号不可用。
             AuthorizationError: 当前角色不是管理员。
-            PasswordChangeRequiredError: 尚未完成强制改口令。
+            PasswordChangeRequiredError: 尚未完成强制改密码。
             AccountNotFoundError: 目标已删除。
             ConflictError: 变更会使启用管理员数量变为零，或 SQLite 锁/约束冲突。
             InputError: 数据库/UTC 列损坏；不修复存量数据。
@@ -782,7 +782,7 @@ class AccountService:
             AccountInputError: 目标编号、枚举或 now 无效。
             AuthenticationError: 写事务内重新检查会话失效、过期或账号不可用。
             AuthorizationError: 当前角色不是管理员。
-            PasswordChangeRequiredError: 尚未完成强制改口令。
+            PasswordChangeRequiredError: 尚未完成强制改密码。
             AccountNotFoundError: 目标已删除。
             ConflictError: 变更会使启用管理员数量变为零，或 SQLite 锁/约束冲突。
             InputError: 数据库/UTC 列损坏；不修复存量数据。
@@ -858,28 +858,28 @@ class AccountService:
         now: datetime,
         audit: AuditContext,
     ) -> AccountView:
-        """由管理员重置目标口令并强制其下次改口令。
+        """由管理员重置目标密码并强制其下次改密码。
 
         Args:
             identity: 管理员身份，事务内重验。
             account_id: 目标正整数编号，1 至 2^63-1，不接受 bool。
             password: 新 SecretStr，10-128 个 Unicode 码点，无组合要求，不可空。
             now: aware 当前时刻，精度微秒。
-            audit: 管理员重置口令请求的来源与服务器编号，必填；允许 IP 未知，不接受空请求编号。
+            audit: 管理员重置密码请求的来源与服务器编号，必填；允许 IP 未知，不接受空请求编号。
 
         Returns:
             更新后的 AccountView，must_change_password=True，不返回或新建会话。
 
         Raises:
-            AccountInputError: 编号、口令或 now 无效。
+            AccountInputError: 编号、密码或 now 无效。
             AuthenticationError: 写事务内重新检查会话失效、过期或账号不可用。
             AuthorizationError: 当前角色不是管理员。
-            PasswordChangeRequiredError: 尚未完成强制改口令。
+            PasswordChangeRequiredError: 尚未完成强制改密码。
             AccountNotFoundError: 目标不存在。
             InputError: 数据库/UTC 列损坏；不修复存量数据。
             ConflictError: SQLite 写锁等待约 5 秒或约束冲突；无自动重试。
             ExternalError: 数据库打开、提交或清理 I/O 失败，或 Argon2 名额排队超过 1 秒；失败不提交。
-            DefectError: 管理员重置 audit 不合法，或新哈希计算、保存及会话撤销发生程序错误；禁止携带口令原文。
+            DefectError: 管理员重置 audit 不合法，或新哈希计算、保存及会话撤销发生程序错误；禁止携带密码原文。
             TypeError: 调用 reset_password 时遗漏必填关键字参数 audit，函数体尚未执行。
 
         Side Effects:
@@ -887,13 +887,13 @@ class AccountService:
             写事务内只重新核验当前管理员和同一目标编号，保存预先算好的哈希、强制改密标记、修改人、清 G2 并撤销全部目标会话。
             RESET_PASSWORD 的成功日志只保存 must_change_password 前后值，与这些改动原子提交；重置自己也不签发替代会话。
             开始后的 Argon2 ExternalError/DefectError、锁或约束 ConflictError、目标消失 AccountNotFoundError，以及数据库故障都在回滚/关闭后补失败日志。
-            目标旧哈希并发变化不要求核验旧口令；失败快照来自预检目标，after={}，任何哈希及新口令都不得落日志。
+            目标旧哈希并发变化不要求核验旧密码；失败快照来自预检目标，after={}，任何哈希及新密码都不得落日志。
             输入或 audit 校验、初始管理员/目标预检失败不记；写事务内身份失效、角色不足或必须改密的拒绝也不记。
             独立补记若失败，原重置异常继续返回，固定标记由 API 边界记录，不把补记异常链带出去。
 
         Time Semantics:
             用 aware now 转 UTC 核验身份、记录重置时刻；更新账号取 max(已存, now)，回拨不构成冲突。
-            新口令哈希入场最多等 1 秒，释放名额后业务 BEGIN 最多等 5000 毫秒；任何哈希计算都不占数据库事务。
+            新密码哈希入场最多等 1 秒，释放名额后业务 BEGIN 最多等 5000 毫秒；任何哈希计算都不占数据库事务。
             重置失败补记的锁等待限 AUDIT_SHORT_LOCK_TIMEOUT_MS=100 毫秒，不重复哈希或自动重试，显式清 G2 不重算旧等待期。
         """
         validate_context(audit)
@@ -951,7 +951,7 @@ class AccountService:
             AccountInputError: 编号或 now 无效。
             AuthenticationError: 写事务内重新检查会话失效、过期或账号不可用。
             AuthorizationError: 当前角色不是管理员。
-            PasswordChangeRequiredError: 尚未完成强制改口令。
+            PasswordChangeRequiredError: 尚未完成强制改密码。
             AccountNotFoundError: 目标不存在，不伪造删除成功。
             ConflictError: 删除最后一个启用管理员或 SQLite 锁/约束冲突。
             InputError: 数据库/UTC 列损坏；不修复存量数据。
@@ -1012,7 +1012,7 @@ class AccountService:
             audit: 运维入口必须显式传 OPS_AUDIT_CONTEXT；来源 IP 和请求编号均为空，不接受其他上下文值。
 
         Returns:
-            AccountView，启用、must_change_password=False；首次口令由本人交互输入，不发会话。
+            AccountView，启用、must_change_password=False；首次密码由本人交互输入，不发会话。
 
         Raises:
             AccountInputError: 字段、角色或 now 无效。
@@ -1027,7 +1027,7 @@ class AccountService:
             交互已由运维入口完成，读事务关闭后开始申请初始哈希名额才算开始；哈希完成后持写锁再次检查无管理员及登录名唯一。
             创建启用且不强制改密的首号，并追加 CREATE_FIRST_ADMIN，操作人固定 ActorRef(None,"运维")；不创建会话。
             新账号与成功日志一次提交，before={}、after 为账号白名单；哈希资源失败、并发另一首号/重名/锁冲突及存储故障均需回滚或关闭后补记失败。
-            失败对象编号必须为空，不能保留回滚过程中分配的号；事件名字固定“新账号”，明细不包含交互口令或哈希。
+            失败对象编号必须为空，不能保留回滚过程中分配的号；事件名字固定“新账号”，明细不包含交互密码或哈希。
             漏传 audit 在调用绑定时失败，非法运维上下文或其他输入校验失败均不记；独立补记失败只给原错误加安全标记，由运维命令最外层记 ERROR。
 
         Time Semantics:
@@ -1069,7 +1069,7 @@ class AccountService:
         now: datetime,
         audit: AuditContext,
     ) -> AccountView:
-        """由可信本地运维重置口令，以恢复唯一管理员的访问。
+        """由可信本地运维重置密码，以恢复唯一管理员的访问。
 
         Args:
             login_name: 已有账号的严格登录名，不修剪、不改大小写。
@@ -1078,10 +1078,10 @@ class AccountService:
             audit: 必须明确传入具名 OPS_AUDIT_CONTEXT，表示此本地恢复命令没有来源 IP 或请求编号。
 
         Returns:
-            更新后的 AccountView，必须改口令；不自动启用账号或改变角色，不发会话。
+            更新后的 AccountView，必须改密码；不自动启用账号或改变角色，不发会话。
 
         Raises:
-            AccountInputError: 登录名、口令或 now 无效。
+            AccountInputError: 登录名、密码或 now 无效。
             AccountNotFoundError: 本地指定的账号不存在；仅运维可得此结论。
             InputError: 数据库/UTC 列损坏；不修复存量数据。
             ConflictError: SQLite 写锁等待约 5 秒或约束冲突；无自动重试。
@@ -1093,7 +1093,7 @@ class AccountService:
             只接受已校验的本地运维上下文；按登录名只读确认原账号编号并保存名字快照，未知目标在预检阶段拒绝、不记日志。
             关闭读事务后申请新哈希名额时算开始执行；持写锁只重读原编号与登录名，不能把同名新账号当成目标。
             成功保存预计算哈希、置必须改密、清 G2、撤销会话，并与 RESET_PASSWORD_FROM_OPS 日志原子提交；不改变启停状态或角色。
-            操作人固定 ActorRef(None,"运维")，成功明细只含 must_change_password；新口令和旧哈希不进入记录。
+            操作人固定 ActorRef(None,"运维")，成功明细只含 must_change_password；新密码和旧哈希不进入记录。
             预检后原账号被删除/同名重建的 AccountNotFoundError、哈希资源/程序故障、写锁冲突或存储失败，关闭/回滚原事务后补一条失败操作，after={}。
             输入字段、时间或 OPS_AUDIT_CONTEXT 校验失败不补记；补记失败由运维入口凭固定标记额外报 ERROR，原重置错误与目标身份保持不变。
 
@@ -1218,7 +1218,7 @@ def existing_account_ids(session: Session, identifiers: frozenset[int]) -> froze
         DefectError: Session、SQL 或映射错误。
 
     Side Effects:
-        无（只读账号编号），不读取口令/会话，不打开新事务，不覆盖历史名字。
+        无（只读账号编号），不读取密码/会话，不打开新事务，不覆盖历史名字。
 
     Time Semantics:
         与日志处于同一读快照，避免删号发生在两次查询之间导致错标。
@@ -1262,7 +1262,7 @@ def authorize_job_actor(
 
     Raises:
         AuthenticationError: 会话已撤销/过期或账号停用/删除，拒绝过时身份。
-        PasswordChangeRequiredError: 当前账号仍须改口令。
+        PasswordChangeRequiredError: 当前账号仍须改密码。
         AuthorizationError: admin=True 且当前账号不是管理员。
         InputError: 账号/会话行或数据库损坏。
         ConflictError: 查询遇数据库锁冲突。
@@ -1275,7 +1275,7 @@ def authorize_job_actor(
 
     Time Semantics:
         使用调用者唯一请求时刻，空闲过期沿用第6张规则，回拨按经过零处理；
-        事务已取得锁，无额外申请、重试或口令计算。
+        事务已取得锁，无额外申请、重试或密码计算。
     """
     try:
         moment = ensure_utc(now)

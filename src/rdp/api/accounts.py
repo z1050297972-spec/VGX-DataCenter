@@ -2,7 +2,7 @@
 
 账号路由进入 OpenAPI；全局鉴权在读取请求体和执行路由之前统一生效。
 每个写操作只在领域提交后返回成功，异常交统一 problem 边界，不在中间层重复报告。
-所有路由都禁止记录或报告口令、cookie、令牌及哈希，中间层不打日志，入口只报告一次。
+所有路由都禁止记录或报告密码、cookie、令牌及哈希，中间层不打日志，入口只报告一次。
 注入时钟统一由 get_account_now 校验；非法时钟是 DefectError，不把它混入用户字段的 422。
 """
 
@@ -86,21 +86,21 @@ async def login(body: LoginRequest, response: Response, context: LoginContext) -
     """验证登录并设置新会话 cookie。
 
     Args:
-        body: 登录名和 SecretStr 口令，无默认、不在 query 或日志中传递。
+        body: 登录名和 SecretStr 密码，无默认、不在 query 或日志中传递。
         response: 未发送的响应，供设置 cookie。
         context: 已验证 Origin 的免登录上下文，identity=None。
 
     Returns:
-        HTTP 200 AccountResponse，必须改口令标记原样返回；原文仅进入 HttpOnly cookie，不进入 JSON。
+        HTTP 200 AccountResponse，必须改密码标记原样返回；原文仅进入 HttpOnly cookie，不进入 JSON。
 
     Raises:
-        AccountInputError: 登录名/口令字段不合法，422；框架校验不回显 body。
-        AuthenticationError: 未知、停用或错口令，统一“账号或口令错误”的 401。
+        AccountInputError: 登录名/密码字段不合法，422；框架校验不回显 body。
+        AuthenticationError: 未知、停用或错密码，统一“账号或密码错误”的 401。
         AuthorizationError: POST 登录缺失/null/非法或不同源 Origin，403。
         LoginWaitError: 启用账号仍在 G2 等待或连续第五次错误，429 带 Retry-After，等待期间不哈希。
-        InputError: 数据库、UTC 列或已存口令编码损坏，400。
+        InputError: 数据库、UTC 列或已存密码编码损坏，400。
         ConflictError: 重读哈希/G2 状态已变化需重试，或SQLite 写锁/约束冲突，409；不计失败、不签发会话。
-        ExternalError: 数据库不可用/I/O 失败或 Argon2 名额排队超过 1 秒，502，不计错口令。
+        ExternalError: 数据库不可用/I/O 失败或 Argon2 名额排队超过 1 秒，502，不计错密码。
         DefectError: 注入时钟非法/回调失败，或登录装配、哈希、熵源或响应转换错误，500；报告前脱敏。
 
     Side Effects:
@@ -194,7 +194,7 @@ def who_am_i(context: AuthenticatedContext) -> AccountResponse:
 async def change_own_password(
     body: ChangePasswordRequest, response: Response, context: AuthenticatedContext
 ) -> AccountResponse:
-    """本人改口令并轮换 cookie。
+    """本人改密码并轮换 cookie。
 
     Args:
         body: 当前和新 SecretStr，10-128 个码点，不能相同。
@@ -205,23 +205,23 @@ async def change_own_password(
         HTTP 200 AccountResponse，must_change_password=False，Set-Cookie 为新令牌。
 
     Raises:
-        AccountInputError: 当前/新口令字段不合格或新旧相同，422。
-        CurrentPasswordError: AccountInputError 的 400 子类，提示“当前口令不正确”，不清 cookie、不跳登录。
-        AuthenticationError: 会话失效/账号不可用，401；单纯旧口令错误不属于此类。
+        AccountInputError: 当前/新密码字段不合格或新旧相同，422。
+        CurrentPasswordError: AccountInputError 的 400 子类，提示“当前密码不正确”，不清 cookie、不跳登录。
+        AuthenticationError: 会话失效/账号不可用，401；单纯旧密码错误不属于此类。
         AuthorizationError: POST 的 Origin 缺失/null/不合法或不同源，403。
-        LoginWaitError: 当前启用账号的 G2 等待或旧口令连续第五次失败，429 带 Retry-After。
-        InputError: 数据库、UTC 列或已存口令编码损坏，400。
+        LoginWaitError: 当前启用账号的 G2 等待或旧密码连续第五次失败，429 带 Retry-After。
+        InputError: 数据库、UTC 列或已存密码编码损坏，400。
         ConflictError: 写事务重读哈希/G2 与快照不一致需重试，或数据库锁/约束冲突，409；不应用旧验证结果。
-        ExternalError: 数据库 I/O 或 Argon2 名额排队超过 1 秒，502，不计为旧口令错误。
+        ExternalError: 数据库 I/O 或 Argon2 名额排队超过 1 秒，502，不计为旧密码错误。
         DefectError: 注入时钟非法/回调失败，或改密哈希、SQL、会话令牌生成或响应转换错误，500；报告前脱敏。
 
     Side Effects:
         调用 service.change_password；同事务撤销全部旧会话、新建当前会话，提交后才发 cookie。
-        旧口令错误前四次提交计数后 400，第五次 429/Retry-After；均不清 cookie，保留改密页面。
+        旧密码错误前四次提交计数后 400，第五次 429/Retry-After；均不清 cookie，保留改密页面。
 
     Time Semantics:
         允许强制改密账号；采用 context.now，回拨不报错、不改已有 G2 截止，修改时间不倒退。
-        只读快照结束后在事务外核验旧口令并算好新哈希，再进短写事务复核、提交，之后才发送 200/新 cookie；旧口令失败计数提交后才发送 400/429。
+        只读快照结束后在事务外核验旧密码并算好新哈希，再进短写事务复核、提交，之后才发送 200/新 cookie；旧密码失败计数提交后才发送 400/429。
         Argon2 入场及运算不持有数据库事务；每次排队最多 1 秒，完成并释放名额后写锁最多约 5 秒，无重试。
     """
     grant = await _password_work(
@@ -256,7 +256,7 @@ def list_accounts(
     Raises:
         AccountInputError: after_id 不是规范十进制游标、超出 0 至 2^63-1，422。
         AuthenticationError: 当前会话缺失/失效或账号不可用，401。
-        PasswordChangeRequiredError: 当前账号必须先改口令，403。
+        PasswordChangeRequiredError: 当前账号必须先改密码，403。
         AuthorizationError: 当前角色不是管理员，403；GET 不检查 Origin。
         InputError: 数据库或 UTC 列损坏，400。
         ConflictError: 认证/列表只读查询或已获锁后的过期删除 SQLite 冲突，409；刷新获锁失败不抛 409。
@@ -264,7 +264,7 @@ def list_accounts(
         DefectError: 注入时钟非法/回调失败，或列表 SQL、映射或安全响应转换错误，500。
 
     Side Effects:
-        查询是独立只读工作单元，认证刷新另用短事务；不泄漏口令或令牌。
+        查询是独立只读工作单元，认证刷新另用短事务；不泄漏密码或令牌。
 
     Time Semantics:
         使用 context.now 核验身份，业务列表在单独 BEGIN/query_only 快照内完成，结束读事务后发送响应。
@@ -284,7 +284,7 @@ def list_accounts(
     "/accounts", response_model=AccountResponse, status_code=201, operation_id="create_account"
 )
 async def create_account(body: CreateAccountRequest, context: AdminContext) -> AccountResponse:
-    """管理员新建启用且首次必须改口令的账号。
+    """管理员新建启用且首次必须改密码的账号。
 
     Args:
         body: 登录名、显示名、角色和初始 SecretStr，不接受审计身份或状态覆盖。
@@ -294,14 +294,14 @@ async def create_account(body: CreateAccountRequest, context: AdminContext) -> A
         HTTP 201 AccountResponse，status=enabled、must_change_password=True，不为目标签发会话。
 
     Raises:
-        AccountInputError: 登录名、显示名、初始口令或角色不合格，422。
+        AccountInputError: 登录名、显示名、初始密码或角色不合格，422。
         AuthenticationError: 当前会话缺失/失效或账号不可用，401。
-        PasswordChangeRequiredError: 当前管理员必须先改口令，403。
+        PasswordChangeRequiredError: 当前管理员必须先改密码，403。
         AuthorizationError: POST 的 Origin 不合格或当前角色不是管理员，403。
         InputError: 数据库或 UTC 列损坏，400。
         ConflictError: 登录名重复或创建事务 SQLite 锁/约束冲突，409。
         ExternalError: 数据库不可用/I/O 失败或 Argon2 入场排队超过 1 秒，502。
-        DefectError: 注入时钟非法/回调失败，或初始口令哈希、创建 SQL 或响应转换错误，500；报告前脱敏。
+        DefectError: 注入时钟非法/回调失败，或初始密码哈希、创建 SQL 或响应转换错误，500；报告前脱敏。
 
     Side Effects:
         领域先在事务外算好初始哈希，再在写事务重验管理员并创建；失败不留账号，登录名冲突为 409。
@@ -346,7 +346,7 @@ def set_account_role(
     Raises:
         AccountInputError: 目标编号或 Role 不合格，422。
         AuthenticationError: 当前会话缺失/失效或账号不可用，401。
-        PasswordChangeRequiredError: 当前管理员必须先改口令，403。
+        PasswordChangeRequiredError: 当前管理员必须先改密码，403。
         AuthorizationError: PATCH 的 Origin 不合格或当前角色不是管理员，403。
         AccountNotFoundError: 目标账号不存在，404。
         InputError: 数据库或 UTC 列损坏，400。
@@ -395,7 +395,7 @@ def set_account_status(
     Raises:
         AccountInputError: 目标编号或 AccountStatus 不合格，422。
         AuthenticationError: 当前会话缺失/失效或账号不可用，401。
-        PasswordChangeRequiredError: 当前管理员必须先改口令，403。
+        PasswordChangeRequiredError: 当前管理员必须先改密码，403。
         AuthorizationError: PATCH 的 Origin 不合格或当前角色不是管理员，403。
         AccountNotFoundError: 目标账号不存在，404。
         InputError: 数据库或 UTC 列损坏，400。
@@ -431,7 +431,7 @@ def set_account_status(
 async def reset_account_password(
     account_id: TargetId, body: ResetPasswordRequest, context: AdminContext
 ) -> AccountResponse:
-    """管理员重置口令并要求目标再次登录后改密。
+    """管理员重置密码并要求目标再次登录后改密。
 
     Args:
         account_id: 目标规范正整数文本，1 至 2^63-1。
@@ -442,15 +442,15 @@ async def reset_account_password(
         HTTP 200 AccountResponse，must_change_password=True；不返回或签发目标 cookie。
 
     Raises:
-        AccountInputError: 目标编号或新口令不合格，422。
+        AccountInputError: 目标编号或新密码不合格，422。
         AuthenticationError: 当前会话缺失/失效或账号不可用，401。
-        PasswordChangeRequiredError: 当前管理员必须先改口令，403。
+        PasswordChangeRequiredError: 当前管理员必须先改密码，403。
         AuthorizationError: POST 的 Origin 不合格或当前角色不是管理员，403。
         AccountNotFoundError: 目标账号不存在，404。
         InputError: 数据库或 UTC 列损坏，400。
         ConflictError: 重置事务 SQLite 写锁或约束冲突，409。
         ExternalError: 数据库 I/O 或 Argon2 入场排队超过 1 秒，502。
-        DefectError: 注入时钟非法/回调失败，或新口令哈希、重置 SQL 或响应转换错误，500；报告前脱敏。
+        DefectError: 注入时钟非法/回调失败，或新密码哈希、重置 SQL 或响应转换错误，500；报告前脱敏。
 
     Side Effects:
         先在事务外算好新哈希；写事务仅重验权限/目标并保存预计算哈希、清 G2、强制改密和删除会话，失败全回滚。
@@ -493,7 +493,7 @@ def delete_account(account_id: TargetId, context: AdminContext) -> Response:
     Raises:
         AccountInputError: 目标编号不合格，422。
         AuthenticationError: 当前会话缺失/失效或账号不可用，401。
-        PasswordChangeRequiredError: 当前管理员必须先改口令，403。
+        PasswordChangeRequiredError: 当前管理员必须先改密码，403。
         AuthorizationError: DELETE 的 Origin 不合格或当前角色不是管理员，403。
         AccountNotFoundError: 目标账号不存在，404。
         InputError: 数据库或 UTC 列损坏，400。

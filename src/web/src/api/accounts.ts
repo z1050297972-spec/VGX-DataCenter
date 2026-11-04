@@ -4,6 +4,14 @@ import type { FetchImplementation, HealthClient } from "./client";
 import { createHealthClient } from "./client";
 import type { components } from "./schema";
 import { toFailureView } from "./problems";
+import apiSchema from "./openapi.json";
+
+/** 新密码最小字符数，取后端 PASSWORD_MIN_CHARS 生成的约束，避免提示与服务端校验漂移。 */
+export const PASSWORD_MIN_CHARS =
+  apiSchema.components.schemas.ChangePasswordRequest.properties.new_password.minLength;
+/** 新密码最大字符数，与最小长度共用后端生成的同一字段约束。 */
+export const PASSWORD_MAX_CHARS =
+  apiSchema.components.schemas.ChangePasswordRequest.properties.new_password.maxLength;
 
 /** 安全账号快照；编号为文本，禁止 Number 转换以免丢失 64 位精度。 */
 export type Account = components["schemas"]["AccountResponse"];
@@ -19,7 +27,7 @@ export type NewAccountInput = components["schemas"]["CreateAccountRequest"];
 export type RoleInput = components["schemas"]["RoleRequest"];
 /** 状态变更请求。 */
 export type StatusInput = components["schemas"]["StatusRequest"];
-/** 重置口令请求，只在内存里使用。 */
+/** 重置密码请求，只在内存里使用。 */
 export type ResetInput = components["schemas"]["ResetPasswordRequest"];
 
 /** 交互请求上限 10 秒，单位毫秒；超时只能说明客户端未收到结果，不证明服务器回滚。 */
@@ -53,7 +61,7 @@ export interface TargetAccountCall<T = undefined> extends AccountCall<T> {
   accountId: Account["account_id"];
 }
 
-/** 分页参数；URL 中只记录游标，不记录口令。 */
+/** 分页参数；URL 中只记录游标，不记录密码。 */
 export interface ListAccountCall extends AccountCall {
   /** 0 或规范账号编号文本；必填，首页为 "0"。 */
   afterId: string;
@@ -83,7 +91,7 @@ export function createAccountClient(options: AccountClientOptions): HealthClient
  * @param input - 客户端、仅内存的登录载荷和取消信号。
  * @returns POST /api/auth/login 的 200 Account；浏览器保存 HttpOnly cookie，代码不读取 Set-Cookie。
  * @throws Error 网络、超时、取消、401/403/422/429/502 或其他失败，沿用 toFailureView；429 只展示 G2 的安全倒计时；Argon2 容量不足的 502 显示资源繁忙，不自动重试。
- * @sideEffects 一次 POST；不把口令放 query、localStorage、日志或 Query 缓存；表单秘密由调用页面在成功和失败后清空。
+ * @sideEffects 一次 POST；不把密码放 query、localStorage、日志或 Query 缓存；表单秘密由调用页面在成功和失败后清空。
  * @timeSemantics 最多 ACCOUNT_TIMEOUT_MS 毫秒；失败不自动重试，取消不保证服务端撤销。
  */
 export function login(input: AccountCall<LoginInput>): Promise<Account> {
@@ -126,12 +134,12 @@ export function fetchCurrentAccount(input: AccountCall): Promise<Account> {
 }
 
 /**
- * 本人改口令并刷新身份。
+ * 本人改密码并刷新身份。
  *
- * @param input - 当前和新口令只在 payload 内存中，不接受目标编号。
+ * @param input - 当前和新密码只在 payload 内存中，不接受目标编号。
  * @returns POST /api/auth/password 的 200 Account，must_change_password=False；浏览器接收轮换 cookie。
- * @throws Error 经 toFailureView；当前口令错误以 400 显示“当前口令不正确”，保留身份和当前页；第五次起 429。真实会话失效的 401 仍统一跳登录，不输出原文或自动重试。
- * @sideEffects 一次 POST；服务器使旧会话全部作废；两份口令清理与身份缓存失效由改密页面负责。
+ * @throws Error 经 toFailureView；当前密码错误以 400 显示“当前密码不正确”，保留身份和当前页；第五次起 429。真实会话失效的 401 仍统一跳登录，不输出原文或自动重试。
+ * @sideEffects 一次 POST；服务器使旧会话全部作废；两份密码清理与身份缓存失效由改密页面负责。
  * @timeSemantics 10 秒上限，写请求不自动重试。
  */
 export function changePassword(input: AccountCall<PasswordInput>): Promise<Account> {
@@ -165,8 +173,8 @@ export function listAccounts(input: ListAccountCall): Promise<AccountList> {
  *
  * @param input - 生成类型的新建载荷、客户端和取消信号。
  * @returns POST /api/accounts 的 201 Account，必须首次改密。
- * @throws Error 409 登录名冲突及其他失败统一显示 DiagnosticCard，不回显初始口令。
- * @sideEffects 一次 POST；列表失效和结束后的口令清理由账号管理页负责，本函数不持久缓存请求。
+ * @throws Error 409 登录名冲突及其他失败统一显示 DiagnosticCard，不回显初始密码。
+ * @sideEffects 一次 POST；列表失效和结束后的密码清理由账号管理页负责，本函数不持久缓存请求。
  * @timeSemantics 10 秒上限，无自动重试；账号管理页负责禁止重复提交。
  */
 export function createAccount(input: AccountCall<NewAccountInput>): Promise<Account> {
@@ -217,11 +225,11 @@ export function setAccountStatus(input: TargetAccountCall<StatusInput>): Promise
 }
 
 /**
- * 管理员重置目标口令。
+ * 管理员重置目标密码。
  *
  * @param input - 目标编号文本、新 SecretStr 对应的请求文本、客户端和信号。
  * @returns POST /api/accounts/{account_id}/password 的 200 Account，必须改密。
- * @throws Error 404/403/其他失败经 DiagnosticCard，不泄漏口令。
+ * @throws Error 404/403/其他失败经 DiagnosticCard，不泄漏密码。
  * @sideEffects 一次 POST；列表失效和结束后的秘密清理由账号管理页负责；不显示或复制服务端哈希。
  * @timeSemantics 10 秒上限，不自动重试。
  */

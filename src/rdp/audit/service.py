@@ -66,7 +66,7 @@ def append_failed_operation(engine: Engine, event: OperationEvent) -> None:
 
 
 def append_missing_login(engine: Engine, event: LoginEvent) -> None:
-    """单独提交未知账号的失败登录，避免保存可能误填的口令原文（H2）。
+    """单独提交未知账号的失败登录，避免保存可能误填的密码原文（H2）。
 
     Args:
         engine: 受管引擎，初始只读查询和 dummy verify 已结束，无活动写事务。
@@ -101,7 +101,7 @@ def append_missing_login(engine: Engine, event: LoginEvent) -> None:
 
 
 def append_failed_login(engine: Engine, event: LoginEvent) -> None:
-    """在原登录事务回滚后记录执行故障，不伪造口令或账号判定结果。
+    """在原登录事务回滚后记录执行故障，不伪造密码或账号判定结果。
 
     Args:
         engine: 原只读/写事务已退出并关闭的受管 SQLite 引擎。

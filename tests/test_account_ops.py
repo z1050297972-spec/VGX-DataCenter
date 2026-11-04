@@ -1,4 +1,4 @@
-"""工单06可注入口令读取的运维测试；只用 tmp_path/临时数据库和固定 aware 时钟。"""
+"""工单06可注入密码读取的运维测试；只用 tmp_path/临时数据库和固定 aware 时钟。"""
 
 import sqlite3
 import warnings
@@ -65,12 +65,12 @@ def test_create_first_admin_mismatch(tmp_path: Path) -> None:
         service = AccountService(
             engine, PasswordCodec(PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1))
         )
-        values = iter(["不同口令🙂🙂🙂🙂🙂🙂", "不同口令🙂🙂🙂🙂🙂🙃"])
+        values = iter(["不同密码🙂🙂🙂🙂🙂🙂", "不同密码🙂🙂🙂🙂🙂🙃"])
         with pytest.raises(AccountInputError) as caught:
             create_first_admin(
                 service, "admin", "管理员", now=NOW, read_password=lambda prompt: next(values)
             )
-        assert "不同口令" not in format_exception_report(caught.value)
+        assert "不同密码" not in format_exception_report(caught.value)
         with session_scope(engine, read_only=True) as session:
             assert not session.scalars(select(AccountRow)).all()
 
@@ -111,7 +111,7 @@ def test_create_first_admin_abort(tmp_path: Path) -> None:
 
 
 def test_create_first_admin_input_error(tmp_path: Path) -> None:
-    """验证契约：读口令I/O归ExternalError，未知回调错误归安全DefectError，不保留原始秘密异常链。"""
+    """验证契约：读密码I/O归ExternalError，未知回调错误归安全DefectError，不保留原始秘密异常链。"""
     with model_database(tmp_path) as engine:
         service = AccountService(
             engine, PasswordCodec(PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1))
@@ -181,7 +181,7 @@ def test_create_first_admin_domain_errors(tmp_path: Path) -> None:
 def test_create_first_admin_lifecycle(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
 ) -> None:
-    """验证契约：不迁移、不创建默认路径、不dispose调用者引擎，不打印或记录口令。"""
+    """验证契约：不迁移、不创建默认路径、不dispose调用者引擎，不打印或记录密码。"""
     with model_database(tmp_path) as engine:
         service = AccountService(
             engine, PasswordCodec(PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1))
@@ -274,7 +274,7 @@ def test_reset_account_password_abort(tmp_path: Path) -> None:
 
 
 def test_reset_account_password_input_error(tmp_path: Path) -> None:
-    """验证契约：读口令I/O归ExternalError，未知回调错误归安全DefectError，不保留原始秘密异常链。"""
+    """验证契约：读密码I/O归ExternalError，未知回调错误归安全DefectError，不保留原始秘密异常链。"""
     with scenario(tmp_path) as (service, grant):
         for original, expected in [
             (OSError("private-read-value"), ExternalError),
@@ -342,7 +342,7 @@ def test_reset_account_password_domain_errors(tmp_path: Path) -> None:
 def test_reset_account_password_lifecycle(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
 ) -> None:
-    """验证契约：不迁移、不创建默认路径、不dispose调用者引擎，不打印或记录口令。"""
+    """验证契约：不迁移、不创建默认路径、不dispose调用者引擎，不打印或记录密码。"""
     with scenario(tmp_path) as (service, _grant):
         value = "replacement-credential"
 
@@ -486,11 +486,11 @@ def test_argon2_capacity_failure(tmp_path: Path) -> None:
 
 
 def test_invalid_now_is_defect(tmp_path: Path) -> None:
-    """验证契约：运维入口收到非法now先抛安全DefectError，不读口令/写库；直接领域调用非法now仍AccountInputError。"""
+    """验证契约：运维入口收到非法now先抛安全DefectError，不读密码/写库；直接领域调用非法now仍AccountInputError。"""
     with scenario(tmp_path) as (service, grant):
 
         def reader(prompt: str) -> str:
-            pytest.fail("非法时刻不能读取口令")
+            pytest.fail("非法时刻不能读取密码")
 
         for now in (
             NOW.replace(tzinfo=None),

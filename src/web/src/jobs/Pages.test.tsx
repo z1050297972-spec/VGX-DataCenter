@@ -39,6 +39,36 @@ beforeEach(() => {
     removeEventListener: () => undefined,
   }));
 });
+
+it("验证验收14追加：作业列表没有两个示例入口，旧地址进入前端404且历史示例仍可见", async () => {
+  const requests: string[] = [];
+  const transport: FetchImplementation = (request) => {
+    requests.push(new URL(request.url).pathname);
+    return detailFetch(() => completedJob)(request);
+  };
+  const list = mountPage("/jobs", transport);
+  try {
+    expect(await screen.findByRole("heading", { name: "作业列表" })).toBeTruthy();
+    expect(await screen.findByText(completedJob.display_name)).toBeTruthy();
+    expect(screen.queryByText("提交示例作业")).toBeNull();
+    expect(screen.queryByText("提交资源示例")).toBeNull();
+  } finally {
+    list.close();
+  }
+  for (const path of ["/jobs/new", "/jobs/resources"]) {
+    requests.length = 0;
+    const view = mountPage(path, transport);
+    try {
+      expect(await screen.findByText("页面不存在")).toBeTruthy();
+      expect(screen.getByText("404")).toBeTruthy();
+      expect(requests.some((url) => url.startsWith("/api/jobs"))).toBe(false);
+      expect(screen.queryByText("提交示例作业")).toBeNull();
+      expect(screen.queryByText("资源示例作业")).toBeNull();
+    } finally {
+      view.close();
+    }
+  }
+});
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
@@ -491,7 +521,7 @@ it("验收8：初次加载或查询失败不伪装离线；未登录/强制改�
     return Promise.resolve(Response.json({ ...account, must_change_password: true }));
   });
   try {
-    expect(await screen.findByLabelText("当前口令")).toBeTruthy();
+    expect(await screen.findByLabelText("当前密码")).toBeTruthy();
     expect(paths).not.toContain("/api/worker/status");
   } finally {
     forced.close();
@@ -613,7 +643,7 @@ it("账号隔离：任意401清缓存回登录，切号和离页取消请求，�
     await screen.findByLabelText("登录名");
     expect(mutation?.signal.aborted).toBe(true);
     fireEvent.change(screen.getByLabelText("登录名"), { target: { value: "second" } });
-    fireEvent.change(screen.getByLabelText("口令"), { target: { value: "test-credential" } });
+    fireEvent.change(screen.getByLabelText("密码"), { target: { value: "test-credential" } });
     fireEvent.click(screen.getByRole("button", { name: "登录" }));
     expect(await screen.findByText("新账号")).toBeTruthy();
     await act(async () => {
@@ -625,79 +655,6 @@ it("账号隔离：任意401清缓存回登录，切号和离页取消请求，�
     expect(second.cache.getQueryData(["current-account"])).toMatchObject({ account_id: "9" });
   } finally {
     second.close();
-  }
-});
-
-it("表单契约：步数、毫秒间隔、失败/警告序号、中止步范围正确，提交期间禁重复，422保留输入", async () => {
-  const posts: Request[] = [];
-  let finish: ((response: Response) => void) | undefined;
-  let succeed = false;
-  const fresh: Job = {
-    ...job,
-    job_id: "9007199254740994",
-    state: "queued",
-    progress: null,
-    progress_at: null,
-    started_at: null,
-    elapsed_s: 0,
-  };
-  const view = mountPage("/jobs/new", (request) => {
-    if (request.method === "POST") {
-      posts.push(request);
-      return succeed
-        ? Promise.resolve(Response.json(fresh, { status: 201 }))
-        : new Promise<Response>((resolve) => {
-            finish = resolve;
-          });
-    }
-    return detailFetch(() => fresh)(request);
-  });
-  try {
-    await screen.findByLabelText("总步数");
-    setCountField("总步数", "0");
-    fireEvent.click(screen.getByRole("button", { name: "提交作业" }));
-    expect(await screen.findByText("总步数须为1至10000的整数")).toBeTruthy();
-    expect(posts).toHaveLength(0);
-    setCountField("总步数", "3");
-    setCountField("失败步", "2,2");
-    fireEvent.click(screen.getByRole("button", { name: "提交作业" }));
-    expect(await screen.findByText("步序号须在总步数范围内且不能重复")).toBeTruthy();
-    setCountField("失败步", "2");
-    setCountField("警告步", "2");
-    setCountField("整体中止步", "4");
-    fireEvent.click(screen.getByRole("button", { name: "提交作业" }));
-    expect(await screen.findByText("整体中止步须在总步数范围内")).toBeTruthy();
-    setCountField("整体中止步", "3");
-    setCountField("每步间隔（毫秒）", "60001");
-    fireEvent.click(screen.getByRole("button", { name: "提交作业" }));
-    expect(await screen.findByText("间隔须为0至60000的整数毫秒")).toBeTruthy();
-    setCountField("每步间隔（毫秒）", "0");
-    fireEvent.click(screen.getByRole("button", { name: "提交作业" }));
-    await waitFor(() => {
-      expect(posts).toHaveLength(1);
-    });
-    expect(await posts[0]?.json()).toEqual({
-      steps: 3,
-      interval_ms: 0,
-      failed_steps: [2],
-      warning_steps: [2],
-      abort_at_step: 3,
-    });
-    const button = screen.getByRole<HTMLButtonElement>("button", { name: "提交作业" });
-    expect(button.disabled).toBe(true);
-    fireEvent.click(button);
-    expect(posts).toHaveLength(1);
-    finish?.(problemResponse(422));
-    expect(await screen.findByText("请求被拒绝")).toBeTruthy();
-    expect(screen.getByLabelText<HTMLInputElement>("失败步").value).toBe("2");
-    succeed = true;
-    fireEvent.click(screen.getByRole("button", { name: "提交作业" }));
-    await waitFor(() => {
-      expect(view.router.state.location.pathname).toBe(`/jobs/${fresh.job_id}`);
-    });
-    expect(posts).toHaveLength(2);
-  } finally {
-    view.close();
   }
 });
 
@@ -842,10 +799,6 @@ function detailFetch(
     if (path.endsWith("/log")) return Promise.resolve(Response.json(log()));
     return Promise.resolve(Response.json(record()));
   };
-}
-
-function setCountField(label: string, value: string): void {
-  fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 
 it("评审2：8/30进度显示四舍五入后的整数27%", async () => {

@@ -1,5 +1,5 @@
 import "./accounts.css";
-// 账号页面（06）：采用 antd 与 TanStack Router/Query；错误统一用 DiagnosticCard，秘密只在表单内存。
+// 账号页面（06/14）：采用 antd 与 TanStack Router/Query；本地输入错误由表单提示，服务端错误用 DiagnosticCard，秘密只在表单内存。
 import type { HealthClient } from "../api/client";
 import { changeToken, getTokenState } from "../api/downloadToken";
 import { VersionFooter } from "../VersionFooter";
@@ -34,6 +34,8 @@ import {
   setAccountStatus,
   resetAccountPassword,
   deleteAccount,
+  PASSWORD_MIN_CHARS,
+  PASSWORD_MAX_CHARS,
 } from "../api/accounts";
 import type { Account, LoginInput, PasswordInput, NewAccountInput } from "../api/accounts";
 import { toFailureView, type RequestFailureView } from "../api/problems";
@@ -43,12 +45,28 @@ import { useAccountClient, useCurrentAccount, ACCOUNT_QUERY_KEY } from "./runtim
 import { formatDateTime } from "../time";
 import "../shell.css";
 
+// 三处设置新密码的表单共用长度规则；按 Unicode 码点计数，与后端一致，不增加复杂度要求。
+const NEW_PASSWORD_RULES = [
+  { required: true, message: "请输入密码" },
+  {
+    validator: (_rule: unknown, value: unknown): Promise<void> => {
+      if (typeof value !== "string") return Promise.reject(new Error("请输入密码"));
+      const length = Array.from(value).length;
+      if (length < PASSWORD_MIN_CHARS)
+        return Promise.reject(new Error(`密码至少需要 ${String(PASSWORD_MIN_CHARS)} 个字符`));
+      if (length > PASSWORD_MAX_CHARS)
+        return Promise.reject(new Error(`密码最多 ${String(PASSWORD_MAX_CHARS)} 个字符`));
+      return Promise.resolve();
+    },
+  },
+];
+
 /**
- * 登录名和口令表单；成功后按必须改密标记转改密页，否则回 safeReturnTo；已登录者不重复显示登录表单。401/403/422/429/网络失败均显示 DiagnosticCard，429 展示安全倒计时，不区分未知账号与错口令。
+ * 登录名和密码表单；成功后按必须改密标记转改密页，否则回 safeReturnTo；已登录者不重复显示登录表单。401/403/422/429/网络失败均显示 DiagnosticCard，429 展示安全倒计时，不区分未知账号与错密码。
  *
  * @returns 使用 antd 的表单、状态或诊断视图；仅身份明确且权限满足时显示受保护内容。
  * @throws 无。请求错误经 toFailureView/DiagnosticCard 呈现，不展示原始异常或执行服务端 HTML。
- * @sideEffects 仅提交时调用 login；未登录不加载受保护内容；口令在任何结束路径清空，不进入 URL、日志、缓存或浏览器存储。
+ * @sideEffects 仅提交时调用 login；未登录不加载受保护内容；密码在任何结束路径清空，不进入 URL、日志、缓存或浏览器存储。
  * @timeSemantics 请求上限 ACCOUNT_TIMEOUT_MS；切页/卸载取消请求和倒计时，忽略迟到结果，无自动重试。
  */
 export function LoginPage(): ReactElement {
@@ -125,8 +143,8 @@ export function LoginPage(): ReactElement {
             </Form.Item>
             <Form.Item
               name="password"
-              label="口令"
-              rules={[{ required: true, message: "请输入口令" }]}
+              label="密码"
+              rules={[{ required: true, message: "请输入密码" }]}
             >
               <Input.Password autoComplete="current-password" />
             </Form.Item>
@@ -147,7 +165,7 @@ export function LoginPage(): ReactElement {
 }
 
 /**
- * 本人当前/新口令与确认表单；强制改密者不能绕过，成功后回安全目的地；旧口令错误400提示“当前口令不正确”并留在本页，第五次429；真实401仍跳登录，错误统一用 DiagnosticCard。
+ * 本人当前/新密码与确认表单；新密码长度或确认不一致时只显示字段提示，不提交请求。强制改密时说明原因、操作与回跳结果，成功后回安全目的地；旧密码错误400提示“当前密码不正确”并留在本页，第五次429；真实401仍跳登录，服务端错误用 DiagnosticCard。
  *
  * @returns 使用 antd 的表单、状态或诊断视图；仅身份明确且权限满足时显示受保护内容。
  * @throws 无。请求错误经 toFailureView/DiagnosticCard 呈现，不展示原始异常或执行服务端 HTML。
@@ -156,6 +174,7 @@ export function LoginPage(): ReactElement {
  */
 export function PasswordPage(): ReactElement {
   const client = useAccountClient();
+  const identity = useCurrentAccount();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const search = useLocation({ select: (location) => location.searchStr });
@@ -164,12 +183,20 @@ export function PasswordPage(): ReactElement {
   return (
     <section className="accounts-page">
       <header className="app-page-header">
-        <Breadcrumb items={[{ title: "账号" }, { title: "修改口令" }]} />
+        <Breadcrumb items={[{ title: "账号" }, { title: "修改密码" }]} />
         <Typography.Title level={2} className="app-page-title">
-          修改口令
+          修改密码
         </Typography.Title>
       </header>
       <ActionFailure action={action} />
+      {identity.data?.must_change_password && (
+        <Alert
+          type="info"
+          showIcon
+          title="请先修改密码"
+          description="这是首次登录，或者管理员重置了密码。请先设置新密码；设置完成后会自动回到刚才要去的页面，之后即可使用其他功能。"
+        />
+      )}
       <Card className="accounts-password">
         <Form
           form={form}
@@ -197,42 +224,45 @@ export function PasswordPage(): ReactElement {
         >
           <Form.Item
             name="current_password"
-            label="当前口令"
-            rules={[{ required: true, message: "请输入当前口令" }]}
+            label="当前密码"
+            rules={[{ required: true, message: "请输入当前密码" }]}
           >
             <Input.Password autoComplete="current-password" />
           </Form.Item>
           <Form.Item
             name="new_password"
-            label="新口令"
-            rules={[{ required: true, message: "请输入新口令" }]}
+            label="新密码"
+            extra={`至少 ${String(PASSWORD_MIN_CHARS)} 个字符`}
+            validateFirst
+            rules={NEW_PASSWORD_RULES}
           >
             <Input.Password autoComplete="new-password" />
           </Form.Item>
           <Form.Item
             name="confirmation"
-            label="确认新口令"
+            label="确认新密码"
             dependencies={["new_password"]}
+            validateFirst
             rules={[
-              { required: true, message: "请再次输入新口令" },
+              { required: true, message: "请再次输入新密码" },
               ({ getFieldValue }) => ({
                 validator: (_rule, value: unknown) =>
                   value === getFieldValue("new_password")
                     ? Promise.resolve()
-                    : Promise.reject(new Error("两次新口令不一致")),
+                    : Promise.reject(new Error("两次新密码不一致")),
               }),
             ]}
           >
             <Input.Password autoComplete="new-password" />
           </Form.Item>
           <Button
-            aria-label="保存口令"
+            aria-label="保存密码"
             htmlType="submit"
             type="primary"
             loading={action.busy}
             disabled={action.waiting > 0}
           >
-            保存口令
+            保存密码
           </Button>
         </Form>
       </Card>
@@ -241,11 +271,11 @@ export function PasswordPage(): ReactElement {
 }
 
 /**
- * 管理员分页账号列表、新建、改角色、启停、重置口令、删除。停用和删除均用 antd Modal 二次确认，取消不发请求；403、404、409、422、429/网络错误用 DiagnosticCard，失败保留原列表。
+ * 管理员分页账号列表、新建、改角色、启停、重置密码、删除。新密码长度不合格只显示字段提示，不提交请求；新建或重置成功提示下次登录须先改密；停用和删除均用 antd Modal 二次确认，取消不发请求；403、404、409、422、429/网络错误用 DiagnosticCard，失败保留原列表。
  *
  * @returns 使用 antd 的表单、状态或诊断视图；仅身份明确且权限满足时显示受保护内容。
  * @throws 无。请求错误经 toFailureView/DiagnosticCard 呈现，不展示原始异常或执行服务端 HTML。
- * @sideEffects 通过生成类型的 accounts API 操作；写成功才刷新列表，不乐观删除；新建/重置口令只在表单内存，结束后清除。
+ * @sideEffects 通过生成类型的 accounts API 操作；写成功才刷新列表，不乐观删除；新建/重置密码只在表单内存，结束后清除。
  * @timeSemantics 请求上限 ACCOUNT_TIMEOUT_MS；切页/卸载取消请求和倒计时，忽略迟到结果，无自动重试。
  */
 export function AccountsPage(): ReactElement {
@@ -263,6 +293,7 @@ export function AccountsPage(): ReactElement {
   const action = useAccountAction();
   const [modal, holder] = Modal.useModal();
   const [editor, setEditor] = useState<"create" | Account | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [form] = Form.useForm<NewAccountInput>();
   function refresh(): void {
     void cache.invalidateQueries({ queryKey: ["accounts"] });
@@ -302,7 +333,7 @@ export function AccountsPage(): ReactElement {
       render: (_value: unknown, row: Account) => (row.status === "enabled" ? "启用" : "停用"),
     },
     {
-      title: "必须改口令",
+      title: "必须改密码",
       render: (_value: unknown, row: Account) => (row.must_change_password ? "是" : "否"),
     },
     { title: "创建人", render: (_value: unknown, row: Account) => row.created_by.name },
@@ -354,11 +385,12 @@ export function AccountsPage(): ReactElement {
           <Button
             disabled={action.busy}
             onClick={() => {
+              setSuccessMessage(null);
               form.resetFields();
               setEditor(row);
             }}
           >
-            重置口令
+            重置密码
           </Button>
           <Button
             aria-label="删除"
@@ -385,6 +417,7 @@ export function AccountsPage(): ReactElement {
           <Button
             type="primary"
             onClick={() => {
+              setSuccessMessage(null);
               form.resetFields();
               setEditor("create");
             }}
@@ -396,6 +429,7 @@ export function AccountsPage(): ReactElement {
       <DownloadTokenSection />
       {holder}
       <ActionFailure action={action} />
+      {successMessage && <Alert type="success" showIcon title={successMessage} />}
       {list.isError && <DiagnosticCard failure={toFailureView(list.error)} />}
       <Card>
         <Table<Account>
@@ -434,7 +468,7 @@ export function AccountsPage(): ReactElement {
       </Card>
       <Modal
         open={editor !== null}
-        title={editor === "create" ? "新建账号" : "重置口令"}
+        title={editor === "create" ? "新建账号" : "重置密码"}
         footer={null}
         onCancel={() => {
           if (!action.busy) {
@@ -463,6 +497,9 @@ export function AccountsPage(): ReactElement {
                     }),
               () => {
                 setEditor(null);
+                setSuccessMessage(
+                  `${selected === "create" ? "账号创建成功" : "密码重置成功"}；该用户下次登录时需要先修改密码。`,
+                );
                 refresh();
               },
               () => {
@@ -497,11 +534,7 @@ export function AccountsPage(): ReactElement {
               </Form.Item>
             </>
           )}
-          <Form.Item
-            name="password"
-            label="初始口令"
-            rules={[{ required: true, message: "请输入口令" }]}
-          >
+          <Form.Item name="password" label="初始密码" validateFirst rules={NEW_PASSWORD_RULES}>
             <Input.Password autoComplete="new-password" />
           </Form.Item>
           <Button aria-label="保存账号" htmlType="submit" type="primary" loading={action.busy}>
@@ -514,9 +547,9 @@ export function AccountsPage(): ReactElement {
 }
 
 /**
- * 在右上角显示当前显示名、角色、改口令入口和登出；管理员额外显示账号管理、操作日志和登录日志入口，成员不显示。
+ * 在右上角显示当前显示名、角色与菜单；强制改密时仅保留修改密码和登出，改密入口保留回跳目标；完成后恢复对应角色的完整菜单。
  *
- * @returns 含所有登录账号可见的“调度”入口；使用 antd 的表单、状态或诊断视图；仅身份明确且权限满足时显示受保护内容。
+ * @returns 强制改密期间的精简菜单，或完成改密后含“调度”等业务入口的菜单；管理员额外显示账号管理及日志入口。
  * @throws 无。请求错误经 toFailureView/DiagnosticCard 呈现，不展示原始异常或执行服务端 HTML。
  * @sideEffects 订阅共享的内存身份查询，设置 refetchOnWindowFocus: true、staleTime: 0；切回窗口重新查 /api/auth/me，401 统一清缓存并跳登录；登出成功或 401 才清缓存去登录页，网络失败显示 DiagnosticCard，不假装退出。
  * @timeSemantics 请求上限 ACCOUNT_TIMEOUT_MS；切页/卸载取消请求和倒计时，忽略迟到结果，无自动重试。
@@ -535,18 +568,24 @@ export function AccountMenu(): ReactElement {
         角色：{identity.data.role === "administrator" ? "管理员" : "成员"}
       </Typography.Text>
       <nav aria-label="主菜单" className="app-menu">
-        <Link to="/change-password">修改口令</Link>
-        <Link to="/jobs">作业</Link>
-        <Link to="/downloads">下载</Link>
-        <Link to="/monitoring">网络与资源</Link>
-        <Link to="/scheduling">调度</Link>
-        <Link to="/datasets">数据集</Link>
-        <Link to="/storage-roots">存储根</Link>
-        {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
-        {identity.data.role === "administrator" && (
+        <Link to="/change-password" search={identity.data.must_change_password ? true : undefined}>
+          修改密码
+        </Link>
+        {!identity.data.must_change_password && (
           <>
-            <Link to="/audit/operations">操作日志</Link>
-            <Link to="/audit/logins">登录日志</Link>
+            <Link to="/jobs">作业</Link>
+            <Link to="/downloads">下载</Link>
+            <Link to="/monitoring">网络与资源</Link>
+            <Link to="/scheduling">调度</Link>
+            <Link to="/datasets">数据集</Link>
+            <Link to="/storage-roots">存储根</Link>
+            {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
+            {identity.data.role === "administrator" && (
+              <>
+                <Link to="/audit/operations">操作日志</Link>
+                <Link to="/audit/logins">登录日志</Link>
+              </>
+            )}
           </>
         )}
       </nav>
@@ -685,7 +724,7 @@ function DownloadTokenSection(): ReactElement {
   );
 }
 
-// 写操作不进 Query mutation 缓存，口令只由提交闭包短暂持有，退出必须取消并清理。
+// 写操作不进 Query mutation 缓存，密码只由提交闭包短暂持有，退出必须取消并清理。
 function useAccountAction() {
   const active = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);

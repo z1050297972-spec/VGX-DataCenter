@@ -322,7 +322,7 @@ def worker_main(root: Path, mode: str) -> None:
 
 
 class _Parameters(BaseModel):
-    """测试类型没有业务参数，也没有口令或令牌字段。"""
+    """测试类型没有业务参数，也没有密码或令牌字段。"""
 
     model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
 

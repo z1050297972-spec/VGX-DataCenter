@@ -65,7 +65,7 @@ it("验证契约：429保留合法problem和1–60秒Retry-After，非法头安�
   }
 });
 
-it("验证契约：所有操作仅用生成类型与正确method/path/body，口令不进URL或持久缓存", async () => {
+it("验证契约：所有操作仅用生成类型与正确method/path/body，密码不进URL或持久缓存", async () => {
   const stored = vi.spyOn(Storage.prototype, "setItem");
   const transport = vi.fn<FetchImplementation>().mockResolvedValue(Response.json(account));
   const client = api.createAccountClient({ fetchImpl: transport, onUnauthorized: vi.fn() });
@@ -82,7 +82,7 @@ it("验证契约：所有操作仅用生成类型与正确method/path/body，口
   expect(await request?.json()).toEqual(payload);
 });
 
-it("验证契约：login成功200并读取安全账号；401未知与错口令同文案；403/422/429及网络失败可展示", async () => {
+it("验证契约：login成功200并读取安全账号；401未知与错密码同文案；403/422/429及网络失败可展示", async () => {
   const transport = vi.fn<FetchImplementation>().mockResolvedValue(Response.json(account));
   const onUnauthorized = vi.fn();
   const client = api.createAccountClient({ fetchImpl: transport, onUnauthorized });
@@ -153,7 +153,7 @@ it("验证契约：fetchCurrentAccount成功200；401跳登录，502保留错误
   expect(onUnauthorized).toHaveBeenCalledTimes(1);
 });
 
-it("验证契约：changePassword成功返回新身份并由服务器轮换cookie；旧口令400保留身份和当前页，第五次429可展示，真实401通知未登录处理，秘密清理由页面负责", async () => {
+it("验证契约：changePassword成功返回新身份并由服务器轮换cookie；旧密码400保留身份和当前页，第五次429可展示，真实401通知未登录处理，秘密清理由页面负责", async () => {
   const transport = vi
     .fn<FetchImplementation>()
     .mockResolvedValue(Response.json(account, { status: 200 }));
@@ -459,7 +459,7 @@ it("验证契约：Argon2容量不足的502显示安全资源繁忙，不当作G
       signal: new AbortController().signal,
     }),
   ).rejects.toMatchObject({
-    cause: { kind: "problem", problem: { status: 502, detail: "口令核验资源繁忙" } },
+    cause: { kind: "problem", problem: { status: 502, detail: "密码核验资源繁忙" } },
   });
   expect(transport).toHaveBeenCalledTimes(1);
 });

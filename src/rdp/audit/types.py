@@ -30,10 +30,10 @@ class OperationType(StrEnum):
     SET_ROLE = "set_role"
     DISABLE_ACCOUNT = "disable_account"
     ENABLE_ACCOUNT = "enable_account"
-    RESET_PASSWORD = "reset_password"  # noqa: S105  # 理由：稳定操作/结果码，不是口令。
-    RESET_PASSWORD_FROM_OPS = "reset_password_from_ops"  # noqa: S105  # 理由：稳定操作/结果码，不是口令。
+    RESET_PASSWORD = "reset_password"  # noqa: S105  # 理由：稳定操作/结果码，不是密码。
+    RESET_PASSWORD_FROM_OPS = "reset_password_from_ops"  # noqa: S105  # 理由：稳定操作/结果码，不是密码。
     DELETE_ACCOUNT = "delete_account"
-    CHANGE_PASSWORD = "change_password"  # noqa: S105  # 理由：稳定操作/结果码，不是口令。
+    CHANGE_PASSWORD = "change_password"  # noqa: S105  # 理由：稳定操作/结果码，不是密码。
     CREATE_FIRST_ADMIN = "create_first_admin"
     SET_RETENTION = "set_retention"
     SET_DOWNLOAD_TOKEN = "set_download_token"  # noqa: S105  # 稳定操作码，不是凭据。
@@ -69,10 +69,10 @@ class LoginKind(StrEnum):
 
 
 class LoginResult(StrEnum):
-    """登录验证结果；第五次错口令仍是 wrong_password，执行故障单列 failure，不伪造凭据结论。"""
+    """登录验证结果；第五次错密码仍是 wrong_password，执行故障单列 failure，不伪造凭据结论。"""
 
     SUCCESS = "success"
-    WRONG_PASSWORD = "wrong_password"  # noqa: S105  # 理由：稳定操作/结果码，不是口令。
+    WRONG_PASSWORD = "wrong_password"  # noqa: S105  # 理由：稳定操作/结果码，不是密码。
     DISABLED = "disabled"
     WAITING = "waiting"
     ACCOUNT_MISSING = "account_missing"

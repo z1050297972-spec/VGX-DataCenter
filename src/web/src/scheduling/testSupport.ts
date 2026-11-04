@@ -38,6 +38,7 @@ export const scheduling: Scheduling = {
   schedules: [
     {
       name: "清除过期报错",
+      description: "删除超过保留期的程序报错记录",
       next_run_at: "2026-10-27T03:00:00Z",
       last_job_id: "70",
       last_submitted_at: "2026-10-26T03:00:00Z",
@@ -46,6 +47,7 @@ export const scheduling: Scheduling = {
     },
     {
       name: "清除过期日志",
+      description: "删除超过保留期的操作日志和登录日志",
       next_run_at: "2026-10-27T03:00:00Z",
       last_job_id: null,
       last_submitted_at: null,

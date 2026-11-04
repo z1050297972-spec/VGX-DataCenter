@@ -61,7 +61,7 @@ def identifier(value: object, *, zero: bool = False) -> int:
 
 
 def new_account(value: object) -> NewAccount:
-    """校验新建命令的非秘密字段，口令交给 PasswordCodec。"""
+    """校验新建命令的非秘密字段，密码交给 PasswordCodec。"""
     if (
         not isinstance(value, NewAccount)
         or not isinstance(cast(object, value.credentials), Credentials)

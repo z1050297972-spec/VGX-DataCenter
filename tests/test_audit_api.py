@@ -372,7 +372,7 @@ def test_failure_report_is_connected(tmp_path: Path, caplog: pytest.LogCaptureFi
 
 
 def test_ops_failure_report_is_connected(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """运维入口保留原ExternalError，并对失败补记恰好额外报告一次，不输出新口令。"""
+    """运维入口保留原ExternalError，并对失败补记恰好额外报告一次，不输出新密码。"""
     from audit_account_support import account_action
 
     from rdp.infra.diagnostics import ExternalError

@@ -102,7 +102,7 @@ def install_account_security(app: FastAPI) -> None:
 
 
 def enforce_api_access(request: Request) -> None:
-    """为 API 请求统一校验来源、身份及强制改口令限制。
+    """为 API 请求统一校验来源、身份及强制改密码限制。
 
     Args:
         request: 当前请求，不可空；只读方法、路径、Origin/Host 和 cookie，不回显凭据。
@@ -134,7 +134,7 @@ def enforce_api_access(request: Request) -> None:
         DefectError: 服务、SQL 或注入时钟非法/回调失败，500；不带秘密的原始异常链。
 
     Side Effects:
-        Origin 失败时不读取口令体或刷新/修改数据库。认证独立提交活动更新或过期删除，
+        Origin 失败时不读取密码体或刷新/修改数据库。认证独立提交活动更新或过期删除，
         后续业务失败也不回滚已提交的活动。只有 identity.activity_refreshed=True 才可用已验证原令牌续 cookie；
         未到间隔、并发已刷新或 BUSY 跳过均不重发 Set-Cookie；登录/改密签发覆盖旧续期，登出及 401 的清除优先。
         在任何路由读取 cookie 或调用认证前设置仅含阶段的请求标记，认证成功后清除，失败时保留；
@@ -169,7 +169,7 @@ def enforce_api_access(request: Request) -> None:
     request.state.account_context = context
     request.state.account_cookie = SecretStr(raw)
     if identity.account.must_change_password and operation not in PASSWORD_CHANGE_OPERATIONS:
-        failure = problem(PasswordChangeRequiredError, "必须先修改口令")
+        failure = problem(PasswordChangeRequiredError, "必须先修改密码")
         raise failure
     matched = _matched_routes(request)
     if (
@@ -268,7 +268,7 @@ def get_login_context(request: Request) -> AccountRequestContext:
         DefectError: 应用服务错误，或 get_account_now 判定时钟非法/回调失败；固定安全诊断。
 
     Side Effects:
-        只检查来源并缓存请求上下文，不校验口令、不写库、不生成令牌。
+        只检查来源并缓存请求上下文，不校验密码、不写库、不生成令牌。
 
     Time Semantics:
         clock 同请求只调用一次，使用 UTC 微秒，无重试。
@@ -342,7 +342,7 @@ def get_admin_context(
 
     Raises:
         AuthenticationError: 未登录、会话失效或账号不可用，401。
-        PasswordChangeRequiredError: 当前账号必须先改口令，403。
+        PasswordChangeRequiredError: 当前账号必须先改密码，403。
         AuthorizationError: Origin 不合格或当前角色不是管理员，403；角色拒绝必须早于坏 JSON/参数的 422。
         InputError: 认证数据库损坏。
         ConflictError: 初始认证或已获锁后的过期删除冲突；删除入场忙仍401，活动刷新入场忙仅跳过刷新。

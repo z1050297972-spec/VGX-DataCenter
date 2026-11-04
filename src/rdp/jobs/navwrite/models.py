@@ -277,7 +277,7 @@ class PreviewNotice(BaseModel):
     Attributes:
         model_config: 冻结，拒绝未知字段。
         code: 稳定的规则码，英文，例如 `will_add_dataset_root`、`source_not_reachable`。
-        message: 中文说明，非空，不含口令等敏感信息。
+        message: 中文说明，非空，不含密码等敏感信息。
         objects: 涉及的对象（路径、编号），键值对元组，可为空。
     """
 

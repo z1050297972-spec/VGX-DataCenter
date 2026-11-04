@@ -43,13 +43,13 @@ usage() {
   从BASH_SOURCE定位仓库；不clone、不fetch、不pull，也不改变当前开发工作区。
   目标提交须含setup_queries只读入口；缺该入口的旧提交会明确拒绝，不借用另一版本的校验器。
 --yes：自动同意工具下载安装、启用linger和最后的部署确认；默认逐项询问，默认答案为否。
-  不代答配置字段、存储写许可或管理员口令，不允许覆盖既有配置/工具，不把已有部署自动升级。
+  不代答配置字段、存储写许可或管理员密码，不允许覆盖既有配置/工具，不把已有部署自动升级。
 --no-systemd：不检查或调用systemctl/loginctl，不安装用户单元，不改变linger。
   install.sh仍收到--no-systemd；随后本脚本在前台监管Web/worker两个子进程，健康后持续运行。
   Ctrl+C/SIGTERM传给本脚本拥有的两个子进程并等待收尾；任一意外退出就停止另一个并报失败。
   不使用nohup，不脱离终端留下无人管理的后台服务；请保持本脚本运行。
 --skip-admin：显式延后首管理员创建，打印部署目录里的rdp create-admin命令；默认不跳过。
-  已有任意管理员（包括停用账号）总是跳过，不重置口令、不再添加操作日志。
+  已有任意管理员（包括停用账号）总是跳过，不重置密码、不再添加操作日志。
 --help：只显示帮助，不探测系统、不下载、不写文件。
 
 自动安装仅提供Linux x86_64/aarch64的glibc发行包；其他平台先退出并给手动办法，工具版本自检失败不发布。
@@ -93,9 +93,9 @@ nvidia-smi存在但查询失败时说明原因并要求明确选择不用GPU；�
 新配置仅在校验通过后以0600权限、原子且不覆盖的方式发布；并发出现既有配置时保留对方文件并停止。
 
 非交互必须已有有效配置，且凡需工具安装/linger确认必须带--yes；不会等待stdin。
-无首管理员且没有终端时必须显式--skip-admin，否则报缺少安全口令交互条件，不调用create-admin。
-不提供明文口令参数、环境变量或自动生成口令；有终端时询问登录名（默认admin）、显示名（默认管理员），
-再由已有rdp create-admin终端无回显读取两次口令，账号和审计仍由平台原事务写入。
+无首管理员且没有终端时必须显式--skip-admin，否则报缺少安全密码交互条件，不调用create-admin。
+不提供明文密码参数、环境变量或自动生成密码；有终端时询问登录名（默认admin）、显示名（默认管理员），
+再由已有rdp create-admin终端无回显读取两次密码，账号和审计仍由平台原事务写入。
 示例：bash scripts/setup.sh --config /绝对路径/config.toml --yes --no-systemd --skip-admin
   该命令前台监管两个服务；另开终端手工执行打印的create-admin命令后才能登录。
 
@@ -113,7 +113,7 @@ nvidia-smi存在但查询失败时说明原因并要求明确选择不用GPU；�
 HELP
 }
 
-# 解析上述参数并固定优先级；只读取argv，不探测工具/文件，不读取口令；未知/缺值退出2，--help先于副作用。
+# 解析上述参数并固定优先级；只读取argv，不探测工具/文件，不读取密码；未知/缺值退出2，--help先于副作用。
 parse_arguments() {
     for arg in "$@"; do
         if [[ $arg == --help ]]; then usage; exit 0; fi
@@ -523,8 +523,8 @@ JS
 }
 
 # 用临时校验环境只读查询管理员状态，missing_database与absent明确区分；停用管理员也算present。
-# 无TTY且需要首号又未--skip-admin时，在调用install.sh前报错，不把--yes当口令输入授权。
-# 不查询口令哈希、不创建账号、不写会话/审计；坏库/版本错误不当作“没有管理员”。
+# 无TTY且需要首号又未--skip-admin时，在调用install.sh前报错，不把--yes当密码输入授权。
+# 不查询密码哈希、不创建账号、不写会话/审计；坏库/版本错误不当作“没有管理员”。
 check_administrator_input_requirements() {
     stage='管理员输入条件'
     _administrator_status "$validation_python"

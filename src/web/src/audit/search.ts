@@ -46,10 +46,10 @@ export const OPERATION_LABELS = {
   set_role: "改角色",
   disable_account: "停用",
   enable_account: "启用",
-  reset_password: "重置口令（管理员）",
-  reset_password_from_ops: "重置口令（运维）",
+  reset_password: "重置密码（管理员）",
+  reset_password_from_ops: "重置密码（运维）",
   delete_account: "删除账号",
-  change_password: "改自己的口令",
+  change_password: "改自己的密码",
   create_first_admin: "创建首个管理员",
   set_retention: "修改保留期",
   set_download_token: "设置下载 token",
@@ -77,7 +77,7 @@ export const LOGIN_KINDS = {
 /** 未知账号仅通过结果筛选，不收集输入登录名。 */
 export const LOGIN_RESULTS = {
   success: "成功",
-  wrong_password: "口令错误",
+  wrong_password: "密码错误",
   disabled: "已停用",
   waiting: "等待中",
   account_missing: "账号不存在",

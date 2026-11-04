@@ -227,7 +227,7 @@ def get_dataset_panel(
         DatasetNotFoundError: 指定数据集未入索引，404。
         DatasetQueryError: 编号不合法，422。
         AuthenticationError: 查询时身份已失效，401。
-        PasswordChangeRequiredError: 需要改口令，403。
+        PasswordChangeRequiredError: 需要改密码，403。
         InputError: 已存诊断或根状态损坏，400。
         ConflictError: 面板读锁超时，409。
         ExternalError: 面板查询失败，502。

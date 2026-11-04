@@ -141,9 +141,9 @@ def test_codec_init_failure() -> None:
 
 
 def test_password_hash_salt() -> None:
-    """验证契约：相同口令两次哈希不同且均可验证，数据库不含明文，验收 1。"""
+    """验证契约：相同密码两次哈希不同且均可验证，数据库不含明文，验收 1。"""
     codec = PasswordCodec(PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1))
-    value = SecretStr("同一个足够长的口令输入123")
+    value = SecretStr("同一个足够长的密码输入123")
     first = codec.hash(value)
     second = codec.hash(value)
     assert first != second
@@ -203,7 +203,7 @@ def test_password_hash_failure() -> None:
 
 
 def test_password_verify_match() -> None:
-    """验证契约：正确口令返回 matched=True，参数合适时 replacement_hash=None。"""
+    """验证契约：正确密码返回 matched=True，参数合适时 replacement_hash=None。"""
     hasher = PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1)
     codec = PasswordCodec(hasher)
     encoded = hasher.hash("valid-password-input")
@@ -213,7 +213,7 @@ def test_password_verify_match() -> None:
 
 
 def test_password_verify_mismatch() -> None:
-    """验证契约：错误口令返回 False/None，未知账号也执行一次相同成本 verify。"""
+    """验证契约：错误密码返回 False/None，未知账号也执行一次相同成本 verify。"""
     hasher = PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1)
     codec = PasswordCodec(hasher)
     encoded = hasher.hash("known-correct-input")
@@ -224,7 +224,7 @@ def test_password_verify_mismatch() -> None:
 
 
 def test_password_verify_rehash() -> None:
-    """验证契约：check_needs_rehash 为真仅成功验证时生成替代哈希，错口令不改哈希。"""
+    """验证契约：check_needs_rehash 为真仅成功验证时生成替代哈希，错密码不改哈希。"""
     old = PasswordHasher(time_cost=2, memory_cost=1024, parallelism=1)
     new = PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1)
     encoded = old.hash("rehash-example-value")
@@ -238,7 +238,7 @@ def test_password_verify_rehash() -> None:
 
 
 def test_password_verify_invalid() -> None:
-    """验证契约：非法口令给 AccountInputError，不回显原文。"""
+    """验证契约：非法密码给 AccountInputError，不回显原文。"""
     codec = PasswordCodec(PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1))
     for value in (
         None,
@@ -507,7 +507,7 @@ def test_service_init_dependencies(tmp_path: Path) -> None:
 
 
 def test_login_success(tmp_path: Path) -> None:
-    """验证契约：启用账号正确口令返回 SessionGrant，摘要入库且原文只在内存/cookie，验收 1、2。"""
+    """验证契约：启用账号正确密码返回 SessionGrant，摘要入库且原文只在内存/cookie，验收 1、2。"""
     with model_database(tmp_path) as engine:
         codec = PasswordCodec(PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1))
         service = AccountService(engine, codec)
@@ -527,7 +527,7 @@ def test_login_success(tmp_path: Path) -> None:
 
 
 def test_login_forced(tmp_path: Path) -> None:
-    """验证契约：强制改口令账号可以登录，返回标记但不能直接进入业务。"""
+    """验证契约：强制改密码账号可以登录，返回标记但不能直接进入业务。"""
     with scenario(tmp_path) as (service, admin):
         service.create_account(
             admin.identity,
@@ -555,7 +555,7 @@ def test_login_fixed_session(tmp_path: Path) -> None:
 
 
 def test_login_failures(tmp_path: Path) -> None:
-    """验证契约：未知账号、停用和启用账号错口令统一401“账号或口令错误”，未知/停用各做一次dummy verify，不计数、不建行。"""
+    """验证契约：未知账号、停用和启用账号错密码统一401“账号或密码错误”，未知/停用各做一次dummy verify，不计数、不建行。"""
     with scenario(tmp_path) as (service, admin):
         member = member_grant(service, admin)
         service.set_status(
@@ -647,7 +647,7 @@ def test_login_deadline(tmp_path: Path) -> None:
 
 
 def test_login_expired_wait_restarts_failure_count(tmp_path: Path) -> None:
-    """验证契约：等待过期后重新累计，前四次错口令401、第五次429；登录与本人改密共用 wrong_password 的计数逻辑。"""
+    """验证契约：等待过期后重新累计，前四次错密码401、第五次429；登录与本人改密共用 wrong_password 的计数逻辑。"""
     with scenario(tmp_path) as (service, _admin):
         credentials = Credentials("admin", SecretStr("incorrect-credential"))
         for now in (NOW, NOW + timedelta(seconds=61)):
@@ -705,7 +705,7 @@ def test_login_session_cap(tmp_path: Path) -> None:
 
 
 def test_login_invalid(tmp_path: Path) -> None:
-    """验证契约：非法登录名/口令/now 在哈希或计数前给 AccountInputError，不部分写入。"""
+    """验证契约：非法登录名/密码/now 在哈希或计数前给 AccountInputError，不部分写入。"""
     with scenario(tmp_path) as (service, _):
         for name in ("UPPER", "ab", "a" * 33, " admin", "admin ", "a/../b"):
             with pytest.raises(AccountInputError):
@@ -939,7 +939,7 @@ def test_logout_failure(tmp_path: Path) -> None:
 
 
 def test_change_password_success(tmp_path: Path) -> None:
-    """验证契约：校验旧口令后换哈希、清强制标记/G2、存本人快照、删全部旧会话并创建新会话，原子提交。"""
+    """验证契约：校验旧密码后换哈希、清强制标记/G2、存本人快照、删全部旧会话并创建新会话，原子提交。"""
     with scenario(tmp_path) as (service, old):
         another = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         result = service.change_password(
@@ -976,7 +976,7 @@ def test_change_password_forced(tmp_path: Path) -> None:
 
 
 def test_change_password_mismatch(tmp_path: Path) -> None:
-    """验证契约：旧口令错受G2计数，前四次提交后CurrentPasswordError（AccountInputError子类400），第五次429；不清cookie，等待中不哈希。"""
+    """验证契约：旧密码错受G2计数，前四次提交后CurrentPasswordError（AccountInputError子类400），第五次429；不清cookie，等待中不哈希。"""
     with scenario(tmp_path) as (service, grant):
         change = PasswordChange(SecretStr("wrong-example-value"), SecretStr("different-new-value"))
         for _ in range(4):
@@ -1480,7 +1480,7 @@ def test_reset_password_success(tmp_path: Path) -> None:
 
 
 def test_reset_password_errors(tmp_path: Path) -> None:
-    """验证契约：非法编号/口令/now422，缺目标404，失效401，成员和必须改密403。"""
+    """验证契约：非法编号/密码/now422，缺目标404，失效401，成员和必须改密403。"""
     with scenario(tmp_path) as (service, admin):
         member = member_grant(service, admin)
         key = member.identity.account.account_id
@@ -2040,7 +2040,7 @@ def test_argon2_queue_timeout() -> None:
 
 
 def test_argon2_slot_release() -> None:
-    """验证契约：成功、错口令、哈希异常或调用失败均释放已获得名额；未取得名额的超时不得多释放。"""
+    """验证契约：成功、错密码、哈希异常或调用失败均释放已获得名额；未取得名额的超时不得多释放。"""
     codec = PasswordCodec(PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1))
     encoded = codec.hasher.hash("slot-release-example")
 
@@ -2469,7 +2469,7 @@ def test_service_argon2_capacity_failure(operation: str, tmp_path: Path) -> None
 
 
 def test_current_password_error_type(tmp_path: Path) -> None:
-    """验证契约：CurrentPasswordError继承AccountInputError，状态400且有当前口令不正确的安全诊断；普通参数错误仍422。"""
+    """验证契约：CurrentPasswordError继承AccountInputError，状态400且有当前密码不正确的安全诊断；普通参数错误仍422。"""
     with scenario(tmp_path) as (service, admin):
         with pytest.raises(CurrentPasswordError) as caught:
             service.change_password(
@@ -2479,7 +2479,7 @@ def test_current_password_error_type(tmp_path: Path) -> None:
                 audit=AUDIT_CONTEXT,
             )
         assert isinstance(caught.value, AccountInputError) and caught.value.http_status == 400
-        assert caught.value.diagnostics[0].actual == "当前口令不正确"
+        assert caught.value.diagnostics[0].actual == "当前密码不正确"
         with pytest.raises(AccountInputError) as invalid:
             service.change_password(
                 admin.identity,
@@ -2491,7 +2491,7 @@ def test_current_password_error_type(tmp_path: Path) -> None:
 
 
 def test_login_hash_changed_after_verify(tmp_path: Path) -> None:
-    """验证契约：事务外核验后口令哈希被另一连接更新，短写事务重读返回409要求重试，不增加失败计数、不签发会话、不写旧的重哈希结果。"""
+    """验证契约：事务外核验后密码哈希被另一连接更新，短写事务重读返回409要求重试，不增加失败计数、不签发会话、不写旧的重哈希结果。"""
     with scenario(tmp_path) as (service, _admin):
         previous = PasswordHasher(time_cost=2, memory_cost=1024, parallelism=1).hash(
             EXAMPLE_SECRET.get_secret_value()
@@ -2632,7 +2632,7 @@ def test_password_change_hash_changed(tmp_path: Path) -> None:
 
 
 def test_password_change_session_revoked(tmp_path: Path) -> None:
-    """验证契约：改密运算期间管理员重置口令并撤销会话，重读会话失效401优先，不应用旧核验或新哈希。"""
+    """验证契约：改密运算期间管理员重置密码并撤销会话，重读会话失效401优先，不应用旧核验或新哈希。"""
     with scenario(tmp_path) as (service, admin):
         other = AccountService(service.engine, service.passwords)
         hasher = HookHasher()
@@ -2655,7 +2655,7 @@ def test_password_change_session_revoked(tmp_path: Path) -> None:
 
 
 def test_password_change_g2_changed(tmp_path: Path) -> None:
-    """验证契约：改密核验后G2变化，已等待429、其他变化409，均不按错误旧口令再次计数。"""
+    """验证契约：改密核验后G2变化，已等待429、其他变化409，均不按错误旧密码再次计数。"""
     for count in (1, 5):
         root = tmp_path / str(count)
         root.mkdir()
@@ -2686,7 +2686,7 @@ def test_password_change_g2_changed(tmp_path: Path) -> None:
 
 
 def test_password_change_mismatch_keeps_session(tmp_path: Path) -> None:
-    """验证契约：前四次错误当前口令仅提交G2计数并返回400，当前和其他会话保留，提示当前口令不正确。"""
+    """验证契约：前四次错误当前密码仅提交G2计数并返回400，当前和其他会话保留，提示当前密码不正确。"""
     with scenario(tmp_path) as (service, first):
         second = service.login(Credentials("admin", EXAMPLE_SECRET), now=NOW, audit=AUDIT_CONTEXT)
         for count in range(1, 5):
@@ -2875,7 +2875,7 @@ def test_argon2_outside_database_transactions(
 
 @pytest.mark.parametrize("operation", ["login", "change_password"])
 def test_rehash_calculated_before_write(operation: str, tmp_path: Path) -> None:
-    """验证契约：按需重哈希在事务外完成并释放名额，写事务只比较和保存；改密丢弃旧口令重哈希结果，仅存新哈希。"""
+    """验证契约：按需重哈希在事务外完成并释放名额，写事务只比较和保存；改密丢弃旧密码重哈希结果，仅存新哈希。"""
     with scenario(tmp_path) as (service, admin):
         old = PasswordHasher(time_cost=2, memory_cost=1024, parallelism=1).hash(
             EXAMPLE_SECRET.get_secret_value()

@@ -45,7 +45,7 @@ it("验收1：操作日志和登录日志空页及next_cursor=null正确返回�
     expect(input.transport).toHaveBeenCalledTimes(1);
   }
 });
-it("验收4：编号大于2^53仍保持文本，不回传口令、令牌、cookie或未知登录名", async () => {
+it("验收4：编号大于2^53仍保持文本，不回传密码、令牌、cookie或未知登录名", async () => {
   const input = setup();
   await audit.listLoginLogs({
     ...input,

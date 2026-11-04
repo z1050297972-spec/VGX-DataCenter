@@ -343,7 +343,7 @@ def test_concurrent_logins_wait_without_public_pool_tokens(
                     # 先释放替身运算再退出任务组，失败和取消也不会等满运算预算。
                     release.set()
         assert len(responses) == ARGON2_MAX_CONCURRENCY + 1
-        # 测试只观察排队和资源；口令校验仍由真实编码器完成。
+        # 测试只观察排队和资源；密码校验仍由真实编码器完成。
         assert all(response.status_code == 200 for response in responses), [
             response.text for response in responses
         ]

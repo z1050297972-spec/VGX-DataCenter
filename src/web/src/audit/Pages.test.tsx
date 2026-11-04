@@ -178,7 +178,7 @@ it("验收5：7和365可提交，6和366以及布尔小数拒绝，失败保留�
   for (const days of [7, 365]) {
     fireEvent.change(screen.getByLabelText("保留天数"), { target: { value: String(days) } });
     fireEvent.click(screen.getByRole("button", { name: "保存保留期" }));
-    expect(await screen.findByText("口令核验资源繁忙")).toBeTruthy();
+    expect(await screen.findByText("密码核验资源繁忙")).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>("保留天数").value).toBe(String(days));
     expect(screen.getByText("原操作人")).toBeTruthy();
   }
@@ -664,7 +664,7 @@ it("Query契约：读取设置失败显示DiagnosticCard并禁用保存，不能
       : base(request),
   );
   mount("/audit/operations", fetchImpl);
-  expect(await screen.findByText("口令核验资源繁忙")).toBeTruthy();
+  expect(await screen.findByText("密码核验资源繁忙")).toBeTruthy();
   expect(screen.getByRole<HTMLButtonElement>("button", { name: "保存保留期" }).disabled).toBe(true);
   expect(screen.getByLabelText<HTMLInputElement>("保留天数").value).toBe("");
   fireEvent.click(screen.getByRole("button", { name: "保存保留期" }));
@@ -687,7 +687,7 @@ it("Query契约：空结果显示空态，末页无下一页按钮，服务端�
         ? Promise.resolve(problemResponse(502))
         : base(request),
     );
-    expect(await screen.findByText("口令核验资源繁忙")).toBeTruthy();
+    expect(await screen.findByText("密码核验资源繁忙")).toBeTruthy();
     expect(screen.queryByText("暂无日志")).toBeNull();
     failed.unmount();
   }
@@ -713,7 +713,7 @@ it("装配契约：Provider缺失明确报错，所有请求复用useAccountClie
   });
   expect(toFailureView(view.result.current.error)).toMatchObject({
     kind: "problem",
-    problem: { status: 502, detail: "口令核验资源繁忙" },
+    problem: { status: 502, detail: "密码核验资源繁忙" },
   });
 });
 

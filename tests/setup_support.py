@@ -430,7 +430,7 @@ if command == "install.sh":
     sys.exit(0)
 if command == "rdp" and args[:1] == ["create-admin"]:
     import getpass
-    first, second = getpass.getpass("口令：", stream=sys.stderr), getpass.getpass("再次口令：", stream=sys.stderr)
+    first, second = getpass.getpass("密码：", stream=sys.stderr), getpass.getpass("再次密码：", stream=sys.stderr)
     if first != second: sys.exit(1)
     (root / "admin-audit").write_text("one operation")
     sys.exit(0)

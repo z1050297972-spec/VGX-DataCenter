@@ -85,7 +85,7 @@ def get_recovery_block(request: Request, context: AuthenticatedContext) -> Recov
 
     Raises:
         AuthenticationError: 未登录，401。
-        PasswordChangeRequiredError: 必须改口令，403。
+        PasswordChangeRequiredError: 必须改密码，403。
         InputError: 标记行损坏，400。
         ConflictError: 只读锁冲突，409。
         ExternalError: 依赖未装配或读取失败，502。
@@ -140,7 +140,7 @@ def acknowledge_block(request: Request, context: AdminContext) -> AcknowledgeRes
     Raises:
         AuthenticationError: 未登录，401。
         AuthorizationError: Origin 不合法或不是管理员，403。
-        PasswordChangeRequiredError: 必须改口令，403。
+        PasswordChangeRequiredError: 必须改密码，403。
         ConflictError: 当前没有标记（已被别人确认），409。
         InputError: 标记损坏，400。
         ExternalError: 归档、删日志或数据库写入失败，502；标记保留。

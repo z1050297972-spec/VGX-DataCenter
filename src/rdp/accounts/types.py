@@ -40,7 +40,7 @@ class AccountStatus(StrEnum):
 
 @dataclass(frozen=True)
 class AccountView:
-    """已脱离数据库会话的账号快照，不包含口令或令牌。
+    """已脱离数据库会话的账号快照，不包含密码或令牌。
 
     Attributes:
         account_id: 内部编号，1 至 2^63-1，无单位、不可空、无默认。
@@ -48,7 +48,7 @@ class AccountView:
         display_name: 显示名，1-64 个 Unicode 码点，无首尾空白或控制字符，不可空、无默认。
         role: Role 两种值之一，无单位、不可空、无默认。
         status: AccountStatus 两种值之一，无单位、不可空、无默认。
-        must_change_password: 下次登录必须改口令标记，布尔、无单位、不可空、无默认。
+        must_change_password: 下次登录必须改密码标记，布尔、无单位、不可空、无默认。
         created_at: 创建时刻，aware UTC、微秒、不可空、无默认。
         updated_at: 修改时刻，aware UTC、微秒、不早于 created_at、不可空、无默认。
         created_by: 创建人编号与当时显示名，不可空、无单位、无默认。
@@ -117,7 +117,7 @@ class NewAccount:
     """管理员建号或运维首号的输入，不携带未经授权的审计身份。
 
     Attributes:
-        credentials: 登录名和初始口令，不可空、无单位、无默认、排除 repr。
+        credentials: 登录名和初始密码，不可空、无单位、无默认、排除 repr。
         display_name: 1-64 个 Unicode 码点，不可空、无默认、无首尾空白或控制字符。
         role: Role 两种值之一，无单位、不可空、无默认。
     """
@@ -129,11 +129,11 @@ class NewAccount:
 
 @dataclass(frozen=True)
 class PasswordChange:
-    """本人改口令所需的两份秘密，不接受指定其他账号。
+    """本人改密码所需的两份秘密，不接受指定其他账号。
 
     Attributes:
-        current_password: 当前口令 SecretStr，10-128 个码点，不可空、无默认、无单位、排除 repr。
-        new_password: 新口令 SecretStr，同上；必须不同于当前口令，不归一化。
+        current_password: 当前密码 SecretStr，10-128 个码点，不可空、无默认、无单位、排除 repr。
+        new_password: 新密码 SecretStr，同上；必须不同于当前密码，不归一化。
     """
 
     current_password: SecretStr = field(repr=False)
