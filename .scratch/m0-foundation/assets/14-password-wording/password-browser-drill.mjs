@@ -1,0 +1,62 @@
+// M0 第 14 张浏览器部分：成员首次登录，看强制改密码提示与菜单；改密码后菜单恢复并回到目标页。
+import { spawn } from "node:child_process";
+import { writeFileSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+const [, , BASE, OUT] = process.argv;
+const profile = mkdtempSync(tmpdir() + "/rdp-m014-chrome-");
+const chrome = spawn("google-chrome", ["--headless=new", "--remote-debugging-port=9349", `--user-data-dir=${profile}`, "--window-size=1280,900", "about:blank"], { stdio: "ignore" });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let ver; for (let i = 0; i < 50; i++) { try { ver = await (await fetch("http://127.0.0.1:9349/json/version")).json(); break; } catch { await sleep(200); } }
+const ws = new WebSocket(ver.webSocketDebuggerUrl); await new Promise((r) => (ws.onopen = r));
+let id = 0; const pending = new Map();
+ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); } };
+const send = (method, params = {}, sessionId) => new Promise((res, rej) => { const i = ++id; pending.set(i, (d) => (d.error ? rej(new Error(method + " " + JSON.stringify(d.error))) : res(d.result))); ws.send(JSON.stringify({ id: i, method, params, sessionId })); });
+const { browserContextId } = await send("Target.createBrowserContext");
+const { targetId } = await send("Target.createTarget", { url: "about:blank", browserContextId });
+const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
+await send("Page.enable", {}, sessionId); await send("Runtime.enable", {}, sessionId);
+const ev = async (expr) => { const r = await send("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true }, sessionId); if (r.exceptionDetails) throw new Error(JSON.stringify(r.exceptionDetails).slice(0, 400)); return r.result.value; };
+const go = async (path) => { await send("Page.navigate", { url: BASE + path }, sessionId); await sleep(1500); };
+const shot = async (name) => { const { data } = await send("Page.captureScreenshot", { format: "png" }, sessionId); writeFileSync(`${OUT}/${name}.png`, Buffer.from(data, "base64")); };
+const wait = async (expr, ms = 15000) => { for (let t = 0; t < ms; t += 200) { if (await ev(expr)) return true; await sleep(200); } throw new Error("timeout: " + expr + " :: " + (await ev("document.body.innerText.slice(0,300)"))); };
+const H = `
+window.__fill = (name, value) => { const el = [...document.querySelectorAll('input')].find(e => e.id === name || e.id.endsWith('_' + name)); if (!el) throw new Error('no input ' + name); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; el.focus(); set.call(el, value); el.dispatchEvent(new Event('input', { bubbles: true })); };
+window.__click = (text) => { const b = [...document.querySelectorAll('button')].filter(b => b.innerText.replace(/\\s/g,'') === text && !b.disabled).pop(); if (!b) throw new Error('no button ' + text); b.click(); };`;
+const menu = () => ev("[...document.querySelectorAll('.app-shell a, .app-shell header a, nav a')].map(a => a.innerText.trim()).filter(Boolean)");
+const fillPw = (label, value) => ev(`(() => { const lab = [...document.querySelectorAll('label')].find(l => l.innerText.trim() === ${JSON.stringify(label)}); if (!lab) throw new Error('no label ' + ${JSON.stringify(label)}); const input = document.getElementById(lab.htmlFor) || lab.closest('.ant-form-item').querySelector('input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); input.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+let code = 0;
+try {
+  await go("/login?returnTo=" + encodeURIComponent("/datasets")); await wait("document.querySelectorAll('input').length >= 2");
+  await ev(H + "__fill('login_name','member1'); __fill('password','Member-pass-2026!'); __click('登录')");
+  await wait("location.pathname === '/change-password'", 15000); await sleep(1200);
+  console.log("登录后所在页：", await ev("location.pathname + location.search"));
+  console.log("提示：", (await ev("[...document.querySelectorAll('.ant-alert')].map(a => a.innerText.replace(/\\s+/g,' ')).join(' | ')")) || "（没有提示）");
+  console.log("强制期间菜单：", JSON.stringify(await menu()));
+  console.log("规则说明：", await ev("document.body.innerText.includes('10')") ? "页面含 10 个字符的规则" : "未找到规则文字");
+  console.log("页面含\"口令\"：", await ev("document.body.innerText.includes('口令')"));
+  await shot("m014-1-forced");
+  await go("/jobs"); await sleep(800);
+  console.log("强制期间访问 /jobs 后所在页：", await ev("location.pathname"), "，提示仍在：", await ev("document.querySelectorAll('.ant-alert').length > 0"));
+  await go("/change-password?returnTo=" + encodeURIComponent("/datasets")); await wait("document.querySelectorAll('input[type=password]').length >= 3"); await sleep(600);
+  await fillPw("当前密码", "Member-pass-2026!"); await fillPw("新密码", "Short-9ch"); await fillPw("确认新密码", "Short-9ch");
+  await ev("(() => { const b = [...document.querySelectorAll('button')].filter(b => /保存密码|保存/.test(b.innerText.replace(/\s/g,''))).pop(); b.click(); return true; })()"); await sleep(1200);
+  console.log("9 个字符时的提示：", JSON.stringify(await ev("[...document.querySelectorAll('.ant-form-item-explain-error')].map(e => e.innerText)")), "，诊断卡片数：", await ev("document.querySelectorAll('.diagnostic-card, [class*=diagnostic]').length"));
+  await shot("m014-1b-short");
+  await fillPw("新密码", "Member-pass-2026!b"); await fillPw("确认新密码", "Member-pass-2026!b");
+  await ev("(() => { const b = [...document.querySelectorAll('button[type=submit], button')].filter(b => /保存密码|保存/.test(b.innerText.replace(/\\s/g,''))).pop(); if (!b) throw new Error('no save'); b.click(); return true; })()");
+  await wait("location.pathname !== '/change-password'", 15000); await sleep(1500);
+  console.log("改密码后所在页：", await ev("location.pathname"));
+  console.log("改密码后菜单：", JSON.stringify(await menu()));
+  console.log("溢出：", await ev("JSON.stringify({ s: document.documentElement.scrollWidth, c: document.documentElement.clientWidth })"));
+  await shot("m014-2-after");
+  await go("/jobs"); await sleep(800);
+  console.log("作业页含示例入口：", await ev("/提交示例作业|提交资源示例/.test(document.body.innerText)"));
+  await go("/jobs/resources"); await sleep(800);
+  console.log("/jobs/resources 页面：", (await ev("document.body.innerText.replace(/\s+/g,' ')")).slice(0, 80));
+  await go("/scheduling"); await sleep(1500);
+  const sch = await ev("document.body.innerText");
+  for (const k of ["两张显卡各在给哪个作业用", "导航层是数据集的唯一事实来源", "worker 每天自动提交的作业", "删除超过保留期的程序报错记录", "重新统计每个数据集占用的空间"]) console.log("调度页含「" + k + "」：", sch.includes(k));
+  console.log("调度页溢出：", await ev("JSON.stringify({ s: document.documentElement.scrollWidth, c: document.documentElement.clientWidth })"));
+  await shot("m014-3-scheduling");
+} catch (e) { console.log("失败：", e.message); code = 1; }
+chrome.kill(); process.exit(code);

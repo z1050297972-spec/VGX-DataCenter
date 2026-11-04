@@ -1,6 +1,6 @@
 # "口令"改叫"密码"；强制改密码时给出提示
 
-Status: in-progress
+Status: done
 
 分级：直做。按"只做关键测试"。
 
@@ -77,3 +77,11 @@ Status: in-progress
 ## Comments
 
 - 2026-11-03 开票（执行线；负责人点名）。派给 Codex gpt-6-astra high。
+- 2026-11-03 三轮交回（Codex gpt-6-astra high），日志审计 0 条。make check 全绿：2757 passed，Vitest 385。
+- **副本演练**（`assets/14-password-wording/password-drill.sh`、`password-browser-drill.mjs` → `password-drill-run.log`、`drill/m014-*.png`）：
+  - 成员首次登录落到修改密码页，有提示，菜单只剩修改密码（登出在右上角）；访问 /jobs 被带回，提示仍在；
+  - 9 个字符时只显示"密码至少需要 10 个字符"，没有诊断卡片；改完回到 /datasets，菜单恢复；
+  - 作业页没有示例入口，/jobs/resources 显示 404；调度页四段说明和"做什么"都在；
+  - 前端构建产物和接口里"口令"都是 0 次；web.log 0 条 ERROR；/mnt 清单相同，写入扇区不变。
+  - 演练工具 feedpw.py 原来按"口令"匹配终端提示，卡住约 10 分钟，已改成兼认"密码"。
+- 按负责人授权合并。
