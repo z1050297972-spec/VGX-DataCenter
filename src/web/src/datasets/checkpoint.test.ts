@@ -121,9 +121,10 @@ describe("数据集后半段验收", () => {
         if (fromSubtasks) fireEvent.click(screen.getByRole("button", { name: "打开 子任务.json" }));
         expect(await screen.findByText("索引过期")).toBeTruthy();
         fireEvent.click(screen.getByRole("button", { name: "重新扫描" }));
-        await waitFor(() => {
-          expect(page.router.state.location.pathname).toBe(`/jobs/${completedJob.job_id}`);
-        });
+        expect(
+          await screen.findByRole("region", { name: `重新检查 #${completedJob.job_id}` }),
+        ).toBeTruthy();
+        expect(page.router.state.location.pathname).toBe("/datasets");
         expect(
           requests
             .filter((request) => request.method === "POST")
@@ -370,9 +371,10 @@ describe("数据集后半段验收", () => {
         finish?.(Response.json(completedJob, { status: 201 }));
         await Promise.resolve();
       });
-      await waitFor(() => {
-        expect(page.router.state.location.pathname).toBe(`/jobs/${completedJob.job_id}`);
-      });
+      expect(
+        await screen.findByRole("region", { name: `统计大小 #${completedJob.job_id}` }),
+      ).toBeTruthy();
+      expect(page.router.state.location.pathname).toBe("/datasets");
     } finally {
       page.close();
       finish?.(Response.json(completedJob));

@@ -1,6 +1,6 @@
 // M1.5-02：经真实路由、查询和HTTP边界验证编辑，不替换内部组件。
 import { it, expect } from "vitest";
-import { fireEvent, screen, within, waitFor } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { mountPage } from "../scheduling/pageTestSupport";
 import type { components } from "../api/schema";
 import { repointFetch } from "./repointTestSupport";
@@ -90,9 +90,8 @@ it("编辑信息并预览确认", async () => {
     });
     expect(requests.filter((r) => new URL(r.url).pathname.endsWith("/apply"))).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "确认字段写入" }));
-    await waitFor(() => {
-      expect(page.router.state.location.pathname).toBe("/jobs/302");
-    });
+    expect(await screen.findByRole("region", { name: "修改字段 #302" })).toBeTruthy();
+    expect(page.router.state.location.pathname).toBe("/datasets");
     expect(requests.filter((r) => new URL(r.url).pathname.endsWith("/apply"))).toHaveLength(1);
   } finally {
     page.close();
@@ -228,9 +227,8 @@ it("字段编辑作业走通用撤回流程", async () => {
     const confirm = await screen.findByRole("button", { name: "确认导航写入" });
     expect(requests.filter((r) => r.method === "POST")).toHaveLength(1);
     fireEvent.click(confirm);
-    await waitFor(() => {
-      expect(page.router.state.location.pathname).toBe("/jobs/402");
-    });
+    expect(await screen.findByRole("region", { name: "撤回导航改动 #402" })).toBeTruthy();
+    expect(page.router.state.location.pathname).toBe("/jobs/401/revert");
     const posts = requests.filter((r) => r.method === "POST");
     expect(posts.map((r) => new URL(r.url).pathname)).toEqual([
       "/api/jobs/401/revert-previews",

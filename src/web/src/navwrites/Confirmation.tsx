@@ -1,13 +1,14 @@
 // M1-09 确认流程：先刷新排队提醒，再按用户看过的编号提交；不绕过 worker 的 L12 核对。
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { Alert, Button, Checkbox } from "antd";
 import { useAccountClient } from "../accounts/runtime";
 import { getNavigationPreview, type NavigationPreview } from "../api/dataOrigin";
 import { confirmNavigationWrite } from "../api/navigationWrites";
 import { JOB_GC_TIME_MS, type Job } from "../api/jobs";
 import { toFailureView } from "../api/problems";
+import { useShowJobCard } from "../jobs/cardContext";
 import { DiagnosticCard } from "../DiagnosticCard";
 
 type Queued = NavigationPreview["queued_jobs"];
@@ -21,14 +22,14 @@ interface ConfirmationProps {
 /**
  * 明确确认改指向或撤回，并处理新的排队409。
  * @param props - 当前预览及恢复门禁。
- * @returns 确认按钮和逐项 antd 勾选列表，确认成功后进入作业页。
+ * @returns 确认按钮和逐项 antd 勾选列表，确认成功后留在原页显示卡片。
  * @throws 无；请求错误由 DiagnosticCard 呈现。
- * @sideEffects 确认前 GET 刷新同份预览，然后 POST；离页取消并禁止迟到导航。
+ * @sideEffects 确认前 GET 刷新同份预览，然后 POST；离页取消并禁止迟到卡片。
  * @timeSemantics 每次请求沿用10秒预算，无重试；pending 禁止重复点击，预览过期要求重新预览。
  */
 export function NavigationConfirmation(props: ConfirmationProps): ReactElement {
   const client = useAccountClient();
-  const navigate = useNavigate();
+  const showCard = useShowJobCard();
   const cache = useQueryClient();
   const owner = useRef<Owner>({
     mounted: false,
@@ -53,11 +54,15 @@ export function NavigationConfirmation(props: ConfirmationProps): ReactElement {
       }
       await cache.invalidateQueries({ queryKey: ["jobs"] });
       if (isMounted(owner.current))
-        await navigate({ to: "/jobs/$jobId", params: { jobId: result.job.job_id } });
+        showCard(
+          result.job,
+          props.preview.operation === "revert_change" ? "撤回导航改动" : "修改指向",
+        );
     },
     retry: false,
     gcTime: JOB_GC_TIME_MS,
   });
+  const submitted = action.data?.kind === "submitted";
   return (
     <div className="navigation-write">
       {action.error && <DiagnosticCard failure={toFailureView(action.error)} />}
@@ -65,9 +70,9 @@ export function NavigationConfirmation(props: ConfirmationProps): ReactElement {
         <QueueSelection
           key={queue.map((item) => item.job_id).join(",")}
           jobs={queue}
-          disabled={props.blocked || action.isPending}
+          disabled={props.blocked || action.isPending || submitted}
           onConfirm={(ids) => {
-            if (!props.blocked) action.mutate(ids);
+            if (!props.blocked && !submitted) action.mutate(ids);
           }}
         />
       ) : (
@@ -75,9 +80,9 @@ export function NavigationConfirmation(props: ConfirmationProps): ReactElement {
           aria-label="确认导航写入"
           type="primary"
           loading={action.isPending}
-          disabled={props.blocked || action.isPending || action.isError}
+          disabled={props.blocked || action.isPending || action.isError || submitted}
           onClick={() => {
-            if (!props.blocked) action.mutate([]);
+            if (!props.blocked && !submitted) action.mutate([]);
           }}
         >
           确认写入

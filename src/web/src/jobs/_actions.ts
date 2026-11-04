@@ -1,5 +1,6 @@
 // 作业提交、取消和重提共用的挂载生命周期；只通过注入的类型化请求发送。
 import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
+import { useShowJobCard } from "./cardContext";
 import { useEffect, useRef } from "react";
 import { useCurrentAccount } from "../accounts/runtime";
 import { useNavigate } from "@tanstack/react-router";
@@ -8,19 +9,20 @@ import { JOB_GC_TIME_MS, type Job } from "../api/jobs";
 /**
  * 在本次挂载范围执行一个作业写请求。
  * @param send - 类型化请求回调，接收载荷和取消信号。
- * @param redirect - 成功后是否进入新作业详情。
+ * @param completion - true 导航新作业，false 只刷新缓存；cardTitle 指定留在原页展示卡片的操作名称。
  * @returns 禁止重试并保留错误的Mutation。
  * @throws Error 重复提交、组件卸载或请求失败。
- * @sideEffects 成功失效jobs和scheduling缓存；卸载取消请求，忽略迟到导航。
+ * @sideEffects 成功失效jobs和scheduling缓存；卸载取消请求，忽略迟到导航或卡片。
  * @timeSemantics 请求预算由传输层控制，本层不增加等待或重试。
  */
 export function useJobAction<T>(
   send: (payload: T, signal: AbortSignal) => Promise<Job>,
-  redirect: boolean,
+  completion: boolean | { cardTitle: string },
 ): UseMutationResult<Job, Error, T> {
   const identity = useCurrentAccount();
   const cache = useQueryClient();
   const navigate = useNavigate();
+  const showCard = useShowJobCard();
   const owner = useRef<{
     mounted: boolean;
     active: AbortController | null;
@@ -66,8 +68,10 @@ export function useJobAction<T>(
       if (!isMounted(owner.current) || generation !== owner.current.generation) return;
       await cache.invalidateQueries({ queryKey: ["jobs"] });
       await cache.invalidateQueries({ queryKey: ["scheduling"] });
-      if (redirect && isMounted(owner.current) && generation === owner.current.generation)
+      if (!isMounted(owner.current) || generation !== owner.current.generation) return;
+      if (completion === true)
         await navigate({ to: "/jobs/$jobId", params: { jobId: record.job_id } });
+      else if (completion) showCard(record, completion.cardTitle);
     },
     onError: async (error) => {
       const failure = toFailureView(error);

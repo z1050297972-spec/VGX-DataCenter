@@ -1,6 +1,6 @@
 // M1-09 页面验收：真实路由和 HTTP 边界验证。
 import { describe, it, expect } from "vitest";
-import { fireEvent, screen, within, waitFor } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { mountPage } from "../scheduling/pageTestSupport";
 import { completedJob } from "../jobs/testSupport";
 import { account } from "../accounts/testSupport";
@@ -41,7 +41,7 @@ describe("改指向与撤回的页面契约", () => {
     }
   });
   // 验证创建同款的明确确认及新排队作业 409 再确认流程。
-  it("确认改指向后进入作业详情，同数据集新排队项必须逐项确认", async () => {
+  it("确认改指向后留在原页显示卡片，同数据集新排队项必须逐项确认", async () => {
     const requests: Request[] = [];
     let writes = 0;
     const page = mountPage(
@@ -65,9 +65,8 @@ describe("改指向与撤回的页面契约", () => {
       expect(confirm).toHaveProperty("disabled", true);
       fireEvent.click(screen.getByRole("checkbox", { name: "确认排队作业 502" }));
       fireEvent.click(confirm);
-      await waitFor(() => {
-        expect(page.router.state.location.pathname).toBe("/jobs/402");
-      });
+      expect(await screen.findByRole("region", { name: "修改指向 #402" })).toBeTruthy();
+      expect(page.router.state.location.pathname).toBe("/datasets");
       const sent = requests.filter((r) => new URL(r.url).pathname === "/api/navigation/writes");
       expect(sent).toHaveLength(2);
       expect(await sent[1]?.clone().json()).toEqual({
@@ -166,9 +165,8 @@ describe("改指向与撤回的页面契约", () => {
         .map((cell) => cell.textContent);
       expect(cells.indexOf(newPrefix)).toBeLessThan(cells.indexOf(oldPrefix));
       fireEvent.click(screen.getByRole("button", { name: "确认导航写入" }));
-      await waitFor(() => {
-        expect(page.router.state.location.pathname).toBe("/jobs/402");
-      });
+      expect(await screen.findByRole("region", { name: "撤回导航改动 #402" })).toBeTruthy();
+      expect(page.router.state.location.pathname).toBe("/jobs/401/revert");
       const sent = requests.find((r) => new URL(r.url).pathname === "/api/navigation/writes");
       expect(await sent?.clone().json()).toEqual({
         preview_job_id: "302",

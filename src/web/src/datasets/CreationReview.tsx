@@ -13,6 +13,8 @@ export interface CreationReviewProps {
   preview: CreationPreview;
   /** 写入提交请求在途时为 true，防止重复点击。 */
   pending: boolean;
+  /** 本预览已经成功提交时为 true；仅禁用再次确认，仍可修改参数开始新预览。 */
+  submitted: boolean;
   /** 用户看过差异后打开确认流程，先刷新同数据集排队提醒。 */
   onConfirm: () => void;
   /** 返回表单编辑并使本预览确认资格失效。 */
@@ -86,7 +88,7 @@ export function CreationReview(props: CreationReviewProps): ReactElement {
           type="primary"
           aria-label="确认写入"
           loading={props.pending}
-          disabled={props.pending}
+          disabled={props.pending || props.submitted}
           onClick={props.onConfirm}
         >
           确认写入

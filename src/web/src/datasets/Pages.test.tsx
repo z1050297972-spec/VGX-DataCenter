@@ -138,8 +138,8 @@ describe("数据集布局 A", () => {
     }
   });
 
-  // 契约：重新检查只提交选中永久编号的扫描，成功后进入真实作业页并显示完成状态。
-  it("重新检查提交单数据集扫描并跳到已完成作业", async () => {
+  // 契约：重新检查只提交选中永久编号的扫描，成功后原页卡片显示完成状态。
+  it("重新检查提交单数据集扫描并显示已完成卡片", async () => {
     const requests: Request[] = [];
     const fallback = datasetFetch(requests);
     const page = mountPage(
@@ -157,9 +157,10 @@ describe("数据集布局 A", () => {
     );
     try {
       fireEvent.click(await screen.findByRole("button", { name: "重新检查" }));
-      await waitFor(() => {
-        expect(page.router.state.location.pathname).toBe(`/jobs/${completedJob.job_id}`);
-      });
+      expect(
+        await screen.findByRole("region", { name: `重新检查 #${completedJob.job_id}` }),
+      ).toBeTruthy();
+      expect(page.router.state.location.pathname).toBe("/datasets");
       expect(await screen.findByText("成功")).toBeTruthy();
       const submissions = requests.filter((request) => request.method === "POST");
       expect(submissions).toHaveLength(1);
