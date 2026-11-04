@@ -44,7 +44,7 @@ describe("数据来源标注", () => {
       page.close();
     }
   });
-  // 契约：确认仅提交一次写作业并导航；完成后详情、列表和筛选计数缓存全部失效并重新读取。
+  // 契约：确认仅提交一次并留在原页显示卡片；成功后详情、列表和筛选计数原地刷新。
   it("确认写入后刷新来源筛选", async () => {
     const requests: Request[] = [];
     let finished = false;
@@ -87,9 +87,11 @@ describe("数据来源标注", () => {
       const confirm = await screen.findByRole("button", { name: "确认修改数据来源" });
       fireEvent.click(confirm);
       fireEvent.click(confirm);
-      await waitFor(() => {
-        expect(page.router.state.location.pathname).toBe("/jobs/302");
-      });
+      const card = await screen.findByRole("region", { name: "修改数据来源 #302" });
+      expect(page.router.state.location.pathname).toBe("/datasets");
+      expect(within(card).getByRole("link", { name: "查看详情" }).getAttribute("href")).toBe(
+        "/jobs/302",
+      );
       const writes = requests.filter(
         (request) => request.method === "POST" && new URL(request.url).pathname === "/api/jobs",
       );
@@ -113,13 +115,12 @@ describe("数据来源标注", () => {
       await waitFor(() => {
         for (const key of keys) expect(page.cache.getQueryState(key)?.isInvalidated).toBe(true);
       });
-      await act(async () => {
-        await page.router.navigate({ to: "/datasets", search: { selected: "按任务/libero_10" } });
-      });
+      expect(page.router.state.location.pathname).toBe("/datasets");
+      expect(within(card).getByText("成功")).toBeTruthy();
       expect(
         await screen.findByText(formatDateTime("2026-10-30T07:15:00Z"), { exact: false }),
       ).toBeTruthy();
-      // 作业完成返回详情后必须显示刚写入的当前值，不能只刷新时间而仍留下空选择框。
+      // 作业完成后原地显示新值，不能靠重新导航触发详情查询。
       expect(screen.getByText("当前：开源下载")).toBeTruthy();
       expect(
         within(screen.getByRole("region", { name: "数据来源标注" })).getByRole("button", {
@@ -132,6 +133,33 @@ describe("数据来源标注", () => {
         expect(
           requests.filter((request) => new URL(request.url).pathname === path).length,
         ).toBeGreaterThan(1);
+    } finally {
+      page.close();
+    }
+  });
+  // 契约：关闭只隐藏卡片并释放查询观察者，不请求取消后台作业。
+  it("关闭作业卡片不取消作业并停止轮询", async () => {
+    const requests: Request[] = [];
+    const page = mountPage(originUrl, originFetch(requests));
+    try {
+      const area = await screen.findByRole("region", { name: "数据来源标注" });
+      fireEvent.mouseDown(within(area).getByRole("combobox", { name: "选择数据来源" }));
+      fireEvent.click(await screen.findByRole("option", { name: "开源下载" }));
+      fireEvent.click(within(area).getByRole("button", { name: "预览数据来源" }));
+      fireEvent.click(await screen.findByRole("button", { name: "确认修改数据来源" }));
+      const card = await screen.findByRole("region", { name: "修改数据来源 #302" });
+      await waitFor(() => {
+        expect(page.cache.getQueryState(["jobs", "detail", "302"])?.status).toBe("success");
+      });
+      fireEvent.click(within(card).getByRole("button", { name: "关闭作业卡片 #302" }));
+      expect(screen.queryByRole("region", { name: "修改数据来源 #302" })).toBeNull();
+      await waitFor(() => {
+        expect(
+          page.cache.getQueryCache().find({ queryKey: ["jobs", "detail", "302"] }),
+        ).toBeUndefined();
+      });
+      expect(requests.filter((request) => request.url.endsWith("/cancel"))).toHaveLength(0);
+      expect(page.router.state.location.pathname).toBe("/datasets");
     } finally {
       page.close();
     }

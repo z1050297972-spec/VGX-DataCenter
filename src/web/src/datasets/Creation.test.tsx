@@ -9,8 +9,8 @@ import { mountPage } from "../scheduling/pageTestSupport";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 
 describe("建链与新增数据集的契约行为", () => {
-  // 验证契约：建链页按 填参数→预览→明确确认→作业页 完整流转，预览不触发写入。
-  it("建链页按 填参数→预览→明确确认→作业页 完整流转，预览不触发写入", async () => {
+  // 验证契约：建链页按 填参数→预览→明确确认→原页作业卡片 完整流转，预览不触发写入。
+  it("建链页按 填参数→预览→明确确认→原页作业卡片 完整流转，预览不触发写入", async () => {
     const requests: Request[] = [];
     const page = await previewPage({}, requests);
     try {
@@ -21,9 +21,8 @@ describe("建链与新增数据集的契约行为", () => {
         ),
       ).toHaveLength(0);
       fireEvent.click(screen.getByRole("button", { name: "确认写入" }));
-      await waitFor(() => {
-        expect(page.router.state.location.pathname).toBe("/jobs/102");
-      });
+      expect(await screen.findByRole("region", { name: "建链 #102" })).toBeTruthy();
+      expect(page.router.state.location.pathname).toBe("/datasets/links/new");
     } finally {
       page.close();
     }
@@ -217,8 +216,8 @@ describe("建链与新增数据集的契约行为", () => {
       page.close();
     }
   });
-  // 验证契约：确认时以409诊断提示新排队编号，确认后带acknowledged_queue_job_ids重提，201才跳转。
-  it("确认时以409诊断提示新排队编号，确认后带acknowledged_queue_job_ids重提，201才跳转", async () => {
+  // 验证契约：确认时以409诊断提示新排队编号，确认后带acknowledged_queue_job_ids重提，201才显示卡片。
+  it("确认时以409诊断提示新排队编号，确认后带acknowledged_queue_job_ids重提，201才显示卡片", async () => {
     let calls = 0;
     const requests: Request[] = [];
     const page = await previewPage(
@@ -240,9 +239,8 @@ describe("建链与新增数据集的契约行为", () => {
       fireEvent.click(screen.getByRole("button", { name: "确认排队并提交" }));
       fireEvent.click(await screen.findByLabelText("确认排队作业 61"));
       fireEvent.click(screen.getByRole("button", { name: "确认排队并提交" }));
-      await waitFor(() => {
-        expect(page.router.state.location.pathname).toBe("/jobs/102");
-      });
+      expect(await screen.findByRole("region", { name: "建链 #102" })).toBeTruthy();
+      expect(page.router.state.location.pathname).toBe("/datasets/links/new");
       const posts = requests.filter(
         (request) => new URL(request.url).pathname === "/api/datasets/creation-writes",
       );
@@ -329,8 +327,8 @@ describe("建链与新增数据集的契约行为", () => {
       ).toBe(true);
     });
   });
-  // 验证契约：写入提交在途禁用重复点击，成功使用文本编号进入既有作业页。
-  it("写入提交在途禁用重复点击，成功使用文本编号进入既有作业页", async () => {
+  // 验证契约：写入提交在途禁用重复点击，成功使用文本编号展示原页卡片。
+  it("写入提交在途禁用重复点击，成功使用文本编号展示原页卡片", async () => {
     let finish: ((response: Response) => void) | undefined;
     const requests: Request[] = [];
     const page = await previewPage(
@@ -355,9 +353,8 @@ describe("建链与新增数据集的契约行为", () => {
         ),
       ).toHaveLength(1);
       finish?.(Response.json(scenario.creationWrite, { status: 201 }));
-      await waitFor(() => {
-        expect(page.router.state.location.pathname).toBe("/jobs/102");
-      });
+      expect(await screen.findByRole("region", { name: "建链 #102" })).toBeTruthy();
+      expect(page.router.state.location.pathname).toBe("/datasets/links/new");
     } finally {
       page.close();
     }
@@ -416,9 +413,11 @@ describe("建链与新增数据集的契约行为", () => {
     );
     try {
       fireEvent.click(screen.getByRole("button", { name: "确认写入" }));
-      await waitFor(() => {
-        expect(page.router.state.location.pathname).toBe("/jobs/" + maximum);
-      });
+      expect(await screen.findByRole("region", { name: `建链 #${maximum}` })).toBeTruthy();
+      expect(page.router.state.location.pathname).toBe("/datasets/links/new");
+      expect(screen.getByRole("link", { name: "查看详情" }).getAttribute("href")).toBe(
+        "/jobs/" + maximum,
+      );
       expect(page.router.state.location.href).not.toContain("fake");
       expect(
         requests

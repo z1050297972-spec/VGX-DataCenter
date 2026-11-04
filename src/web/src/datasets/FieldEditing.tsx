@@ -20,7 +20,7 @@ const DOCUMENTS: EditableDocument[] = ["数据集信息.json", "子任务.json",
  * @param props - 数据集的永久编号，不从格式入口构造规范路径。
  * @returns 编辑开关和表单；关闭丢弃草稿，避免误用旧预览。
  * @throws 无；请求故障由统一诊断展示。
- * @sideEffects 打开才读取编辑页；预览与确认各POST一次，确认成功进入作业详情。
+ * @sideEffects 打开才读取编辑页；预览与确认各POST一次，确认成功留在原页显示作业卡片。
  * @timeSemantics 不轮询表单；预览及恢复标记沿用每秒轮询，离页取消请求。
  */
 export function DatasetFieldEditor(props: Props): ReactElement {
@@ -92,7 +92,7 @@ function Review({ state }: { state: FieldEditingState }): ReactElement {
     <FieldReview
       key={state.preview.data.job_id}
       jobId={state.preview.data.job_id}
-      allowed={state.allowed && !state.confirm.isError && !state.stale}
+      allowed={state.allowed && !state.confirm.isError && !state.confirm.isSuccess && !state.stale}
       pending={state.confirm.isPending}
       onConfirm={state.submitWrite}
     />

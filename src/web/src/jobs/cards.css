@@ -1,0 +1,27 @@
+/* 作业卡片停在右下角；新卡片向上叠，过多时栈内滚动，不撑宽页面。 */
+.jobs-card-stack {
+  position: fixed;
+  right: var(--rdp-space-4);
+  bottom: var(--rdp-dock-clearance);
+  z-index: var(--rdp-z-job-cards);
+  flex-direction: column-reverse;
+  gap: var(--rdp-space-3);
+  width: min(var(--rdp-width-job-card), calc(100vw - 2 * var(--rdp-space-4)));
+  max-height: calc(100dvh - var(--rdp-dock-clearance) - var(--rdp-space-5));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.jobs-card {
+  flex: none;
+  min-width: 0;
+  color: var(--rdp-text);
+  background: var(--rdp-surface);
+  border-color: var(--rdp-border);
+  overflow-wrap: anywhere;
+}
+
+.jobs-card-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

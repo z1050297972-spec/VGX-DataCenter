@@ -72,6 +72,9 @@
   /* 顶栏和停靠栏均低于 antd 弹层。 */
   --rdp-z-header: 10;
   --rdp-z-dock: 20;
+  /* 作业卡片宽 360px，位于 antd 抽屉之上，留出底部停靠栏。 */
+  --rdp-width-job-card: 360px;
+  --rdp-z-job-cards: 1010;
   /* 系统字体与诊断、路径等宽字体。 */
   --rdp-font:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue",

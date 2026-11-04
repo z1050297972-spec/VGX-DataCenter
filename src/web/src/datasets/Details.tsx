@@ -76,11 +76,11 @@ function DetailContent({
   const client = useAccountClient();
   const rescan = useJobAction(
     (datasetId: string, signal) => rescanDataset({ client, payload: datasetId, signal }),
-    true,
+    { cardTitle: "重新检查" },
   );
   const sizing = useJobAction(
     (datasetId: string, signal) => sizeDataset({ client, payload: datasetId, signal }),
-    true,
+    { cardTitle: "统计大小" },
   );
   return (
     <>

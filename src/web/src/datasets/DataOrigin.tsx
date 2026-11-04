@@ -40,7 +40,7 @@ interface DataOriginProps {
  * @param props - 永久数据集编号。
  * @returns 当前来源与标注印记、默认选择及相同值提示、恢复阻挡提示和预览；身份或来源刷新时清除旧流程。
  * @throws 无；请求故障统一用 DiagnosticCard 呈现。
- * @sideEffects 复用恢复标记查询，预览与确认各 POST 一次，确认成功进入作业页；不直接访问文件。
+ * @sideEffects 复用恢复标记查询，预览与确认各 POST 一次，确认成功留在原页显示作业卡片；不直接访问文件。
  * @timeSemantics 恢复标记与预览作业沿用每秒轮询；请求不重试、离页取消。
  */
 export function DataOriginEditor(props: DataOriginProps): ReactElement {
@@ -62,9 +62,11 @@ function OriginForm({ datasetId, provenance }: DataOriginProps): ReactElement {
   );
   const confirm = useJobAction<string>(
     (payload, signal) => applyNavigationPreview({ client, payload, signal }),
-    true,
+    { cardTitle: "修改数据来源" },
   );
   const busy = preview.isPending || confirm.isPending;
+  // 一份预览在失败或入队后都不能再次确认；修改选择或重新预览会复位状态。
+  const confirmationDisabled = ["error", "success"].includes(confirm.status);
   const currentOrigin = provenance?.data_origin ?? "未知";
   const [origin, setOrigin] = useState<DataOriginInput["data_origin"]>(currentOrigin);
   const sameOrigin = origin === currentOrigin;
@@ -121,9 +123,9 @@ function OriginForm({ datasetId, provenance }: DataOriginProps): ReactElement {
           jobId={preview.data.job_id}
           allowed={allowed}
           confirming={confirm.isPending}
-          confirmationFailed={confirm.isError}
+          confirmationDisabled={confirmationDisabled}
           onConfirm={(identifier) => {
-            if (allowed && !confirm.isError) confirm.mutate(identifier);
+            if (allowed && !confirmationDisabled) confirm.mutate(identifier);
           }}
         />
       )}
@@ -135,13 +137,13 @@ function OriginPreview({
   jobId,
   allowed,
   confirming,
-  confirmationFailed,
+  confirmationDisabled,
   onConfirm,
 }: {
   jobId: string;
   allowed: boolean;
   confirming: boolean;
-  confirmationFailed: boolean;
+  confirmationDisabled: boolean;
   onConfirm: (identifier: string) => void;
 }): ReactElement {
   const client = useAccountClient();
@@ -174,7 +176,7 @@ function OriginPreview({
             aria-label="确认修改数据来源"
             type="primary"
             loading={confirming}
-            disabled={!allowed || confirming || confirmationFailed}
+            disabled={!allowed || confirming || confirmationDisabled}
             onClick={() => {
               onConfirm(report.data.preview_job_id);
             }}

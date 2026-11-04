@@ -24,7 +24,7 @@ export type FieldEditingState = ReturnType<typeof useFieldEditing>;
  * @param datasetId - 永久数据集编号，非路径。
  * @returns 页面查询、局部草稿、写入门禁和显式操作回调。
  * @throws 无；HTTP故障保留在查询或提交结果中。
- * @sideEffects 分页GET、预览POST和确认POST；成功确认进入作业页，卸载取消。
+ * @sideEffects 分页GET、预览POST和确认POST；成功确认留在原页显示作业卡片，卸载取消。
  * @timeSemantics 表单不轮询或重试；观察到过期基线后锁住本次编辑会话。
  */
 export function useFieldEditing(datasetId: string) {
@@ -40,7 +40,7 @@ export function useFieldEditing(datasetId: string) {
   );
   const confirm = useJobAction<string>(
     (payload, signal) => confirmFieldEdits({ client, payload, signal }),
-    true,
+    { cardTitle: "修改字段" },
   );
   const block = useRecoveryBlock();
   const busy = preview.isPending || confirm.isPending;
@@ -105,7 +105,7 @@ export function useFieldEditing(datasetId: string) {
     preview.mutate({ dataset_id: datasetId, changes: Object.values(changes) });
   }
   function submitWrite(identifier: string): void {
-    if (allowed && !confirm.isError) confirm.mutate(identifier);
+    if (allowed && !confirm.isError && !confirm.isSuccess) confirm.mutate(identifier);
   }
   return {
     document,

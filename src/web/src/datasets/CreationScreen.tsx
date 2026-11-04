@@ -29,7 +29,7 @@ export interface CreationScreenProps {
  * @param props - 当前操作与类型化 URL 定位。
  * @returns 创建流程页面，错误保留为统一诊断。
  * @throws 无；网络错误由诊断组件显示。
- * @sideEffects Query读取候选和预览，确认成功导航作业页，URL仅保存编号。
+ * @sideEffects Query读取候选和预览，确认成功留在原页显示作业卡片，URL仅保存编号。
  * @timeSemantics 轮询、超时和取消沿用 useCreationFlow；表单参数不写持久存储。
  */
 export function CreationScreen(props: CreationScreenProps): ReactElement {
@@ -47,12 +47,6 @@ export function CreationScreen(props: CreationScreenProps): ReactElement {
   });
   const [offset, setOffset] = useState(0);
   const browser = useDatasetBrowser({ offset, limit: 100 });
-  const onSubmitted = useCallback(
-    (job: Job) => {
-      void navigate({ to: "/jobs/$jobId", params: { jobId: job.job_id } });
-    },
-    [navigate],
-  );
   const onPreviewed = useCallback(
     (preview: CreationPreview) => {
       void navigate({
@@ -69,7 +63,6 @@ export function CreationScreen(props: CreationScreenProps): ReactElement {
   const flow = useCreationFlow({
     operation: props.operation,
     previewJobId: props.search.preview_job_id,
-    onSubmitted,
     onPreviewed,
   });
   const busy = flow.blocked || flow.stage === "previewing" || flow.stage === "submitting";
@@ -259,6 +252,7 @@ function PreviewBody({
       <CreationReview
         preview={preview}
         pending={busy}
+        submitted={flow.stage === "submitted"}
         onEdit={onEdit}
         onConfirm={() => {
           flow.confirm({ preview_job_id: preview.preview_job_id, acknowledged_queue_job_ids: [] });

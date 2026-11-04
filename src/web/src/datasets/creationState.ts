@@ -96,18 +96,16 @@ export interface CreationFlowInput {
   operation: CreationPreview["operation"];
   /** 类型化 Router 提供的预览编号，未预览为 undefined。 */
   previewJobId: CreationPreview["preview_job_id"] | undefined;
-  /** 成功后导航到已有 /jobs/$jobId；编号保持文本。 */
-  onSubmitted: (job: Job) => void;
   /** 预览成功后写回类型化 search，允许刷新后重读预览。 */
   onPreviewed: (preview: CreationPreview) => void;
 }
 
 /**
  * 驱动两种表单从填参数、预览到确认入队的流程。
- * @param _input - 当前操作、文本预览定位及 Router 导航回调。
+ * @param _input - 当前操作、文本预览定位及预览定位回调。
  * @returns CreationFlow；只允许成功预览进入 reviewing，参数变化后必须重新预览。
  * @throws Error 缺少账号客户端或 QueryClient Provider；请求失败保存在 failure。
- * @sideEffects 用 TanStack Query 和统一客户端读候选、提交预览、轮询 M0 作业、读取保存结果及确认；成功入队后刷新 datasets/jobs 缓存并导航。
+ * @sideEffects 用 TanStack Query 和统一客户端读候选、提交预览、轮询 M0 作业、读取保存结果及确认；成功入队后显示卡片，作业终态刷新 datasets 缓存。
  * @timeSemantics 预览作业按 JOB_POLL_INTERVAL_MS 轮询且终态停止，使用 JOB_STALE_TIME_MS/JOB_GC_TIME_MS；离页取消读请求，所有 POST 不重试。
  */
 export function useCreationFlow(_input: CreationFlowInput): CreationFlow {
@@ -127,7 +125,7 @@ export function useCreationFlow(_input: CreationFlowInput): CreationFlow {
   );
   const applyAction = useJobAction<ConfirmCreationInput>(
     (payload, signal) => confirmCreation({ client, payload, signal }),
-    false,
+    { cardTitle: _input.operation === "create_link" ? "建链" : "新增数据集" },
   );
   const { options, job, result, successful } = usePreviewQueries(
     client,
@@ -153,12 +151,14 @@ export function useCreationFlow(_input: CreationFlowInput): CreationFlow {
     recovery.error,
   ]);
   const blockedReason = recoveryReason(recovery);
-  const stage = creationStage(
-    previewAction.isPending,
-    applyAction.isPending,
-    previewRunning(activeId, invalidated, job.data),
-    valid,
-  );
+  const stage = applyAction.isSuccess
+    ? "submitted"
+    : creationStage(
+        previewAction.isPending,
+        applyAction.isPending,
+        previewRunning(activeId, invalidated, job.data),
+        valid,
+      );
   return {
     stage,
     options: options.data,
@@ -182,14 +182,11 @@ export function useCreationFlow(_input: CreationFlowInput): CreationFlow {
       });
     },
     confirm: (parameters) => {
-      if (!valid || blockedReason || applyAction.isPending) return;
+      if (!valid || blockedReason || applyAction.isPending || applyAction.isSuccess) return;
       acknowledged.current = [
         ...new Set([...acknowledged.current, ...parameters.acknowledged_queue_job_ids]),
       ];
-      applyAction.mutate(
-        { ...parameters, acknowledged_queue_job_ids: acknowledged.current },
-        { onSuccess: _input.onSubmitted },
-      );
+      applyAction.mutate({ ...parameters, acknowledged_queue_job_ids: acknowledged.current });
     },
     edit: () => {
       setInvalidated(true);

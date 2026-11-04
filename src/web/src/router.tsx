@@ -13,6 +13,7 @@ import {
 import { Result } from "antd";
 // M1-04：鉴权外壳和轻量首页保持同步，业务页面按路由加载，离开页面时立即释放查询。
 import { AccountLayout, AccountsPage, LoginPage, PasswordPage } from "./accounts/Pages";
+import { JobCardsProvider } from "./jobs/Cards";
 import { AccountClientProvider } from "./accounts/runtime";
 import {
   ADMINISTRATOR_PAGE_PATHS,
@@ -90,7 +91,13 @@ export function createAppRouter(options: AppRouterOptions) {
       const pathname = useLocation({ select: (location) => location.pathname });
       return (
         <AccountClientProvider client={client}>
-          {pathname === "/login" ? <Outlet /> : <AccountLayout />}
+          {pathname === "/login" ? (
+            <Outlet />
+          ) : (
+            <JobCardsProvider>
+              <AccountLayout />
+            </JobCardsProvider>
+          )}
         </AccountClientProvider>
       );
     },
