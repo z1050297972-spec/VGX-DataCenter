@@ -54,3 +54,4 @@ Status: done
 - 2026-11-03 交回（Codex gpt-6-astra high），日志审计 0 条，make check 全绿（2757 passed，Vitest 381）。选型 antd Card，调用点：DataOrigin、fieldEditingState、navwrites/Confirmation、creationState/CreationScreen、Details。
 - **副本演练**（`assets/05-job-card/jobcard-drill.sh` → `jobcard-drill-run.log`、`drill/m155-*.png`）：把 libero_10 的数据来源从"真机采集"改成"开源下载"，确认前后地址不变，右下角卡片"修改数据来源 #6"从排队中到成功，进度 100%；页面上的"当前"直接变成开源下载；点 × 后卡片消失，作业仍是 completed；副本 来源.json 已改；web.log 0 条 ERROR；/mnt 清单相同，写入扇区不变。
 - 按负责人授权合并。
+- 2026-11-04 负责人"升级并推送"。真实部署升到 `c082f09`（同时带上 M0 第 14 张），数据库仍是 0016，不用迁移；两个服务 active，health ok，两份日志 0 条 ERROR，两块盘写入扇区数不变（`assets/05-job-card/real-upgrade-run.log`）。
