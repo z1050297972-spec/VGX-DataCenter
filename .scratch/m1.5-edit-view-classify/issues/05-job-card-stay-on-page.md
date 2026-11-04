@@ -1,6 +1,6 @@
 # 提交写入后留在原页面，用可关闭的作业卡片显示进度
 
-Status: in-progress
+Status: done
 
 分级：直做。按"只做关键测试"。
 
@@ -51,3 +51,6 @@ Status: in-progress
 ## Comments
 
 - 2026-11-03 开票（执行线；负责人点名）。和 M0 第 14 张并行，派给 Codex gpt-6-astra high。第 14 张改的是 `accounts/`、`jobs/Pages.tsx`、`scheduling/` 和路由；本票改 `datasets/`、`navwrites/`、`jobs/_actions.ts`。重叠的地方合并时由执行线处理。
+- 2026-11-03 交回（Codex gpt-6-astra high），日志审计 0 条，make check 全绿（2757 passed，Vitest 381）。选型 antd Card，调用点：DataOrigin、fieldEditingState、navwrites/Confirmation、creationState/CreationScreen、Details。
+- **副本演练**（`assets/05-job-card/jobcard-drill.sh` → `jobcard-drill-run.log`、`drill/m155-*.png`）：把 libero_10 的数据来源从"真机采集"改成"开源下载"，确认前后地址不变，右下角卡片"修改数据来源 #6"从排队中到成功，进度 100%；页面上的"当前"直接变成开源下载；点 × 后卡片消失，作业仍是 completed；副本 来源.json 已改；web.log 0 条 ERROR；/mnt 清单相同，写入扇区不变。
+- 按负责人授权合并。
