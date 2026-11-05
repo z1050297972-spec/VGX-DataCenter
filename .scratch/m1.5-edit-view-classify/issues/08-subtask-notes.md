@@ -1,6 +1,6 @@
 # 子任务改为可编辑的记事本
 
-Status: ready-for-agent（等第 07 张合并后开工：两张改的是同一批文件）
+Status: in-progress
 
 分级：直做。按"只做关键测试"。
 
@@ -43,3 +43,4 @@ Status: ready-for-agent（等第 07 张合并后开工：两张改的是同一�
 ## Comments
 
 - 2026-11-04 开票（执行线；负责人点名，四个决定当面选定）。第 07 张正在改 Details.tsx、FieldEditing、_field_rules.py，等它合并以后从 main 开工作目录。
+- 2026-11-04 22:44 负责人要求 15 分钟内完成，不等第 07 张，单独工作目录 m15-08-subtask-notes 从 main（含本工单）开工；前后端并行派工（gpt-6-astra medium，单元 rdp-codex-m15-08-be/-fe）。和第 07 张的冲突由执行线合并时解决。
