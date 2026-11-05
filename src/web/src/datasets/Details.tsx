@@ -1,12 +1,12 @@
 // 数据集详情共享部件（11、16、M1-04）；索引时间和现场 JSON 时间不混为一份快照。
-import { lazy, Suspense, useState, type ReactElement } from "react";
+import { lazy, Suspense, type ReactElement } from "react";
 import { Alert, Button, Col, Flex, Row, Typography } from "antd";
 import { rescanDataset, sizeDataset, type DatasetDetail } from "../api/datasets";
 import { useAccountClient } from "../accounts/runtime";
 import { useJobAction } from "../jobs/_actions";
 import { DiagnosticCard, DiagnosticEntries } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
-import { SubtasksViewer } from "./Subtasks";
+import { SubtaskNotes } from "./SubtaskNotes";
 import { DatasetSizeSummary } from "./Sizes";
 import { RepointEditor } from "./Repoint";
 import { FileViewerEntry } from "./FileViewerEntry";
@@ -71,7 +71,6 @@ function DetailContent({
   detail: DatasetDetail;
   onJump: DetailProps["onJump"];
 }): ReactElement {
-  const [subtaskStale, setSubtaskStale] = useState(false);
   const client = useAccountClient();
   const rescan = useJobAction(
     (datasetId: string, signal) => rescanDataset({ client, payload: datasetId, signal }),
@@ -83,7 +82,7 @@ function DetailContent({
   );
   return (
     <>
-      {(detail.index_stale || subtaskStale) && (
+      {detail.index_stale && (
         <Alert
           type="warning"
           title="索引过期"
@@ -137,7 +136,7 @@ function DetailContent({
           <DataOriginEditor datasetId={detail.entry.dataset_id} provenance={detail.provenance} />
         </div>
       )}
-      <div className="browser-detail-section">
+      <div className="browser-detail-section" id="dataset-field-editor">
         <FieldEditEntry detail={detail} />
       </div>
       <div className="browser-detail-section">
@@ -184,11 +183,9 @@ function DetailContent({
         <DiagnosticEntries diagnostics={detail.diagnostics} />
       </div>
       <div className="browser-detail-section">
-        <SubtasksViewer
-          entryPath={detail.subtasks_entry_path}
-          onStale={() => {
-            setSubtaskStale(true);
-          }}
+        <SubtaskNotes
+          document={detail.canonical_information}
+          editable={!!detail.entry.dataset_id}
         />
       </div>
     </>

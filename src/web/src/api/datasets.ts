@@ -129,35 +129,6 @@ export function rescanDataset(
   });
 }
 
-/** 子任务原文及响应头；接口正文使用生成客户端的 parseAs:text，不在主线程解析 JSON。 */
-export interface DatasetSubtasks {
-  /** 完整 UTF-8 原文，保留未知键。 */ text: string;
-  /** 本次读取是否与索引指纹不同。 */ indexStale: boolean;
-  /** 响应携带的文档摘要；缺失不伪造值。 */ sha256: string | null;
-}
-/**
- * 按需读取子任务原文，解析交给调用方的 Worker。
- * @param input - 已认证客户端、相对入口路径与取消信号。
- * @returns 原文和本次响应的过期标记、摘要。
- * @throws Error HTTP、取消、60 秒超时或正文缺失。
- * @sideEffects 发一次 GET /api/datasets/subtasks；明确使用 text 解析模式，不触发 response.json。
- * @timeSemantics 最多 60 秒，不重试；原文只反映本次读取，缓存不跨入口或账号。
- */
-export function getDatasetSubtasks(input: AccountCall<string>): Promise<DatasetSubtasks> {
-  return boundedRequest(input.signal, DATASET_REQUEST_TIMEOUT_MS, async (signal) => {
-    const result = await input.client.GET("/api/datasets/subtasks", {
-      params: { query: { entry_path: input.payload } },
-      signal,
-      parseAs: "text",
-    });
-    return {
-      text: required(result.data),
-      indexStale: result.response.headers.get("X-Index-Stale") === "true",
-      sha256: result.response.headers.get("X-Document-Sha256"),
-    };
-  });
-}
-
 /**
  * 提交当前数据集的统计大小作业。
  * @param input - 账号客户端、非空永久编号与取消信号，不允许页面意外提交全量统计。

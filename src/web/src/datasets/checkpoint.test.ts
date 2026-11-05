@@ -1,20 +1,10 @@
 // M1-04 后半段验收：真实 Router 和 HTTP 边界替身验证用户可见行为，不访问真实数据。
 import { formatDateTime } from "../time";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { screen, within, fireEvent, waitFor, act } from "@testing-library/react";
 import { mountPage } from "../scheduling/pageTestSupport";
-import { problemResponse, account } from "../accounts/testSupport";
-import { ACCOUNT_QUERY_KEY } from "../accounts/runtime";
 import { completedJob } from "../jobs/testSupport";
-import {
-  datasetFetch,
-  detail,
-  panel,
-  taskEntry,
-  formatEntry,
-  filters,
-  datasets,
-} from "./testSupport";
+import { datasetFetch, detail, panel, taskEntry, filters, datasets } from "./testSupport";
 import type { FetchImplementation } from "../api/client";
 import type { DatasetDetail } from "../api/datasets";
 
@@ -93,46 +83,34 @@ describe("数据集后半段验收", () => {
       page.close();
     }
   });
-  // 验收4：详情指纹或随后读取的子任务响应头都能使页面过期；重扫只用永久编号。
-  it("详情或子任务发现索引过期时显示重新扫描并提交单数据集作业", async () => {
-    vi.stubGlobal(
-      "Worker",
-      class {
-        postMessage() {}
-        terminate() {}
-      },
+  // 验收4：详情指纹使页面过期；重扫只用永久编号。
+  it("详情发现索引过期时显示重新扫描并提交单数据集作业", async () => {
+    const requests: Request[] = [];
+    const page = mountPage(
+      selectedUrl,
+      transport(
+        {
+          "/api/datasets/detail": () => Response.json({ ...detail, index_stale: true }),
+          "/api/datasets/dataset-14/rescan": () => Response.json(completedJob, { status: 201 }),
+        },
+        requests,
+      ),
     );
-    for (const fromSubtasks of [false, true]) {
-      const requests: Request[] = [];
-      const page = mountPage(
-        selectedUrl,
-        transport(
-          {
-            "/api/datasets/detail": () => Response.json({ ...detail, index_stale: !fromSubtasks }),
-            "/api/datasets/subtasks": () =>
-              new Response('{"dataset_id":"dataset-14"}', { headers: { "X-Index-Stale": "true" } }),
-            "/api/datasets/dataset-14/rescan": () => Response.json(completedJob, { status: 201 }),
-          },
-          requests,
-        ),
-      );
-      try {
-        await screen.findByRole("heading", { name: "libero_10" });
-        if (fromSubtasks) fireEvent.click(screen.getByRole("button", { name: "打开 子任务.json" }));
-        expect(await screen.findByText("索引过期")).toBeTruthy();
-        fireEvent.click(screen.getByRole("button", { name: "重新扫描" }));
-        expect(
-          await screen.findByRole("region", { name: `重新检查 #${completedJob.job_id}` }),
-        ).toBeTruthy();
-        expect(page.router.state.location.pathname).toBe("/datasets");
-        expect(
-          requests
-            .filter((request) => request.method === "POST")
-            .map((request) => new URL(request.url).pathname),
-        ).toEqual(["/api/datasets/dataset-14/rescan"]);
-      } finally {
-        page.close();
-      }
+    try {
+      await screen.findByRole("heading", { name: "libero_10" });
+      expect(await screen.findByText("索引过期")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "重新扫描" }));
+      expect(
+        await screen.findByRole("region", { name: `重新检查 #${completedJob.job_id}` }),
+      ).toBeTruthy();
+      expect(page.router.state.location.pathname).toBe("/datasets");
+      expect(
+        requests
+          .filter((request) => request.method === "POST")
+          .map((request) => new URL(request.url).pathname),
+      ).toEqual(["/api/datasets/dataset-14/rescan"]);
+    } finally {
+      page.close();
     }
   });
   // 验收5：型号表出现后使用后端提供的默认方式；编号传给接口，不把标签冒充型号。
@@ -330,7 +308,7 @@ describe("数据集后半段验收", () => {
         expect(within(links).getByRole("columnheader", { name })).toBeTruthy();
       expect(screen.queryByRole("button", { name: "打开 数据集信息.json" })).toBeNull();
       expect(screen.queryByRole("button", { name: "打开 原始路径.json" })).toBeNull();
-      expect(screen.getByRole("button", { name: "打开 子任务.json" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "打开 子任务.json" })).toBeNull();
     } finally {
       page.close();
     }
@@ -372,190 +350,6 @@ describe("数据集后半段验收", () => {
     } finally {
       page.close();
       finish?.(Response.json(completedJob));
-    }
-  });
-  // 生命周期：Worker错误和超时后结束等待、只释放一次，迟到响应不能复活查看器。
-  it("Worker故障或超时后显示诊断、释放一次并忽略迟到响应", async () => {
-    for (const mode of ["error", "timeout"]) {
-      const workers: {
-        onerror: (() => void) | null;
-        onmessage: ((event: MessageEvent) => void) | null;
-        terminate: ReturnType<typeof vi.fn>;
-      }[] = [];
-      vi.stubGlobal(
-        "Worker",
-        class {
-          onerror: (() => void) | null = null;
-          onmessage: ((event: MessageEvent) => void) | null = null;
-          terminate = vi.fn();
-          postMessage() {}
-          constructor() {
-            workers.push(this);
-          }
-        },
-      );
-      const page = mountPage(
-        selectedUrl,
-        transport({ "/api/datasets/subtasks": () => new Response("{}") }),
-      );
-      try {
-        fireEvent.click(await screen.findByRole("button", { name: "打开 子任务.json" }));
-        await waitFor(() => {
-          expect(workers).toHaveLength(1);
-        });
-        const worker = workers[0];
-        if (!worker) throw new Error("缺少Worker");
-        const late = worker.onmessage;
-        if (mode === "error")
-          act(() => {
-            worker.onerror?.();
-          });
-        else {
-          vi.useFakeTimers();
-          // 计时器必须在Worker创建之前替换；这里改为重新打开，确保使用测试时钟。
-          fireEvent.click(screen.getByRole("button", { name: "关闭 子任务.json" }));
-          fireEvent.click(screen.getByRole("button", { name: "打开 子任务.json" }));
-          await act(async () => {
-            await vi.advanceTimersByTimeAsync(60_100);
-          });
-          vi.useRealTimers();
-        }
-        expect(await screen.findByText("请求失败，请检查网络或稍后重试。")).toBeTruthy();
-        act(() => {
-          late?.(
-            new MessageEvent("message", {
-              data: { text: "迟到旧内容", page: 0, totalPages: 1, valid: true },
-            }),
-          );
-        });
-        expect(screen.queryByText("迟到旧内容")).toBeNull();
-        page.close();
-        for (const instance of workers) expect(instance.terminate).toHaveBeenCalledTimes(1);
-      } finally {
-        page.close();
-        vi.useRealTimers();
-      }
-    }
-  });
-  // 请求故障沿用统一诊断；失败正文不送进Worker，失败请求不自动重试。
-  it("子任务请求失败显示统一诊断且不启动Worker或自动重试", async () => {
-    const worker = vi.fn();
-    vi.stubGlobal("Worker", worker);
-    const requests: Request[] = [];
-    const page = mountPage(
-      selectedUrl,
-      transport({ "/api/datasets/subtasks": () => problemResponse(404) }, requests),
-    );
-    try {
-      fireEvent.click(await screen.findByRole("button", { name: "打开 子任务.json" }));
-      expect(await screen.findByText("请求被拒绝")).toBeTruthy();
-      expect(worker).not.toHaveBeenCalled();
-      vi.useFakeTimers();
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(3000);
-      });
-      expect(
-        requests.filter((request) => new URL(request.url).pathname === "/api/datasets/subtasks"),
-      ).toHaveLength(1);
-      expect(page.router.state.location.pathname).toBe("/datasets");
-    } finally {
-      page.close();
-      vi.useRealTimers();
-    }
-  });
-
-  // 路由离开所选入口必须取消尚未完成的大文件请求，迟到响应不能出现在新入口。
-  it("切换入口取消子任务请求并忽略迟到正文", async () => {
-    let pending: Request | undefined;
-    let finish: ((response: Response) => void) | undefined;
-    const worker = vi.fn();
-    vi.stubGlobal("Worker", worker);
-    const page = mountPage(
-      selectedUrl,
-      transport({
-        "/api/datasets/subtasks": (request) => {
-          pending = request;
-          return new Promise<Response>((resolve) => {
-            finish = resolve;
-          });
-        },
-      }),
-    );
-    try {
-      fireEvent.click(await screen.findByRole("button", { name: "打开 子任务.json" }));
-      await waitFor(() => {
-        expect(pending).toBeDefined();
-      });
-      fireEvent.click(screen.getByRole("button", { name: `跳转到 ${formatEntry.entry_path}` }));
-      await waitFor(() => {
-        expect(pending?.signal.aborted).toBe(true);
-      });
-      await act(async () => {
-        finish?.(new Response('{"old":"迟到正文"}'));
-        await Promise.resolve();
-      });
-      expect(await screen.findByRole("button", { name: "打开 子任务.json" })).toBeTruthy();
-      expect(worker).not.toHaveBeenCalled();
-      expect(screen.queryByText(/迟到正文/)).toBeNull();
-    } finally {
-      page.close();
-      finish?.(new Response("{}"));
-    }
-  });
-
-  // 同一路由换号后关闭旧文件并释放Worker，不能把前一个账号的解析内容保留给新账号。
-  it("换号释放旧Worker并关闭旧账号的子任务内容", async () => {
-    let identity = account;
-    const workers: { terminate: ReturnType<typeof vi.fn> }[] = [];
-    vi.stubGlobal(
-      "Worker",
-      class {
-        onmessage: ((event: MessageEvent) => void) | null = null;
-        terminate = vi.fn();
-        constructor() {
-          workers.push(this);
-        }
-        postMessage() {
-          queueMicrotask(() => {
-            this.onmessage?.(
-              new MessageEvent("message", {
-                data: { text: "旧账号内容", page: 0, totalPages: 1, valid: true },
-              }),
-            );
-          });
-        }
-      },
-    );
-    const page = mountPage(
-      selectedUrl,
-      transport({
-        "/api/auth/me": () => Response.json(identity),
-        "/api/datasets/subtasks": () => new Response("{}"),
-      }),
-    );
-    try {
-      fireEvent.click(await screen.findByRole("button", { name: "打开 子任务.json" }));
-      await screen.findByText("旧账号内容");
-      identity = { ...account, account_id: "42", display_name: "新账号" };
-      await act(async () => {
-        await page.cache.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY });
-      });
-      await screen.findByText("新账号");
-      expect(await screen.findByRole("button", { name: "打开 子任务.json" })).toBeTruthy();
-      expect(screen.queryByText("旧账号内容")).toBeNull();
-      expect(workers[0]?.terminate).toHaveBeenCalledTimes(1);
-      await waitFor(() => {
-        expect(
-          page.cache.getQueryData([
-            "datasets",
-            account.account_id,
-            "subtasks",
-            taskEntry.entry_path,
-          ]),
-        ).toBeUndefined();
-      });
-    } finally {
-      page.close();
     }
   });
 });

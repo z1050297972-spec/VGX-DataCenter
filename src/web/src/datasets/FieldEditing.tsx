@@ -13,7 +13,7 @@ import "./fieldEditing.css";
 interface Props {
   /** 永久编号；切换数据集或账号时重新挂载以隔离草稿。 */ datasetId: string;
 }
-const DOCUMENTS: EditableDocument[] = ["数据集信息.json", "子任务.json", "原始路径.json"];
+const DOCUMENTS: EditableDocument[] = ["数据集信息.json", "原始路径.json"];
 
 /**
  * 在详情中打开导航字段的分页编辑流程。

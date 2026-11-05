@@ -8,9 +8,12 @@ from dataset_api_support import browser_case, set_meta
 from nav_manifest import FakeNavigation
 from navwrite_support import dataset_id_of, tree_state
 
+# 首尾空格与换行用于确认子任务记事本原文不会被分类字段的规范化逻辑改写。
+SUBTASK_NOTES = " 抓取杯子\n移动到桌面\n放下杯子 "
+
 
 def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """契约：逐字段预览只读，分类去空格且任务去重保序，确认同步两视图并可撤回。"""
+    """契约：子任务缺失投影为空串；多行原文及分类编辑经只读预览、同步两视图并可撤回。"""
     with browser_case(tmp_path / "state", fake_nav) as case:
         dataset = dataset_id_of(fake_nav, "libero_10")
         before = tree_state(fake_nav.nav_root)
@@ -20,11 +23,18 @@ def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNaviga
         assert page.status_code == 200, page.text
         data = page.json()
         assert data["entry_path"] == "按任务/libero_10"
+        assert next(item for item in data["fields"] if item["path"] == ["subtask_notes"]) == {
+            "path": ["subtask_notes"],
+            "label": "子任务",
+            "value": "",
+            "multiple": False,
+        }
         changes = [
             {"path": ["title"], "value": "新的标题"},
             {"path": ["robot_model"], "value": "Franka"},
             {"path": ["scene"], "value": " 厨房 "},
             {"path": ["tasks"], "value": [" a ", "a", "b"]},
+            {"path": ["subtask_notes"], "value": SUBTASK_NOTES},
             {"path": ["fields", 5, "value_markdown"], "value": "新的第六项"},
         ]
         response = case.client.post(
@@ -55,7 +65,7 @@ def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNaviga
         root = fake_nav.nav_root
         canonical = json.loads((root / "按任务/libero_10/数据集信息.json").read_bytes())
         replica = json.loads((root / "按格式/lerobot/3.0/libero_10/数据集信息.json").read_bytes())
-        assert canonical == replica
+        assert canonical == replica and canonical["subtask_notes"] == SUBTASK_NOTES
         assert (
             canonical["title"] == "新的标题"
             and canonical["fields"][5]["value_markdown"] == "新的第六项"
@@ -271,7 +281,7 @@ def test_confirm_conflict_and_worker_conflict_write_nothing(
 def test_invalid_field_requests_are_rejected_before_queueing(
     tmp_path: Path, fake_nav: FakeNavigation
 ) -> None:
-    """契约：非法字段、值类型、重复补丁及越界分页返回422；不让任意路径或身份进入作业参数。"""
+    """契约：非法字段、子任务数组等错误类型、重复补丁及越界分页返回422，不进入作业参数。"""
     with browser_case(tmp_path / "state", fake_nav) as case:
         dataset = dataset_id_of(fake_nav, "libero_10")
         valid = {
@@ -285,6 +295,7 @@ def test_invalid_field_requests_are_rejected_before_queueing(
             valid | {"path": ["view"]},
             valid | {"document": "原始路径.json", "path": ["sources", 0, "direct_path"]},
             valid | {"path": ["scene"], "value": ["两个场景"]},
+            valid | {"path": ["subtask_notes"], "value": ["抓取杯子", "放下杯子"]},
             valid | {"path": ["tasks"], "value": "不是数组"},
             valid | {"path": ["fields", True, "value_markdown"]},
         ):

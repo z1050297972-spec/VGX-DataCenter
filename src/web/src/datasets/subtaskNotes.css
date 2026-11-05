@@ -1,0 +1,5 @@
+/* 记事本按纯文本显示，保留用户的换行和缩进，不解析 Markdown。 */
+.subtask-notes-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
