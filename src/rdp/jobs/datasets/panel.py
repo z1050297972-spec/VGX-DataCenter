@@ -42,6 +42,7 @@ class NavigationRule(StrEnum):
     PROVENANCE_MISSING = "PROVENANCE_MISSING"
     RECORDED_SIZE_MISSING = "RECORDED_SIZE_MISSING"
     DATASET_CHANGED = "DATASET_CHANGED"
+    # 保留旧发现记录的规则码；自定义分类不再产生此提示。
     VOCABULARY_UNKNOWN = "VOCABULARY_UNKNOWN"
 
 
@@ -57,8 +58,7 @@ def inspect_entry(entry: EntrySnapshot) -> tuple[Finding, ...]:
         或 view/format/version/links.entry_path/sources.entry_path 与投影不同均为需要处理。
         缺省 version 与 null 等价；按任务的 format/version 必须推导为 None。
         规范入口的来源.json 缺失产生一次 PROVENANCE_MISSING 提示；有文件也不猜测数据来源或解析血缘。
-        规范入口的 scene、tasks 含不在词表的值时，各产生一条 VOCABULARY_UNKNOWN 提示（M1.5-03）；
-        未填写不提示，值照样保留和筛选。
+        scene、tasks 的词表是推荐值，可以自定义；自定义值及未填写均不产生词表提示。
         不重复加入 entry.findings，不因文件不可用连锁报告它的所有字段都不同。
 
     Raises:

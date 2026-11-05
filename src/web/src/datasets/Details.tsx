@@ -6,14 +6,13 @@ import { useAccountClient } from "../accounts/runtime";
 import { useJobAction } from "../jobs/_actions";
 import { DiagnosticCard, DiagnosticEntries } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
-import { NavigationDocumentViewer } from "./Documents";
 import { SubtasksViewer } from "./Subtasks";
 import { DatasetSizeSummary } from "./Sizes";
 import { RepointEditor } from "./Repoint";
 import { FileViewerEntry } from "./FileViewerEntry";
 import { DataOriginEditor } from "./DataOrigin";
 import { DatasetInformation } from "./Information";
-import { DatasetLinks, DatasetSources } from "./Entries";
+import { DatasetLinks } from "./Entries";
 import { CreateLinkEntry } from "./CreationEntries";
 import { useDatasetDetail } from "./queries";
 import { formatDateTime } from "../time";
@@ -179,19 +178,10 @@ function DetailContent({
         <DatasetLinks links={detail.links} />
       </div>
       <div className="browser-detail-section">
-        <DatasetSources sources={detail.sources} />
-      </div>
-      <div className="browser-detail-section">
         <DatasetInformation document={detail.canonical_information} />
       </div>
       <div className="browser-detail-section">
         <DiagnosticEntries diagnostics={detail.diagnostics} />
-      </div>
-      <div className="browser-detail-section">
-        <NavigationDocumentViewer document={detail.information} />
-      </div>
-      <div className="browser-detail-section">
-        <NavigationDocumentViewer document={detail.original_paths} />
       </div>
       <div className="browser-detail-section">
         <SubtasksViewer

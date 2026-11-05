@@ -10,7 +10,7 @@ from navwrite_support import dataset_id_of, tree_state
 
 
 def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """契约：逐字段预览只读，确认同步两视图、记录 edit_dataset_fields，撤回恢复原字节。"""
+    """契约：逐字段预览只读，分类去空格且任务去重保序，确认同步两视图并可撤回。"""
     with browser_case(tmp_path / "state", fake_nav) as case:
         dataset = dataset_id_of(fake_nav, "libero_10")
         before = tree_state(fake_nav.nav_root)
@@ -23,8 +23,8 @@ def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNaviga
         changes = [
             {"path": ["title"], "value": "新的标题"},
             {"path": ["robot_model"], "value": "Franka"},
-            {"path": ["scene"], "value": "厨房"},
-            {"path": ["tasks"], "value": ["开门", "整理"]},
+            {"path": ["scene"], "value": " 厨房 "},
+            {"path": ["tasks"], "value": [" a ", "a", "b"]},
             {"path": ["fields", 5, "value_markdown"], "value": "新的第六项"},
         ]
         response = case.client.post(
@@ -63,7 +63,7 @@ def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNaviga
         assert (canonical["robot_model"], canonical["scene"], canonical["tasks"]) == (
             "Franka",
             "厨房",
-            ["开门", "整理"],
+            ["a", "b"],
         )
         logs = case.client.get("/api/audit/operations", params={"operation": "edit_dataset_fields"})
         assert logs.status_code == 200, logs.text
@@ -82,6 +82,31 @@ def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNaviga
         undone = run_submitted(case, fake_nav, int(response.json()["job_id"]))
         assert undone.summary is not None and not undone.summary.aborted
         assert tree_state(root) == before
+
+
+def test_reserved_scene_is_rejected(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """契约：场景保留字 unlabeled 在真实 HTTP 入口返回 422，不进入写入流程。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        dataset = dataset_id_of(fake_nav, "libero_10")
+        page = case.client.get(
+            f"/api/datasets/{dataset}/editable-fields", params={"document": "数据集信息.json"}
+        ).json()
+        response = case.client.post(
+            "/api/navigation/fields/preview",
+            json={
+                "dataset_id": dataset,
+                "changes": [
+                    {
+                        "document": "数据集信息.json",
+                        "expected_sha256": page["sha256"],
+                        "path": ["scene"],
+                        "value": "unlabeled",
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 422, response.text
+        assert response.json()["diagnostics"][0]["rule"] == "NAV_FIELDS"
 
 
 def test_paged_subtasks_and_source_annotations(tmp_path: Path, fake_nav: FakeNavigation) -> None:

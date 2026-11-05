@@ -83,39 +83,3 @@ it("14 MB 子任务点击才请求并交给 Worker，分页且离页释放", asy
     page.close();
   }
 });
-
-// 契约：另外两份 JSON 展示详情接口现场原文，未知字段保留，不从索引重建正文。
-it("两份现场 JSON 原文均可独立打开", async () => {
-  const messages: unknown[] = [];
-  vi.stubGlobal(
-    "Worker",
-    class {
-      onmessage: ((event: MessageEvent) => void) | null = null;
-      terminate = vi.fn();
-      postMessage(message: { type: string; text: string }) {
-        messages.push(message);
-        queueMicrotask(() =>
-          this.onmessage?.(
-            new MessageEvent("message", {
-              data: { text: message.text, page: 0, totalPages: 1, valid: true },
-            }),
-          ),
-        );
-      }
-    },
-  );
-  const page = mountPage(
-    `/datasets?selected=${encodeURIComponent(taskEntry.entry_path)}`,
-    datasetFetch(),
-  );
-  try {
-    await screen.findByRole("heading", { name: "libero_10" });
-    fireEvent.click(screen.getByRole("button", { name: "打开 数据集信息.json" }));
-    expect(await screen.findByText(/"value_markdown":"libero_10"/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "打开 原始路径.json" }));
-    expect(await screen.findByText('{"dataset_id":"dataset-14","sources":[]}')).toBeTruthy();
-    expect(messages).toHaveLength(2);
-  } finally {
-    page.close();
-  }
-});

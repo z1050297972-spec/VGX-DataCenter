@@ -1,8 +1,9 @@
 // M1.5-02：经真实路由、查询和HTTP边界验证编辑，不替换内部组件。
 import { it, expect } from "vitest";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { mountPage } from "../scheduling/pageTestSupport";
 import type { components } from "../api/schema";
+import { filters } from "./testSupport";
 import { repointFetch } from "./repointTestSupport";
 import { originFetch, originUrl, originPreview, previewJob, writingJob } from "./originTestSupport";
 
@@ -269,6 +270,73 @@ it("详情展示保存的导航标题型号与分类", async () => {
     const summary = await screen.findByRole("region", { name: "导航层结构化信息" });
     for (const text of ["人工维护标题", "平台型号", "实验室", "抓取、收纳"])
       expect(within(summary).getByText(text)).toBeTruthy();
+  } finally {
+    page.close();
+  }
+});
+
+// 契约：分类支持回车新建或选取平台已有自定义值，提交保持场景单值、任务多值及去首尾空格。
+it.each(["新建", "已有"])("编辑器提交%s自定义分类", async (mode) => {
+  const requests: Request[] = [];
+  const page = mountPage(
+    originUrl,
+    originFetch(requests, {
+      "/api/datasets/dataset-14/editable-fields": () => Response.json(information),
+      "/api/datasets/filters": () =>
+        Response.json({
+          ...filters,
+          scenes: [...filters.scenes, { value: "共享场景", label: "共享场景" }],
+          tasks: [...filters.tasks, { value: "共享任务", label: "共享任务" }],
+        }),
+      "/api/navigation/fields/preview": () =>
+        Response.json({ ...previewJob, type_name: "nav_fields_preview" }),
+      "/api/navigation/previews/301": () =>
+        Response.json({ ...originPreview, operation: "edit_dataset_fields" }),
+    }),
+  );
+  try {
+    fireEvent.click(
+      await screen.findByRole(
+        "button",
+        { name: "编辑导航层字段" },
+        { timeout: EDITOR_LOAD_TIMEOUT_MS },
+      ),
+    );
+    const editor = await screen.findByRole("region", { name: "导航层字段编辑" });
+    const scene = await within(editor).findByRole("combobox", { name: "场景" });
+    const tasks = within(editor).getByRole("combobox", { name: "任务" });
+    if (mode === "新建") {
+      fireEvent.change(scene, { target: { value: "  自定义实验区  " } });
+      fireEvent.keyDown(scene, { key: "Enter", code: "Enter", keyCode: 13 });
+      for (const value of ["  自定义搬运  ", "自定义巡查"]) {
+        fireEvent.change(tasks, { target: { value } });
+        fireEvent.keyDown(tasks, { key: "Enter", code: "Enter", keyCode: 13 });
+        fireEvent.keyUp(tasks, { key: "Enter", code: "Enter", keyCode: 13 });
+      }
+    } else {
+      fireEvent.mouseDown(scene);
+      expect(within(editor).queryByRole("option", { name: "未标注" })).toBeNull();
+      fireEvent.click(await within(editor).findByRole("option", { name: "共享场景" }));
+      fireEvent.mouseDown(tasks);
+      expect(within(editor).getAllByRole("option", { name: "抓取放置" })).toHaveLength(1);
+      fireEvent.click(await within(editor).findByRole("option", { name: "共享任务" }));
+    }
+    expect(within(editor).queryByText(/不在词表/)).toBeNull();
+    fireEvent.click(within(editor).getByRole("button", { name: "预览字段改动" }));
+    await waitFor(() => {
+      expect(
+        requests.some((r) => new URL(r.url).pathname === "/api/navigation/fields/preview"),
+      ).toBe(true);
+    });
+    const posted = requests.find(
+      (r) => new URL(r.url).pathname === "/api/navigation/fields/preview",
+    );
+    expect(await posted?.clone().json()).toMatchObject({
+      changes: [
+        { path: ["scene"], value: mode === "新建" ? "自定义实验区" : "共享场景" },
+        { path: ["tasks"], value: mode === "新建" ? ["自定义搬运", "自定义巡查"] : ["共享任务"] },
+      ],
+    });
   } finally {
     page.close();
   }

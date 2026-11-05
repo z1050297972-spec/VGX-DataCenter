@@ -194,7 +194,8 @@ describe("数据集布局 A", () => {
       await screen.findByRole("region", { name: "链接状态" });
       const main = document.querySelector("main") as HTMLElement;
       const tables = main.querySelectorAll(".ant-table");
-      expect(tables.length).toBeGreaterThanOrEqual(2);
+      // 数据块表已移除，详情只保留链接状态表。
+      expect(tables).toHaveLength(1);
       tables.forEach((table) => {
         const scroller = table.querySelector<HTMLElement>(".ant-table-content");
         expect(scroller?.style.overflowX).toBe("auto");
