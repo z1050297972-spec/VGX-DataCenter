@@ -64,3 +64,4 @@ Status: in-progress
 - 2026-11-04 开票（执行线；负责人点名两件事，合成一张票，因为都改 `datasets/`）。派给 Codex gpt-6-astra high。
 - 2026-11-04 派工（Codex gpt-6-astra high，会话 01a1a981-bba1-7ad0-8dd4-ea634fe09465，systemd 单元 rdp-codex-m15-06，日志 ~/.cache/rdp-dispatch/m15-06/）。基线 make check 全绿（2757 passed，Vitest 386）。负责人中途追加"链接状态去掉观察到的方向"，已并入范围第 4 项。
 - 2026-11-04 负责人追加：删掉详情页末尾"打开 数据集信息.json""打开 原始路径.json"，并入范围 4a。派工已在运行，等这一轮交回后用 resume 补做。
+- 2026-11-04 19:22 负责人要求 20 分钟内完成：停掉单会话派工（只读了 2 分钟代码，无改动），拆成前后端两个并行会话重派（gpt-6-astra medium，单元 rdp-codex-m15-06-be / -fe，各自只跑本半边检查，执行线最后统一 make check），4a 一并派出，不再单独 resume。
