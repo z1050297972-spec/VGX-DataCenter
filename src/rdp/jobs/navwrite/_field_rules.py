@@ -20,6 +20,7 @@ INFO_LABELS = (
     ("robot_model", "机器人型号"),
     ("scene", "场景"),
     ("tasks", "任务"),
+    ("subtask_notes", "子任务"),
 )
 TASK_LABELS = (("display_name", "任务名"), ("description", "描述"), ("source_ids", "关联数据块"))
 SOURCE_LABELS = (

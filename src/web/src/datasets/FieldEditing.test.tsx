@@ -172,14 +172,14 @@ it("分页保留草稿并锁住过期编辑", async () => {
         const next = params.get("offset") === "20";
         return Response.json({
           ...information,
-          document: "子任务.json",
+          document: "原始路径.json",
           sha256: next ? "b".repeat(64) : information.sha256,
           total: 21,
           offset: next ? 20 : 0,
           fields: [
             {
-              path: ["tasks", next ? 20 : 0, "description"],
-              label: next ? "第21个任务描述" : "第1个任务描述",
+              path: ["sources", next ? 20 : 0, "notes"],
+              label: next ? "第21个数据块备注" : "第1个数据块备注",
               value: "原描述",
               multiple: false,
             },
@@ -198,12 +198,12 @@ it("分页保留草稿并锁住过期编辑", async () => {
     );
     await screen.findByRole("textbox", { name: "机器人型号" });
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "选择编辑文件" }));
-    fireEvent.click(await screen.findByRole("option", { name: "子任务.json" }));
-    fireEvent.change(await screen.findByRole("textbox", { name: "第1个任务描述" }), {
+    fireEvent.click(await screen.findByRole("option", { name: "原始路径.json" }));
+    fireEvent.change(await screen.findByRole("textbox", { name: "第1个数据块备注" }), {
       target: { value: "人工描述" },
     });
     fireEvent.click(screen.getByRole("button", { name: "编辑下一页" }));
-    await screen.findByRole("textbox", { name: "第21个任务描述" });
+    await screen.findByRole("textbox", { name: "第21个数据块备注" });
     expect(screen.getByText("文件已变化，请取消编辑后重新加载")).toBeTruthy();
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "选择编辑文件" }));
     fireEvent.click(await screen.findByRole("option", { name: "数据集信息.json" }));
@@ -384,3 +384,84 @@ it("数据大小自动显示统计值且不出现在编辑器", async () => {
     page.close();
   }
 });
+
+// 契约：子任务使用多行纯文本，提交顶层路径，编辑文件选项不再提供子任务.json。
+it("子任务记事本保留换行并提交标量路径", async () => {
+  const requests: Request[] = [];
+  const page = mountPage(
+    originUrl,
+    originFetch(requests, {
+      "/api/datasets/dataset-14/editable-fields": () =>
+        Response.json({
+          ...information,
+          fields: [{ path: ["subtask_notes"], label: "子任务", value: "", multiple: false }],
+        }),
+      "/api/navigation/fields/preview": () =>
+        Response.json({ ...previewJob, type_name: "nav_fields_preview" }),
+      "/api/navigation/previews/301": () =>
+        Response.json({ ...originPreview, operation: "edit_dataset_fields" }),
+    }),
+  );
+  try {
+    fireEvent.click(
+      await screen.findByRole(
+        "button",
+        { name: "编辑导航层字段" },
+        { timeout: EDITOR_LOAD_TIMEOUT_MS },
+      ),
+    );
+    const input = await screen.findByRole("textbox", { name: "子任务" });
+    expect(input.tagName).toBe("TEXTAREA");
+    expect(input.getAttribute("placeholder")).toBe("每行一个子任务，例如：抓取杯子");
+    const notes = "抓取杯子\n放到桌上\n  保留缩进";
+    fireEvent.change(input, { target: { value: notes } });
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "选择编辑文件" }));
+    expect(screen.queryByRole("option", { name: "子任务.json" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "预览字段改动" }));
+    await waitFor(() => {
+      expect(
+        requests.some((r) => new URL(r.url).pathname === "/api/navigation/fields/preview"),
+      ).toBe(true);
+    });
+    const post = requests.find((r) => new URL(r.url).pathname === "/api/navigation/fields/preview");
+    expect(await post?.clone().json()).toMatchObject({
+      changes: [{ document: "数据集信息.json", path: ["subtask_notes"], value: notes }],
+    });
+  } finally {
+    page.close();
+  }
+});
+
+// 契约：详情只读规范副本的子任务，保留原始换行；空值和缺字段显示未填写。
+it.each(["抓取杯子\n放到桌上\n  保留缩进", "", undefined])(
+  "详情显示子任务记事本：%s",
+  async (notes) => {
+    const { detail } = await import("./testSupport");
+    const page = mountPage(
+      originUrl,
+      originFetch([], {
+        "/api/datasets/detail": () =>
+          Response.json({
+            ...detail,
+            canonical_information: {
+              ...detail.information,
+              content: JSON.stringify({ fields: [], subtask_notes: notes }),
+            },
+          }),
+      }),
+    );
+    try {
+      const section = await screen.findByRole("region", { name: "子任务" });
+      expect(
+        within(section).getByText(notes || "未填写", { exact: true, normalizer: (text) => text })
+          .textContent,
+      ).toBe(notes || "未填写");
+      expect(screen.queryByRole("button", { name: "打开 子任务.json" })).toBeNull();
+      expect(within(section).getByRole("link", { name: "编辑子任务" }).getAttribute("href")).toBe(
+        "#dataset-field-editor",
+      );
+    } finally {
+      page.close();
+    }
+  },
+);

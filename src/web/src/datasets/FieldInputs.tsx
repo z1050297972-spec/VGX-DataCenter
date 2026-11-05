@@ -102,7 +102,10 @@ function FieldInput(props: InputProps): ReactElement {
           aria-label={field.label}
           value={text(value)}
           disabled={disabled}
-          autoSize={{ minRows: 1, maxRows: 8 }}
+          autoSize={field.path[0] === "subtask_notes" ? { minRows: 6 } : { minRows: 1, maxRows: 8 }}
+          placeholder={
+            field.path[0] === "subtask_notes" ? "每行一个子任务，例如：抓取杯子" : undefined
+          }
           onChange={(event) => {
             onChange(event.target.value);
           }}
