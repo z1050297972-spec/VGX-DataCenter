@@ -41,3 +41,4 @@ Status: in-progress
 ## Comments
 
 - 2026-11-04 开票（执行线；负责人点名）。
+- 2026-11-04 22:26 派工（Codex gpt-6-astra high，单元 rdp-codex-m15-07，日志 ~/.cache/rdp-dispatch/m15-07/）。基线沿用 main 573076a 的 make check 全绿（之后只有工单提交）。
