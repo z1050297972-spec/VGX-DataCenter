@@ -4,19 +4,20 @@
 复用 Pydantic、格式登记表及 DATA_ORIGINS，不另维护格式或来源词表。
 """
 
-from typing import Annotated, Self
+from typing import Annotated, Self, cast
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from rdp.jobs.dataset_browser.schemas import DatasetId
 from rdp.jobs.datasets.catalog import FORMAT_DIRECTORIES, PROVENANCE_DOCUMENT, REQUIRED_DOCUMENTS
+from rdp.jobs.navwrite._field_rules import normalize_classification
 from rdp.jobs.navwrite.policy import DATA_ORIGINS
 
 # 类型键写进永久作业记录；预览不写导航层，实际写入统一使用 nav_write_apply。
 LINK_PREVIEW_TYPE = "nav_create_link_preview"
 DATASET_PREVIEW_TYPE = "nav_create_dataset_preview"
 
-# 导航层手册第 3 节固定的 14 项名称；首次创建只写编号、名称，正文保持空串。
+# 导航层手册第 3 节固定的 14 项名称；首次创建保留编号、名称，正文可由用户填写（M1.5-09）。
 INFORMATION_FIELD_NAMES = (
     "数据集标识",
     "地址",
@@ -204,10 +205,64 @@ class LinkPreviewParameters(CreationParameters):
     link: FirstLink
 
 
+class DatasetInformationField(CreationValue):
+    """新建时的一项文字说明；编号对应手册固定14项，第4项由统计作业提供。"""
+
+    number: int = Field(strict=True, ge=1, le=14)
+    value_markdown: str = Field(strict=True)
+
+    @field_validator("number")
+    @classmethod
+    def _editable_number(cls, value: int) -> int:
+        """第4项不可手填，不能覆盖统计大小。"""
+        if value == 4:
+            raise ValueError("第4项数据大小由平台自动计算")
+        return value
+
+
+class DatasetInformation(CreationValue):
+    """新建数据集的可选信息，文字与结构化分类分别保存。
+
+    Attributes:
+        fields: 可只给部分文字项，编号1至14但不含4，不能重复；缺省为空。
+        robot_model: 机器人型号文字，空串不写顶层键。
+        scene: 场景去首尾空格；空串不写键，拒绝unlabeled。
+        tasks: 任务去首尾空格、去重保序；拒绝空项和unlabeled，空数组不写键。
+    """
+
+    fields: tuple[DatasetInformationField, ...] = ()
+    robot_model: str = Field(default="", strict=True)
+    scene: str = Field(default="", strict=True)
+    tasks: tuple[Annotated[str, Field(strict=True)], ...] = ()
+
+    @field_validator("fields")
+    @classmethod
+    def _unique_numbers(
+        cls, values: tuple[DatasetInformationField, ...]
+    ) -> tuple[DatasetInformationField, ...]:
+        """同一编号不允许重复，以免填写顺序决定最终正文。"""
+        if len({item.number for item in values}) != len(values):
+            raise ValueError("信息项编号不能重复")
+        return values
+
+    @field_validator("scene")
+    @classmethod
+    def _scene_value(cls, value: str) -> str:
+        """复用字段编辑的场景规范化与校验。"""
+        return cast(str, normalize_classification(value))
+
+    @field_validator("tasks")
+    @classmethod
+    def _task_values(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        """复用字段编辑的任务规范化与校验。"""
+        return cast(tuple[str, ...], normalize_classification(values))
+
+
 class DatasetPreviewParameters(CreationParameters):
     """新增数据集的预览参数；编号与入口路径只能由平台分配。
 
     Attributes:
+        information: 可选文字与分类；None保持原有空骨架，不推测正文。
         dataset_name: 安全单层数据集名；不能与按任务下任何已有对象重名，包括断链。
         data_origin: DATA_ORIGINS 中的必填中文值。
         link: 新数据集的第一条链接；至少有这一条，不创建空数据集。
@@ -217,3 +272,4 @@ class DatasetPreviewParameters(CreationParameters):
     dataset_name: EntryName
     data_origin: Annotated[str, Field(strict=True), AfterValidator(validate_data_origin)]
     link: FirstLink
+    information: DatasetInformation | None = None

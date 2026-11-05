@@ -30,7 +30,6 @@ export type FieldEditingState = ReturnType<typeof useFieldEditing>;
 export function useFieldEditing(datasetId: string) {
   const client = useAccountClient();
   const account = useCurrentAccount();
-  const [document, setDocument] = useState<EditableDocument>("数据集信息.json");
   const [offset, setOffset] = useState(0);
   const [expired, setExpired] = useState(false);
   const [changes, setChanges] = useState<Record<string, FieldChange>>({});
@@ -43,24 +42,24 @@ export function useFieldEditing(datasetId: string) {
     { cardTitle: "修改字段" },
   );
   const block = useRecoveryBlock();
-  const busy = preview.isPending || confirm.isPending;
+  const busy = preview.isPending || confirm.isPending || confirm.isSuccess;
   const allowed = !block.isError && block.data?.blocked === false;
-  const page = useQuery({
+  // 信息和数据块同时展示，共享草稿；每个文档保留自己的哈希，不能用当前页替代另一份基线。
+  const options = (document: EditableDocument, pageOffset: number) => ({
     queryKey: [
       "datasets",
       account.data?.account_id,
       "editable-fields",
       datasetId,
       document,
-      offset,
+      pageOffset,
     ],
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const data = await getEditableFields({
         client,
-        payload: { datasetId, document, offset },
+        payload: { datasetId, document, offset: pageOffset },
         signal,
       });
-      // 在新页到达时锁住会话；异步结果回调更新状态，避免渲染effect引发重复渲染。
       if (outdated(data, changes)) setExpired(true);
       return data;
     },
@@ -70,14 +69,20 @@ export function useFieldEditing(datasetId: string) {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-  const stale = expired || outdated(page.data, changes);
+  const information = useQuery(options("数据集信息.json", 0));
+  const sources = useQuery(options("原始路径.json", offset));
+  const stale = expired || outdated(information.data, changes) || outdated(sources.data, changes);
   function resetPreview(): void {
     preview.reset();
     confirm.reset();
   }
-  function update(field: EditablePage["fields"][number], value: FieldChange["value"]): void {
-    if (!page.data || busy) return;
-    const sha256 = page.data.sha256;
+  function update(
+    data: EditablePage,
+    field: EditablePage["fields"][number],
+    value: FieldChange["value"],
+  ): void {
+    if (busy || stale) return;
+    const { document, sha256 } = data;
     resetPreview();
     const key = JSON.stringify([document, field.path]);
     setChanges((current) => {
@@ -91,24 +96,19 @@ export function useFieldEditing(datasetId: string) {
       };
     });
   }
-  function selectDocument(value: EditableDocument): void {
-    setDocument(value);
-    setOffset(0);
-    resetPreview();
-  }
   function selectOffset(value: number): void {
     setOffset(value);
     resetPreview();
   }
   function submitPreview(): void {
+    if (!allowed || busy || stale || !Object.keys(changes).length) return;
     confirm.reset();
     preview.mutate({ dataset_id: datasetId, changes: Object.values(changes) });
   }
   function submitWrite(identifier: string): void {
-    if (allowed && !confirm.isError && !confirm.isSuccess) confirm.mutate(identifier);
+    if (allowed && !busy && !stale && !confirm.isError) confirm.mutate(identifier);
   }
   return {
-    document,
     offset,
     changes,
     preview,
@@ -116,10 +116,10 @@ export function useFieldEditing(datasetId: string) {
     block,
     busy,
     allowed,
-    page,
+    information,
+    sources,
     stale,
     update,
-    selectDocument,
     selectOffset,
     submitPreview,
     submitWrite,

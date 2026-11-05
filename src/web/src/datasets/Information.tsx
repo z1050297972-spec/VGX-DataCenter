@@ -2,6 +2,9 @@
 import { useMemo, type ReactElement } from "react";
 import { Alert, Table, Typography } from "antd";
 import type { DatasetDetail } from "../api/datasets";
+import type { EditablePage } from "../api/fieldEditing";
+import type { FieldEditingState } from "./fieldEditingState";
+import { InlineField } from "./InlineField";
 import { DatasetFieldSummary } from "./FieldSummary";
 import { MarkdownValue } from "./Markdown";
 import { exactBytes, formatBytes } from "./formatBytes";
@@ -12,24 +15,28 @@ interface Field {
   number: number;
   name: string;
   value_markdown: string;
+  editable?: EditablePage["fields"][number];
 }
 interface Props {
+  /** 已打开的整页编辑会话；未提供时只读。 */ editing?: FieldEditingState;
   /** 按任务入口统计字节和UTC统计时刻；未统计为null。 */ size: DatasetDetail["dataset_size"];
   /** 按任务入口规范副本；null 不可用，不能用格式副本替代。 */ document: DatasetDetail["canonical_information"];
 }
 /**
- * 按原顺序显示规范副本中的14项说明，第4项使用平台统计值。
+ * 就地展示或编辑规范副本中的14项说明，第4项使用平台统计值。
  * @param props - 服务端明确标识的规范信息文件，保留它自己的入口身份。
  * @returns 编号、名称和 Markdown 内容；副本缺失或结构非法时明确提示。
  * @throws 无；坏 JSON 不导致详情页崩溃。
- * @sideEffects 无；不从说明中提取数值、不更新快照、不发请求。
+ * @sideEffects 编辑输入更新共享草稿；分类候选复用现有查询，不解析说明中的数值。
  * @timeSemantics 第4项属于最近一次统计作业，时间按浏览器本地时区显示；其他项保留原文。
  */
 export function DatasetInformation(props: Props): ReactElement {
-  const fields = useMemo(() => readFields(props.document), [props.document]);
+  const originalFields = useMemo(() => readFields(props.document), [props.document]);
+  const page = props.editing?.information.data;
+  const fields = props.editing ? (page ? editableRows(page) : null) : originalFields;
   return (
     <section aria-label="14 项数据集信息">
-      <DatasetFieldSummary document={props.document} />
+      <DatasetFieldSummary document={props.document} editing={props.editing} />
       <Typography.Title level={4} className="browser-information-title">
         14 项数据集信息
       </Typography.Title>
@@ -59,6 +66,8 @@ export function DatasetInformation(props: Props): ReactElement {
                       {props.size.size_checked_at &&
                         ` · 统计时间：${formatDateTime(props.size.size_checked_at)}`}
                     </Typography.Text>
+                  ) : props.editing && page && field.editable ? (
+                    <InlineField state={props.editing} data={page} field={field.editable} />
                   ) : (
                     <MarkdownValue text={value} />
                   ),
@@ -66,6 +75,8 @@ export function DatasetInformation(props: Props): ReactElement {
             ]}
           />
         </>
+      ) : props.editing?.information.isPending ? (
+        <p role="status">正在读取编辑项…</p>
       ) : (
         <Alert type="warning" title="规范副本不可用，无法展示14项数据集信息" />
       )}
@@ -96,4 +107,24 @@ function isField(value: unknown): value is Field {
     typeof value.name === "string" &&
     typeof value.value_markdown === "string"
   );
+}
+
+// 标签由服务端以 number+name 生成；正文和提交下标全部取编辑页，避免混用详情快照。
+function editableRows(page: EditablePage): Field[] {
+  const rows = page.fields.flatMap((field) => {
+    if (field.path[0] !== "fields") return [];
+    const match = /^第 (\d+) 项：(.*)$/.exec(field.label);
+    if (!match) return [];
+    return [
+      { number: Number(match[1]), name: match[2] ?? "", value_markdown: "", editable: field },
+    ];
+  });
+  // 自动计算项不在编辑白名单中；始终保留只读统计位置。
+  const size: Field = { number: 4, name: "数据大小", value_markdown: "" };
+  const index = rows.findIndex((field) => field.number > 4);
+  return [
+    ...rows.slice(0, index < 0 ? rows.length : index),
+    size,
+    ...rows.slice(index < 0 ? rows.length : index),
+  ];
 }

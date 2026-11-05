@@ -1,6 +1,7 @@
 import "./creation.css";
 // M1-08 创建表单组件；负责受控输入与交互，不读文件、不自行生成计划。
 import { Button, Card, Input, Select } from "antd";
+import { InformationFields } from "./InformationFields";
 import { LinkFields } from "./CreationFields";
 import type { ReactElement } from "react";
 import type {
@@ -147,7 +148,7 @@ export interface CreateDatasetFormProps {
 }
 
 /**
- * 填写新数据集名称、必填来源和第一条链接。
+ * 填写新数据集名称、必填来源、第一条链接及可选的14项信息。
  * @param props - 服务端字段类型的受控值、候选与预览回调。
  * @returns 新数据集表单；零到多个格式选择，编号由预览提供，页面不能指定。
  * @throws 无；必填/名称错误显示可修正反馈，服务端拒绝由父页面展示诊断。
@@ -210,6 +211,13 @@ export function CreateDatasetForm(props: CreateDatasetFormProps): ReactElement {
         disabled={props.pending}
         onChange={(format_entries) => {
           props.onChange({ ...props.value, format_entries });
+        }}
+      />
+      <InformationFields
+        value={props.value.information}
+        disabled={props.pending}
+        onChange={(information) => {
+          props.onChange({ ...props.value, information });
         }}
       />
       <Button

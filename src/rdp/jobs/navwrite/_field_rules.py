@@ -181,7 +181,11 @@ def _classification_value(edit: FieldEdit) -> FieldValue:
     """推荐词表允许自定义；分类值去空格，拒绝保留字及空任务，任务去重保序。"""
     if edit.document != "数据集信息.json" or edit.path not in {("scene",), ("tasks",)}:
         return edit.value
-    value = edit.value
+    return normalize_classification(edit.value)
+
+
+def normalize_classification(value: FieldValue) -> FieldValue:
+    """新建与编辑共用分类规则：空场景可清空，任务去重保序且拒绝空项与保留字。"""
     if isinstance(value, str):
         normalized = value.strip()
         invalid = normalized == UNLABELED

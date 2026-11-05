@@ -14,6 +14,7 @@ from rdp.jobs.datasets.rescan import RescanDependencies
 from rdp.jobs.datasets.types import EntryLocation, View
 from rdp.jobs.navwrite import _create_plan as plans
 from rdp.jobs.navwrite import _create_read as reads
+from rdp.jobs.navwrite._field_diff import differences
 from rdp.jobs.navwrite.allocation import allocate_dataset_id
 from rdp.jobs.navwrite.create_models import DatasetPreviewParameters, LinkPreviewParameters
 from rdp.jobs.navwrite.errors import nav_input_error
@@ -148,7 +149,7 @@ def build_dataset_preview(
 
     Args:
         dependencies: worker 扫描依赖，具有只读本地目标检查能力；不允许客户端覆盖导航根。
-        parameters: 数据集名、必填来源、第一条链接及零到多个格式位置；不含 dataset_id。
+        parameters: 数据集名、必填来源、第一条链接、可选information及格式位置；不含dataset_id。
         set_by: 从预览作业提交人生成的人工标注印记，包含账号编号、名字及注入的 UTC 时刻；
             显式选择未知也记录印记，不接受客户端操作者或时间。
         checkpoint: 取消/停止检查点，遍历导航入口及每个读块之间调用。
@@ -160,10 +161,11 @@ def build_dataset_preview(
         计划按父到子 MakeDirStep 创建规范入口，SetLinkStep 创建绝对目标链接，
         四个 WriteFileStep 写三份 JSON 及来源.json，再生成勾选格式入口的目录、链接和三份 JSON。
         数据集信息包含 dataset_id、title，title 为编号数字加 . 和数据集名，
-        fields 复用 INFORMATION_FIELD_NAMES 的 14 项固定顺序，编号/名称齐全、value_markdown 空；
+        fields 复用 INFORMATION_FIELD_NAMES 的 14 项固定顺序，编号/名称齐全，正文按information填写，未填及第4项为空；非空分类写顶层；
         子任务 tasks=[]、task_count=0；来源使用 new_provenance，collection_task_id=None、lineage=[]。
         按格式入口调用 generate_format_entry，不复制来源.json；链接与新数据块适用 L1/L3。
-        report.creation 给出全套路径、来源数据块、根追加和预计编号对应入口；编号不是提前占用。
+        report.creation给出全套路径、来源数据块、根追加和预计编号对应入口；编号不是提前占用。
+        information相对空骨架的差异从计划后像生成，含格式副本，复用有界字段预览。
 
     Raises:
         InputError: 名称非法或按任务下同名对象存在（含断链）、第一链接不满足 L1/L3、
@@ -199,7 +201,7 @@ def build_dataset_preview(
         dependencies.nav_root, (), str(location.path), checkpoint=checkpoint
     )
     identifier = allocate_dataset_id(dependencies.nav_root)
-    canonical = plans.new_snapshot(location, identifier)
+    canonical = plans.new_snapshot(location, identifier, parameters.information)
     selected = plans.format_locations(parameters.dataset_name, parameters.format_entries)
     target = reads.target(dependencies, parameters.link, checkpoint)
     planning = plans.Planning(dependencies.nav_root, canonical)
@@ -234,6 +236,16 @@ def build_dataset_preview(
         steps=tuple(planning.steps),
         state=state,
     )
-    return PreviewBuild(
-        plan, planning.report(plan, target, selected, formats), parameters.model_dump(mode="json")
-    )
+    report = planning.report(plan, target, selected, formats)
+    if parameters.information is not None:
+        # 新入口尚无前像；以原有空骨架展示用户填写的差异，后像直接复用执行计划。
+        blank = plans.new_snapshot(location, identifier)
+        baseline = dump_navigation_json(plans.payload(blank, 1))
+        steps = [
+            step
+            for step in plan.steps
+            if step.op == "write_file" and step.path.endswith("/数据集信息.json")
+        ]
+        listed, total = differences(steps, {step.path: baseline for step in steps}, checkpoint)
+        report = report.model_copy(update={"listed_changes": listed, "listed_total": total})
+    return PreviewBuild(plan, report, parameters.model_dump(mode="json"))

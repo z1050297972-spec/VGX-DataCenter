@@ -1,4 +1,4 @@
-// M1-08 创建操作的 HTTP 边界；载荷全部来自 OpenAPI，复用账号客户端及既有请求超时。
+// M1-08 创建操作的 HTTP 边界；载荷来自 OpenAPI，复用账号客户端及既有请求超时。
 import { boundedRequest } from "./_request";
 import { JOB_REQUEST_TIMEOUT_MS } from "./jobs";
 import { toFailureView } from "./problems";
@@ -8,8 +8,10 @@ import type { components } from "./schema";
 
 /** 建链预览输入；目标、名称及格式规则由服务器单一定义。 */
 export type LinkPreviewInput = components["schemas"]["LinkPreviewParameters"];
-/** 新增数据集预览输入，数据来源必填。 */
+/** 新增数据集预览输入，含可选初始信息；后端已生成第09张契约。 */
 export type DatasetPreviewInput = components["schemas"]["DatasetPreviewParameters"];
+/** 新建数据集信息沿用生成类型，编号范围和去重由后端校验。 */
+export type DatasetInformationInput = components["schemas"]["DatasetInformation"];
 /** 表单格式登记与来源候选。 */
 export type CreationOptions = components["schemas"]["CreationOptions"];
 /** 保存的创建预览；不含可执行计划正文。 */
