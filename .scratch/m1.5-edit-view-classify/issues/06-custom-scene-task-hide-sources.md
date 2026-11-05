@@ -65,3 +65,4 @@ Status: in-progress
 - 2026-11-04 派工（Codex gpt-6-astra high，会话 01a1a981-bba1-7ad0-8dd4-ea634fe09465，systemd 单元 rdp-codex-m15-06，日志 ~/.cache/rdp-dispatch/m15-06/）。基线 make check 全绿（2757 passed，Vitest 386）。负责人中途追加"链接状态去掉观察到的方向"，已并入范围第 4 项。
 - 2026-11-04 负责人追加：删掉详情页末尾"打开 数据集信息.json""打开 原始路径.json"，并入范围 4a。派工已在运行，等这一轮交回后用 resume 补做。
 - 2026-11-04 19:22 负责人要求 20 分钟内完成：停掉单会话派工（只读了 2 分钟代码，无改动），拆成前后端两个并行会话重派（gpt-6-astra medium，单元 rdp-codex-m15-06-be / -fe，各自只跑本半边检查，执行线最后统一 make check），4a 一并派出，不再单独 resume。
+- 2026-11-04 19:31 两路交回（9 分钟）。执行线补改 _trees.py 场景树的（不在词表）标记（一行，为赶时限没再派工）。make check 全绿（2758 passed，Vitest 387，0 skipped）；变异抽查两处（unlabeled 校验、观察到的指向列）都被关键测试抓到。抽查时误用 git checkout 还原了 Entries.tsx，已按 Codex diff 原样恢复并重跑 make check。实现提交见分支 t/m15-06-custom-classification。副本演练未做；合并待负责人。
