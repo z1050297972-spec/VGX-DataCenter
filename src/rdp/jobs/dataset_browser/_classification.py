@@ -9,7 +9,7 @@ from rdp.jobs.datasets import vocabulary
 def options(
     values: tuple[tuple[str, ...], ...], terms: tuple[vocabulary.VocabularyTerm, ...]
 ) -> tuple[FilterOption, ...]:
-    """按数据集去重计数；词表外值保留，未标注最后，零计数词表项仍可选。"""
+    """按数据集去重计数；推荐词表允许自定义值，未标注最后，零计数词表项仍可选。"""
     counts: dict[str, int] = {}
     for row in values:
         for code in set(row):
@@ -21,7 +21,7 @@ def options(
             for term in terms
         )
         + tuple(
-            FilterOption(value=code, label=f"{code}（不在词表）", count=counts[code])
+            FilterOption(value=code, label=code, count=counts[code])
             for code in sorted(counts.keys() - known)
         )
         + (
@@ -40,7 +40,7 @@ def terms(values: tuple[vocabulary.VocabularyTerm, ...]) -> tuple[VocabularyTerm
 
 
 def scene_path(scene: str | None) -> str:
-    """虚拟树路径编码词表外斜线，防止原值被误当成多层目录。"""
+    """虚拟树路径编码自定义值中的斜线，防止原值被误当成多层目录。"""
     code = scene or vocabulary.UNLABELED
     # quote 按 URI 标准保留点；纯点分量在目录前缀契约里有特殊含义，必须显式编码。
     encoded = "%2E" * len(code) if code in {".", ".."} else quote(code, safe="")

@@ -101,10 +101,10 @@ def test_read_entry_projects_classification_fields(fake_nav: FakeNavigation) -> 
     assert (odd.scene, odd.tasks) == (None, ())
 
 
-def test_scan_indexes_fields_and_reports_out_of_vocabulary(
+def test_scan_indexes_custom_classification_without_notices(
     tmp_path: Path, fake_nav: FakeNavigation
 ) -> None:
-    """契约：扫描把字段写进数据集索引；词表外的值保留并各报一条提示，词表内与未标注不报。"""
+    """契约：扫描把字段写进数据集索引；自定义值不产生词表提示，筛选候选显示原值。"""
     label(fake_nav, "libero_10", scene="tabletop", tasks=["pick_place"], robot_model="Franka")
     label(fake_nav, "EgoProDemo", scene="厨房", tasks=["fold", "开门"])
     with browser_case(tmp_path / "state", fake_nav) as case:
@@ -127,14 +127,14 @@ def test_scan_indexes_fields_and_reports_out_of_vocabulary(
         assert (rows["EgoProStandard"]["scene"], rows["EgoProStandard"]["tasks"]) == (None, [])
         assert rows["EgoProStandard"]["robot_model"] is None
         panel = case.client.get("/api/datasets/panel").json()
-        group = next(
-            item
-            for item in panel["findings"]
-            if item["diagnostics"]["rule"] == "VOCABULARY_UNKNOWN"
+        assert all(
+            item["diagnostics"]["rule"] != "VOCABULARY_UNKNOWN" for item in panel["findings"]
         )
-        assert group["severity"] == "notice"
-        assert group["diagnostics"]["total"] == 2
-        assert "不在词表" in group["diagnostics"]["samples"][0]["actual"]
+        options = case.client.get("/api/datasets/filters").json()
+        scenes = {item["value"]: item["label"] for item in options["scenes"]}
+        tasks = {item["value"]: item["label"] for item in options["tasks"]}
+        assert scenes["厨房"] == "厨房"
+        assert tasks["开门"] == "开门"
 
 
 def test_list_and_filters_by_scene_and_tasks(tmp_path: Path, fake_nav: FakeNavigation) -> None:
@@ -175,7 +175,7 @@ def test_list_and_filters_by_scene_and_tasks(tmp_path: Path, fake_nav: FakeNavig
 def test_filter_options_carry_vocabulary_names_and_counts(
     tmp_path: Path, fake_nav: FakeNavigation
 ) -> None:
-    """契约：候选含全部词表项（零计数也保留）、词表外值（标注“不在词表”）、末位的未标注；任务计数按数据集。"""
+    """契约：候选含全部词表项（零计数也保留）、自定义值（显示原值）、末位的未标注；任务计数按数据集。"""
     label(fake_nav, "libero_10", scene="tabletop", tasks=["pick_place", "tidy"])
     label(fake_nav, "EgoProDemo", scene="厨房", tasks=["pick_place"])
     with browser_case(tmp_path / "state", fake_nav) as case:
@@ -184,7 +184,7 @@ def test_filter_options_carry_vocabulary_names_and_counts(
         assert [item["value"] for item in options["scenes"]][:10] == list(SCENE_CODES)
         assert scenes["tabletop"] == {"value": "tabletop", "label": "桌面", "count": 1}
         assert scenes["kitchen"]["count"] == 0
-        assert scenes["厨房"] == {"value": "厨房", "label": "厨房（不在词表）", "count": 1}
+        assert scenes["厨房"] == {"value": "厨房", "label": "厨房", "count": 1}
         assert options["scenes"][-1] == {"value": "unlabeled", "label": "未标注", "count": 3}
         tasks = {item["value"]: item for item in options["tasks"]}
         assert tasks["pick_place"]["count"] == 2 and tasks["pick_place"]["label"] == "抓取放置"

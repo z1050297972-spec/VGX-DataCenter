@@ -7,8 +7,10 @@ import copy
 from typing import cast
 
 from rdp.jobs.datasets.types import JsonObject, JsonValue
+from rdp.jobs.datasets.vocabulary import UNLABELED
+from rdp.jobs.errors import JobInputError
 from rdp.jobs.navwrite.errors import nav_input_error
-from rdp.jobs.navwrite.field_models import EditableField, FieldEdit
+from rdp.jobs.navwrite.field_models import EditableField, FieldEdit, FieldValue
 
 INFO_LABELS = (
     ("title", "标题"),
@@ -93,9 +95,10 @@ def page_fields(
 def apply_edit(
     payload: JsonObject, edit: FieldEdit, known: dict[str, JsonObject]
 ) -> tuple[JsonValue | None, JsonValue]:
-    """校验白名单后只修改指定值；关系编辑只接受已存在数据引用的 source_id。"""
+    """分类去空格、任务去重保序后写入；关系编辑只接受已存在引用的 source_id。"""
     path = edit.path
-    value: JsonValue = list(edit.value) if isinstance(edit.value, tuple) else edit.value
+    normalized = _classification_value(edit)
+    value: JsonValue = list(normalized) if isinstance(normalized, tuple) else normalized
     target = payload
     key = str(path[-1])
     if len(path) == 3 and isinstance(path[1], int):
@@ -135,7 +138,7 @@ def _field(
 
 
 def check_shape(edit: FieldEdit) -> None:
-    """参数边界唯一维护可写路径和标量/数组形状；失败交给 Pydantic 转换为422。"""
+    """入队前校验路径、形状和分类值；形状失败交给 Pydantic，分类失败抛 JobInputError。"""
     path = edit.path
     key = str(path[-1])
     array_value = isinstance(edit.value, tuple)
@@ -163,6 +166,28 @@ def check_shape(edit: FieldEdit) -> None:
         valid = False
     if not valid:
         raise ValueError("字段路径或值类型不属于编辑范围")
+    _classification_value(edit)
+
+
+def _classification_value(edit: FieldEdit) -> FieldValue:
+    """推荐词表允许自定义；分类值去空格，拒绝保留字及空任务，任务去重保序。"""
+    if edit.document != "数据集信息.json" or edit.path not in {("scene",), ("tasks",)}:
+        return edit.value
+    value = edit.value
+    if isinstance(value, str):
+        normalized = value.strip()
+        invalid = normalized == UNLABELED
+    else:
+        normalized = tuple(dict.fromkeys(item.strip() for item in value))
+        invalid = any(not item or item == UNLABELED for item in normalized)
+    if invalid:
+        # 与普通形状校验一样在入队前拒绝，同时保留导航字段诊断码供调用方定位。
+        raise JobInputError(
+            nav_input_error(
+                "NAV_FIELDS", "场景和任务不能使用未标注保留字，任务项不能为空"
+            ).diagnostics
+        )
+    return normalized
 
 
 def source_references(manifest: JsonObject, subtasks: JsonObject) -> dict[str, JsonObject]:

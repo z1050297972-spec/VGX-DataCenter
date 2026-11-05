@@ -95,8 +95,9 @@ def scenes(
         groups.setdefault(parent, []).append(entry)
         groups[path] = [entry]
         leaves[path] = entry
+        # 自定义场景按原值显示，不再标注词表外（M1.5-06）。
         names[parent] = (
-            (vocabulary.scene_name(item.scene) or f"{item.scene}（不在词表）")
+            (vocabulary.scene_name(item.scene) or item.scene)
             if item.scene
             else vocabulary.UNLABELED_NAME
         )

@@ -295,8 +295,8 @@ describe("数据集后半段验收", () => {
       missing.close();
     }
   });
-  // 11 Q12：扫描时间、数据块当前路径与首次登记路径分开展示，中文标签直接沿用接口。
-  it("链接状态带检查时间，数据块保留原始值和validation_status中文标签", async () => {
+  // 契约：详情保留链接状态和检查时间，移除数据块、观察指向及两处原文按钮，保留子任务入口。
+  it("详情隐藏数据块和原文按钮，保留链接状态与子任务", async () => {
     const page = mountPage(
       selectedUrl,
       transport({
@@ -324,19 +324,13 @@ describe("数据集后半段验收", () => {
       const links = await screen.findByRole("region", { name: "链接状态" });
       expect(within(links).getByText("断链")).toBeTruthy();
       expect(within(links).getByText(formatDateTime("2026-10-29T12:00:00Z"))).toBeTruthy();
-      const sources = screen.getByRole("region", { name: "数据块" });
-      for (const value of [
-        "source-17",
-        "/fake/old",
-        "/fake/current",
-        "按任务/libero_10/data",
-        "lerobot",
-        "3.0",
-        "legacy_custom",
-        "未识别（保留原值）",
-      ])
-        expect(within(sources).getByText(value)).toBeTruthy();
-      expect(within(sources).queryByRole("link")).toBeNull();
+      expect(screen.queryByRole("region", { name: "数据块" })).toBeNull();
+      expect(within(links).queryByRole("columnheader", { name: "观察到的指向" })).toBeNull();
+      for (const name of ["名称", "登记指向", "存储根", "状态", "检查时间"])
+        expect(within(links).getByRole("columnheader", { name })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "打开 数据集信息.json" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "打开 原始路径.json" })).toBeNull();
+      expect(screen.getByRole("button", { name: "打开 子任务.json" })).toBeTruthy();
     } finally {
       page.close();
     }

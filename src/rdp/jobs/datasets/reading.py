@@ -127,7 +127,7 @@ def read_entry(
         links/source.entry_path 由位置推导，JSON 原值留给面板核对；来源.json 读取三态，
         有效且身份匹配时投影来源筛选编码，否则 unknown，不从按格式副本猜测规范来源。
         第4项取不出记录值时 recorded_size_bytes=None 并添加 RECORDED_SIZE_MISSING 提示。
-        scene/tasks/robot_model 只投影信息文件顶层，不解析 Markdown；空值按未标注，词表外文本保留。
+        scene/tasks/robot_model 只投影信息文件顶层，不解析 Markdown；空值按未标注，自定义文本保留。
 
     Raises:
         InputError: location 越界、目录项数量超过 MAX_ENTRY_MEMBERS 或调用参数非法。
@@ -291,7 +291,7 @@ def classification(information: JsonDocument) -> tuple[str | None, tuple[str, ..
     Returns:
         (scene, tasks, robot_model)：scene、robot_model 是非空文本原值，缺失、空串、非文本为 None；
         tasks 是数组里的非空文本项，去重并保持原顺序，缺失或不是数组为空元组。
-        不校验是否在词表内（词表外的值保留，提示在一致性面板），不去除首尾空白，不读取 14 项 Markdown。
+        词表是推荐值，可以自定义；自定义值保留且不产生词表提示，不去除首尾空白，不读取 14 项 Markdown。
 
     Raises:
         无。
