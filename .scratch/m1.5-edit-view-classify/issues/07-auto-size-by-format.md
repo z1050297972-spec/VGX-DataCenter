@@ -43,3 +43,4 @@ Status: in-progress
 - 2026-11-04 开票（执行线；负责人点名）。
 - 2026-11-04 22:26 派工（Codex gpt-6-astra high，单元 rdp-codex-m15-07，日志 ~/.cache/rdp-dispatch/m15-07/）。基线沿用 main 573076a 的 make check 全绿（之后只有工单提交）。
 - 2026-11-04 22:3x 执行线自查：为回答负责人，用 ls/find/du 读过 /mnt/dataset2/EgoProDemo（relatime 挂载），sdb 写入扇区 41304→42360，很可能是目录 atime 更新（只有元数据，内容未改）。sda 144→288 原因未查明，执行线没碰过 dataset1。之后核对改用 O_NOATIME 只读脚本（scratchpad size_rule.py，实测 sdb 前后不变）。按规则算 dataset-33 预期 118,937,408,893 B。演练时的扇区基线改用 sda 288 / sdb 42360。
+- 2026-11-04 22:44 交回（2757 passed，Vitest 388，0 skipped；recorded_size_bytes 写 None，无迁移）。评审第 1 轮打回一个阻塞问题：格式按 link.source_path == source.direct_path 精确匹配，真实索引 42 条按任务链接只有 29 条能对上，且同一链接下有多种格式（EgoProDemo lerobot 233 + mcap 1）。改为按数据块定格式，不在数据块下的文件不计，链接下没有数据块时按全部算（执行线补定口径）。resume 派 r1（单元 rdp-codex-m15-07-r1）。
