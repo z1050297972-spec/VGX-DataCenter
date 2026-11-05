@@ -44,3 +44,4 @@ Status: in-progress
 
 - 2026-11-04 开票（执行线；负责人点名，四个决定当面选定）。第 07 张正在改 Details.tsx、FieldEditing、_field_rules.py，等它合并以后从 main 开工作目录。
 - 2026-11-04 22:44 负责人要求 15 分钟内完成，不等第 07 张，单独工作目录 m15-08-subtask-notes 从 main（含本工单）开工；前后端并行派工（gpt-6-astra medium，单元 rdp-codex-m15-08-be/-fe）。和第 07 张的冲突由执行线合并时解决。
+- 2026-11-04 22:51 两路交回（7 分钟）。评审无阻塞问题。make check 全绿（2758 passed，Vitest 386，0 skipped）；变异抽查（从白名单删 subtask_notes）被关键测试抓到。实现提交 8b6febe（分支 t/m15-08-subtask-notes，提交前钩子已由刚跑的 make check 覆盖）。副本演练未做；合并待负责人，和第 07 张合并顺序：谁先合并都行，后合并的执行线解冲突后重跑 make check。
