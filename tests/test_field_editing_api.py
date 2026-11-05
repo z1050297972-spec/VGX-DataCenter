@@ -494,3 +494,35 @@ def test_missing_derived_null_is_reported(tmp_path: Path, fake_nav: FakeNavigati
             and item["after"] == "null"
             for item in report["listed_changes"]
         )
+
+
+def test_size_is_automatic(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """M1.5-07：第 4 项自由文字不产生缺记录诊断，不可编辑且 HTTP 拒绝修改为 422。"""
+    path = fake_nav.nav_root / "按任务/libero_10/数据集信息.json"
+    payload = json.loads(path.read_bytes())
+    payload["fields"][3]["value_markdown"] = "119.643 GB"
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        dataset = dataset_id_of(fake_nav, "libero_10")
+        panel = case.client.get("/api/datasets/panel")
+        assert panel.status_code == 200, panel.text
+        assert "RECORDED_SIZE_MISSING" not in panel.text
+        page = case.client.get(
+            f"/api/datasets/{dataset}/editable-fields", params={"document": "数据集信息.json"}
+        ).json()
+        assert not any(field["path"] == ["fields", 3, "value_markdown"] for field in page["fields"])
+        response = case.client.post(
+            "/api/navigation/fields/preview",
+            json={
+                "dataset_id": dataset,
+                "changes": [
+                    {
+                        "document": "数据集信息.json",
+                        "expected_sha256": page["sha256"],
+                        "path": ["fields", 3, "value_markdown"],
+                        "value": "0 B",
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 422, response.text

@@ -178,7 +178,7 @@ function DetailContent({
         <DatasetLinks links={detail.links} />
       </div>
       <div className="browser-detail-section">
-        <DatasetInformation document={detail.canonical_information} />
+        <DatasetInformation document={detail.canonical_information} size={detail.dataset_size} />
       </div>
       <div className="browser-detail-section">
         <DiagnosticEntries diagnostics={detail.diagnostics} />

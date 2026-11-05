@@ -13,9 +13,9 @@ from rdp.infra.diagnostics import (
     DiagnosticLevel,
     DiagnosticObject,
 )
-from rdp.jobs.datasets._sizing_types import SizeDataset, SizeEntry, SizeLink, SizeValue
+from rdp.jobs.datasets._sizing_types import SizeDataset, SizeEntry, SizeLink, SizeSource, SizeValue
 from rdp.jobs.datasets.index import read_index_baseline
-from rdp.jobs.datasets.models import DatasetRow, EntryRow, FindingRow, LinkRow
+from rdp.jobs.datasets.models import DatasetRow, EntryRow, FindingRow, LinkRow, SourceRow
 
 
 def snapshot(session: Session, dataset_id: str | None, nav_root: Path) -> tuple[SizeDataset, ...]:
@@ -30,8 +30,16 @@ def snapshot(session: Session, dataset_id: str | None, nav_root: Path) -> tuple[
             .where(EntryRow.dataset_id == dataset.dataset_id)
             .order_by(EntryRow.path)
         ):
+            sources = tuple(
+                session.scalars(select(SourceRow).where(SourceRow.entry_path == entry.path))
+            )
             links = tuple(
-                SizeLink(row.ordinal, row.source_path, row.observed_target)
+                SizeLink(
+                    row.ordinal,
+                    row.source_path,
+                    row.observed_target,
+                    _source_scopes(row.source_path, sources),
+                )
                 for row in session.scalars(
                     select(LinkRow)
                     .where(LinkRow.entry_path == entry.path)
@@ -41,6 +49,21 @@ def snapshot(session: Session, dataset_id: str | None, nav_root: Path) -> tuple[
             entries.append(SizeEntry(entry.path, entry.view == "task", links))
         result.append(SizeDataset(dataset.dataset_id, dataset.fingerprint, tuple(entries)))
     return tuple(result)
+
+
+def _source_scopes(target: str, sources: tuple[SourceRow, ...]) -> tuple[SizeSource, ...]:
+    """以登记链接目标为基准投影全部下属块，稳定排序使同一集合复用缓存。"""
+    root = Path(target)
+    return tuple(
+        sorted(
+            (
+                SizeSource(Path(source.direct_path).relative_to(root), source.format)
+                for source in sources
+                if Path(source.direct_path).is_relative_to(root)
+            ),
+            key=lambda source: (source.relative_path, source.format or ""),
+        )
+    )
 
 
 def publish(
@@ -116,7 +139,7 @@ def _incomplete(
                         rule="DOWNLOAD_INCOMPLETE",
                         actual="发现.aria2或.incomplete文件",
                         expected="下载完成且无残留控制文件",
-                        consequence="仅提示，统计值包含当前文件大小",
+                        consequence="仅提示，大小仍按各数据块格式口径统计",
                         next_step="核对下载状态，必要时重新下载或清理",
                     ).model_dump(mode="json")
                 )

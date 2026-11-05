@@ -13,7 +13,7 @@ import { classificationName, classificationTasks } from "./classificationLabels"
 type Size = components["schemas"]["DatasetSize"];
 
 /**
- * 显示统计值或带记录日期的大小，未知值不当成零。
+ * 显示统计值和统计时间，未知值不当成零。
  * @param props - size 为服务端字节数及其来源，不自行重算。
  * @param props.size - 服务端字节值、来源与统计时刻。
  * @returns 可见大小和来源。
@@ -35,12 +35,9 @@ export function DatasetSizeLabel(props: {
           .join(" · ") || undefined
       }
     >
-      {formatBytes(props.size.display_bytes)} ·{" "}
-      {props.size.display_source === "recorded"
-        ? "10-12 记录"
-        : props.size.display_source === "measured"
-          ? "统计值"
-          : "未统计"}
+      {props.size.display_bytes === null
+        ? "未统计"
+        : `${formatBytes(props.size.display_bytes)} · 统计值`}
     </span>
   );
 }
@@ -50,7 +47,7 @@ type TreeNode = DatasetTrees["nodes"][number];
  * 显示树节点的数据集数量和大小；三种布局的目录、入口行都用它，数字口径一致。
  * @param props - 服务端树节点，汇总值由服务端给出，不在前端叠加。
  * @param props.node - 树节点。
- * @returns 数量、人读大小、10-12 记录标记；悬停给精确字节。
+ * @returns 数量、人读大小；悬停给精确字节。
  * @throws 无。
  * @sideEffects 无。
  * @timeSemantics 沿用索引快照，不实时统计。
@@ -61,7 +58,6 @@ export function TreeNodeMeta(props: { node: TreeNode }): ReactElement {
     <span className="dataset-tree-meta" title={exactBytes(node.size.total_bytes)}>
       {node.dataset_count} 个 ·{" "}
       {node.size.total_bytes === null ? "大小部分未知" : formatBytes(node.size.total_bytes)}
-      {node.size.recorded_entry_count > 0 ? " · 含 10-12 记录" : ""}
     </span>
   );
 }

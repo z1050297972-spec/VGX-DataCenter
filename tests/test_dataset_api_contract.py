@@ -307,7 +307,7 @@ def test_invalid_query_returns_five_part_problem(tmp_path: Path, fake_nav: FakeN
 
 
 def test_tree_counts_and_size_provenance(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """验收2/3：树按入口聚合，100统计+20记录+1未知得到小计120、总量null，时间保持原统计时刻。"""
+    """验收2/3：树按入口聚合，100统计+旧记录及未统计得到小计100、总量null，时间保持原统计时刻。"""
     from accounts_support import NOW
     from sqlalchemy import update
 
@@ -332,11 +332,11 @@ def test_tree_counts_and_size_provenance(tmp_path: Path, fake_nav: FakeNavigatio
         nodes = {row["path"]: row for row in response.json()["nodes"]}
         root = nodes["按任务"]
         assert (root["dataset_count"], root["entry_count"]) == (5, 5)
-        assert root["size"]["known_bytes"] == 120
+        assert root["size"]["known_bytes"] == 100
         assert root["size"]["total_bytes"] is None
         assert root["size"]["measured_entry_count"] == 1
-        assert root["size"]["recorded_entry_count"] == 1
-        assert root["size"]["unknown_entry_count"] == 3
+        assert root["size"]["recorded_entry_count"] == 0
+        assert root["size"]["unknown_entry_count"] == 4
         assert root["size"]["oldest_size_checked_at"] == "2026-10-25T12:30:10.123456Z"
         assert nodes[FORMAT_ENTRY]["dataset_id"] == "dataset-14"
 

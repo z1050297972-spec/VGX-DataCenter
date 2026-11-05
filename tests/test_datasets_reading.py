@@ -12,7 +12,6 @@ from rdp.infra.diagnostics import ExternalError, InputError
 from rdp.jobs.datasets import catalog
 from rdp.jobs.datasets.reading import (
     discover_entries,
-    extract_recorded_size,
     parse_document,
     read_entry,
 )
@@ -182,50 +181,6 @@ def test_no_target_access(fake_nav: FakeNavigation, monkeypatch: pytest.MonkeyPa
     link.symlink_to(fake_nav.nav_root, target_is_directory=True)
     with pytest.raises(ExternalError):
         discover_entries(link)
-
-
-def test_recorded_sizes(fake_nav: FakeNavigation) -> None:
-    """验收6：fake_nav的五个样本均取得第4项已知字节数，期望值从原样本独立写定。"""
-    expected = {
-        "libero_10": 631143389,
-        "EgoProDemo": 119642823842,
-        "EgoProStandard": 9399163801933,
-        "R1_lite_table_withdrawing_mcap": 130810718336,
-        "agibot_world_alpha": 8985917978567,
-    }
-    for entry_location in discover_entries(fake_nav.nav_root).entries:
-        result = read_entry(fake_nav.nav_root, entry_location, checkpoint=checkpoint)
-        assert result.recorded_size_bytes == expected[entry_location.dataset_name]
-
-
-def test_missing_recorded_size(fake_nav: FakeNavigation) -> None:
-    """验收6：把第4项改为不含全角（N B；的文字时值为None，并出现RECORDED_SIZE_MISSING提示。"""
-    loc = location(fake_nav)
-    edit_json(
-        fake_nav.nav_root / loc.path / "数据集信息.json",
-        lambda data: data["fields"][3].update(value_markdown="无记录"),
-    )
-    result = read_entry(fake_nav.nav_root, loc, checkpoint=checkpoint)
-    assert result.recorded_size_bytes is None
-    assert any(
-        item.diagnostic.rule == "RECORDED_SIZE_MISSING" and item.severity.value == "notice"
-        for item in result.findings
-    )
-
-
-def test_recorded_size_first_match() -> None:
-    """验收6：仅提取第4项第一个匹配，零字节合法，重复项、溢出为None，其余13项保持原文。"""
-    data: dict[str, Any] = {
-        "dataset_id": "d",
-        "fields": [
-            {"number": 4, "name": "数据大小", "value_markdown": "零（0 B；说明（99 B；后项"}
-        ],
-    }
-    assert extract_recorded_size(document(data, "数据集信息.json")) == 0
-    data["fields"][0]["value_markdown"] = "巨大（9223372036854775808 B；"
-    assert extract_recorded_size(document(data, "数据集信息.json")) is None
-    data["fields"] *= 2
-    assert extract_recorded_size(document(data, "数据集信息.json")) is None
 
 
 def test_read_budgets(fake_nav: FakeNavigation, monkeypatch: pytest.MonkeyPatch) -> None:

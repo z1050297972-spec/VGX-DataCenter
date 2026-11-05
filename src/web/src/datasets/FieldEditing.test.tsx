@@ -3,7 +3,7 @@ import { it, expect } from "vitest";
 import { fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { mountPage } from "../scheduling/pageTestSupport";
 import type { components } from "../api/schema";
-import { filters } from "./testSupport";
+import { detail, filters } from "./testSupport";
 import { repointFetch } from "./repointTestSupport";
 import { originFetch, originUrl, originPreview, previewJob, writingJob } from "./originTestSupport";
 
@@ -337,6 +337,49 @@ it.each(["新建", "已有"])("编辑器提交%s自定义分类", async (mode) =
         { path: ["tasks"], value: mode === "新建" ? ["自定义搬运", "自定义巡查"] : ["共享任务"] },
       ],
     });
+  } finally {
+    page.close();
+  }
+});
+
+// M1.5-07 契约：第4项使用统计值与统计时间，原文字和10-12记录不出现在详情说明中。
+it("数据大小自动显示统计值且不出现在编辑器", async () => {
+  const page = mountPage(
+    originUrl,
+    originFetch([], {
+      "/api/datasets/detail": () =>
+        Response.json({
+          ...detail,
+          dataset_size: {
+            ...detail.dataset_size,
+            size_bytes: 4096,
+            size_checked_at: "2026-11-04T12:00:00Z",
+          },
+          canonical_information: {
+            ...detail.information,
+            content: JSON.stringify({
+              fields: [{ number: 4, name: "数据大小", value_markdown: "119.643 GB" }],
+            }),
+          },
+        }),
+      "/api/datasets/dataset-14/editable-fields": () => Response.json(information),
+    }),
+  );
+  try {
+    const region = await screen.findByRole("region", { name: "14 项数据集信息" });
+    const row = within(region).getByRole("row", { name: /数据大小/ });
+    expect(row.textContent).toContain("4.0 KiB");
+    expect(row.textContent).toContain("统计时间");
+    expect(row.textContent).not.toContain("119.643 GB");
+    expect(screen.queryByText(/10-12 记录/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "编辑导航层字段" }));
+    await screen.findByRole("textbox", { name: "机器人型号" });
+    expect(screen.queryByRole("textbox", { name: "第 4 项：数据大小" })).toBeNull();
+    expect(
+      within(screen.getByRole("region", { name: "导航层字段编辑" })).getByText(
+        /数据大小.*自动计算/,
+      ),
+    ).toBeTruthy();
   } finally {
     page.close();
   }

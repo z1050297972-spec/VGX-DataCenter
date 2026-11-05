@@ -3816,7 +3816,7 @@ export interface components {
         };
         /**
          * DatasetSize
-         * @description 单入口/数据集大小；有统计值优先，否则10-12记录值，均无则明确未知。
+         * @description 单入口/数据集的按格式统计大小；未统计为未知，旧记录字段仅保留兼容。
          */
         DatasetSize: {
             /** Display Bytes */
@@ -3832,7 +3832,10 @@ export interface components {
              * @constant
              */
             recorded_on: "2026-10-12";
-            /** Recorded Size Bytes */
+            /**
+             * Recorded Size Bytes
+             * @description 兼容字段，固定为null
+             */
             recorded_size_bytes: number | null;
             /**
              * Size Bytes

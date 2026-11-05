@@ -6,13 +6,11 @@
 
 import hashlib
 import json
-import re
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 from typing import cast
 
 from rdp.infra.diagnostics import InputError
-from rdp.infra.ids import MAX_SQLITE_INTEGER
 from rdp.jobs.datasets import _io, _json
 from rdp.jobs.datasets._discovery import discover
 from rdp.jobs.datasets._issues import external_error, finding, input_error
@@ -126,7 +124,7 @@ def read_entry(
         一份失败不丢弃其余文件；全部失败仍返回按目录名可展示的入口，dataset_id=None。
         links/source.entry_path 由位置推导，JSON 原值留给面板核对；来源.json 读取三态，
         有效且身份匹配时投影来源筛选编码，否则 unknown，不从按格式副本猜测规范来源。
-        第4项取不出记录值时 recorded_size_bytes=None 并添加 RECORDED_SIZE_MISSING 提示。
+        第4项原文保留但不解析，recorded_size_bytes 固定为 None。
         scene/tasks/robot_model 只投影信息文件顶层，不解析 Markdown；空值按未标注，自定义文本保留。
 
     Raises:
@@ -159,14 +157,7 @@ def read_entry(
     identity = next(
         (str(doc.payload["dataset_id"]) for doc in documents if doc.payload is not None), None
     )
-    size = extract_recorded_size(documents[1])
     issues = tuple(issue for doc in documents for issue in doc.findings)
-    if size is None:
-        issues += (
-            finding(
-                str(location.path), "RECORDED_SIZE_MISSING", "第4项没有可用记录字节数", notice=True
-            ),
-        )
     roots = (
         tuple(str(value) for value in cast(list[object], manifest["dataset_roots"]))
         if manifest
@@ -190,7 +181,7 @@ def read_entry(
         links,
         sources,
         "来源.json" in names,
-        size,
+        None,
         issues,
         provenance.state if provenance else ProvenanceState.ABSENT,
         origin,
@@ -242,44 +233,6 @@ def derive_source_entry_path(
     )[0]
     relative = PurePosixPath(direct_path).relative_to(link.source_path)
     return str(PurePosixPath(link.entry_path) / relative)
-
-
-def extract_recorded_size(information: JsonDocument) -> int | None:
-    """从信息第4项提取10-12记录的字节数，不解析其他 Markdown 内容。
-
-    Args:
-        information: 数据集信息.json 的读取结果，payload=None 表示不可用。
-
-    Returns:
-        number=4 且 name=数据大小的唯一项中首个“（N B；”的非负十进制整数，单位字节；
-        没有该项、重复该项、格式不匹配或大于 SQLite 有符号64位最大值时 None。
-        不拿后面的单位换算值替代，不从另外13项猜测大小；None 的提示由 read_entry 生成。
-
-    Raises:
-        InputError: 传入其他种类的文档，调用职责错误。
-
-    Side Effects:
-        无；只读已解析对象，不修改 Markdown 或读取统计大小。
-
-    Time Semantics:
-        值属于2026-10-12记录，不是扫描时刻的测量；不取当前时间。
-    """
-    if information.name != "数据集信息.json":
-        problem = input_error(information.name, "记录值只从数据集信息读取")
-        raise problem
-    if information.payload is None:
-        return None
-    fields = _json.objects(information.payload.get("fields"), "fields")
-    selected = [
-        item for item in fields if item.get("number") == 4 and item.get("name") == "数据大小"
-    ]
-    if len(selected) != 1:
-        return None
-    match = re.search(r"（([0-9]+(?:,[0-9]{3})*) B；", str(selected[0]["value_markdown"]))
-    if match is None or len(match[1].replace(",", "")) > len(str(MAX_SQLITE_INTEGER)):
-        return None
-    value = int(match[1].replace(",", ""))
-    return value if value <= MAX_SQLITE_INTEGER else None
 
 
 def classification(information: JsonDocument) -> tuple[str | None, tuple[str, ...], str | None]:

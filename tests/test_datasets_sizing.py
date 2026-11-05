@@ -1,5 +1,6 @@
 """统计大小作业验收：真实队列和索引，目录与挂载表均为临时夹具。"""
 
+import json
 import os
 import subprocess
 import time
@@ -427,11 +428,12 @@ def test_sizing_excludes_nested_directory_sizes(tmp_path: Path, fake_nav: FakeNa
 
     root = fake_nav.storage_roots[0].path / "libero_v3/libero_10"
     shutil.rmtree(root)
-    (root / "level-one/level-two").mkdir(parents=True)
+    (root / "data/level-one/level-two").mkdir(parents=True)
     (root / "empty").mkdir()
-    (root / "first.bin").write_bytes(b"12345")
-    (root / "level-one/second.bin").write_bytes(b"1234567")
-    (root / "level-one/level-two/third.bin").write_bytes(b"12345678901")
+    (root / "meta").mkdir()
+    (root / "meta/first.bin").write_bytes(b"12345")
+    (root / "meta/second.bin").write_bytes(b"1234567")
+    (root / "data/level-one/level-two/data.parquet").write_bytes(b"12345678901")
     with dataset_case(tmp_path / "state", fake_nav) as case:
         enable_storage(case)
         case.run()
@@ -454,18 +456,18 @@ def test_sizing_excludes_nested_directory_sizes(tmp_path: Path, fake_nav: FakeNa
 
 
 def test_sizing_hardlinks_match_du(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """Du --apparent-size -sb口径：单链接目标内硬链接只计一次，视图之间分别计入口大小。"""
+    """LeRobot 单链接目标内普通文件硬链接只计一次，内部软链接不计；视图之间分别统计。"""
     import os
     import shutil
 
     root = fake_nav.storage_roots[0].path / "libero_v3/libero_10"
     shutil.rmtree(root)
-    root.mkdir()
-    (root / "first").write_bytes(b"1234567")
-    os.link(root / "first", root / "second")
+    (root / "meta").mkdir(parents=True)
+    (root / "meta/first").write_bytes(b"1234567")
+    os.link(root / "meta/first", root / "meta/second")
     (root / "symbolic").symlink_to("missing")
     os.link(root / "symbolic", root / "symbolic-alias", follow_symlinks=False)
-    expected = 7 + len("missing")
+    expected = 7
     with dataset_case(tmp_path / "state", fake_nav) as case:
         enable_storage(case)
         case.run()
@@ -479,7 +481,7 @@ def test_sizing_hardlinks_match_du(tmp_path: Path, fake_nav: FakeNavigation) -> 
 
 
 def test_sizing_bytes_and_incomplete_files(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """验收6：目录不计大小，软链接计自身，排除未链接内容，并同次统计两种下载标记。"""
+    """验收6：LeRobot 仅计有效文件，排除内部软链接和未链接内容，同次统计两种下载标记。"""
     root = fake_nav.storage_roots[0].path / "libero_v3/libero_10"
     # 此目标改为手算的小树；其他数据集和存储根完全由fake_nav隔离。
     import shutil
@@ -487,11 +489,12 @@ def test_sizing_bytes_and_incomplete_files(tmp_path: Path, fake_nav: FakeNavigat
     shutil.rmtree(root)
     root.mkdir()
     (root / "part").mkdir()
-    (root / "a.bin").write_bytes(b"12345")
+    (root / "meta").mkdir()
+    (root / "meta/a.bin").write_bytes(b"12345")
     (root / "one.aria2").write_bytes(b"12")
     (root / "part/two.incomplete").write_bytes(b"123")
     (root / "outside-link").symlink_to("missing")
-    expected = 5 + 2 + 3 + len("missing")
+    expected = 5
     (root.parent / "unlinked").write_bytes(b"x" * 1000)
     with dataset_case(tmp_path / "state", fake_nav) as case:
         enable_storage(case)
@@ -523,3 +526,104 @@ def test_sizing_bytes_and_incomplete_files(tmp_path: Path, fake_nav: FakeNavigat
                 )
                 == expected
             )
+
+
+def test_sizing_by_source_format(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """M1.5-07：同一目标按数据块格式分别统计，LeRobot 排除非数据文件及隐藏目录。"""
+    import shutil
+
+    root = fake_nav.storage_roots[0].path / "libero_v3/libero_10"
+    shutil.rmtree(root)
+    files = {
+        "data/a.parquet": 3,
+        "videos/x/b.mp4": 5,
+        "meta/info.json": 7,
+        "README.md": 11,
+        "data/c.json": 13,
+        ".cache/meta/m.json": 17,
+    }
+    for name, length in files.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"x" * length)
+    manifest = fake_nav.nav_root / "按格式/lerobot/3.0/libero_10/原始路径.json"
+    payload = json.loads(manifest.read_bytes())
+    payload["sources"][0]["format"] = "mcap"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    with dataset_case(tmp_path / "state", fake_nav) as case:
+        enable_storage(case)
+        case.run()
+        definition = production_registry(case.scanning).lookup("dataset_sizing")
+        assert definition is not None
+        result = case.run("dataset-14", definition=definition)
+        assert result.summary is not None and not result.summary.aborted
+        with session_scope(case.engine, read_only=True) as session:
+            canonical = session.get(EntryRow, "按任务/libero_10")
+            replica = session.get(EntryRow, "按格式/lerobot/3.0/libero_10")
+            assert canonical is not None and canonical.size_bytes == 15
+            assert replica is not None and replica.size_bytes == 56
+
+
+@pytest.mark.parametrize("has_sources", [True, False])
+def test_sizing_source_scopes(tmp_path: Path, fake_nav: FakeNavigation, has_sources: bool) -> None:
+    """M1.5-07：混合块只计覆盖范围，无数据块才统计全部；残留计数不受范围限制。"""
+    import shutil
+
+    root = fake_nav.storage_roots[0].path / "libero_v3/libero_10"
+    shutil.rmtree(root)
+    files = {
+        "converted/data/a.parquet": 3,
+        "converted/videos/x/b.mp4": 5,
+        "converted/meta/info.json": 7,
+        "converted/README.md": 11,
+        "converted/data/c.json": 13,
+        "converted/.cache/meta/m.json": 17,
+        "raw/episode.mcap": 19,
+        "raw/.cache/extra": 21,
+        "README.md": 23,
+        "pending.incomplete": 29,
+        "converted/.cache/download.aria2": 31,
+    }
+    for name, length in files.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"x" * length)
+    entries = ("按任务/libero_10", "按格式/lerobot/3.0/libero_10")
+    for entry in entries:
+        manifest = fake_nav.nav_root / entry / "原始路径.json"
+        payload = json.loads(manifest.read_bytes())
+        template = payload["sources"][0]
+        payload["sources"] = (
+            [
+                {
+                    **template,
+                    "source_id": "converted",
+                    "direct_path": str(root / "converted"),
+                    "format": "lerobot",
+                },
+                {
+                    **template,
+                    "source_id": "raw",
+                    "direct_path": str(root / "raw"),
+                    "format": "mcap",
+                },
+            ]
+            if has_sources and entry == entries[0]
+            else []
+        )
+        manifest.write_text(json.dumps(payload), encoding="utf-8")
+    with dataset_case(tmp_path / "state", fake_nav) as case:
+        enable_storage(case)
+        case.run()
+        definition = production_registry(case.scanning).lookup("dataset_sizing")
+        assert definition is not None
+        result = case.run("dataset-14", definition=definition)
+        assert result.summary is not None and not result.summary.aborted
+        with session_scope(case.engine, read_only=True) as session:
+            canonical = session.get(EntryRow, entries[0])
+            replica = session.get(EntryRow, entries[1])
+            assert canonical is not None and replica is not None
+            assert canonical.size_bytes == (55 if has_sources else 179)
+            # 同目标的无块格式入口先遍历，不能把其全量结果复用到规范入口。
+            assert replica.size_bytes == 179
+            assert (canonical.aria2_count, canonical.incomplete_count) == (1, 1)
