@@ -1,12 +1,9 @@
-// M1.5-02 分页表单投影；只把编辑值交回会话，不发请求、不解析原文件。
+// M1.5-09/10 共用字段输入；供新建与详情就地编辑使用，不维护独立编辑器。
 import { useState, type ReactElement } from "react";
-import { Alert, Button, Input, Select } from "antd";
-import { useDatasetFilterOptions } from "./queries";
+import { Alert, Input, Select } from "antd";
 import type { DatasetFilters } from "../api/datasets";
-import { DiagnosticCard } from "../DiagnosticCard";
-import { toFailureView } from "../api/problems";
 import type { EditablePage } from "../api/fieldEditing";
-import type { FieldChange, FieldEditingState } from "./fieldEditingState";
+import type { FieldChange } from "./fieldEditingState";
 
 type Field = EditablePage["fields"][number];
 type Value = FieldChange["value"];
@@ -18,69 +15,14 @@ interface InputProps {
   /** 将新值交给会话，不直接提交。 */ onChange: (value: Value) => void;
 }
 /**
- * 展示当前页字段、原型号参考和分页控制。
- * @param props - 当前页与会话状态；不会把其他页全文带入DOM。
- * @param props.state - 已授权编辑会话和本次页数据。
- * @param props.data - 服务端规范副本页，不使用格式入口原文替代。
- * @returns 可换行的文本、场景单选、字符串多选和翻页按钮。
- * @throws 无；类型和范围由服务端白名单再校验。
- * @sideEffects 只触发会话回调；翻页发起由会话管理的GET。
- * @timeSemantics 保留跨页草稿，不自行刷新哈希或预览时刻。
+ * 为编辑器与新建表单提供同一套文本、型号和分类输入。
+ * @param props - 字段投影、草稿、词表、禁用状态与回调。
+ * @returns 文本框或可选取和输入的分类控件。
+ * @throws 无；服务端负责最终校验。
+ * @sideEffects 仅触发 onChange，不发送请求。
+ * @timeSemantics 同步更新草稿，无轮询。
  */
-export function FieldInputs(props: {
-  /** 编辑会话。 */ state: FieldEditingState;
-  /** 当前页。 */ data: EditablePage;
-}): ReactElement {
-  const { state, data } = props;
-  const vocabulary = useDatasetFilterOptions();
-  return (
-    <>
-      <p>
-        规范副本：{data.entry_path} · 共 {data.total} 条
-      </p>
-      {state.document === "数据集信息.json" && (
-        <ModelReference data={data} changes={state.changes} />
-      )}
-      {vocabulary.error && <DiagnosticCard failure={toFailureView(vocabulary.error)} />}
-      {data.fields.map((field) => (
-        <FieldInput
-          key={JSON.stringify(field.path)}
-          field={field}
-          vocabulary={vocabulary.data}
-          value={state.changes[JSON.stringify([state.document, field.path])]?.value ?? field.value}
-          disabled={state.busy || state.stale}
-          onChange={(value) => {
-            state.update(field, value);
-          }}
-        />
-      ))}
-      {state.document !== "数据集信息.json" && (
-        <div className="field-actions">
-          <Button
-            aria-label="编辑上一页"
-            disabled={state.busy || state.offset === 0}
-            onClick={() => {
-              state.selectOffset(Math.max(0, state.offset - data.limit));
-            }}
-          >
-            上一页
-          </Button>
-          <Button
-            aria-label="编辑下一页"
-            disabled={state.busy || state.offset + data.limit >= data.total}
-            onClick={() => {
-              state.selectOffset(state.offset + data.limit);
-            }}
-          >
-            下一页
-          </Button>
-        </div>
-      )}
-    </>
-  );
-}
-
-function FieldInput(props: InputProps): ReactElement {
+export function FieldInput(props: InputProps): ReactElement {
   const { field, value, disabled, onChange } = props;
   if (field.path.length === 1 && (field.path[0] === "scene" || field.path[0] === "tasks"))
     return <ClassificationInput {...props} />;
@@ -197,7 +139,17 @@ function normalizeClassification(next: string | string[] | undefined, multiple: 
   if (multiple) return [];
   return next?.trim() ?? "";
 }
-function ModelReference({
+/**
+ * 显示导航型号与原文件型号的参考差异。
+ * @param props - 当前信息页与局部改动。
+ * @param props.data - editable-fields 返回的规范信息页。
+ * @param props.changes - 跨文档草稿，按文档与路径索引。
+ * @returns 原文件型号参考及差异提示。
+ * @throws 无。
+ * @sideEffects 无。
+ * @timeSemantics 反映该次编辑页读取时刻，不重新读取原文件。
+ */
+export function ModelReference({
   data,
   changes,
 }: {

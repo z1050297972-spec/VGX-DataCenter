@@ -15,7 +15,7 @@ from rdp.jobs.datasets.reading import parse_document
 from rdp.jobs.datasets.types import EntryLocation, EntrySnapshot, JsonObject, View
 from rdp.jobs.navwrite._create_read import Target, present
 from rdp.jobs.navwrite.create_details import CreationDetails, LinkAddition, SourceAddition
-from rdp.jobs.navwrite.create_models import FirstLink, FormatEntrySelection
+from rdp.jobs.navwrite.create_models import DatasetInformation, FirstLink, FormatEntrySelection
 from rdp.jobs.navwrite.errors import nav_input_error
 from rdp.jobs.navwrite.jsonio import dump_navigation_json
 from rdp.jobs.navwrite.models import (
@@ -304,8 +304,10 @@ class Planning:
         )
 
 
-def new_snapshot(location: EntryLocation, dataset_id: str) -> EntrySnapshot:
-    """构造新入口的初始三份文档，14 项只有固定字段名而没有推测正文。"""
+def new_snapshot(
+    location: EntryLocation, dataset_id: str, supplied: DatasetInformation | None = None
+) -> EntrySnapshot:
+    """构造新入口三份文档，按编号填入用户文字，未填项留空且不推测分类。"""
     from rdp.jobs.navwrite.create_models import INFORMATION_FIELD_NAMES
 
     manifest: JsonObject = {
@@ -319,14 +321,24 @@ def new_snapshot(location: EntryLocation, dataset_id: str) -> EntrySnapshot:
         "links": [],
         "sources": [],
     }
+    values = {item.number: item.value_markdown for item in supplied.fields} if supplied else {}
     information: JsonObject = {
         "dataset_id": dataset_id,
         "title": f"{int(dataset_id.split('-')[-1])}. {location.dataset_name}",
         "fields": [
-            {"number": index, "name": name, "value_markdown": ""}
+            {"number": index, "name": name, "value_markdown": values.get(index, "")}
             for index, name in enumerate(INFORMATION_FIELD_NAMES, 1)
         ],
     }
+    if supplied is not None:
+        classification: JsonObject = {
+            "robot_model": supplied.robot_model,
+            "scene": supplied.scene,
+            "tasks": list(supplied.tasks),
+        }
+        for key, value in classification.items():
+            if value:
+                information[key] = value
     subtasks: JsonObject = {
         "schema_version": 1,
         "dataset_id": dataset_id,

@@ -459,3 +459,91 @@ def test_creation_response_rejects_inconsistent_branches(
         )
         assert submitted.status_code == 201 and "job_id" in submitted.json()
         assert "job" not in submitted.json() and "confirmation_required" not in submitted.json()
+
+
+def test_create_information_preview_and_write(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验证09号契约：文字与分类进入预览及两视图文件，第4项和未填写项留空。"""
+    import json
+
+    from creation_support import creation_api_case, preview_job, run_queued
+
+    with creation_api_case(tmp_path, fake_nav) as (api, deps):
+        identifier = preview_job(
+            api,
+            deps,
+            fake_nav,
+            operation="dataset",
+            format_entries=[{"format": "mcap"}],
+            information={
+                "fields": [
+                    {"number": 6, "value_markdown": "**桌面收纳**"},
+                    {"number": 5, "value_markdown": "双臂机器人"},
+                ],
+                "robot_model": "R1 Lite",
+                "scene": " 家居 ",
+                "tasks": [" 收纳 ", "抓取", "收纳"],
+            },
+        )
+        response = api.client.get(f"/api/datasets/creation-previews/{identifier}")
+        assert response.status_code == 200, response.text
+        changes = {
+            item["json_path"]: json.loads(item["after"])
+            for item in response.json()["report"]["listed_changes"]
+            if item["file"] == "按任务/接口新数据集/数据集信息.json"
+        }
+        assert changes["fields/4/value_markdown"] == "双臂机器人"
+        assert changes["fields/5/value_markdown"] == "**桌面收纳**"
+        assert changes["robot_model"] == "R1 Lite"
+        assert changes["scene"] == "家居"
+        assert changes["tasks"] == ["收纳", "抓取"]
+        submitted = api.client.post(
+            "/api/datasets/creation-writes", json={"preview_job_id": identifier}
+        )
+        assert submitted.status_code == 201, submitted.text
+        result = run_queued(api, deps, submitted.json()["job_id"])
+        assert result.summary is not None and not result.summary.aborted
+        canonical = deps.rescan.nav_root / "按任务/接口新数据集/数据集信息.json"
+        replica = deps.rescan.nav_root / "按格式/mcap/接口新数据集/数据集信息.json"
+        assert canonical.read_bytes() == replica.read_bytes()
+        info = json.loads(canonical.read_text())
+        assert info["fields"][4]["value_markdown"] == "双臂机器人"
+        assert info["fields"][5]["value_markdown"] == "**桌面收纳**"
+        assert all(
+            field["value_markdown"] == ""
+            for field in info["fields"]
+            if field["number"] not in (5, 6)
+        )
+        assert info["robot_model"] == "R1 Lite"
+        assert info["scene"] == "家居"
+        assert info["tasks"] == ["收纳", "抓取"]
+
+
+@pytest.mark.parametrize(
+    "information",
+    [
+        {"fields": [{"number": 4, "value_markdown": "正文"}]},
+        {"fields": [{"number": 5, "value_markdown": "正文"}] * 2},
+        {"scene": "unlabeled"},
+    ],
+)
+def test_create_information_rejects_numbers(
+    tmp_path: Path, fake_nav: FakeNavigation, information: dict[str, object]
+) -> None:
+    """验证09号契约：第4项和重复编号在提交预览时返回422，不进入worker。"""
+    from creation_support import creation_api_case
+
+    with creation_api_case(tmp_path, fake_nav) as (api, deps):
+        response = api.client.post(
+            "/api/datasets/creation-previews",
+            json={
+                "dataset_name": "非法信息",
+                "data_origin": "开源下载",
+                "link": {
+                    "name": "原始数据",
+                    "target_path": str(deps.rescan.roots[0].path / "unused"),
+                    "fallback_format": "mcap",
+                },
+                "information": information,
+            },
+        )
+        assert response.status_code == 422, response.text

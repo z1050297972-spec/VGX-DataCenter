@@ -36,7 +36,7 @@ describe("建链与新增数据集的契约行为", () => {
       expect(name.hasAttribute("required")).toBe(true);
       expect(screen.getByLabelText("数据来源").getAttribute("aria-required")).toBe("true");
       expect(document.querySelector("select")).toBeNull();
-      expect(document.querySelectorAll(".creation-form .ant-select")).toHaveLength(2);
+      expect(screen.getByRole("combobox", { name: "无元信息时的格式" })).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "生成预览" }));
       expect(requests.filter((request) => request.method === "POST")).toHaveLength(0);
       fireEvent.change(name, { target: { value: "接口新数据集" } });
@@ -55,6 +55,42 @@ describe("建链与新增数据集的契约行为", () => {
         dataset_name: "接口新数据集",
         data_origin: "开源下载",
         format_entries: [{ format: "mcap", version: null }],
+      });
+    } finally {
+      page.close();
+    }
+  });
+  // M1.5-09 契约：第6项说明与场景独立提交，14项中仅第4项不可填。
+  it("新建表单提交可选信息的文字与分类", async () => {
+    const requests: Request[] = [];
+    const page = mountPage("/datasets/new", creationFetch(requests));
+    try {
+      fireEvent.change(await screen.findByLabelText("数据集名"), {
+        target: { value: "可选信息数据集" },
+      });
+      await choose("数据来源", "开源下载");
+      fireEvent.change(screen.getByLabelText("链接名"), { target: { value: "新链接" } });
+      fireEvent.change(screen.getByLabelText("目标路径"), { target: { value: "/fake/disk/new" } });
+      const section = screen.getByRole("region", { name: "14 项数据集信息（可选）" });
+      expect(section.querySelectorAll("textarea")).toHaveLength(14);
+      expect(screen.getByText("第 4 项：数据大小（自动计算）")).toBeTruthy();
+      expect(screen.queryByRole("textbox", { name: /第 4 项/ })).toBeNull();
+      fireEvent.change(screen.getByRole("textbox", { name: "第 6 项：任务与场景" }), {
+        target: { value: "厨房抓取\n保留说明" },
+      });
+      await choose("场景", "家居-厨房");
+      fireEvent.click(screen.getByRole("button", { name: "生成预览" }));
+      await screen.findByRole("heading", { name: "预览差异" });
+      const request = requests.find(
+        (request) => new URL(request.url).pathname === "/api/datasets/creation-previews",
+      );
+      expect(await request?.json()).toMatchObject({
+        information: {
+          fields: [{ number: 6, value_markdown: "厨房抓取\n保留说明" }],
+          robot_model: "",
+          scene: "kitchen",
+          tasks: [],
+        },
       });
     } finally {
       page.close();

@@ -50,3 +50,4 @@ Status: in-progress
 ## Comments
 
 - 2026-11-05 开票（执行线；负责人点名，两个决定当面选定）。
+- 2026-11-05 01:20 前后端交回（后端 00:30 派、约 30 分钟；前端 09 部分 15 分钟）。评审无阻塞问题；执行线给 422 测试补了 scene=unlabeled 一例。make check 全绿（2763 passed，Vitest 384，0 skipped；工作目录借用主仓 .venv 时 rdp 会从主仓导入，须加 PYTHONPATH=src，第一次误跑出 3 个假失败）。与第 10 张同分支提交。演练未做；合并待负责人。

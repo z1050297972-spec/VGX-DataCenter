@@ -3648,6 +3648,48 @@ export interface components {
             tasks: components["schemas"]["FilterOption"][];
         };
         /**
+         * DatasetInformation
+         * @description 新建数据集的可选信息，文字与结构化分类分别保存。
+         *
+         *     Attributes:
+         *         fields: 可只给部分文字项，编号1至14但不含4，不能重复；缺省为空。
+         *         robot_model: 机器人型号文字，空串不写顶层键。
+         *         scene: 场景去首尾空格；空串不写键，拒绝unlabeled。
+         *         tasks: 任务去首尾空格、去重保序；拒绝空项和unlabeled，空数组不写键。
+         */
+        DatasetInformation: {
+            /**
+             * Fields
+             * @default []
+             */
+            fields: components["schemas"]["DatasetInformationField"][];
+            /**
+             * Robot Model
+             * @default
+             */
+            robot_model: string;
+            /**
+             * Scene
+             * @default
+             */
+            scene: string;
+            /**
+             * Tasks
+             * @default []
+             */
+            tasks: string[];
+        };
+        /**
+         * DatasetInformationField
+         * @description 新建时的一项文字说明；编号对应手册固定14项，第4项由统计作业提供。
+         */
+        DatasetInformationField: {
+            /** Number */
+            number: number;
+            /** Value Markdown */
+            value_markdown: string;
+        };
+        /**
          * DatasetLink
          * @description 索引链接状态与原检查时间，顺序为入口 links 数组顺序。
          */
@@ -3783,6 +3825,7 @@ export interface components {
          * @description 新增数据集的预览参数；编号与入口路径只能由平台分配。
          *
          *     Attributes:
+         *         information: 可选文字与分类；None保持原有空骨架，不推测正文。
          *         dataset_name: 安全单层数据集名；不能与按任务下任何已有对象重名，包括断链。
          *         data_origin: DATA_ORIGINS 中的必填中文值。
          *         link: 新数据集的第一条链接；至少有这一条，不创建空数据集。
@@ -3798,6 +3841,7 @@ export interface components {
              * @default []
              */
             format_entries: components["schemas"]["FormatEntrySelection"][];
+            information?: components["schemas"]["DatasetInformation"] | null;
             link: components["schemas"]["FirstLink"];
         };
         /**

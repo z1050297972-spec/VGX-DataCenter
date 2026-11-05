@@ -1,28 +1,23 @@
 /* 抽屉中所有文本按容器换行；长字段名和差异不撑宽1280px页面。 */
-.field-editor,
-.field-editor * {
+.field-inline,
+.field-inline * {
   box-sizing: border-box;
   min-width: 0;
 }
-.field-editor {
+.field-inline {
   max-width: 100%;
   overflow-wrap: anywhere;
 }
-.field-editor label {
+.field-inline .field-input {
   display: flex;
   flex-direction: column;
   gap: var(--rdp-space-2);
   margin: var(--rdp-space-3) 0;
 }
-.field-editor .ant-select,
-.field-editor textarea {
+.field-inline .ant-select,
+.field-inline textarea {
   width: 100%;
   max-width: 100%;
-}
-.field-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rdp-space-2);
 }
 .field-differences article {
   border: var(--rdp-line) solid var(--rdp-border);
@@ -33,8 +28,4 @@
   margin: 0 0 var(--rdp-space-3);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-.field-editor-note {
-  color: var(--rdp-muted);
-  font-size: 12px;
 }

@@ -361,6 +361,7 @@ def test_information_and_subtask_skeletons(tmp_path: Path, fake_nav: FakeNavigat
         ]
         assert all(field["value_markdown"] == "" for field in info["fields"])
         assert "schema_version" not in info
+        assert not {"robot_model", "scene", "tasks"} & info.keys()
         assert files["子任务.json"]["tasks"] == [] and files["子任务.json"]["task_count"] == 0
 
 

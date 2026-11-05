@@ -1,8 +1,8 @@
 // 数据集详情共享部件（11、16、M1-04）；索引时间和现场 JSON 时间不混为一份快照。
-import { lazy, Suspense, type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import { Alert, Button, Col, Flex, Row, Typography } from "antd";
 import { rescanDataset, sizeDataset, type DatasetDetail } from "../api/datasets";
-import { useAccountClient } from "../accounts/runtime";
+import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import { useJobAction } from "../jobs/_actions";
 import { DiagnosticCard, DiagnosticEntries } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
@@ -17,10 +17,8 @@ import { CreateLinkEntry } from "./CreationEntries";
 import { useDatasetDetail } from "./queries";
 import { formatDateTime } from "../time";
 
-// 编辑器按需分块，保持主入口体积预算。
-const FieldEditor = lazy(async () => ({
-  default: (await import("./FieldEditing")).DatasetFieldEditor,
-}));
+import { InlineEditSession, InlineEditActions, SourceFieldSection } from "./FieldEditing";
+import type { FieldEditingState } from "./fieldEditingState";
 
 interface DetailProps {
   /** 当前相对入口路径。 */ entryPath: string;
@@ -37,39 +35,106 @@ interface DetailProps {
  */
 export function DatasetDetails(props: DetailProps): ReactElement {
   const query = useDatasetDetail(props.entryPath);
+  const account = useCurrentAccount();
   return (
-    <section aria-label="数据集详情">
-      <Flex justify="space-between" align="center" gap="middle" wrap>
-        <Flex align="center" gap="small" wrap>
-          <Button type="text" onClick={props.onClose}>
-            返回列表
-          </Button>
-          {query.data && (
-            <Typography.Title level={3} className="browser-detail-title">
-              {query.data.entry.name}
-            </Typography.Title>
-          )}
-        </Flex>
-        {query.data && (
-          <Flex gap="small" wrap>
-            <CreateLinkEntry datasetId={query.data.entry.dataset_id} />
-            <RepointEditor detail={query.data} />
-          </Flex>
-        )}
-      </Flex>
+    <>
       {query.isPending && <p role="status">正在加载详情</p>}
       {query.error && <DiagnosticCard failure={toFailureView(query.error)} />}
-      {query.data && <DetailContent detail={query.data} onJump={props.onJump} />}
-    </section>
+      {query.data && (
+        <DetailSession
+          key={JSON.stringify([
+            account.data?.account_id,
+            props.entryPath,
+            query.data.entry.dataset_id,
+          ])}
+          detail={query.data}
+          onJump={props.onJump}
+          onClose={props.onClose}
+          refresh={() => {
+            void query.refetch();
+          }}
+        />
+      )}
+    </>
+  );
+}
+function DetailSession(props: {
+  detail: DatasetDetail;
+  onJump: DetailProps["onJump"];
+  onClose: () => void;
+  refresh: () => void;
+}): ReactElement {
+  const [editing, setEditing] = useState(false);
+  const [focusNotes, setFocusNotes] = useState(false);
+  function finish(): void {
+    setEditing(false);
+    setFocusNotes(false);
+    props.refresh();
+  }
+  function start(notes = false): void {
+    setFocusNotes(notes);
+    setEditing(true);
+  }
+  function content(state?: FieldEditingState): ReactElement {
+    return (
+      <section aria-label="数据集详情">
+        <Flex component="header" justify="space-between" align="center" gap="middle" wrap>
+          <Flex align="center" gap="small" wrap>
+            <Button type="text" onClick={props.onClose}>
+              返回列表
+            </Button>
+            <Typography.Title level={3} className="browser-detail-title">
+              {props.detail.entry.name}
+            </Typography.Title>
+          </Flex>
+          <Flex gap="small" wrap>
+            <Button
+              aria-label="编辑"
+              disabled={!props.detail.entry.dataset_id || !!state}
+              onClick={() => {
+                start();
+              }}
+            >
+              编辑
+            </Button>
+            <CreateLinkEntry datasetId={props.detail.entry.dataset_id} />
+            <RepointEditor detail={props.detail} />
+          </Flex>
+        </Flex>
+        <DetailContent
+          detail={props.detail}
+          onJump={props.onJump}
+          editing={state}
+          focusNotes={focusNotes}
+          onEditNotes={() => {
+            start(true);
+          }}
+        />
+        {state && <InlineEditActions state={state} onCancel={finish} />}
+      </section>
+    );
+  }
+  return editing && props.detail.entry.dataset_id ? (
+    <InlineEditSession datasetId={props.detail.entry.dataset_id} onFinish={finish}>
+      {content}
+    </InlineEditSession>
+  ) : (
+    content()
   );
 }
 
 function DetailContent({
   detail,
   onJump,
+  editing,
+  focusNotes,
+  onEditNotes,
 }: {
   detail: DatasetDetail;
   onJump: DetailProps["onJump"];
+  editing?: FieldEditingState;
+  focusNotes: boolean;
+  onEditNotes: () => void;
 }): ReactElement {
   const client = useAccountClient();
   const rescan = useJobAction(
@@ -82,6 +147,13 @@ function DetailContent({
   );
   return (
     <>
+      <div className="browser-detail-section">
+        <DatasetInformation
+          document={detail.canonical_information}
+          size={detail.dataset_size}
+          editing={editing}
+        />
+      </div>
       {detail.index_stale && (
         <Alert
           type="warning"
@@ -136,9 +208,6 @@ function DetailContent({
           <DataOriginEditor datasetId={detail.entry.dataset_id} provenance={detail.provenance} />
         </div>
       )}
-      <div className="browser-detail-section" id="dataset-field-editor">
-        <FieldEditEntry detail={detail} />
-      </div>
       <div className="browser-detail-section">
         <DatasetSizeSummary
           size={detail.dataset_size}
@@ -177,29 +246,18 @@ function DetailContent({
         <DatasetLinks links={detail.links} />
       </div>
       <div className="browser-detail-section">
-        <DatasetInformation document={detail.canonical_information} size={detail.dataset_size} />
-      </div>
-      <div className="browser-detail-section">
         <DiagnosticEntries diagnostics={detail.diagnostics} />
       </div>
       <div className="browser-detail-section">
         <SubtaskNotes
           document={detail.canonical_information}
           editable={!!detail.entry.dataset_id}
+          editing={editing}
+          focusInput={focusNotes}
+          onEdit={onEditNotes}
         />
       </div>
+      {editing && <SourceFieldSection state={editing} />}
     </>
-  );
-}
-
-function FieldEditEntry({ detail }: { detail: DatasetDetail }): ReactElement {
-  if (!detail.entry.dataset_id) return <></>;
-  return (
-    <Suspense fallback={<p>正在加载编辑器…</p>}>
-      <FieldEditor
-        key={JSON.stringify([detail.entry.dataset_id, detail.canonical_information?.sha256])}
-        datasetId={detail.entry.dataset_id}
-      />
-    </Suspense>
   );
 }
