@@ -1,6 +1,6 @@
 # 编辑字段时可以自定义场景和任务；数据集详情去掉数据块表和"观察到的指向"列
 
-Status: in-progress
+Status: done
 
 分级：直做。按"只做关键测试"。领域上的决定负责人已经当面做了（见下），所以不过骨架关卡。
 
@@ -66,3 +66,4 @@ Status: in-progress
 - 2026-11-04 负责人追加：删掉详情页末尾"打开 数据集信息.json""打开 原始路径.json"，并入范围 4a。派工已在运行，等这一轮交回后用 resume 补做。
 - 2026-11-04 19:22 负责人要求 20 分钟内完成：停掉单会话派工（只读了 2 分钟代码，无改动），拆成前后端两个并行会话重派（gpt-6-astra medium，单元 rdp-codex-m15-06-be / -fe，各自只跑本半边检查，执行线最后统一 make check），4a 一并派出，不再单独 resume。
 - 2026-11-04 19:31 两路交回（9 分钟）。执行线补改 _trees.py 场景树的（不在词表）标记（一行，为赶时限没再派工）。make check 全绿（2758 passed，Vitest 387，0 skipped）；变异抽查两处（unlabeled 校验、观察到的指向列）都被关键测试抓到。抽查时误用 git checkout 还原了 Entries.tsx，已按 Codex diff 原样恢复并重跑 make check。实现提交见分支 t/m15-06-custom-classification。副本演练未做；合并待负责人。
+- 2026-11-04 负责人"合并，升级并推送"（未做副本演练，负责人选择直接合并）。合并 `573076a`，main 上 make check 全绿（2758 passed，Vitest 387）。真实部署升到 `573076a`，数据库仍是 0016，不用迁移；两个服务 active，health ok，两份日志升级后 0 条 ERROR，sda/sdb 写入扇区数前后相同（144 / 41304）（`assets/06-real-upgrade-run.log`）。
