@@ -59,3 +59,4 @@ Status: in-progress
 ## Comments
 
 - 2026-11-04 开票（执行线；负责人点名两件事，合成一张票，因为都改 `datasets/`）。派给 Codex gpt-6-astra high。
+- 2026-11-04 派工（Codex gpt-6-astra high，会话 01a1a981-bba1-7ad0-8dd4-ea634fe09465，systemd 单元 rdp-codex-m15-06，日志 ~/.cache/rdp-dispatch/m15-06/）。基线 make check 全绿（2757 passed，Vitest 386）。负责人中途追加"链接状态去掉观察到的方向"，已并入范围第 4 项。
