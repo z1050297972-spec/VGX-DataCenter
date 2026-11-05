@@ -41,3 +41,4 @@ Status: in-progress
 ## Comments
 
 - 2026-11-04 开票（执行线；负责人点名）。
+- 2026-11-05 00:07 r1 交回：链接携带下属全部数据块（相对路径+格式），遍历继承最深块；块外不计，无块全算；缓存键含数据块集合。评审无阻塞问题。make check 全绿（2759 passed，Vitest 388，0 skipped）；变异抽查（无论有没有块都按全部算）被 test_sizing_source_scopes 抓到。实现提交在分支 t/m15-07-auto-size。真实演练待升级后做；合并待负责人，和第 08 张有冲突，后合并的执行线解冲突后重跑 make check。

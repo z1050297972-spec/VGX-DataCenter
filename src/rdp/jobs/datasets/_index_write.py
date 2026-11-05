@@ -141,7 +141,7 @@ def _dataset(session: Session, item: DatasetObservation, scan_id: int) -> None:
             scene=selected.scene if selected else None,
             tasks=list(selected.tasks) if selected else [],
             robot_model=selected.robot_model if selected else None,
-            recorded_size_bytes=selected.recorded_size_bytes if selected else None,
+            recorded_size_bytes=None,
             size_bytes=old.size_bytes if old and same else None,
             size_checked_at=old.size_checked_at if old and same else None,
         )
@@ -209,7 +209,7 @@ def _entry(
             dataset_roots=list(entry.dataset_roots),
             provenance_present=entry.provenance_present,
             fingerprint=fp.model_dump(mode="json"),
-            recorded_size_bytes=entry.recorded_size_bytes,
+            recorded_size_bytes=None,
             size_bytes=old.size_bytes if old and same else None,
             size_checked_at=old.size_checked_at if old and same else None,
             aria2_count=old.aria2_count if old and same else None,

@@ -1,4 +1,4 @@
-// 大小共享部件（11 Q10、M1-04）；统计值与10-12记录并排，离线仍保留原统计时间。
+// 大小共享部件（11 Q10、M1-04）；只显示按格式统计值，离线仍保留原统计时间。
 import type { ReactElement, ReactNode } from "react";
 import { Flex, Typography } from "antd";
 import type { DatasetDetail } from "../api/datasets";
@@ -9,7 +9,7 @@ interface Props {
   /** 与大小相关的操作入口。 */ actions: ReactNode;
 }
 /**
- * 分开展示统计值、统计时间和10-12记录值。
+ * 展示按格式统计值、口径和统计时间。
  * @param props - 接口提供的大小快照；null明确表示未知或未统计。
  * @returns 按任务入口口径的大小分节，不叠加格式副本。
  * @throws 无。
@@ -32,17 +32,14 @@ export function DatasetSizeSummary(props: Props): ReactElement {
           {props.actions}
         </Flex>
       </Flex>
-      <p title={exactBytes(size.size_bytes)}>
+      <Typography.Paragraph title={exactBytes(size.size_bytes)}>
         统计大小：{size.size_bytes === null ? "未统计" : formatBytes(size.size_bytes)}
-      </p>
-      <p>
+        {" · LeRobot 只计 parquet、mp4 和 meta；其他格式计全部大小"}
+      </Typography.Paragraph>
+      <Typography.Paragraph>
         统计时间：
         {size.size_checked_at ? formatDateTime(size.size_checked_at) : "未统计"}
-      </p>
-      <p title={exactBytes(size.recorded_size_bytes)}>
-        10-12 记录：
-        {formatBytes(size.recorded_size_bytes)}
-      </p>
+      </Typography.Paragraph>
     </section>
   );
 }

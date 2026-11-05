@@ -17,7 +17,7 @@ describe("数据集布局 A", () => {
       expect(screen.getByRole("tab", { name: "按任务" })).toBeTruthy();
       expect(await screen.findByText("共 2 个数据集")).toBeTruthy();
       expect(screen.getByRole("button", { name: "打开 libero_10" })).toBeTruthy();
-      expect(screen.getAllByText(/10-12 记录/).length).toBeGreaterThan(0);
+      expect(screen.queryByText(/10-12 记录/)).toBeNull();
       expect(page.router.state.location.pathname).toBe("/datasets");
     } finally {
       page.close();
@@ -83,7 +83,7 @@ describe("数据集布局 A", () => {
     }
   });
 
-  // 契约：打开详情不预取子任务，跨视图定位保持永久身份与筛选，统计值与快照值分别标注。
+  // 契约：打开详情不预取子任务，跨视图定位保持永久身份与筛选，只显示平台统计值。
   it("打开详情并跨视图跳转，保留筛选且不预取子任务", async () => {
     const requests: Request[] = [];
     const page = mountPage("/datasets?robot_type=franka", datasetFetch(requests));
@@ -91,8 +91,8 @@ describe("数据集布局 A", () => {
       fireEvent.click(await screen.findByRole("button", { name: "打开 libero_10" }));
       expect(await screen.findByRole("heading", { name: "libero_10" })).toBeTruthy();
       expect(await screen.findByText("dataset-14")).toBeTruthy();
-      expect(screen.getByText("统计大小：未统计")).toBeTruthy();
-      expect(screen.getByText("10-12 记录：2.0 KiB")).toBeTruthy();
+      expect(screen.getByText(/统计大小：2.0 KiB/)).toBeTruthy();
+      expect(screen.queryByText(/10-12 记录/)).toBeNull();
       expect(
         requests.filter((request) => new URL(request.url).pathname === "/api/datasets/subtasks"),
       ).toHaveLength(0);
@@ -178,7 +178,7 @@ describe("数据集布局 A", () => {
       expect(root).not.toBeNull();
       expect(root?.textContent).toBe("按格式");
       const meta = root?.parentElement?.querySelector<HTMLElement>(".dataset-tree-meta");
-      expect(meta?.textContent).toBe("1 个 · 2.0 KiB · 含 10-12 记录");
+      expect(meta?.textContent).toBe("1 个 · 2.0 KiB");
       expect(meta?.getAttribute("title")).toBe("2,048 B");
       expect(document.body.textContent).not.toMatch(/2,048 B(?! )/);
     } finally {

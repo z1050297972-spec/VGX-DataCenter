@@ -17,7 +17,7 @@ from threading import Event, Lock, Thread, get_native_id
 from rdp.infra.diagnostics import Diagnostic, DiagnosticCategory, DiagnosticLevel, ExternalError
 from rdp.infra.storage import STORAGE_CHECKPOINT_INTERVAL_S, StorageAccessChecker
 from rdp.jobs.datasets._size_walk import walk
-from rdp.jobs.datasets._sizing_types import SizeValue
+from rdp.jobs.datasets._sizing_types import SizeSource, SizeValue
 from rdp.jobs.datasets._storage_paths import MAX_SYMLINKS, inspect_path, locate_path
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.policy import PROCESS_STDERR_TAIL_MAX_BYTES
@@ -29,7 +29,10 @@ PRIORITY_TIMEOUT_S = 5.0
 
 
 def measure(
-    path: Path, checker: StorageAccessChecker, context: ExecutionContext
+    path: Path,
+    checker: StorageAccessChecker,
+    context: ExecutionContext,
+    sources: tuple[SizeSource, ...],
 ) -> SizeValue | None:
     """在独立低优先级线程遍历；访问停滞返回None，取消原样传播并禁止迟到发布。"""
     completed, abandoned = Event(), Event()
@@ -57,7 +60,7 @@ def measure(
                 },
             )
             pulse()
-            result.append(walk(_resolve(path, checker, pulse), pulse))
+            result.append(walk(_resolve(path, checker, pulse), pulse, sources))
         except Exception as error:
             result.append(error)
         finally:

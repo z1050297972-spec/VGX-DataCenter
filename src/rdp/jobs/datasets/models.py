@@ -129,7 +129,7 @@ class DatasetRow(Base):
         scan_id: 最后发布此数据集的代次外键；跳过的数据集保留旧代次。
         fingerprint: DatasetFingerprint 的JSON值；无法完整观察时仍存 verifiable=False。
         data_origin: 六种稳定来源编码；缺失、坏文件或规范入口不唯一时 unknown。
-        recorded_size_bytes: 规范副本第4项记录字节数，非负；无记录或无规范副本为None。
+        recorded_size_bytes: 兼容旧库的记录值列；扫描统一写None，不再用于展示。
         size_bytes: 链接目标表观字节数，非负；尚未统计为None。
         size_checked_at: UTC大小统计时刻，与size_bytes同空同非空。
         scene: 规范副本数据集信息.json 的场景原值；未填写或无唯一规范副本为None（M1.5-03）。
@@ -185,7 +185,7 @@ class EntryRow(Base):
         dataset_roots: 当前入口声明的绝对路径数组；不以规范副本覆盖以便发现差异。
         provenance_present: 来源.json目录项存在性，不表示内容合法。
         fingerprint: 单入口EntryFingerprint的JSON值。
-        recorded_size_bytes: 本入口记录值，非负或None。
+        recorded_size_bytes: 兼容旧库的记录值列；扫描统一写None，不再用于展示。
         size_bytes: 本入口所有链接目标表观大小之和，非负或None。
         size_checked_at: UTC统计时刻，与size_bytes成对。
         aria2_count: 同次大小遍历发现的.aria2数，非负或None（未统计）。

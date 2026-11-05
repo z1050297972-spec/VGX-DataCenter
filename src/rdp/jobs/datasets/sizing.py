@@ -20,7 +20,7 @@ from rdp.infra.timeutil import ensure_utc
 from rdp.jobs.datasets import _size_access, _sizing_index
 from rdp.jobs.datasets._issues import input_error
 from rdp.jobs.datasets._panel_issue import VALUE_PREVIEW_CHARS
-from rdp.jobs.datasets._sizing_types import SizeDataset, SizeValue
+from rdp.jobs.datasets._sizing_types import SizeDataset, SizeSource, SizeValue
 from rdp.jobs.datasets._storage_paths import locate_path
 from rdp.jobs.datasets.catalog import SIZING_NAME, SIZING_TYPE
 from rdp.jobs.datasets.fingerprint import fingerprint_dataset
@@ -87,7 +87,7 @@ class _SizingExecutor:
         if context.parameters.dataset_id is not None and not datasets:
             raise input_error(context.parameters.dataset_id, "数据集尚未建立索引，请先重新扫描")
         warnings = total_bytes = published = 0
-        cache: dict[Path, SizeValue] = {}
+        cache: dict[tuple[Path, tuple[SizeSource, ...]], SizeValue] = {}
         for done, dataset in enumerate(datasets, start=1):
             context.reporter.check_cancelled()
             started_s = context.clock.monotonic()
@@ -139,7 +139,7 @@ def _collect(
     dataset: SizeDataset,
     deps: RescanDependencies,
     context: ExecutionContext,
-    cache: dict[Path, SizeValue],
+    cache: dict[tuple[Path, tuple[SizeSource, ...]], SizeValue],
 ) -> dict[tuple[str, int], SizeValue]:
     """每个链接先核对挂载；离线或缺失使整个数据集保留旧统计，避免部分和冒充总和。"""
     if deps.storage is None:
@@ -158,12 +158,13 @@ def _collect(
             status = deps.storage.check(root.name, checkpoint=context.reporter.check_cancelled)
             if not status.online:
                 raise OSError(f"存储根{root.name}离线：{status.reason}")
-            value = cache.get(target)
+            cache_key = (target, link.sources)
+            value = cache.get(cache_key)
             if value is None:
-                value = _size_access.measure(target, deps.storage, context)
+                value = _size_access.measure(target, deps.storage, context, link.sources)
                 if value is None:
                     raise TimeoutError(f"存储访问停滞：{target}")
-                cache[target] = value
+                cache[cache_key] = value
             values[(entry.path, link.ordinal)] = value
     return values
 

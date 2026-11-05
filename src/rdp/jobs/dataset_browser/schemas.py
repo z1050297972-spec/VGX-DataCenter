@@ -130,11 +130,11 @@ class DatasetFilterOptions(BrowserValue):
 
 
 class DatasetSize(BrowserValue):
-    """单入口/数据集大小；有统计值优先，否则10-12记录值，均无则明确未知。"""
+    """单入口/数据集的按格式统计大小；未统计为未知，旧记录字段仅保留兼容。"""
 
     size_bytes: int | None = Field(ge=0, description="统计表观字节数；未统计为null，离线保留旧值")
     size_checked_at: AwareDatetime | None
-    recorded_size_bytes: int | None = Field(ge=0)
+    recorded_size_bytes: int | None = Field(ge=0, description="兼容字段，固定为null")
     recorded_on: Literal["2026-10-12"] = "2026-10-12"
     display_bytes: int | None = Field(ge=0)
     display_source: Literal["measured", "recorded", "unknown"]

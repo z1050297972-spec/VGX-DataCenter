@@ -12,6 +12,9 @@ from rdp.jobs.errors import JobInputError
 from rdp.jobs.navwrite.errors import nav_input_error
 from rdp.jobs.navwrite.field_models import EditableField, FieldEdit, FieldValue
 
+# 信息文件按14项固定顺序登记，第4项由统计作业计算，不接受文字覆盖（M1.5-07）。
+SIZE_FIELD_INDEX = 3
+
 INFO_LABELS = (
     ("title", "标题"),
     ("robot_model", "机器人型号"),
@@ -52,6 +55,8 @@ def page_fields(
                 )
             )
         for index, item in enumerate(objects(payload, "fields")):
+            if item.get("number") == 4 and item.get("name") == "数据大小":
+                continue
             fields.append(
                 _field(
                     ("fields", index, "value_markdown"),
@@ -154,7 +159,9 @@ def check_shape(edit: FieldEdit) -> None:
     elif len(path) == 3 and isinstance(path[1], int):
         allowed = (
             {"value_markdown"}
-            if edit.document == "数据集信息.json" and path[0] == "fields"
+            if edit.document == "数据集信息.json"
+            and path[0] == "fields"
+            and path[1] != SIZE_FIELD_INDEX
             else {name for name, _ in TASK_LABELS}
             if edit.document == "子任务.json" and path[0] == "tasks"
             else {name for name, _ in SOURCE_LABELS}

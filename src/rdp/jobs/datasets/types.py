@@ -186,7 +186,7 @@ class EntrySnapshot:
         links: 原始路径清单顺序，文件不可用为空。
         sources: 原始路径清单顺序，保留重复编号供诊断；文件不可用为空。
         provenance_present: 来源.json 的目录项存在性，包括不可读/软链接；不解析内容。
-        recorded_size_bytes: 第4项首个全角（N B；中的非负整数字节数；没有有效记录为 None。
+        recorded_size_bytes: 兼容旧索引的字段；不再解析第4项，固定为 None。
         findings: 读取和记录值提取发现，空表示这两个步骤无发现。
         provenance_state: 来源.json 的三态（M1-07）：不存在、可读、无法读取；与
             provenance_present 并存，后者仍只表示目录项有无。默认 ABSENT，只加不改。

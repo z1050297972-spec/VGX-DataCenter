@@ -18,19 +18,14 @@ from rdp.jobs.datasets.vocabulary import UNLABELED
 
 
 def size(row: DatasetRow | EntryRow | None) -> DatasetSize:
-    """未知与实际零值分离，统计值优先且保留原时刻。"""
+    """未知与实际零值分离，只显示统计值且保留原时刻。"""
     measured = row.size_bytes if row else None
-    recorded = row.recorded_size_bytes if row else None
     return DatasetSize(
         size_bytes=measured,
         size_checked_at=row.size_checked_at if row else None,
-        recorded_size_bytes=recorded,
-        display_bytes=measured if measured is not None else recorded,
-        display_source="measured"
-        if measured is not None
-        else "recorded"
-        if recorded is not None
-        else "unknown",
+        recorded_size_bytes=None,
+        display_bytes=measured,
+        display_source="measured" if measured is not None else "unknown",
     )
 
 

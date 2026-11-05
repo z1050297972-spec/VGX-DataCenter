@@ -6,11 +6,11 @@ import { pageFetch } from "../scheduling/pageTestSupport";
 type Schema = components["schemas"];
 export const size: Schema["DatasetSize"] = {
   display_bytes: 2048,
-  display_source: "recorded",
+  display_source: "measured",
   recorded_on: "2026-10-12",
-  recorded_size_bytes: 2048,
-  size_bytes: null,
-  size_checked_at: null,
+  recorded_size_bytes: null,
+  size_bytes: 2048,
+  size_checked_at: "2026-11-04T12:00:00Z",
 };
 export const taskEntry: Schema["EntrySummary"] = {
   dataset_id: "dataset-14",
@@ -71,11 +71,11 @@ export const datasets: Schema["DatasetListResponse"] = {
 const treeSize: Schema["TreeSize"] = {
   known_bytes: 2048,
   total_bytes: 2048,
-  measured_entry_count: 0,
-  recorded_entry_count: 1,
+  measured_entry_count: 1,
+  recorded_entry_count: 0,
   unknown_entry_count: 0,
-  oldest_size_checked_at: null,
-  newest_size_checked_at: null,
+  oldest_size_checked_at: "2026-11-04T12:00:00Z",
+  newest_size_checked_at: "2026-11-04T12:00:00Z",
 };
 export const trees: Schema["DatasetTreesResponse"] = {
   indexed_at: datasets.indexed_at,
@@ -92,7 +92,7 @@ export const trees: Schema["DatasetTreesResponse"] = {
       entry_path: null,
       dataset_count: 2,
       entry_count: 2,
-      size: { ...treeSize, known_bytes: 4096, total_bytes: 4096, recorded_entry_count: 2 },
+      size: { ...treeSize, known_bytes: 4096, total_bytes: 4096, measured_entry_count: 2 },
     },
     {
       path: "按格式",
