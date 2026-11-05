@@ -17,7 +17,7 @@ import { CreateLinkEntry } from "./CreationEntries";
 import { useDatasetDetail } from "./queries";
 import { formatDateTime } from "../time";
 
-import { InlineEditSession, InlineEditActions, SourceFieldSection } from "./FieldEditing";
+import { InlineEditSession, InlineEditActions } from "./FieldEditing";
 import type { FieldEditingState } from "./fieldEditingState";
 
 interface DetailProps {
@@ -257,7 +257,6 @@ function DetailContent({
           onEdit={onEditNotes}
         />
       </div>
-      {editing && <SourceFieldSection state={editing} />}
     </>
   );
 }

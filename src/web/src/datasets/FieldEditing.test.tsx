@@ -94,6 +94,25 @@ it("14项位于最上方且第6项原地编辑", async () => {
     page.close();
   }
 });
+// 契约：就地编辑只读取数据集信息，不展示数据块字段或请求原始路径编辑页。
+it("编辑模式只读取数据集信息且没有数据块字段", async () => {
+  const requests: Request[] = [];
+  const page = inlinePage(requests);
+  try {
+    fireEvent.click(await screen.findByRole("button", { name: "编辑" }));
+    await screen.findByRole("textbox", { name: "第 6 项：任务与场景" });
+    expect(
+      requests
+        .filter((request) => new URL(request.url).pathname.endsWith("/editable-fields"))
+        .map((request) => new URL(request.url).searchParams.get("document")),
+    ).toEqual(["数据集信息.json"]);
+    expect(screen.queryByRole("region", { name: "数据块字段" })).toBeNull();
+    expect(screen.queryByText("数据块字段")).toBeNull();
+  } finally {
+    page.close();
+  }
+});
+
 // 契约：第6项正文与场景使用原JSON路径，一次预览只提交实际变更。
 it("就地编辑提交第6项与场景的原路径", async () => {
   const requests: Request[] = [];
