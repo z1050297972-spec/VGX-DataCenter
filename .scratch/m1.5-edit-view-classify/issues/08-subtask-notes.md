@@ -1,6 +1,6 @@
 # 子任务改为可编辑的记事本
 
-Status: in-progress
+Status: done
 
 分级：直做。按"只做关键测试"。
 
