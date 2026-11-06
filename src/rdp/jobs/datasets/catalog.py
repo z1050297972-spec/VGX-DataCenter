@@ -34,8 +34,6 @@ NON_DATASET_DIRECTORIES: Final = frozenset({"索引", "文档", "工具", "解�
 # 三份读取文件与第四份存在性检查来自 M1-01；指纹还覆盖入口内其他 .json 文件。
 REQUIRED_DOCUMENTS: Final = ("原始路径.json", "数据集信息.json", "子任务.json")
 PROVENANCE_DOCUMENT: Final = "来源.json"
-# ADR 0006 每十分钟提交全量扫描，单位秒；不复用 M0 每日作业的日期去重规则。
-RESCAN_INTERVAL_S: Final = 600
 RESCAN_TYPE: Final = "dataset_rescan"
 RESCAN_NAME: Final = "重新扫描数据集"
 # M1-02与第03张提交接口共用的永久类型键。

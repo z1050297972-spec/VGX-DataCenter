@@ -58,7 +58,7 @@ def _assert_monitor_stopped(failures: list[BaseException]) -> None:
 
 
 def test_production_worker_automatic_scans(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """生产装配启动后自动完成一次全量扫描，推进600秒后再完成一次，提交人均为系统。"""
+    """第14张：生产worker启动完成全量扫描，推进超过十分钟并继续处理作业时不再自动扫描。"""
     inputs = worker_inputs(tmp_path / "deployment", fake_nav)
     guard = Lock()
     offset = [0.0]
@@ -97,8 +97,8 @@ def test_production_worker_automatic_scans(tmp_path: Path, fake_nav: FakeNavigat
                 # 同一个生产 worker 必须完成扫描和镜像检查；替身不访问网络。
                 _wait_mirror(runtime.engine, lambda: have_completed(1))
                 with guard:
-                    offset[0] = 600.0
-                wait_for(lambda: have_completed(2), timeout_s=5.0)
+                    offset[0] = 601.0
+                _assert_no_more_scans(runtime.engine, inputs.clock, completed[0][0])
             except BaseException as error:
                 failures.append(error)
             finally:
@@ -115,11 +115,32 @@ def test_production_worker_automatic_scans(tmp_path: Path, fake_nav: FakeNavigat
 
     assert start_worker(runtime, inputs=inputs, signals=controlled_stop) == 0
     _assert_monitor_stopped(failures)
-    assert len(completed) == 2
+    assert len(completed) == 1
     assert all(
         name == "系统" and account_id is None and outcome == "succeeded" and total == 10
         for _, name, account_id, outcome, total in completed
     )
+
+
+def _assert_no_more_scans(engine: Engine, clock: JobClock, startup_id: int) -> None:
+    """哨兵完成证明 worker 已继续轮询，避免仅靠 sleep 断言没有扫描。"""
+    sentinel = JobService(engine, production_registry()).submit_system(
+        "example_count", {"steps": 1, "interval_ms": 0}, now=clock.now()
+    )
+
+    def sentinel_completed() -> bool:
+        with session_scope(engine, read_only=True) as session:
+            return (
+                session.scalar(select(JobRow.state).where(JobRow.job_id == sentinel.job_id))
+                == "completed"
+            )
+
+    wait_for(sentinel_completed, timeout_s=5.0)
+    with session_scope(engine, read_only=True) as session:
+        scans = tuple(
+            session.scalars(select(JobRow.job_id).where(JobRow.type_name == "dataset_rescan"))
+        )
+    assert scans == (startup_id,)
 
 
 def test_system_submission_rolls_back_with_audit(tmp_path: Path, fake_nav: FakeNavigation) -> None:

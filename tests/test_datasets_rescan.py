@@ -1,9 +1,9 @@
-"""两段扫描与三种触发的契约；时钟可控，资源、目录、数据库和端口按测试隔离。"""
+"""两段扫描与启动、手动触发的契约；时钟可控，资源、目录、数据库和端口按测试隔离。"""
 
 import os
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from accounts_support import AUDIT_CONTEXT, NOW, member_grant, scenario
@@ -113,39 +113,31 @@ def test_startup_submission(tmp_path: Path, fake_nav: FakeNavigation) -> None:
             assert events[0].actor_id is None and events[0].object_id == str(record.job_id)
 
 
-def test_periodic_submission(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """验收3：可控单调时钟599.999秒不提交、600秒提交全量，提交人空编号且名字系统，作业与审计同事务。"""
+def test_no_periodic_submission(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """第14张：启动提交一次，超过十分钟、多周期或时钟回拨均不再提交，重启仍提交。"""
     with dataset_case(tmp_path / "state", fake_nav) as case:
         clock = TriggerClock()
-        trigger = RescanTrigger(
-            JobService(case.engine, production_registry(case.scanning)), clock.clock()
-        )
-        first = trigger.poll()
-        clock.elapsed_s = 599.999
-        assert trigger.poll() == ()
-        clock.elapsed_s = 600.0
-        second = trigger.poll()
-        assert len(second) == 1 and second != first
-        assert trigger.poll() == ()
-        with session_scope(case.engine, read_only=True) as session:
-            record = find_job(session, second[0])
-            assert record.parameters == {"dataset_id": None}
-            assert record.submitted_by.account_id is None and record.submitted_by.name == "系统"
-            assert record.submitted_at == clock.wall
-
-
-def test_periodic_busy(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """触发契约：BEGIN短锁忙不消耗启动或到期状态，下轮重试成功；事务入场后的失败不误判锁忙。"""
-    with dataset_case(tmp_path / "state", fake_nav) as case:
-        clock = TriggerClock()
-        trigger = RescanTrigger(
-            JobService(case.engine, production_registry(case.scanning)), clock.clock()
-        )
-        with case.engine.begin():
-            assert trigger.poll() == ()
+        service = JobService(case.engine, production_registry(case.scanning))
+        trigger = RescanTrigger(service, clock.clock())
         first = trigger.poll()
         assert len(first) == 1
-        clock.elapsed_s = 600.0
+        for elapsed_s in (599.999, 600.0, 601.0, 2400.0, 86400.0, 100.0):
+            clock.elapsed_s = elapsed_s
+            clock.wall += timedelta(days=1)
+            assert trigger.poll() == ()
+        restarted = RescanTrigger(service, clock.clock())
+        second = restarted.poll()
+        assert len(second) == 1 and second != first
+        assert restarted.poll() == ()
+
+
+def test_startup_busy(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """触发契约：BEGIN短锁忙保留启动状态，事务内冲突向上传递，成功后不再提交。"""
+    with dataset_case(tmp_path / "state", fake_nav) as case:
+        clock = TriggerClock()
+        trigger = RescanTrigger(
+            JobService(case.engine, production_registry(case.scanning)), clock.clock()
+        )
         with case.engine.begin():
             assert trigger.poll() == ()
         with case.engine.begin() as connection:
@@ -158,54 +150,23 @@ def test_periodic_busy(tmp_path: Path, fake_nav: FakeNavigation) -> None:
         finally:
             with case.engine.begin() as connection:
                 connection.exec_driver_sql("DROP TRIGGER reject_scan")
-        second = trigger.poll()
-        assert len(second) == 1 and second != first
+        assert len(trigger.poll()) == 1
+        clock.elapsed_s = 2400.0
         assert trigger.poll() == ()
 
 
-def test_clock_changes(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """触发契约：墙钟回拨不改变600秒间隔，单调回拨不累计负时长，非法时钟报DefectError。"""
+def test_invalid_startup_clock(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """触发契约：提交时使用带时区墙钟，非法墙钟不消耗启动标记。"""
     with dataset_case(tmp_path / "state", fake_nav) as case:
         clock = TriggerClock()
-        service = JobService(case.engine, production_registry(case.scanning))
-        trigger = RescanTrigger(service, clock.clock())
-        assert len(trigger.poll()) == 1
-        clock.elapsed_s = 300.0
-        assert trigger.poll() == ()
-        clock.wall -= timedelta(days=1)
-        clock.elapsed_s = 100.0
-        assert trigger.poll() == ()
-        clock.elapsed_s = 599.999
-        assert trigger.poll() == ()
-        clock.elapsed_s = 600.0
-        assert len(trigger.poll()) == 1
-        for value in (float("nan"), float("inf"), True):
-            clock.elapsed_s = cast(float, value)
-            with pytest.raises(DefectError):
-                trigger.poll()
-        clock.elapsed_s = 601.0
+        trigger = RescanTrigger(
+            JobService(case.engine, production_registry(case.scanning)), clock.clock()
+        )
         clock.wall = clock.wall.replace(tzinfo=None)
         with pytest.raises(DefectError):
             trigger.poll()
-
-
-def test_missed_intervals(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """触发契约：错过多个周期只补一项，worker重启再提交启动扫描，不修改每日清理任务去重。"""
-    with dataset_case(tmp_path / "state", fake_nav) as case:
-        clock = TriggerClock()
-        service = JobService(case.engine, production_registry(case.scanning))
-        trigger = RescanTrigger(service, clock.clock())
+        clock.wall = NOW
         assert len(trigger.poll()) == 1
-        clock.elapsed_s = 2400.0
-        assert len(trigger.poll()) == 1
-        assert trigger.poll() == ()
-        clock.elapsed_s = 2999.999
-        assert trigger.poll() == ()
-        clock.elapsed_s = 3000.0
-        assert len(trigger.poll()) == 1
-        restarted = RescanTrigger(service, clock.clock())
-        assert len(restarted.poll()) == 1
-        assert restarted.poll() == ()
 
 
 def test_first_stage_lock(
