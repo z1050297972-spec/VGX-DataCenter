@@ -1,0 +1,306 @@
+/* 原型 r1「Studio」：编辑式中性风 + 等宽数据层。只在预览实例注入。 */
+:root {
+  --rdp-page: #f5f5f3;
+  --rdp-surface: #fff;
+  --rdp-elevated: #fff;
+  --rdp-subtle: #ededea;
+  --rdp-text: #161616;
+  --rdp-muted: #6e6e6a;
+  --rdp-on-accent: #fff;
+  --rdp-accent: #2a45c9;
+  --rdp-accent-hover: #1f37a8;
+  --rdp-accent-active: #182b85;
+  --rdp-accent-fill: #161616;
+  --rdp-accent-fill-hover: #2e2e2e;
+  --rdp-accent-fill-active: #000;
+  --rdp-accent-soft: #eceffb;
+  --rdp-accent-soft-hover: #dfe4f8;
+  --rdp-accent-border: #b9c3ef;
+  --rdp-accent-border-hover: #8f9fe4;
+  --rdp-border: #e2e2de;
+  --rdp-border-strong: #cfcfca;
+  --rdp-glass: rgb(245 245 243 / 78%);
+  --rdp-glass-border: rgb(0 0 0 / 6%);
+  --rdp-glass-top: rgb(0 0 0 / 6%);
+  --rdp-dock-bg: rgb(22 22 22 / 88%);
+  --rdp-dock-text: rgb(255 255 255 / 72%);
+  --rdp-dock-active-bg: #fff;
+  --rdp-dock-active-text: #161616;
+  --rdp-hover: rgb(0 0 0 / 4.5%);
+  --rdp-shadow: none;
+  --rdp-dock-shadow: 0 12px 40px rgb(0 0 0 / 22%);
+  --rdp-radius-card: 14px;
+  --rdp-radius-control: 8px;
+  --rdp-radius-small: 4px;
+  --rdp-font: "Inter Tight", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  --rdp-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Noto Sans CJK SC", monospace;
+  --rdp-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --rdp-transition: 220ms var(--rdp-ease);
+  --rdp-enter: 520ms;
+}
+
+/* ---------- 全局排版 ---------- */
+body {
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+.css-var-root.css-var-root {
+  --ant-font-family: var(--rdp-font);
+  --ant-font-family-code: var(--rdp-mono);
+  --ant-motion-ease-out: var(--rdp-ease);
+  --ant-motion-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ant-motion-ease-out-circ: var(--rdp-ease);
+  --ant-motion-ease-in-out-circ: cubic-bezier(0.65, 0, 0.35, 1);
+  --ant-color-split: var(--rdp-border);
+  --ant-control-height: 34px;
+  --ant-box-shadow-secondary: 0 1px 2px rgb(0 0 0 / 4%), 0 12px 32px rgb(0 0 0 / 10%);
+}
+
+/* ---------- 顶栏：扁平毛玻璃，不再是浮起卡片 ---------- */
+.app-shell > div:has(> nav.app-menu) { padding: var(--rdp-space-3) 0; }
+.app-shell > div:has(> nav.app-menu)::before {
+  inset: 0 calc(50% - 50vw);
+  border: 0;
+  border-bottom: 1px solid var(--rdp-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+/* 品牌字标 */
+.app-shell > div:has(> nav.app-menu)::after {
+  content: "VGX / DATA";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font: 600 13px/1 var(--rdp-mono);
+  letter-spacing: 0.08em;
+  color: var(--rdp-text);
+}
+
+/* ---------- 停靠菜单：墨色胶囊 ---------- */
+.app-menu {
+  background: var(--rdp-dock-bg);
+  border: 1px solid rgb(255 255 255 / 8%);
+  padding: 5px;
+  gap: 2px;
+}
+.app-menu a {
+  color: var(--rdp-dock-text);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 12px;
+  transition: background-color var(--rdp-transition), color var(--rdp-transition);
+}
+.app-menu a:hover { background: rgb(255 255 255 / 10%); color: #fff; }
+.app-menu a[aria-current="page"] {
+  background: var(--rdp-dock-active-bg);
+  color: var(--rdp-dock-active-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* ---------- 页头：等宽小标签 + 大标题 ---------- */
+main .ant-breadcrumb,
+main .ant-breadcrumb a,
+main .ant-breadcrumb li,
+main .ant-breadcrumb .ant-breadcrumb-link {
+  font-family: var(--rdp-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rdp-muted);
+}
+:is(.ant-breadcrumb + h2, .ant-breadcrumb + * > h2, .ant-breadcrumb + * h2:first-child).ant-typography {
+  margin-top: 6px;
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+/* ---------- 卡片：细线、无阴影、悬停描边加深 ---------- */
+.ant-card {
+  border-color: var(--rdp-border);
+  transition: border-color var(--rdp-transition);
+}
+.ant-card:hover { border-color: var(--rdp-border-strong); }
+.ant-card .ant-card-head { min-height: 52px; border-bottom-color: var(--rdp-border); }
+.ant-card .ant-card-head-title,
+.app-card-heading.ant-typography {
+  font-family: var(--rdp-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rdp-muted);
+}
+.app-card-heading.ant-typography { margin-bottom: var(--rdp-space-4); }
+.ant-card .ant-card-head-title::before,
+.app-card-heading.ant-typography::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 10px 1px 0;
+  background: var(--rdp-text);
+  vertical-align: middle;
+}
+.ant-card .ant-card-head-title, .app-card-heading.ant-typography { color: var(--rdp-text); }
+/* 告警：保持醒目，但用细边与柔和底色 */
+.app-shell > .ant-alert-warning { background: #fbf5e4; border-color: #ecdcae; }
+
+/* 筛选卡：灰色托盘 */
+.browser-filter-card.ant-card,
+.ant-card:has(> .ant-card-body > .dataset-filters) {
+  background: var(--rdp-subtle);
+  border-color: transparent;
+}
+.browser-filter-card .ant-select-selector,
+.ant-card:has(> .ant-card-body > .dataset-filters) .ant-select { background: var(--rdp-surface); }
+.dataset-filters label,
+.browser-filter-card label {
+  font-family: var(--rdp-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rdp-muted);
+}
+
+/* ---------- 表格 ---------- */
+.ant-table-wrapper .ant-table-thead .ant-table-cell {
+  font-family: var(--rdp-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ant-table-wrapper .ant-table-thead .ant-table-cell::before { display: none; }
+.ant-table-wrapper .ant-table-tbody > tr > td {
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--rdp-transition);
+}
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row:hover > td { background: var(--rdp-hover); }
+.dataset-classification, .dataset-tree-meta {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 按钮 ---------- */
+.ant-btn {
+  font-weight: 500;
+  box-shadow: none;
+  transition: background-color var(--rdp-transition), border-color var(--rdp-transition), color var(--rdp-transition), transform var(--rdp-transition);
+}
+.ant-btn-variant-solid:not(:disabled):active { transform: scale(0.98); }
+.ant-btn-variant-outlined { border-color: var(--rdp-border-strong); }
+
+/* ---------- 链接：墨蓝，悬停下划线 ---------- */
+a, .ant-typography a { text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.ant-table a:hover, .dataset-table-name:hover { text-decoration: underline; }
+
+/* ---------- 标签：描边等宽小徽章 ---------- */
+.ant-tag {
+  font-family: var(--rdp-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  border-radius: var(--rdp-radius-small);
+  background: transparent;
+}
+
+/* ---------- 分段控件、页签 ---------- */
+.ant-segmented { background: var(--rdp-subtle); padding: 3px; border-radius: var(--rdp-radius-pill); }
+.ant-segmented .ant-segmented-item, .ant-segmented .ant-segmented-thumb { border-radius: var(--rdp-radius-pill); }
+.ant-tabs .ant-tabs-ink-bar { background: var(--rdp-text); height: 1.5px; }
+.ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn { color: var(--rdp-text); font-weight: 600; }
+.ant-tabs .ant-tabs-tab:hover { color: var(--rdp-text); }
+
+/* ---------- 进度条、告警 ---------- */
+.ant-progress .ant-progress-bg { transition: width 600ms var(--rdp-ease); }
+.ant-progress-line .ant-progress-rail { background: var(--rdp-subtle); }
+.ant-alert { border-radius: var(--rdp-radius-control); }
+
+/* ---------- 日志、代码 ---------- */
+.jobs-log, .dataset-json, .file-viewer-text { font-size: 12.5px; line-height: 1.7; border-radius: var(--rdp-radius-control); }
+
+/* ---------- 树 ---------- */
+.ant-tree .ant-tree-node-content-wrapper { border-radius: 6px; transition: background-color var(--rdp-transition); }
+.ant-tree .ant-tree-node-content-wrapper.ant-tree-node-selected { background: var(--rdp-accent-soft); }
+
+/* ---------- 进场动画：内容逐块上浮 ---------- */
+@keyframes rdp-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.app-shell > main > * > * {
+  animation: rdp-rise var(--rdp-enter) var(--rdp-ease) both;
+}
+.app-shell > main > * > :nth-child(2) { animation-delay: 50ms; }
+.app-shell > main > * > :nth-child(3) { animation-delay: 100ms; }
+.app-shell > main > * > :nth-child(4) { animation-delay: 150ms; }
+.app-shell > main > * > :nth-child(n + 5) { animation-delay: 200ms; }
+
+/* ---------- 登录页 ---------- */
+#root > .ant-card { border-radius: 18px; padding: var(--rdp-space-3); }
+#root > .ant-card::before {
+  content: "VGX / DATA";
+  display: block;
+  padding: var(--rdp-space-5) var(--rdp-space-5) 0;
+  font: 600 13px/1 var(--rdp-mono);
+  letter-spacing: 0.08em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --rdp-enter: 0s; }
+  .app-shell > main > * > * { animation: none; }
+}
+
+/* ---------- 表格行高收紧 ---------- */
+.css-var-root.css-var-root .ant-table-wrapper { --ant-table-cell-padding-block: 13px; }
+
+/* ---------- 深色：中性黑 + 白色透明度分层 ---------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --rdp-page: #0b0b0c;
+    --rdp-surface: #131314;
+    --rdp-elevated: #1a1a1c;
+    --rdp-subtle: #1c1c1e;
+    --rdp-text: #ededec;
+    --rdp-muted: #98989d;
+    --rdp-on-accent: #0b0b0c;
+    --rdp-accent: #93a6ff;
+    --rdp-accent-hover: #b3c0ff;
+    --rdp-accent-active: #7389f5;
+    --rdp-accent-fill: #ededec;
+    --rdp-accent-fill-hover: #fff;
+    --rdp-accent-fill-active: #d4d4d2;
+    --rdp-accent-soft: #1a2040;
+    --rdp-accent-soft-hover: #222a52;
+    --rdp-accent-border: #34407a;
+    --rdp-accent-border-hover: #4a58a0;
+    --rdp-border: #262628;
+    --rdp-border-strong: #3a3a3d;
+    --rdp-glass: rgb(11 11 12 / 72%);
+    --rdp-glass-border: rgb(255 255 255 / 6%);
+    --rdp-dock-bg: rgb(30 30 32 / 82%);
+    --rdp-dock-active-bg: #ededec;
+    --rdp-dock-active-text: #0b0b0c;
+    --rdp-hover: rgb(255 255 255 / 5%);
+    --rdp-dock-shadow: 0 12px 40px rgb(0 0 0 / 60%);
+  }
+  .css-var-root.css-var-root {
+    --ant-color-bg-container: var(--rdp-surface);
+    --ant-color-bg-elevated: var(--rdp-elevated);
+    --ant-color-bg-layout: var(--rdp-page);
+    --ant-color-border: var(--rdp-border-strong);
+    --ant-color-border-secondary: var(--rdp-border);
+    --ant-color-text: var(--rdp-text);
+    --ant-color-primary: var(--rdp-accent-fill);
+    --ant-color-primary-hover: var(--rdp-accent-fill-hover);
+    --ant-color-primary-active: var(--rdp-accent-fill-active);
+    --ant-color-link: var(--rdp-accent);
+    --ant-color-link-hover: var(--rdp-accent-hover);
+    --ant-color-text-light-solid: var(--rdp-on-accent);
+  }
+  .app-shell > .ant-alert-warning { background: #221c0c; border-color: #4a3d16; }
+  .app-menu { border-color: rgb(255 255 255 / 10%); }
+}
