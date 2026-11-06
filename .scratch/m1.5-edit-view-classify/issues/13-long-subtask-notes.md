@@ -1,6 +1,6 @@
 # 长子任务内容保存失败：放宽作业参数上限
 
-Status: in-progress
+Status: done
 
 分级：直做（缺陷）。按"只做关键测试"。
 

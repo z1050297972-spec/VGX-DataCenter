@@ -1,6 +1,6 @@
 # 场景改为多选
 
-Status: in-progress
+Status: done
 
 分级：直做。按"只做关键测试"。
 
