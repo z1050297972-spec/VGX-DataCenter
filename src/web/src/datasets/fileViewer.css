@@ -49,6 +49,10 @@
   max-height: 55vh;
 }
 .file-viewer-text {
+  font-family: var(--rdp-mono);
+  font-size: var(--rdp-font-code);
+  line-height: var(--rdp-code-line-height);
+  border-radius: var(--rdp-radius-control);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 55vh;
