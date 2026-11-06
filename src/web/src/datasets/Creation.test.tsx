@@ -79,6 +79,7 @@ describe("建链与新增数据集的契约行为", () => {
         target: { value: "厨房抓取\n保留说明" },
       });
       await choose("场景", "家居-厨房");
+      fireEvent.click(await screen.findByRole("option", { name: "桌面" }));
       fireEvent.click(screen.getByRole("button", { name: "生成预览" }));
       await screen.findByRole("heading", { name: "预览差异" });
       const request = requests.find(
@@ -88,7 +89,7 @@ describe("建链与新增数据集的契约行为", () => {
         information: {
           fields: [{ number: 6, value_markdown: "厨房抓取\n保留说明" }],
           robot_model: "",
-          scene: "kitchen",
+          scene: ["kitchen", "tabletop"],
           tasks: [],
         },
       });

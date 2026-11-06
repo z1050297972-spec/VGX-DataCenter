@@ -177,7 +177,7 @@ class DatasetListItem(BrowserValue):
     robot_model_ids: tuple[str, ...]
     fps: tuple[int | None, ...]
     data_origin: DataOrigin
-    scene: str | None = None
+    scene: tuple[str, ...] = ()
     tasks: tuple[str, ...] = ()
     robot_model: str | None = None
     size: DatasetSize = Field(

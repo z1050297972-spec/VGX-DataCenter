@@ -5,17 +5,18 @@ import { toFailureView } from "./problems";
 import type { AccountCall } from "./accounts";
 import type { Job } from "./jobs";
 import type { components } from "./schema";
+import type { SceneArrays } from "./sceneTypes";
 
 /** 建链预览输入；目标、名称及格式规则由服务器单一定义。 */
 export type LinkPreviewInput = components["schemas"]["LinkPreviewParameters"];
 /** 新增数据集预览输入，含可选初始信息；后端已生成第09张契约。 */
-export type DatasetPreviewInput = components["schemas"]["DatasetPreviewParameters"];
+export type DatasetPreviewInput = SceneArrays<components["schemas"]["DatasetPreviewParameters"]>;
 /** 新建数据集信息沿用生成类型，编号范围和去重由后端校验。 */
-export type DatasetInformationInput = components["schemas"]["DatasetInformation"];
+export type DatasetInformationInput = SceneArrays<components["schemas"]["DatasetInformation"]>;
 /** 表单格式登记与来源候选。 */
 export type CreationOptions = components["schemas"]["CreationOptions"];
 /** 保存的创建预览；不含可执行计划正文。 */
-export type CreationPreview = components["schemas"]["CreationPreviewView"];
+export type CreationPreview = SceneArrays<components["schemas"]["CreationPreviewView"]>;
 /** 确认载荷只引用预览和已确认的排队编号。 */
 export type ConfirmCreationInput = components["schemas"]["ConfirmCreationRequest"];
 /** 确认成功返回的写入作业；未确认的新排队项通过 409 五段诊断返回。 */

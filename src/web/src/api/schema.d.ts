@@ -3654,7 +3654,7 @@ export interface components {
          *     Attributes:
          *         fields: 可只给部分文字项，编号1至14但不含4，不能重复；缺省为空。
          *         robot_model: 机器人型号文字，空串不写顶层键。
-         *         scene: 场景去首尾空格；空串不写键，拒绝unlabeled。
+         *         scene: 场景数组去首尾空格、去重保序；拒绝空项和unlabeled，空数组表示未填写。
          *         tasks: 任务去首尾空格、去重保序；拒绝空项和unlabeled，空数组不写键。
          */
         DatasetInformation: {
@@ -3670,9 +3670,9 @@ export interface components {
             robot_model: string;
             /**
              * Scene
-             * @default
+             * @default []
              */
-            scene: string;
+            scene: string[];
             /**
              * Tasks
              * @default []
@@ -3750,8 +3750,11 @@ export interface components {
             robot_model_ids: string[];
             /** Robot Types */
             robot_types: (string | null)[];
-            /** Scene */
-            scene?: string | null;
+            /**
+             * Scene
+             * @default []
+             */
+            scene: string[];
             /** @description 数据集取按任务入口；无唯一规范入口时未知，不叠加格式副本 */
             size: components["schemas"]["DatasetSize"];
             /**

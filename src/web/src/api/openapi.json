@@ -1132,7 +1132,7 @@
       },
       "DatasetInformation": {
         "additionalProperties": false,
-        "description": "新建数据集的可选信息，文字与结构化分类分别保存。\n\nAttributes:\n    fields: 可只给部分文字项，编号1至14但不含4，不能重复；缺省为空。\n    robot_model: 机器人型号文字，空串不写顶层键。\n    scene: 场景去首尾空格；空串不写键，拒绝unlabeled。\n    tasks: 任务去首尾空格、去重保序；拒绝空项和unlabeled，空数组不写键。",
+        "description": "新建数据集的可选信息，文字与结构化分类分别保存。\n\nAttributes:\n    fields: 可只给部分文字项，编号1至14但不含4，不能重复；缺省为空。\n    robot_model: 机器人型号文字，空串不写顶层键。\n    scene: 场景数组去首尾空格、去重保序；拒绝空项和unlabeled，空数组表示未填写。\n    tasks: 任务去首尾空格、去重保序；拒绝空项和unlabeled，空数组不写键。",
         "properties": {
           "fields": {
             "default": [],
@@ -1148,9 +1148,12 @@
             "type": "string"
           },
           "scene": {
-            "default": "",
+            "default": [],
+            "items": {
+              "type": "string"
+            },
             "title": "Scene",
-            "type": "string"
+            "type": "array"
           },
           "tasks": {
             "default": [],
@@ -1392,15 +1395,12 @@
             "type": "array"
           },
           "scene": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scene"
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Scene",
+            "type": "array"
           },
           "size": {
             "$ref": "#/components/schemas/DatasetSize",

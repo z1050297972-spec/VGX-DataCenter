@@ -19,7 +19,7 @@ const information: EditablePage = {
   fields: [
     { path: ["title"], label: "标题", value: "原来的标题", multiple: false },
     { path: ["robot_model"], label: "机器人型号", value: "Franka", multiple: false },
-    { path: ["scene"], label: "场景", value: "", multiple: false },
+    { path: ["scene"], label: "场景", value: [], multiple: true },
     { path: ["tasks"], label: "任务", value: [], multiple: true },
     { path: ["subtask_notes"], label: "子任务", value: "原子任务", multiple: false },
     {
@@ -113,8 +113,8 @@ it("编辑模式只读取数据集信息且没有数据块字段", async () => {
   }
 });
 
-// 契约：第6项正文与场景使用原JSON路径，一次预览只提交实际变更。
-it("就地编辑提交第6项与场景的原路径", async () => {
+// 契约：第6项可选择两个场景并提交数组，正文和分类使用原JSON路径且只提交实际变更。
+it("就地编辑第6项选择两个场景并按原路径提交数组", async () => {
   const requests: Request[] = [];
   const page = inlinePage(requests);
   try {
@@ -122,6 +122,8 @@ it("就地编辑提交第6项与场景的原路径", async () => {
     fireEvent.change(await screen.findByRole("textbox", { name: "第 6 项：任务与场景" }), {
       target: { value: "新的说明" },
     });
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "场景" }));
+    fireEvent.click(await screen.findByRole("option", { name: "桌面" }));
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "场景" }));
     fireEvent.click(await screen.findByRole("option", { name: "家居-厨房" }));
     fireEvent.click(screen.getByRole("button", { name: "预览改动" }));
@@ -148,7 +150,7 @@ it("就地编辑提交第6项与场景的原路径", async () => {
           document: "数据集信息.json",
           expected_sha256: information.sha256,
           path: ["scene"],
-          value: "kitchen",
+          value: ["tabletop", "kitchen"],
         },
       ],
     });

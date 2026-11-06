@@ -20,10 +20,10 @@ export function classificationName(value: unknown, terms: readonly Term[] | unde
 }
 
 /**
- * 将任务数组按保存顺序显示为中文名称。
- * @param value - 顶层 tasks 原值，只投影非空文本项，与扫描读取口径一致。
- * @param terms - 服务端任务词表；没有对应项时保留原编码。
- * @returns 顿号连接的去重任务名称；无有效任务时返回“未标注”。
+ * 将场景或任务数组按保存顺序显示为中文名称。
+ * @param value - 顶层 scene 或 tasks 数组原值，只投影非空文本项，与扫描读取口径一致。
+ * @param terms - 服务端对应分类词表；没有对应项时保留原编码。
+ * @returns 顿号连接的去重分类名称；无有效分类时返回“未标注”。
  * @throws 无。
  * @sideEffects 无，不改原数组。
  * @timeSemantics 只依赖传入原值和词表快照。
@@ -35,4 +35,17 @@ export function classificationTasks(value: unknown, terms: readonly Term[] | und
     (item): item is string => typeof item === "string" && item.length > 0,
   );
   return [...new Set(codes)].map((code) => classificationName(code, terms)).join("、") || "未标注";
+}
+
+/**
+ * 显示多个场景，并兼容尚未保存为数组的旧导航原文。
+ * @param value - 顶层 scene 原值，允许旧字符串或新数组；缺失表示未标注。
+ * @param terms - 服务端场景词表，没有中文名时保留原值。
+ * @returns 按保存顺序以顿号连接的名称，空场景显示“未标注”。
+ * @throws 无。
+ * @sideEffects 无。
+ * @timeSemantics 只读取传入的原文和词表快照。
+ */
+export function classificationScenes(value: unknown, terms: readonly Term[] | undefined): string {
+  return classificationTasks(typeof value === "string" ? [value.trim()] : value, terms);
 }

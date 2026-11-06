@@ -8,7 +8,7 @@ import { exactBytes, formatBytes } from "./formatBytes";
 import { formatDateTime } from "../time";
 
 import { useDatasetFilterOptions } from "./queries";
-import { classificationName, classificationTasks } from "./classificationLabels";
+import { classificationScenes, classificationTasks } from "./classificationLabels";
 
 type Size = components["schemas"]["DatasetSize"];
 
@@ -153,7 +153,9 @@ export function DatasetListTable(props: ListProps): ReactElement {
                   {item.name}
                 </Button>
                 <div className="dataset-classification">
-                  <span>场景：{classificationName(item.scene, vocabulary?.scene_vocabulary)}</span>
+                  <span>
+                    场景：{classificationScenes(item.scene, vocabulary?.scene_vocabulary)}
+                  </span>
                   <span>任务：{classificationTasks(item.tasks, vocabulary?.task_vocabulary)}</span>
                   <span>机器人型号：{item.robot_model || "未填写"}</span>
                 </div>

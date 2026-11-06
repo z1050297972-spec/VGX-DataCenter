@@ -60,7 +60,7 @@ def items(index: _index.Index) -> tuple[DatasetListItem, ...]:
                 fps=fps,
                 robot_model_ids=models,
                 data_origin=DataOrigin(dataset.data_origin),
-                scene=dataset.scene,
+                scene=tuple(dataset.scene),
                 tasks=tuple(dataset.tasks),
                 robot_model=dataset.robot_model,
                 size=size(dataset) if dataset.canonical_entry_path else size(None),
@@ -111,13 +111,16 @@ def matches(item: DatasetListItem, filters: DatasetFilters) -> bool:
             )
         )
         and (filters.data_origin is None or filters.data_origin == item.data_origin)
-        and (filters.scene is None or filters.scene == (item.scene or UNLABELED))
+        and (filters.scene is None or filters.scene in (item.scene or (UNLABELED,)))
         and all(task in (item.tasks or (UNLABELED,)) for task in filters.tasks)
         and (
             filters.entry_path is None
             or not filters.entry_path.startswith("按场景/")
-            or PurePosixPath(_classification.scene_path(item.scene), item.name).is_relative_to(
-                filters.entry_path
+            or any(
+                PurePosixPath(_classification.scene_path(scene), item.name).is_relative_to(
+                    filters.entry_path
+                )
+                for scene in (item.scene or (UNLABELED,))
             )
         )
         and any(entry_matches(row, filters) for row in item.entries)

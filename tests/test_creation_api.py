@@ -480,7 +480,7 @@ def test_create_information_preview_and_write(tmp_path: Path, fake_nav: FakeNavi
                     {"number": 5, "value_markdown": "双臂机器人"},
                 ],
                 "robot_model": "R1 Lite",
-                "scene": " 家居 ",
+                "scene": [" 家居 ", "tabletop", "家居"],
                 "tasks": [" 收纳 ", "抓取", "收纳"],
             },
         )
@@ -494,7 +494,7 @@ def test_create_information_preview_and_write(tmp_path: Path, fake_nav: FakeNavi
         assert changes["fields/4/value_markdown"] == "双臂机器人"
         assert changes["fields/5/value_markdown"] == "**桌面收纳**"
         assert changes["robot_model"] == "R1 Lite"
-        assert changes["scene"] == "家居"
+        assert changes["scene"] == ["家居", "tabletop"]
         assert changes["tasks"] == ["收纳", "抓取"]
         submitted = api.client.post(
             "/api/datasets/creation-writes", json={"preview_job_id": identifier}
@@ -514,7 +514,7 @@ def test_create_information_preview_and_write(tmp_path: Path, fake_nav: FakeNavi
             if field["number"] not in (5, 6)
         )
         assert info["robot_model"] == "R1 Lite"
-        assert info["scene"] == "家居"
+        assert info["scene"] == ["家居", "tabletop"]
         assert info["tasks"] == ["收纳", "抓取"]
 
 
@@ -523,7 +523,7 @@ def test_create_information_preview_and_write(tmp_path: Path, fake_nav: FakeNavi
     [
         {"fields": [{"number": 4, "value_markdown": "正文"}]},
         {"fields": [{"number": 5, "value_markdown": "正文"}] * 2},
-        {"scene": "unlabeled"},
+        {"scene": ["unlabeled"]},
     ],
 )
 def test_create_information_rejects_numbers(

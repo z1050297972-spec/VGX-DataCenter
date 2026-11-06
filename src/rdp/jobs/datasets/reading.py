@@ -235,16 +235,19 @@ def derive_source_entry_path(
     return str(PurePosixPath(link.entry_path) / relative)
 
 
-def classification(information: JsonDocument) -> tuple[str | None, tuple[str, ...], str | None]:
+def classification(
+    information: JsonDocument,
+) -> tuple[tuple[str, ...], tuple[str, ...], str | None]:
     """从数据集信息顶层取场景、任务和机器人型号三个人工分类字段（M1.5-03）。
 
     Args:
         information: 数据集信息.json 的读取结果，payload=None 表示不可用。
 
     Returns:
-        (scene, tasks, robot_model)：scene、robot_model 是非空文本原值，缺失、空串、非文本为 None；
+        (scene, tasks, robot_model)：scene 兼容旧字符串，去空格、去空项、去重保序；
+        缺失或无有效场景为空元组。robot_model 是非空文本原值，缺失、空串、非文本为 None；
         tasks 是数组里的非空文本项，去重并保持原顺序，缺失或不是数组为空元组。
-        词表是推荐值，可以自定义；自定义值保留且不产生词表提示，不去除首尾空白，不读取 14 项 Markdown。
+        词表是推荐值，可以自定义；自定义值保留且不产生词表提示，tasks 不去除首尾空白，不读取 14 项 Markdown。
 
     Raises:
         无。
@@ -257,7 +260,7 @@ def classification(information: JsonDocument) -> tuple[str | None, tuple[str, ..
     """
     payload = information.payload
     if payload is None:
-        return None, (), None
+        return (), (), None
     raw_tasks = payload.get("tasks")
     tasks = (
         tuple(
@@ -268,7 +271,37 @@ def classification(information: JsonDocument) -> tuple[str | None, tuple[str, ..
         if isinstance(raw_tasks, list)
         else ()
     )
-    return _text_or_none(payload.get("scene")), tasks, _text_or_none(payload.get("robot_model"))
+    return scene_values(payload.get("scene")), tasks, _text_or_none(payload.get("robot_model"))
+
+
+def scene_values(value: object) -> tuple[str, ...]:
+    """将导航层的新旧场景值统一为有序文本集合。
+
+    Args:
+        value: scene 原值；接受旧字符串或字符串数组，无单位。
+
+    Returns:
+        去首尾空格、去空项、去重保序的元组；缺失、null 或非文本值按未标注处理。
+
+    Raises:
+        无。
+
+    Side Effects:
+        无；不修改输入。
+
+    Time Semantics:
+        不取时钟，只反映传入快照。
+    """
+    values: list[object] = (
+        [value]
+        if isinstance(value, str)
+        else cast(list[object], value)
+        if isinstance(value, list)
+        else []
+    )
+    return tuple(
+        dict.fromkeys(item.strip() for item in values if isinstance(item, str) and item.strip())
+    )
 
 
 def _text_or_none(value: object) -> str | None:

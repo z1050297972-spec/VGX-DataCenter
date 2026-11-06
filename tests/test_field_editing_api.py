@@ -23,16 +23,23 @@ def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNaviga
         assert page.status_code == 200, page.text
         data = page.json()
         assert data["entry_path"] == "按任务/libero_10"
-        assert next(item for item in data["fields"] if item["path"] == ["subtask_notes"]) == {
-            "path": ["subtask_notes"],
-            "label": "子任务",
-            "value": "",
-            "multiple": False,
+        assert {
+            item["path"][0]: item
+            for item in data["fields"]
+            if item["path"] in (["subtask_notes"], ["scene"])
+        } == {
+            "subtask_notes": {
+                "path": ["subtask_notes"],
+                "label": "子任务",
+                "value": "",
+                "multiple": False,
+            },
+            "scene": {"path": ["scene"], "label": "场景", "value": [], "multiple": True},
         }
         changes = [
             {"path": ["title"], "value": "新的标题"},
             {"path": ["robot_model"], "value": "Franka"},
-            {"path": ["scene"], "value": " 厨房 "},
+            {"path": ["scene"], "value": [" tabletop ", "kitchen", "tabletop"]},
             {"path": ["tasks"], "value": [" a ", "a", "b"]},
             {"path": ["subtask_notes"], "value": SUBTASK_NOTES},
             {"path": ["fields", 5, "value_markdown"], "value": "新的第六项"},
@@ -72,7 +79,7 @@ def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNaviga
         )
         assert (canonical["robot_model"], canonical["scene"], canonical["tasks"]) == (
             "Franka",
-            "厨房",
+            ["tabletop", "kitchen"],
             ["a", "b"],
         )
         logs = case.client.get("/api/audit/operations", params={"operation": "edit_dataset_fields"})
@@ -110,7 +117,7 @@ def test_reserved_scene_is_rejected(tmp_path: Path, fake_nav: FakeNavigation) ->
                         "document": "数据集信息.json",
                         "expected_sha256": page["sha256"],
                         "path": ["scene"],
-                        "value": "unlabeled",
+                        "value": ["unlabeled"],
                     }
                 ],
             },
@@ -294,7 +301,7 @@ def test_invalid_field_requests_are_rejected_before_queueing(
             valid | {"path": ["dataset_id"]},
             valid | {"path": ["view"]},
             valid | {"document": "原始路径.json", "path": ["sources", 0, "direct_path"]},
-            valid | {"path": ["scene"], "value": ["两个场景"]},
+            valid | {"path": ["scene"], "value": "单个字符串"},
             valid | {"path": ["subtask_notes"], "value": ["抓取杯子", "放下杯子"]},
             valid | {"path": ["tasks"], "value": "不是数组"},
             valid | {"path": ["fields", True, "value_markdown"]},

@@ -3,7 +3,7 @@ import "./fieldSummary.css";
 import type { ReactElement } from "react";
 import { Typography } from "antd";
 import { useDatasetFilterOptions } from "./queries";
-import { classificationName, classificationTasks } from "./classificationLabels";
+import { classificationScenes, classificationTasks } from "./classificationLabels";
 import { InlineField } from "./InlineField";
 import type { FieldEditingState } from "./fieldEditingState";
 import type { DatasetDetail } from "../api/datasets";
@@ -57,7 +57,7 @@ export function DatasetFieldSummary(props: Props): ReactElement {
         <dt>机器人型号</dt>
         <dd>{text(data.robot_model)}</dd>
         <dt>场景</dt>
-        <dd>{classificationName(data.scene, vocabulary?.scene_vocabulary)}</dd>
+        <dd>{classificationScenes(data.scene, vocabulary?.scene_vocabulary)}</dd>
         <dt>任务</dt>
         <dd>{classificationTasks(data.tasks, vocabulary?.task_vocabulary)}</dd>
       </dl>

@@ -226,13 +226,13 @@ class DatasetInformation(CreationValue):
     Attributes:
         fields: 可只给部分文字项，编号1至14但不含4，不能重复；缺省为空。
         robot_model: 机器人型号文字，空串不写顶层键。
-        scene: 场景去首尾空格；空串不写键，拒绝unlabeled。
+        scene: 场景数组去首尾空格、去重保序；拒绝空项和unlabeled，空数组表示未填写。
         tasks: 任务去首尾空格、去重保序；拒绝空项和unlabeled，空数组不写键。
     """
 
     fields: tuple[DatasetInformationField, ...] = ()
     robot_model: str = Field(default="", strict=True)
-    scene: str = Field(default="", strict=True)
+    scene: tuple[Annotated[str, Field(strict=True)], ...] = ()
     tasks: tuple[Annotated[str, Field(strict=True)], ...] = ()
 
     @field_validator("fields")
@@ -245,16 +245,10 @@ class DatasetInformation(CreationValue):
             raise ValueError("信息项编号不能重复")
         return values
 
-    @field_validator("scene")
+    @field_validator("scene", "tasks")
     @classmethod
-    def _scene_value(cls, value: str) -> str:
-        """复用字段编辑的场景规范化与校验。"""
-        return cast(str, normalize_classification(value))
-
-    @field_validator("tasks")
-    @classmethod
-    def _task_values(cls, values: tuple[str, ...]) -> tuple[str, ...]:
-        """复用字段编辑的任务规范化与校验。"""
+    def _classification_values(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        """复用字段编辑的场景和任务数组规范化与校验。"""
         return cast(tuple[str, ...], normalize_classification(values))
 
 

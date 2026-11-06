@@ -264,7 +264,7 @@ class DatasetQueries:
             robot_types=_options([set(value[0]) for value in facts]),
             fps=_options([set(value[1]) for value in facts]),
             scenes=_classification.options(
-                tuple((row.scene,) if row.scene else () for row in index.datasets),
+                tuple(tuple(row.scene) for row in index.datasets),
                 vocabulary.SCENES,
             ),
             tasks=_classification.options(

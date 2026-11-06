@@ -330,10 +330,11 @@ def new_snapshot(
             for index, name in enumerate(INFORMATION_FIELD_NAMES, 1)
         ],
     }
+    information["scene"] = []
     if supplied is not None:
         classification: JsonObject = {
             "robot_model": supplied.robot_model,
-            "scene": supplied.scene,
+            "scene": list(supplied.scene),
             "tasks": list(supplied.tasks),
         }
         for key, value in classification.items():
