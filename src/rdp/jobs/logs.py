@@ -4,6 +4,7 @@
 不使用运行日志的按天轮转 handler，因为一个作业跨天仍需追加同一文件。
 """
 
+import hashlib
 import json
 import math
 import os
@@ -30,6 +31,7 @@ from rdp.infra.state import StatePaths
 from rdp.jobs import _storage, _views
 from rdp.jobs.policy import (
     JOB_DISPLAY_NAME_MAX_CHARS,
+    JOB_LOG_HEADER_VALUE_MAX_BYTES,
     JOB_LOG_TAIL_LINES,
     JOB_LOG_TAIL_MAX_BYTES,
     JOB_PARAMETERS_MAX_BYTES,
@@ -117,7 +119,8 @@ class JobLog:
             metadata: 可选配置/哈希、工具版本、协议版本，没有则不写对应项。
 
         Returns:
-            无；开头明确标识 job_id、稳定键、显示名、提交人编号/快照、参数。
+            无；开头明确标识 job_id、稳定键、显示名、提交人编号/快照、参数；
+            参数超过16 KiB时只记省略标记、UTF-8 JSON字节数与sha256，全文保留在作业记录。
 
         Raises:
             ExternalError: 写入或刷新失败。
@@ -132,7 +135,7 @@ class JobLog:
         if record.started_at is None:
             raise DefectError()
         values = (
-            ("configuration", metadata.configuration, JOB_PARAMETERS_MAX_BYTES),
+            ("configuration", metadata.configuration, JOB_LOG_HEADER_VALUE_MAX_BYTES),
             ("tool_version", metadata.tool_version, JOB_TEXT_MAX_CHARS),
             ("protocol_version", metadata.protocol_version, JOB_TEXT_MAX_CHARS),
         )
@@ -142,7 +145,7 @@ class JobLog:
             raise DefectError()
         if (
             metadata.configuration is not None
-            and len(metadata.configuration.encode()) > JOB_PARAMETERS_MAX_BYTES
+            and len(metadata.configuration.encode()) > JOB_LOG_HEADER_VALUE_MAX_BYTES
         ):
             raise DefectError()
         try:
@@ -151,6 +154,16 @@ class JobLog:
                 raise DefectError()
         except (TypeError, ValueError, UnicodeError):
             raise DefectError() from None
+        # 长正文留在作业记录与预览计划；日志仅记大小和摘要，不能撑爆过程消息预算。
+        encoded = parameters.encode("utf-8")
+        if len(encoded) > JOB_LOG_HEADER_VALUE_MAX_BYTES:
+            parameters = json.dumps(
+                {
+                    "omitted": True,
+                    "size_bytes": len(encoded),
+                    "sha256": hashlib.sha256(encoded).hexdigest(),
+                }
+            )
         lines = [
             f"作业开头 job_id={record.job_id}",
             f"type_name={record.type_name} display_name={record.display_name}",

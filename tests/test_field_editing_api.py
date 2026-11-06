@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from data_origin_support import run_submitted
 from dataset_api_support import browser_case, set_meta
 from nav_manifest import FakeNavigation
@@ -12,8 +13,11 @@ from navwrite_support import dataset_id_of, tree_state
 SUBTASK_NOTES = " 抓取杯子\n移动到桌面\n放下杯子 "
 
 
-def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """契约：子任务缺失投影为空串；多行原文及分类编辑经只读预览、同步两视图并可撤回。"""
+@pytest.mark.parametrize("notes", [SUBTASK_NOTES, " 中文\n" * 25600], ids=["short", "200-KiB"])
+def test_information_edit_syncs_and_reverts(
+    tmp_path: Path, fake_nav: FakeNavigation, notes: str
+) -> None:
+    """契约：子任务缺失投影为空串；含200 KiB中文多行原文的编辑经只读预览、同步两视图并可撤回。"""
     with browser_case(tmp_path / "state", fake_nav) as case:
         dataset = dataset_id_of(fake_nav, "libero_10")
         before = tree_state(fake_nav.nav_root)
@@ -34,7 +38,7 @@ def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNaviga
             {"path": ["robot_model"], "value": "Franka"},
             {"path": ["scene"], "value": " 厨房 "},
             {"path": ["tasks"], "value": [" a ", "a", "b"]},
-            {"path": ["subtask_notes"], "value": SUBTASK_NOTES},
+            {"path": ["subtask_notes"], "value": notes},
             {"path": ["fields", 5, "value_markdown"], "value": "新的第六项"},
         ]
         response = case.client.post(
@@ -55,17 +59,14 @@ def test_information_edit_syncs_and_reverts(tmp_path: Path, fake_nav: FakeNaviga
         assert report["operation"] == "edit_dataset_fields"
         assert report["report"]["listed_total"] >= 5
         assert tree_state(fake_nav.nav_root) == before
-        response = case.client.post(
-            "/api/jobs",
-            json={"type_name": "nav_write_apply", "parameters": {"preview_job_id": preview_id}},
-        )
+        response = case.client.post(f"/api/navigation/fields/previews/{preview_id}/apply")
         apply_id = int(response.json()["job_id"])
         applied = run_submitted(case, fake_nav, apply_id)
         assert applied.summary is not None and not applied.summary.aborted
         root = fake_nav.nav_root
         canonical = json.loads((root / "按任务/libero_10/数据集信息.json").read_bytes())
         replica = json.loads((root / "按格式/lerobot/3.0/libero_10/数据集信息.json").read_bytes())
-        assert canonical == replica and canonical["subtask_notes"] == SUBTASK_NOTES
+        assert canonical == replica and canonical["subtask_notes"] == notes
         assert (
             canonical["title"] == "新的标题"
             and canonical["fields"][5]["value_markdown"] == "新的第六项"
@@ -537,3 +538,33 @@ def test_size_is_automatic(tmp_path: Path, fake_nav: FakeNavigation) -> None:
             },
         )
         assert response.status_code == 422, response.text
+
+
+def test_long_notes_over_parameter_limit_are_rejected(
+    tmp_path: Path, fake_nav: FakeNavigation
+) -> None:
+    """契约：整次修改超过1 MiB时返回422，明确内容太长及上限，不回显原文、不写导航。"""
+    with browser_case(tmp_path / "state", fake_nav) as case:
+        before = tree_state(fake_nav.nav_root)
+        response = case.client.post(
+            "/api/navigation/fields/preview",
+            json={
+                "dataset_id": dataset_id_of(fake_nav, "libero_10"),
+                "changes": [
+                    {
+                        "document": "数据集信息.json",
+                        "expected_sha256": "a" * 64,
+                        "path": ["subtask_notes"],
+                        "value": "不应回显的长子任务\n" * 40000,
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 422, response.text
+        diagnostic = response.json()["diagnostics"][0]
+        assert diagnostic["objects"] == [{"key": "field", "value": "parameters"}]
+        assert "内容太长" in diagnostic["actual"]
+        assert "1 MiB" in diagnostic["expected"]
+        assert "未提交" in diagnostic["consequence"]
+        assert "不应回显" not in response.text
+        assert tree_state(fake_nav.nav_root) == before

@@ -310,11 +310,16 @@ def test_identifier_precision_and_oversize(tmp_path: Path, fake_nav: FakeNavigat
             ).status_code
             == 422
         )
+        # M1.5-13统一放宽为1 MiB；仍须在入队前拒绝超过整份参数预算的请求。
         oversized = api.client.post(
             "/api/datasets/link-previews",
             json={
                 "dataset_id": dataset_id_of(fake_nav, "EgoProDemo"),
-                "link": {"name": "x", "target_path": "/" + "x" * 17000, "fallback_format": "mcap"},
+                "link": {
+                    "name": "x",
+                    "target_path": "/" + "x" * (1024 * 1024),
+                    "fallback_format": "mcap",
+                },
             },
         )
         assert oversized.status_code == 422
