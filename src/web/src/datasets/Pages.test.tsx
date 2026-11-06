@@ -23,22 +23,22 @@ describe("数据集布局 A", () => {
       page.close();
     }
   });
-  // 契约：空型号表默认显示型号标签，选择条件写入 URL，并由服务端筛选列表及两棵树。
-  it("型号标签筛选写入路由并更新数量", async () => {
+  // 契约：型号候选来自导航层信息，选择条件写入 URL，并由服务端筛选列表及两棵树。
+  it("机器人型号筛选写入路由并更新数量", async () => {
     const requests: Request[] = [];
     const page = mountPage("/datasets", datasetFetch(requests));
     try {
-      fireEvent.mouseDown(await screen.findByRole("combobox", { name: "型号标签" }));
+      fireEvent.mouseDown(await screen.findByRole("combobox", { name: "机器人型号" }));
       fireEvent.click(await screen.findByRole("option", { name: "franka（1）" }));
       expect(await screen.findByText("共 1 个数据集")).toBeTruthy();
       await waitFor(() => {
-        expect(page.router.state.location.search).toMatchObject({ robot_type: "franka" });
+        expect(page.router.state.location.search).toMatchObject({ robot_model: "franka" });
       });
       expect(
         requests.some(
           (request) =>
             new URL(request.url).pathname === "/api/datasets/trees" &&
-            new URL(request.url).searchParams.get("robot_type") === "franka",
+            new URL(request.url).searchParams.get("robot_model") === "franka",
         ),
       ).toBe(true);
       expect(screen.queryByRole("button", { name: "打开 other" })).toBeNull();
@@ -86,7 +86,7 @@ describe("数据集布局 A", () => {
   // 契约：打开详情不预取子任务，跨视图定位保持永久身份与筛选，只显示平台统计值。
   it("打开详情并跨视图跳转，保留筛选且不预取子任务", async () => {
     const requests: Request[] = [];
-    const page = mountPage("/datasets?robot_type=franka", datasetFetch(requests));
+    const page = mountPage("/datasets?robot_model=franka", datasetFetch(requests));
     try {
       fireEvent.click(await screen.findByRole("button", { name: "打开 libero_10" }));
       expect(await screen.findByRole("heading", { name: "libero_10" })).toBeTruthy();
@@ -102,7 +102,7 @@ describe("数据集布局 A", () => {
         expect(page.router.state.location.search).toMatchObject({
           selected: formatEntry.entry_path,
           tree_view: "format",
-          robot_type: "franka",
+          robot_model: "franka",
         });
       });
       await waitFor(() => {

@@ -21,7 +21,6 @@ from rdp.infra.storage import LinuxMountSource
 from rdp.jobs.dataset_browser.queries import (
     DatasetQueries,
     QueryAccess,
-    read_unregistered_robot_models,
 )
 from rdp.jobs.datasets.index import read_index_baseline
 from rdp.jobs.datasets.models import DatasetRow, EntryRow, LinkRow
@@ -99,7 +98,7 @@ def test_rebuild_runs_both_stages(tmp_path: Path, fake_nav: FakeNavigation) -> N
             baseline = read_index_baseline(session, None, nav_root=fake_nav.nav_root)
         assert len(baseline) == 5
         assert sum(len(item.entry_paths) for item in baseline) == 10
-        panel = DatasetQueries(engine, fake_nav.nav_root, read_unregistered_robot_models).panel(
+        panel = DatasetQueries(engine, fake_nav.nav_root).panel(
             QueryAccess(inputs.clock.now(), lambda _: 1), None
         )
         assert len(panel.storage_roots) == 2
@@ -195,7 +194,7 @@ def test_rebuild_drops_sizes_and_prints_next_step(tmp_path: Path, fake_nav: Fake
         code, stdout, stderr = _run(inputs)
         assert code == 0, stderr
         assert "统计大小" in stdout and "每晚" in stdout and "页面" in stdout and "手动" in stdout
-        detail = DatasetQueries(engine, fake_nav.nav_root, read_unregistered_robot_models).detail(
+        detail = DatasetQueries(engine, fake_nav.nav_root).detail(
             QueryAccess(inputs.clock.now(), lambda _: 1), "按任务/libero_10"
         )
         assert detail.dataset_size.size_bytes is None
@@ -285,7 +284,7 @@ def test_rebuild_publication_failure(
     assert _run(inputs)[0] == 0
     paths = state_paths(load_config(environ=inputs.environ, home=inputs.home).config, ())
     engine = create_database_engine(paths.database)
-    queries = DatasetQueries(engine, fake_nav.nav_root, read_unregistered_robot_models)
+    queries = DatasetQueries(engine, fake_nav.nav_root)
     access = QueryAccess(inputs.clock.now(), lambda _: 1)
     try:
         with session_scope(engine) as session:

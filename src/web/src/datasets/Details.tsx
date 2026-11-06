@@ -10,7 +10,6 @@ import { SubtaskNotes } from "./SubtaskNotes";
 import { DatasetSizeSummary } from "./Sizes";
 import { RepointEditor } from "./Repoint";
 import { FileViewerEntry } from "./FileViewerEntry";
-import { DataOriginEditor } from "./DataOrigin";
 import { DatasetInformation } from "./Information";
 import { DatasetLinks } from "./Entries";
 import { CreateLinkEntry } from "./CreationEntries";
@@ -203,11 +202,6 @@ function DetailContent({
             </Button>
           ))}
       </section>
-      {detail.entry.dataset_id && (
-        <div className="browser-detail-section">
-          <DataOriginEditor datasetId={detail.entry.dataset_id} provenance={detail.provenance} />
-        </div>
-      )}
       <div className="browser-detail-section">
         <DatasetSizeSummary
           size={detail.dataset_size}

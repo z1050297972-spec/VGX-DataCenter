@@ -280,10 +280,10 @@ def production_registry(
     from rdp.jobs.downloads.staging import ScanParameters, StagingScanner
     from rdp.jobs.example import CountParameters, execute_count
     from rdp.jobs.maintenance import PurgeParameters, execute_purge_errors, execute_purge_logs
+    from rdp.jobs.navwrite.backfill import build_backfill_definition
     from rdp.jobs.navwrite.create_jobs import build_creation_definitions
     from rdp.jobs.navwrite.field_jobs import build_field_edit_definition
     from rdp.jobs.navwrite.jobs import build_navwrite_definitions
-    from rdp.jobs.navwrite.origin import build_data_origin_definition
     from rdp.jobs.navwrite.repoint_jobs import build_repoint_definition
     from rdp.jobs.resource_examples import (
         GpuExampleParameters,
@@ -387,9 +387,9 @@ def production_registry(
         *build_ingest_definitions(nav_write_dependencies),
     ):
         registry.register(definition)
-    registry.register(build_data_origin_definition(nav_write_dependencies))
     registry.register(build_repoint_definition(nav_write_dependencies))
     registry.register(build_field_edit_definition(nav_write_dependencies))
+    registry.register(build_backfill_definition(nav_write_dependencies))
     return registry
 
 

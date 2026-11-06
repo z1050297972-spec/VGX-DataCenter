@@ -34,8 +34,7 @@ export function useDatasetBrowser(filters: DatasetQuery) {
     refetchOnWindowFocus: false,
   } as const;
   const treeFilters = {
-    robot_type: filters.robot_type,
-    robot_model_id: filters.robot_model_id,
+    robot_model: filters.robot_model,
     data_origin: filters.data_origin,
     scene: filters.scene,
     tasks: filters.tasks,

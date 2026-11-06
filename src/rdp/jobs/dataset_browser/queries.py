@@ -38,7 +38,6 @@ from rdp.jobs.dataset_browser.schemas import (
     FilterOption,
     Layout,
     LayoutResponse,
-    RobotModelOption,
 )
 from rdp.jobs.datasets import reading, vocabulary
 
@@ -73,27 +72,6 @@ class SubtasksDocument:
     observed_at: datetime
 
 
-def read_unregistered_robot_models(session: Session) -> tuple[RobotModelOption, ...]:
-    """提供尚无型号登记模块时的空目录，作为M1生产装配的显式适配器。
-
-    Args:
-        session: 本请求已授权的只读数据库会话，不自行开启或提交事务。
-
-    Returns:
-        空元组，明确没有登记型号；M3装配真实表读取器后移除此适配器，筛选服务与HTTP类型不变。
-
-    Raises:
-        无。
-
-    Side Effects:
-        无；不尝试查询尚不存在的型号表，不按数据标签自动创建平台型号。
-
-    Time Semantics:
-        与本请求索引查询共享会话生命周期；不缓存空结果，不读取墙钟。
-    """
-    return ()
-
-
 class DatasetQueries:
     """持有只读查询依赖；布局写入使用同一账号范围，不包含作业提交能力。"""
 
@@ -101,21 +79,18 @@ class DatasetQueries:
         self,
         engine: Engine,
         nav_root: Path,
-        read_robot_models: Callable[[Session], tuple[RobotModelOption, ...]],
     ) -> None:
-        """绑定索引、导航根与型号映射读取能力，不取得作业提交能力。
+        """绑定索引与导航根，不取得作业提交能力。
 
         Args:
             engine: 受管SQLite引擎，须已迁移；调用者负责生命周期。
             nav_root: 配置中的绝对导航目录，不含..；仅保存路径，不检查存储根。
-            read_robot_models: 必填只读会话回调；M1用read_unregistered_robot_models，
-                M3读取型号表。返回按编号排序的唯一型号，标签最多对应一个型号。
 
         Returns:
             无；得到可被多个请求共用的无请求状态服务。
 
         Raises:
-            DefectError: 引擎不受管、路径不是绝对路径或回调不可调用。
+            DefectError: 引擎不受管、路径不是绝对路径。
 
         Side Effects:
             仅保存依赖；不连接数据库、不读导航、不创建线程或登记作业。
@@ -127,12 +102,10 @@ class DatasetQueries:
             not engine.get_execution_options().get("rdp_managed")
             or not nav_root.is_absolute()
             or ".." in nav_root.parts
-            or not callable(read_robot_models)
         ):
             raise DefectError()
         self.engine = engine
         self.nav_root = nav_root
-        self.read_robot_models = read_robot_models
 
     def trees(self, request: QueryAccess, filters: DatasetFilters) -> DatasetTreesResponse:
         """从索引构造按任务、按格式与按场景的有界浏览树。
@@ -152,11 +125,11 @@ class DatasetQueries:
             AuthenticationError: 读事务中会话已失效或账号停用。
             PasswordChangeRequiredError: 事务中账号被标记须改密。
             ConflictError: 索引读锁等待超限。
-            ExternalError: 查询失败或型号读取器数据库I/O失败。
-            DefectError: 型号映射重复、返回类型或注入时刻非法。
+            ExternalError: 索引数据库查询失败。
+            DefectError: 返回类型或注入时刻非法。
 
         Side Effects:
-            无（只读索引和型号映射，不打开任何导航文件、挂载表或存储根）。
+            无（只读索引，不打开任何导航文件、挂载表或存储根）。
 
         Time Semantics:
             单个读事务保证本次树聚合一致；沿用BUSY_TIMEOUT_MS，不重试。
@@ -166,7 +139,7 @@ class DatasetQueries:
         _moment(request.now)
         with session_scope(self.engine, read_only=True) as session:
             request.authorize(session)
-            index = _index.load(session, self.read_robot_models)
+            index = _index.load(session)
             items = tuple(item for item in _listing.items(index) if _listing.matches(item, filters))
             rows = tuple(
                 entry
@@ -190,10 +163,10 @@ class DatasetQueries:
 
         Returns:
             按名称、dataset_id、入口路径排序；同编号只一行，无编号入口各一行。
-            型号映射为空时任意具体型号匹配空集；未知型号匹配无映射的数据集。
-            元信息优先唯一规范入口；没有或重复规范入口则取格式入口并集，并保留面板发现。
+            型号匹配规范信息去首尾空白后的文本；unlabeled 匹配未标注。
+            五个筛选值均取唯一规范入口；没有或重复规范入口时按未标注或未知处理。
             当前筛选匹配任一入口即入选，响应entries仍含全部位置；不返回JSON正文。
-            场景、任务、导航型号只取唯一规范副本，不从格式入口补值；场景精确匹配，任务多选取交集。
+            型号、FPS、来源、场景和任务只取唯一规范副本，不从格式入口补值；场景精确匹配，任务多选取交集。
             unlabeled 仅匹配无标注。
 
         Raises:
@@ -202,11 +175,11 @@ class DatasetQueries:
             AuthenticationError: 当前会话在读取时失效。
             PasswordChangeRequiredError: 当前账号必须改密。
             ConflictError: 分页查询锁超时。
-            ExternalError: 列表或型号目录读取失败。
-            DefectError: 型号标签多重归属或查询投影违反展示模型。
+            ExternalError: 列表索引读取失败。
+            DefectError: 查询投影违反展示模型。
 
         Side Effects:
-            只读索引与型号表，total和items在同一读事务；不刷新索引或写查看日志。
+            只读索引，total和items在同一读事务；不刷新索引或写查看日志。
 
         Time Semantics:
             行保留自身索引代次时间；分页跨请求不承诺固定快照，扫描发布后前端重新取首页。
@@ -216,7 +189,7 @@ class DatasetQueries:
         _moment(request.now)
         with session_scope(self.engine, read_only=True) as session:
             request.authorize(session)
-            index = _index.load(session, self.read_robot_models)
+            index = _index.load(session)
             rows = tuple(item for item in _listing.items(index) if _listing.matches(item, query))
         return DatasetListResponse(
             items=rows[query.offset : query.offset + query.limit],
@@ -227,42 +200,38 @@ class DatasetQueries:
         )
 
     def filter_options(self, request: QueryAccess) -> DatasetFilterOptions:
-        """返回三个布局共用的候选值和默认机器人筛选模式。
+        """返回三个布局共用的五个筛选候选及计数。
 
         Args:
             request: 当前账号的会话、唯一UTC时刻和请求来源。
 
         Returns:
-            全索引的型号、标签、FPS、来源、场景、任务选项和计数，每种未知项即使为零也保留。
-            型号空目录时registered=False且默认robot_type；非空时默认robot_model。
-            FPS用整数十进制文本传候选，标签保持原始大小写；来源按索引中的稳定编码计数。
+            全索引的型号、FPS、来源、场景、任务选项和计数，未标注或未知项即使为零也保留。
+            FPS用正整数十进制文本传候选，型号保持大小写；来源按索引稳定编码计数。
 
         Raises:
             AuthenticationError: 身份失效，不能提供索引统计。
             PasswordChangeRequiredError: 当前账号须先改密。
             InputError: 索引元信息违反已合并字段约束。
             ConflictError: 候选聚合读锁超限。
-            ExternalError: 型号目录或索引数据库不可读。
-            DefectError: 型号编号重复、标签多重映射或时钟不是aware。
+            ExternalError: 索引数据库不可读。
+            DefectError: 候选投影违约或时钟不是aware。
 
         Side Effects:
-            只查索引和注入型号目录，不创建型号、不读取meta/info.json或14项Markdown。
+            只查规范信息索引，不读取meta/info.json或14项Markdown。
 
         Time Semantics:
-            每次读同一事务快照，型号登记后下一请求生效；不持久缓存“没有登记型号”。
+            每次读同一事务快照；重新扫描发布后下一请求生效。
         """
         _moment(request.now)
         with session_scope(self.engine, read_only=True) as session:
             request.authorize(session)
-            index = _index.load(session, self.read_robot_models)
-            facts = [_index.metadata(index, row) for row in index.datasets]
+            index = _index.load(session)
         return DatasetFilterOptions(
-            robot_models_registered=bool(index.models),
-            default_robot_filter="robot_model" if index.models else "robot_type",
-            robot_models=index.models,
-            robot_model_options=_options([set(value[2]) or {None} for value in facts]),
-            robot_types=_options([set(value[0]) for value in facts]),
-            fps=_options([set(value[1]) for value in facts]),
+            robot_models=_classification.options(
+                tuple((row.robot_model,) if row.robot_model else () for row in index.datasets), ()
+            ),
+            fps=_options([{row.fps} for row in index.datasets]),
             scenes=_classification.options(
                 tuple(tuple(row.scene) for row in index.datasets),
                 vocabulary.SCENES,
@@ -331,7 +300,7 @@ class DatasetQueries:
             选中入口原始路径/信息的原文、独立规范信息、当前原文的数据块推导值与核验标签；
             原文保留未知字段和空白，解析失败仍可查看文本，缺失/非普通文件带五段诊断。
             规范副本不可用时不静默换用格式副本；子任务仅返回请求定位，不含正文。
-            provenance 返回规范入口当前来源和标注印记，缺文件与坏文件分态表达。
+            provenance 返回规范入口血缘文件状态，缺文件与坏文件分态表达。
             links与大小来自索引。用第01张L12指纹比较全部入口；差异、不可验证或本次原文
             摘要不等于观察指纹均标index_stale=True，不以mtime判断，不更新索引。
 
@@ -357,7 +326,7 @@ class DatasetQueries:
         _moment(request.now)
         with session_scope(self.engine, read_only=True) as session:
             request.authorize(session)
-            index = _index.load(session, self.read_robot_models)
+            index = _index.load(session)
             row = _documents.selected(index, entry_path)
             links = _documents.links(session, row.path)
             item = next(
@@ -444,7 +413,7 @@ class DatasetQueries:
         _moment(request.now)
         with session_scope(self.engine, read_only=True) as session:
             request.authorize(session)
-            index = _index.load(session, self.read_robot_models)
+            index = _index.load(session)
             row = _documents.selected(index, entry_path)
         content = _documents.subtasks_bytes(self.nav_root, row)
         parsed = reading.parse_document(_documents.location(row), "子任务.json", content)

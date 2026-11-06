@@ -135,7 +135,8 @@ class DatasetRow(Base):
         scene: 规范副本的场景数组；未填写或无唯一规范副本为空数组（M1.5-12）。
             不校验是否在词表，词表外的值保留。
         tasks: 规范副本的任务原值数组，去重保序；未填写为空数组，永不为NULL。
-        robot_model: 规范副本的机器人型号原值；未填写为None。
+        robot_model: 规范副本的机器人型号去首尾空白后的值；未填写为None。
+        fps: 规范信息顶层正整数帧率，单位帧/秒；未填写为None。
     """
 
     __tablename__ = "datasets"
@@ -153,6 +154,7 @@ class DatasetRow(Base):
             "(size_bytes IS NOT NULL AND size_bytes >= 0 AND size_checked_at IS NOT NULL)",
             name="size",
         ),
+        CheckConstraint("fps IS NULL OR fps > 0", name="fps"),
         Index("ix_datasets_name", "name", "dataset_id"),
     )
 
@@ -169,6 +171,7 @@ class DatasetRow(Base):
     # server_default 让 0012 迁移给旧行补空数组；下一次扫描按导航层内容重写。
     tasks: Mapped[list[str]] = mapped_column(JSON, server_default=text("'[]'"))
     robot_model: Mapped[str | None] = mapped_column(Text)
+    fps: Mapped[int | None] = mapped_column(Integer)
 
 
 class EntryRow(Base):
@@ -334,7 +337,7 @@ class SourceRow(Base):
         checked_at: UTC路径检查时刻；unchecked为空。
         robot_type: meta/info.json型号标签；unknown/null/读不到/非LeRobot归None。
         fps: meta中的有限正数，单位帧/秒；未知为None。
-        fps_rounded: 按非负数半入规则四舍五入的整数，未知为None，用于筛选。
+        fps_rounded: 按非负数半入规则四舍五入的整数，未知为None，只用于原文件参考和回填。
         codebase_version: meta中的非空版本原文；未知为None。
         meta_checked_at: UTC meta读取检查时刻；尚未检查为空。
     """

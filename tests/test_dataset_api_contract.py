@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pytest
-from dataset_api_support import ENTRY, FORMAT_ENTRY, browser_case, set_meta
+from dataset_api_support import ENTRY, FORMAT_ENTRY, browser_case
 from datasets_execution_support import dataset_case
 from nav_manifest import FakeNavigation
 
@@ -139,30 +139,6 @@ def test_navigation_symlink_replacement_cannot_reach_storage(
             moved.rename(entry)
 
 
-def test_robot_type_matches_exact_label(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """验收3：原标签精确区分大小写，不从Markdown提取筛选值。"""
-    with browser_case(tmp_path / "state", fake_nav) as case:
-        set_meta(case, ENTRY, "franka")
-        response = case.client.get("/api/datasets", params={"robot_type": "franka"})
-        assert response.status_code == 200, response.text
-        assert [item["dataset_id"] for item in response.json()["items"]] == ["dataset-14"]
-        assert (
-            case.client.get("/api/datasets", params={"robot_type": "Franka"}).json()["total"] == 0
-        )
-
-
-def test_fps_half_up_and_unknown(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """验收3：按第02张发布的半入整数筛选29.97/30.5/29.49，未知独立且负数422。"""
-    with browser_case(tmp_path / "state", fake_nav) as case:
-        for raw, rounded in ((29.97, 30), (30.5, 31), (29.49, 29)):
-            set_meta(case, ENTRY, "franka", raw, rounded)
-            response = case.client.get("/api/datasets", params={"fps": rounded})
-            assert response.status_code == 200
-            assert [row["dataset_id"] for row in response.json()["items"]] == ["dataset-14"]
-        assert case.client.get("/api/datasets", params={"fps": "unknown"}).json()["total"] == 4
-        assert case.client.get("/api/datasets", params={"fps": -1}).status_code == 422
-
-
 def test_data_origin_unknown_and_invalid_value(tmp_path: Path, fake_nav: FakeNavigation) -> None:
     """验收3：M1全部unknown，已知来源为空，非法来源422，候选unknown独立。"""
     with browser_case(tmp_path / "state", fake_nav) as case:
@@ -177,97 +153,22 @@ def test_data_origin_unknown_and_invalid_value(tmp_path: Path, fake_nav: FakeNav
         assert options[-1] == {"value": "unknown", "label": "未知", "count": 5}
 
 
-def test_unknown_metadata_including_mixed_sources(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """验收3：未检查及非LeRobot归未知；同数据集已知与未知块分别可筛中。"""
-    from rdp.infra.db.connection import session_scope
-    from rdp.jobs.datasets.models import SourceRow
-
-    with browser_case(tmp_path / "state", fake_nav) as case:
-        set_meta(case, ENTRY, "franka", 29.97, 30)
-        with session_scope(case.engine) as session:
-            session.add(
-                SourceRow(
-                    entry_path=ENTRY,
-                    ordinal=999,
-                    source_id="mixed",
-                    original_path="/fake/mixed",
-                    direct_path="/fake/mixed",
-                    derived_entry_path="mixed",
-                    format="mcap",
-                    status="unchecked",
-                )
-            )
-        for query in ({"robot_type": "franka"}, {"robot_type": "unknown"}, {"fps": "unknown"}):
-            response = case.client.get("/api/datasets", params=query)
-            assert response.status_code == 200, response.text
-            assert "dataset-14" in [row["dataset_id"] for row in response.json()["items"]]
-
-
-def test_empty_robot_catalog_falls_back_to_labels(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """验收3：型号空目录明确降级到标签筛选，每个未知选项独立保留。"""
-    with browser_case(tmp_path / "state", fake_nav) as case:
-        response = case.client.get("/api/datasets/filters")
-        assert response.status_code == 200, response.text
-        data = response.json()
-        assert data["robot_models_registered"] is False
-        assert data["default_robot_filter"] == "robot_type"
-        assert data["robot_models"] == []
-        assert data["robot_types"] == [{"value": "unknown", "label": "未知", "count": 5}]
-        assert data["robot_model_options"] == [{"value": "unknown", "label": "未知", "count": 5}]
-
-
-def test_registered_robot_model_maps_multiple_labels(
-    tmp_path: Path, fake_nav: FakeNavigation
-) -> None:
-    """验收3：型号通过标签并集匹配，未映射的r1pro只属于未知型号，不冒充型号。"""
-    from rdp.jobs.dataset_browser.schemas import RobotModelOption
-
-    models = [
-        RobotModelOption(model_id="1", name="R1 Lite", robot_types=("r1lite", "galaxea_r1lite"))
-    ]
-    with browser_case(tmp_path / "state", fake_nav, models) as case:
-        for label in ("r1lite", "galaxea_r1lite"):
-            set_meta(case, ENTRY, label)
-            result = case.client.get("/api/datasets", params={"robot_model_id": "1"}).json()
-            assert [row["dataset_id"] for row in result["items"]] == ["dataset-14"]
-        set_meta(case, ENTRY, "r1pro")
-        assert case.client.get("/api/datasets", params={"robot_model_id": "1"}).json()["total"] == 0
-        assert (
-            case.client.get("/api/datasets", params={"robot_model_id": "unknown"}).json()["total"]
-            == 5
-        )
-
-
-def test_model_catalog_refresh_and_duplicate_rejection(
-    tmp_path: Path, fake_nav: FakeNavigation
-) -> None:
-    """验收3：型号登记后下一请求切换默认筛选；重复标签归属返回500，不任取一条。"""
-    from rdp.jobs.dataset_browser.schemas import RobotModelOption
-
-    models: list[RobotModelOption] = []
-    with browser_case(tmp_path / "state", fake_nav, models) as case:
-        assert (
-            case.client.get("/api/datasets/filters").json()["default_robot_filter"] == "robot_type"
-        )
-        models.append(RobotModelOption(model_id="1", name="型号1", robot_types=("franka",)))
-        assert (
-            case.client.get("/api/datasets/filters").json()["default_robot_filter"] == "robot_model"
-        )
-        models.append(RobotModelOption(model_id="2", name="型号2", robot_types=("franka",)))
-        assert case.client.get("/api/datasets/filters").status_code == 500
-
-
 def test_filters_intersect_and_paginate_stably(tmp_path: Path, fake_nav: FakeNavigation) -> None:
     """验收3：多维交集、稳定分页、越末尾空页；树筛视图不丢列表跨视图位置。"""
+    import json
+
+    path = fake_nav.nav_root / ENTRY / "数据集信息.json"
+    information = json.loads(path.read_bytes())
+    information.update(robot_model="franka", fps=30)
+    path.write_text(json.dumps(information))
     with browser_case(tmp_path / "state", fake_nav) as case:
-        set_meta(case, ENTRY, "franka", 29.97, 30)
         filtered = case.client.get(
-            "/api/datasets", params={"robot_type": "franka", "fps": 30, "view": "format"}
+            "/api/datasets", params={"robot_model": "franka", "fps": 30, "view": "format"}
         ).json()
         assert filtered["total"] == 1
         assert len(filtered["items"][0]["entries"]) == 2
         assert (
-            case.client.get("/api/datasets", params={"robot_type": "franka", "fps": 31}).json()[
+            case.client.get("/api/datasets", params={"robot_model": "franka", "fps": 31}).json()[
                 "total"
             ]
             == 0
@@ -284,7 +185,7 @@ def test_filters_intersect_and_paginate_stably(tmp_path: Path, fake_nav: FakeNav
         ]
         assert case.client.get("/api/datasets", params={"offset": 100}).json()["items"] == []
         nodes = case.client.get(
-            "/api/datasets/trees", params={"robot_type": "franka", "view": "format"}
+            "/api/datasets/trees", params={"robot_model": "franka", "view": "format"}
         ).json()["nodes"]
         assert [row["entry_path"] for row in nodes if row["kind"] == "entry"] == [FORMAT_ENTRY]
 
@@ -948,7 +849,7 @@ def test_layout_migration_matches_model_and_preserves_existing_data(
     result = migrate(state_paths(PlatformConfig(state_dir=state), ()), now=NOW)
     assert (result.previous_revision, result.current_revision) == (
         "0007_dataset_index",
-        "0017_multi_scene",
+        "0018_information_filters",
     )
     assert result.backup is not None and result.backup.is_file()
     from rdp.infra.db.migrations.versions.v0008_dataset_layout import downgrade
@@ -1213,10 +1114,7 @@ def test_layout_direct_call_rejects_invalid_value(tmp_path: Path, fake_nav: Fake
     from rdp.accounts.types import Credentials
     from rdp.jobs.dataset_browser.errors import DatasetQueryError
     from rdp.jobs.dataset_browser.schemas import Layout
-    from rdp.jobs.dataset_browser.service import (
-        DatasetBrowserService,
-        read_unregistered_robot_models,
-    )
+    from rdp.jobs.dataset_browser.service import DatasetBrowserService
     from rdp.jobs.service import JobRequest
 
     with browser_case(tmp_path / "state", fake_nav) as case:
@@ -1227,7 +1125,6 @@ def test_layout_direct_call_rejects_invalid_value(tmp_path: Path, fake_nav: Fake
             case.engine,
             fake_nav.nav_root,
             case.app.state.job_service,
-            read_unregistered_robot_models,
         )
         request = JobRequest(grant.identity, case.clock.value, AUDIT_CONTEXT)
         with pytest.raises(DatasetQueryError):

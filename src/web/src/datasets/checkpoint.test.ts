@@ -115,22 +115,19 @@ describe("数据集后半段验收", () => {
       page.close();
     }
   });
-  // 验收5：型号表出现后使用后端提供的默认方式；编号传给接口，不把标签冒充型号。
-  it("有型号映射时默认按机器人型号，更多筛选保留标签", async () => {
+  // 第15张验收：只有一个型号下拉，候选含计数与未标注；真实路由和请求使用 robot_model。
+  it("型号筛选统一使用导航信息，显示说明并支持未标注", async () => {
     const requests: Request[] = [];
     const page = mountPage(
-      "/datasets",
+      "/datasets?offset=20",
       transport(
         {
           "/api/datasets/filters": () =>
             Response.json({
               ...filters,
-              default_robot_filter: "robot_model",
-              robot_models_registered: true,
-              robot_models: [{ model_id: "model-7", name: "R1 Lite", robot_types: ["franka"] }],
-              robot_model_options: [
-                { value: "model-7", label: "R1 Lite", count: 1 },
-                { value: "unknown", label: "未知", count: 1 },
+              robot_models: [
+                { value: "R1 Lite", label: "R1 Lite", count: 1 },
+                { value: "unlabeled", label: "未标注", count: 1 },
               ],
             }),
         },
@@ -138,23 +135,40 @@ describe("数据集后半段验收", () => {
       ),
     );
     try {
-      fireEvent.mouseDown(await screen.findByRole("combobox", { name: "机器人型号" }));
-      fireEvent.click(await screen.findByRole("option", { name: "R1 Lite（1）" }));
-      await waitFor(() => {
-        expect(page.router.state.location.search).toMatchObject({ robot_model_id: "model-7" });
-      });
-      await waitFor(() => {
-        expect(
-          requests.some(
-            (request) =>
-              new URL(request.url).pathname === "/api/datasets" &&
-              new URL(request.url).searchParams.get("robot_model_id") === "model-7",
-          ),
-        ).toBe(true);
-      });
+      const select = await screen.findByRole("combobox", { name: "机器人型号" });
+      expect(screen.getAllByRole("combobox", { name: "机器人型号" })).toHaveLength(1);
       expect(screen.queryByRole("combobox", { name: "型号标签" })).toBeNull();
-      fireEvent.click(screen.getByRole("button", { name: "更多筛选" }));
-      expect(screen.getByRole("combobox", { name: "型号标签" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "更多筛选" })).toBeNull();
+      expect(
+        screen.getByText(
+          "筛选以导航层的数据集信息为准，不读原数据文件。与原文件不一致的地方见一致性面板，正式使用数据集前请核对。",
+        ),
+      ).toBeTruthy();
+      for (const [label, value] of [
+        ["R1 Lite（1）", "R1 Lite"],
+        ["未标注（1）", "unlabeled"],
+      ]) {
+        fireEvent.mouseDown(select);
+        fireEvent.click(await screen.findByRole("option", { name: label }));
+        await waitFor(() => {
+          expect(page.router.state.location.search).toMatchObject({ robot_model: value });
+          expect(page.router.state.location.search.offset).toBeUndefined();
+          for (const path of ["/api/datasets", "/api/datasets/trees"]) {
+            expect(
+              requests.some((request) => {
+                const url = new URL(request.url);
+                return url.pathname === path && url.searchParams.get("robot_model") === value;
+              }),
+            ).toBe(true);
+          }
+        });
+      }
+      expect(
+        requests.every((request) => {
+          const params = new URL(request.url).searchParams;
+          return !params.has("robot_type") && !params.has("robot_model_id");
+        }),
+      ).toBe(true);
     } finally {
       page.close();
     }
@@ -167,12 +181,12 @@ describe("数据集后半段验收", () => {
       ...first,
       dataset_id: `item-${String(index)}`,
       name: `item-${String(index)}`,
-      robot_types: [null],
+      robot_model: null,
       fps: [null],
     }));
     const requests: Request[] = [];
     const page = mountPage(
-      "/datasets?fps=unknown&robot_type=unknown",
+      "/datasets?fps=unknown&robot_model=unlabeled",
       transport(
         {
           "/api/datasets": (request) => {
@@ -198,7 +212,7 @@ describe("数据集后半段验收", () => {
         expect(page.router.state.location.search).toMatchObject({
           data_origin: "unknown",
           fps: "unknown",
-          robot_type: "unknown",
+          robot_model: "unlabeled",
           offset: 20,
         });
       });
@@ -216,7 +230,7 @@ describe("数据集后半段验收", () => {
               url.searchParams.get("entry_path") === "按任务" &&
               url.searchParams.get("data_origin") === "unknown" &&
               url.searchParams.get("fps") === "unknown" &&
-              url.searchParams.get("robot_type") === "unknown"
+              url.searchParams.get("robot_model") === "unlabeled"
             );
           }),
         ).toBe(true);

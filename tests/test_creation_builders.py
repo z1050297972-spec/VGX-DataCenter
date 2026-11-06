@@ -367,7 +367,7 @@ def test_information_and_subtask_skeletons(tmp_path: Path, fake_nav: FakeNavigat
 
 
 def test_provenance_actor_and_unknown_lineage(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """验证契约：L5 与 ADR 0008：来源必填、真实提交人印记、UTC 时刻、采集任务 null、血缘空；未知也保留人工印记。"""
+    """验证契约：L5 与 ADR 0008：来源写入信息顶层，第 2 版来源文件仅含身份、空采集任务和空血缘。"""
     import json
 
     from creation_support import creation_case, new_parameters, stamp
@@ -386,13 +386,14 @@ def test_provenance_actor_and_unknown_lineage(tmp_path: Path, fake_nav: FakeNavi
             for step in build.plan.steps
             if step.op == "write_file" and step.path.endswith("来源.json")
         )
-        assert provenance["data_origin"] == "未知"
-        assert provenance["data_origin_set_by"] == {
-            "kind": "人工标注",
-            "account_id": 1,
-            "account_name": "甲",
-            "at": "2026-10-30T07:00:00Z",
-        }
+        assert provenance["schema_version"] == 2
+        assert "data_origin" not in provenance and "data_origin_set_by" not in provenance
+        information = [
+            json.loads(step.after_content)
+            for step in build.plan.steps
+            if step.op == "write_file" and step.path.endswith("数据集信息.json")
+        ]
+        assert information and all(item["data_origin"] == "未知" for item in information)
         assert provenance["collection_task_id"] is None and provenance["lineage"] == []
 
 

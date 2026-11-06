@@ -629,8 +629,8 @@ export interface paths {
          *         AuthenticationError: 当前会话失效，401。
          *         PasswordChangeRequiredError: 强制改密，403。
          *         ConflictError: 列表事务竞争，409。
-         *         ExternalError: 数据或映射查询失败，502。
-         *         DefectError: 型号多重对应或序列化违约，500。
+         *         ExternalError: 索引查询失败，502。
+         *         DefectError: 投影或序列化违约，500。
          *
          *     Side Effects:
          *         只查索引；不把14项或子任务全文塞入列表，不更新索引。
@@ -839,7 +839,7 @@ export interface paths {
          *     Returns:
          *         200，原始路径与信息原文、规范信息、推导数据块、索引链接/大小和index_stale；
          *         子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看；
-         *         provenance 返回规范入口当前来源、文件状态和标注人/UTC时刻。
+         *         provenance 返回规范入口血缘文件状态；数据来源取信息文件顶层。
          *
          *     Raises:
          *         DatasetNotFoundError: 入口不在索引，404。
@@ -875,29 +875,29 @@ export interface paths {
         };
         /**
          * Get Dataset Filters
-         * @description 返回筛选选项及型号空目录时的前端降级提示。
+         * @description 返回规范信息顶层的五个筛选候选及计数。
          *
          *     Args:
          *         context: 全局安全检查通过的账号上下文与浏览服务。
          *
          *     Returns:
-         *         200，robot_models_registered、default_robot_filter及型号/标签/FPS/来源/场景/任务候选。
+         *         200，robot_models、fps、data_origins、scenes、tasks 候选及计数。
          *         scene_vocabulary/task_vocabulary 提供编辑器用的受控编码与中文名。
-         *         空目录默认robot_type，登记后默认robot_model；每类unknown项独立且保留零计数。
+         *         型号未标注使用 unlabeled，FPS 未标注使用 unknown；零计数的未标注项仍保留。
          *
          *     Raises:
          *         AuthenticationError: 查询阶段会话失效，401。
          *         PasswordChangeRequiredError: 必须改密，403。
          *         InputError: 元信息索引损坏，400。
          *         ConflictError: 候选读取竞争，409。
-         *         ExternalError: 型号读取器或数据库失败，502。
-         *         DefectError: 型号重复、响应形状非法，500。
+         *         ExternalError: 索引数据库失败，502。
+         *         DefectError: 响应形状非法，500。
          *
          *     Side Effects:
-         *         只读全索引候选及型号投影；不读取meta文件、不登记新型号。
+         *         只读规范信息索引；不读取meta文件。
          *
          *     Time Semantics:
-         *         每次请求读取最新已提交目录，不缓存空型号表；无轮询等待。
+         *         每次请求读取最新已提交索引；无轮询等待。
          */
         get: operations["get_dataset_filters"];
         put?: never;
@@ -1213,7 +1213,7 @@ export interface paths {
          *
          *     Args:
          *         context: 当前已登录且完成改密的账号及浏览服务。
-         *         filters: 型号、原标签、整数FPS/unknown、来源、场景、任务交集和视图路径筛选；未提供表示不限。
+         *         filters: 型号文本、正整数FPS/unknown、来源、场景、任务交集和视图路径筛选；未提供表示不限。
          *
          *     Returns:
          *         200，nodes平铺节点及indexed_at；每节点含数量、大小来源计数和原统计时间范围。
@@ -1224,7 +1224,7 @@ export interface paths {
          *         AuthenticationError: 读事务重验失败，401。
          *         PasswordChangeRequiredError: 账号须改密，403。
          *         ConflictError: 树读取锁超时，409。
-         *         ExternalError: 数据库或型号目录不可读，502。
+         *         ExternalError: 索引数据库不可读，502。
          *         DefectError: 聚合或响应模型非法，500；状态映射以规范6.2为准。
          *
          *     Side Effects:
@@ -2653,7 +2653,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/navigation/data-origin/preview": {
+    "/api/navigation/backfill/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -2663,33 +2663,32 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Preview Data Origin
-         * @description 提交改数据来源的只读预览作业，成员与管理员权限相同。
+         * Preview Information Backfill
+         * @description 管理员提交覆盖全部数据集的只读回填预览作业。
          *
          *     Args:
-         *         context: 全局同源、认证与改密检查通过的作业上下文。
-         *         body: 数据集永久编号和六选一中文来源值；不接收路径或操作者。
+         *         context: 服务端认证身份、请求唯一 UTC 时刻和作业服务。
+         *         body: 空对象；不接受路径、数据集范围或执行计划。
          *
          *     Returns:
-         *         HTTP 201，新建 queued 的 nav_data_origin_preview，作业编号为文本。
+         *         HTTP 201，queued 作业记录，job_id 是十进制文本。
          *
          *     Raises:
-         *         JobInputError: 参数非法或类型未登记，422；框架参数失败同样安全返回 422。
-         *         AuthenticationError: 会话失效，401。
-         *         AuthorizationError: Origin 非本站，403。
-         *         PasswordChangeRequiredError: 必须改密，403。
-         *         InputError: 数据库记录损坏，400。
-         *         ConflictError: 提交事务竞争，409。
-         *         ExternalError: 依赖未配置、数据库或操作日志写入失败，502。
-         *         DefectError: 服务装配或时钟缺陷，500。
+         *         AuthenticationError: 未登录或会话失效，401。
+         *         AuthorizationError: 非管理员或 Origin 非本站，403。
+         *         PasswordChangeRequiredError: 账号必须改密，403。
+         *         JobInputError: 参数或类型非法，422。
+         *         ConflictError: 提交数据库事务竞争，409。
+         *         ExternalError: 数据库或作业依赖不可用，502。
+         *         DefectError: 依赖装配或响应映射错误，500。
          *
          *     Side Effects:
-         *         仅新增作业与提交操作日志；Web 不访问导航层，来源格式与身份校验由 worker 执行。
+         *         原子新增作业和操作日志；不读取导航，不执行迁移。
          *
          *     Time Semantics:
-         *         复用请求唯一 UTC 时刻；提交不等待 worker，不重试写请求。
+         *         沿用请求唯一时刻，提交后立即返回；worker 完成预览后再由用户确认写入。
          */
-        post: operations["preview_data_origin"];
+        post: operations["preview_information_backfill"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3257,6 +3256,14 @@ export interface components {
             status?: ("enabled" | "disabled") | null;
         };
         /**
+         * BackfillParameters
+         * @description 全量回填无业务参数，拒绝客户端传入计划、路径或身份。
+         *
+         *     Attributes:
+         *         model_config: 冻结、禁止额外字段且不回显输入。
+         */
+        BackfillParameters: Record<string, never>;
+        /**
          * Capacity
          * @description 本次只读容量观察，所有大小单位均为字节。
          *
@@ -3524,44 +3531,10 @@ export interface components {
         };
         /**
          * DataOrigin
-         * @description 13 Q5 的六种来源编码；来源文件中文值由扫描映射到这些稳定编码。
+         * @description 13 Q5 的六种来源编码；信息顶层中文值由扫描映射到这些稳定编码。
          * @enum {string}
          */
         DataOrigin: "real" | "umi" | "ego" | "simulation" | "open_source" | "unknown";
-        /**
-         * DataOriginAttribution
-         * @description 最近一次标注的公开印记，不暴露无需展示的账号内部编号。
-         */
-        DataOriginAttribution: {
-            /**
-             * Account Name
-             * @description 标注时的账号名快照；平台自动设置时可为空
-             */
-            account_name: string | null;
-            /**
-             * At
-             * @description 来源文件中的 UTC ISO 8601 秒精度时刻，不使用文件 mtime
-             */
-            at: string;
-        };
-        /**
-         * DataOriginParameters
-         * @description 一次数据来源标注预览的输入。
-         *
-         *     Attributes:
-         *         model_config: 冻结，拒绝多余字段，不回显不可信输入。
-         *         dataset_id: 永久编号，1 至 256 码点，不含路径分隔符、空白或 NUL。
-         *         data_origin: DATA_ORIGINS 中的中文来源值，不接受操作者或路径。
-         */
-        DataOriginParameters: {
-            /**
-             * Data Origin
-             * @enum {string}
-             */
-            data_origin: "真机采集" | "UMI 采集" | "ego 采集" | "仿真生成" | "开源下载" | "未知";
-            /** Dataset Id */
-            dataset_id: string;
-        };
         /**
          * DatasetDetailResponse
          * @description 入口详情保留原文和规范信息，子任务正文只由独立接口提供。
@@ -3601,7 +3574,7 @@ export interface components {
              */
             observed_at: string;
             original_paths: components["schemas"]["NavigationDocument"];
-            /** @description 本次只读规范入口来源文件的来源与标注印记；无唯一规范入口时不可用 */
+            /** @description 本次只读规范入口血缘文件的状态；无唯一规范入口时不可用 */
             provenance?: components["schemas"]["DatasetProvenance"] | null;
             /** Sources */
             sources: components["schemas"]["DatasetSource"][];
@@ -3621,23 +3594,12 @@ export interface components {
             /** Data Origins */
             data_origins: components["schemas"]["FilterOption"][];
             /**
-             * Default Robot Filter
-             * @enum {string}
-             */
-            default_robot_filter: "robot_model" | "robot_type";
-            /**
              * Fps
              * @description value 为整数十进制文本或 unknown；已知按数值排序
              */
             fps: components["schemas"]["FilterOption"][];
-            /** Robot Model Options */
-            robot_model_options: components["schemas"]["FilterOption"][];
             /** Robot Models */
-            robot_models: components["schemas"]["RobotModelOption"][];
-            /** Robot Models Registered */
-            robot_models_registered: boolean;
-            /** Robot Types */
-            robot_types: components["schemas"]["FilterOption"][];
+            robot_models: components["schemas"]["FilterOption"][];
             /** Scene Vocabulary */
             scene_vocabulary: components["schemas"]["VocabularyTerm"][];
             /** Scenes */
@@ -3746,10 +3708,6 @@ export interface components {
             name: string;
             /** Robot Model */
             robot_model?: string | null;
-            /** Robot Model Ids */
-            robot_model_ids: string[];
-            /** Robot Types */
-            robot_types: (string | null)[];
             /**
              * Scene
              * @default []
@@ -3849,16 +3807,9 @@ export interface components {
         };
         /**
          * DatasetProvenance
-         * @description 规范入口的当前来源观察，缺文件与坏文件保持不同状态。
+         * @description 规范入口血缘文件的读取状态，数据来源从信息顶层读取。
          */
         DatasetProvenance: {
-            /**
-             * Data Origin
-             * @default 未知
-             * @enum {string}
-             */
-            data_origin: "真机采集" | "UMI 采集" | "ego 采集" | "仿真生成" | "开源下载" | "未知";
-            data_origin_set_by?: components["schemas"]["DataOriginAttribution"] | null;
             state: components["schemas"]["ProvenanceState"];
         };
         /**
@@ -4256,7 +4207,7 @@ export interface components {
          *     Attributes:
          *         path: 与提交参数一致的 JSON 定位路径。
          *         label: 中文标签，包含编号或任务身份。
-         *         value: 当前文本或多选值；缺省结构化字段显示为空。
+         *         value: 当前文本、多选值或正整数 FPS；缺省结构化字段显示为空。
          *         multiple: 是否使用字符串多选输入。
          */
         EditableField: {
@@ -4284,6 +4235,7 @@ export interface components {
          *         total: 完整条目数，信息文件为 1。
          *         fields: 当前页的可编辑项，按文件原顺序。
          *         original_robot_types: 原文件 robot_type 的索引参考值，去重排序；空表示未读到有效值。
+         *         original_fps: 原文件 fps 的索引参考值，单位帧/秒，去重排序；空表示未读到。
          */
         EditableFieldsPage: {
             /** Dataset Id */
@@ -4297,6 +4249,11 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+            /**
+             * Original Fps
+             * @default []
+             */
+            original_fps: number[];
             /**
              * Original Robot Types
              * @default []
@@ -4382,10 +4339,10 @@ export interface components {
          * @description 一项字段改动。
          *
          *     Attributes:
-         *         document: 三份基础 JSON 之一；来源使用现有专用流程。
+         *         document: 三份基础 JSON 之一；数据来源属于信息顶层字段。
          *         expected_sha256: 表单读取的原字节摘要，防止预览覆盖填表期间的改动。
          *         path: 字段路径，最多三层；不接受文件系统路径。
-         *         value: 新文本或字符串数组；空值表示清空，不表示删除键。
+         *         value: 新文本、字符串数组或正整数 FPS；文本空值表示清空，不表示删除键。
          */
         FieldEdit: {
             document: components["schemas"]["EditableDocument"];
@@ -4410,7 +4367,7 @@ export interface components {
         };
         "FieldPath-Input": (string | number)[];
         "FieldPath-Output": (string | number)[];
-        FieldValue: string | string[];
+        FieldValue: string | string[] | number;
         /**
          * FileItem
          * @description 直接目录项；大小为字节，修改时刻为UTC，不把软链接当可直接预览的文件。
@@ -5127,7 +5084,7 @@ export interface components {
          *         CREATE_DATASET: create_dataset，新增数据集（M1-08，L5、L6）。
          *         REPOINT_DATASET: repoint_dataset，改指向（M1-09，L17-L19）。
          *         EDIT_DATASET_FIELDS: edit_dataset_fields，编辑导航层字段（M1.5-02）。
-         *         SET_DATA_ORIGIN: set_data_origin，数据来源标注（M1-10，只改来源.json）。
+         *         SET_DATA_ORIGIN: set_data_origin，历史来源标注变更；仅为读取和撤回已有变更保留。
          *         REVERT_CHANGE: revert_change，撤回某个已完成作业（L16，本票）。
          * @enum {string}
          */
@@ -5677,24 +5634,6 @@ export interface components {
             listed_changes: components["schemas"]["ListedChange"][];
             /** Listed Total */
             listed_total: number;
-        };
-        /**
-         * RobotModelOption
-         * @description 登记型号的最小只读投影；一个标签最多属于一个型号，停用型号仍能筛历史数据。
-         */
-        RobotModelOption: {
-            /**
-             * Model Id
-             * @description 平台永久编号文本，不接受标签冒充
-             */
-            model_id: string;
-            /** Name */
-            name: string;
-            /**
-             * Robot Types
-             * @description 去重排序的对应标签，允许空
-             */
-            robot_types: string[];
         };
         /**
          * Role
@@ -7759,11 +7698,9 @@ export interface operations {
     list_datasets: {
         parameters: {
             query?: {
-                /** @description 型号编号或 unknown；空表时指定编号返回空集 */
-                robot_model_id?: string | null;
-                /** @description 原始型号标签或 unknown；不解析 Markdown */
-                robot_type?: string | null;
-                /** @description 四舍五入后非负整数帧/秒或 unknown */
+                /** @description 机器人型号文本；unlabeled 表示未标注 */
+                robot_model?: string | null;
+                /** @description 导航信息顶层正整数帧/秒或 unknown */
                 fps?: number | "unknown" | null;
                 /** @description 场景原编码；unlabeled 表示未标注 */
                 scene?: string | null;
@@ -9358,11 +9295,9 @@ export interface operations {
     get_dataset_trees: {
         parameters: {
             query?: {
-                /** @description 型号编号或 unknown；空表时指定编号返回空集 */
-                robot_model_id?: string | null;
-                /** @description 原始型号标签或 unknown；不解析 Markdown */
-                robot_type?: string | null;
-                /** @description 四舍五入后非负整数帧/秒或 unknown */
+                /** @description 机器人型号文本；unlabeled 表示未标注 */
+                robot_model?: string | null;
+                /** @description 导航信息顶层正整数帧/秒或 unknown */
                 fps?: number | "unknown" | null;
                 /** @description 场景原编码；unlabeled 表示未标注 */
                 scene?: string | null;
@@ -13689,7 +13624,7 @@ export interface operations {
             };
         };
     };
-    preview_data_origin: {
+    preview_information_backfill: {
         parameters: {
             query?: never;
             header?: never;
@@ -13698,7 +13633,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DataOriginParameters"];
+                "application/json": components["schemas"]["BackfillParameters"];
             };
         };
         responses: {

@@ -36,7 +36,6 @@ from rdp.jobs.navwrite.provenance import (
     dump_provenance,
     new_provenance,
     read_provenance,
-    with_data_origin,
     with_lineage_record,
 )
 from rdp.jobs.navwrite.replica import (
@@ -452,8 +451,7 @@ def test_read_provenance_invalid_never_becomes_empty(tmp_path: Path) -> None:
     }
     cases: dict[str, str | None] = {
         "bad": "{坏",
-        "future": json.dumps(base | {"schema_version": 2}),
-        "origin": json.dumps(base | {"data_origin": "别的"}),
+        "future": json.dumps(base | {"schema_version": 3}),
         "extra": json.dumps(base | {"多余": 1}),
         "huge": " " * (MAX_DOCUMENT_BYTES + 1),
     }
@@ -489,10 +487,8 @@ def test_read_provenance_valid_draft_sample(tmp_path: Path) -> None:
         "dataset-29",
         "R1_lite_table_withdrawing_lerobot",
     )
-    assert document.data_origin == "真机采集" and document.collection_task_id is None
-    assert (
-        document.data_origin_set_by is not None and document.data_origin_set_by.kind == "人工标注"
-    )
+    assert document.schema_version == 2 and document.collection_task_id is None
+    assert "data_origin" not in dump_provenance(document)
     assert len(document.lineage) == 1 and document.lineage[0].status == "来历部分未知"
     assert document.lineage[0].inputs[0] == {
         "dataset_id": "dataset-35",
@@ -508,48 +504,20 @@ def test_read_provenance_valid_draft_sample(tmp_path: Path) -> None:
 
 
 def test_new_provenance_has_empty_lineage() -> None:
-    """契约 new_provenance：新文件 lineage 为空表示来历未知；origin 不是未知却没有 set_by 时报 InputError。"""
-    created = new_provenance("dataset-36", "新数据集", "真机采集", STAMP)
+    """契约 new_provenance：第 2 版只存身份、采集任务和血缘，空血缘表示来历未知。"""
+    created = new_provenance("dataset-36", "新数据集")
+    assert created.schema_version == 2
     assert created.lineage == () and created.collection_task_id is None
-    assert created.data_origin_set_by == STAMP
-    unknown = new_provenance("dataset-36", "新数据集", "未知", None)
-    assert unknown.data_origin == "未知" and unknown.data_origin_set_by is None
-    with pytest.raises(InputError):
-        new_provenance("dataset-36", "新数据集", "真机采集", None)
-    with pytest.raises(InputError):
-        new_provenance("dataset-36", "新数据集", "不在表里", STAMP)
 
 
 def _doc() -> ProvenanceDocument:
     """带一条血缘的文档。"""
-    return new_provenance("dataset-36", "n", "未知", None).model_copy(
-        update={"lineage": (_record(1),)}
-    )
-
-
-def test_with_data_origin_records_who_and_when() -> None:
-    """契约 with_data_origin：替换 data_origin 与 data_origin_set_by，lineage 原样；kind 不是人工类时报 InputError。"""
-    document = _doc()
-    later = ActorStamp(kind="人工补录", account_id=2, account_name="乙", at="2026-10-30T01:02:03Z")
-    updated = with_data_origin(document, "UMI 采集", later)
-    assert updated.data_origin == "UMI 采集" and updated.data_origin_set_by == later
-    assert updated.lineage == document.lineage and updated.dataset_id == document.dataset_id
-    assert document.data_origin == "未知"
-    same = with_data_origin(updated, "UMI 采集", STAMP)
-    assert same.data_origin_set_by == STAMP
-    with pytest.raises(InputError):
-        with_data_origin(
-            document,
-            "UMI 采集",
-            STAMP.model_copy(update={"kind": "worker", "account_id": None, "account_name": None}),
-        )
-    with pytest.raises(InputError):
-        with_data_origin(document, "不在表里", STAMP)
+    return new_provenance("dataset-36", "n").model_copy(update={"lineage": (_record(1),)})
 
 
 def test_with_lineage_record_is_append_only() -> None:
     """契约 with_lineage_record：只在末尾追加，已有记录一条不改；record_id 不是下一个编号时报 InputError。"""
-    document = new_provenance("dataset-36", "n", "未知", None)
+    document = new_provenance("dataset-36", "n")
     first = with_lineage_record(document, _record(1))
     second = with_lineage_record(first, _record(2))
     assert second.lineage[0] is first.lineage[0] and [r.record_id for r in second.lineage] == [1, 2]
@@ -562,31 +530,20 @@ def test_with_lineage_record_is_append_only() -> None:
 
 
 def test_dump_provenance_key_order() -> None:
-    """契约 dump_provenance：键顺序固定为 schema_version、dataset_id、dataset_name、data_origin、data_origin_set_by、collection_task_id、lineage，空值写 null。"""
-    dumped = dump_provenance(new_provenance("dataset-36", "n", "未知", None))
+    """契约 dump_provenance：第 2 版只写五个字段，空值写 null，血缘结构保持原样。"""
+    dumped = dump_provenance(new_provenance("dataset-36", "n"))
     assert list(dumped) == [
         "schema_version",
         "dataset_id",
         "dataset_name",
-        "data_origin",
-        "data_origin_set_by",
         "collection_task_id",
         "lineage",
     ]
-    assert dumped["data_origin_set_by"] is None and dumped["collection_task_id"] is None
+    assert dumped["schema_version"] == 2 and dumped["collection_task_id"] is None
     assert dumped["lineage"] == []
-    full = dump_provenance(
-        _doc().model_copy(update={"data_origin": "真机采集", "data_origin_set_by": STAMP})
-    )
-    assert full["data_origin_set_by"] == {
-        "kind": "人工标注",
-        "account_id": 1,
-        "account_name": "管理员",
-        "at": "2026-10-29T10:00:00Z",
-    }
+    full = dump_provenance(_doc())
     lineage: list[dict[str, Any]] = _as_dict(full)["lineage"]
     assert list(lineage[0])[:3] == ["record_id", "kind", "status"]
-    # 写出再读回得到同一份文档，经过 L11 的写出格式。
     assert load_navigation_json(dump_navigation_json(full)) == full
 
 

@@ -96,7 +96,7 @@ def validate_data_origin(value: str) -> str:
         value: DATA_ORIGINS 中的中文值；允许显式选择未知，不接受省略、空串或英文筛选键。
 
     Returns:
-        原样数据来源，用于 new_provenance，不推测采集任务或血缘。
+        原样数据来源，用于信息顶层，不推测采集任务或血缘。
 
     Raises:
         ValueError: 来源不在 DATA_ORIGINS 中。

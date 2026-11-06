@@ -19,7 +19,7 @@ async function expectLayout(layout: Layout): Promise<void> {
   const [role, name] = MARKER[layout];
   expect(await screen.findByRole(role, { name })).toBeTruthy();
 }
-const selectedUrl = `/datasets?robot_type=franka&selected=${encodeURIComponent(taskEntry.entry_path)}`;
+const selectedUrl = `/datasets?robot_model=franka&selected=${encodeURIComponent(taskEntry.entry_path)}`;
 
 describe.each(LAYOUTS)("布局 %s 共用状态", (layout) => {
   // 契约：该布局下，布局切换器标出当前布局。
@@ -50,17 +50,17 @@ describe.each(LAYOUTS)("布局 %s 共用状态", (layout) => {
     const page = mountPage("/datasets", datasetFetch(requests, store(layout)));
     try {
       await expectLayout(layout);
-      fireEvent.mouseDown(await screen.findByRole("combobox", { name: "型号标签" }));
+      fireEvent.mouseDown(await screen.findByRole("combobox", { name: "机器人型号" }));
       fireEvent.click(await screen.findByRole("option", { name: "franka（1）" }));
       await waitFor(() => {
-        expect(page.router.state.location.search).toMatchObject({ robot_type: "franka" });
+        expect(page.router.state.location.search).toMatchObject({ robot_model: "franka" });
       });
       await waitFor(() => {
         expect(
           requests.some(
             (request) =>
               new URL(request.url).pathname === "/api/datasets/trees" &&
-              new URL(request.url).searchParams.get("robot_type") === "franka",
+              new URL(request.url).searchParams.get("robot_model") === "franka",
           ),
         ).toBe(true);
       });
@@ -77,7 +77,7 @@ describe.each(LAYOUTS)("布局 %s 共用状态", (layout) => {
       await waitFor(() => {
         expect(page.router.state.location.search.selected).toBeUndefined();
       });
-      expect(page.router.state.location.search).toMatchObject({ robot_type: "franka" });
+      expect(page.router.state.location.search).toMatchObject({ robot_model: "franka" });
     } finally {
       page.close();
     }
@@ -236,7 +236,7 @@ describe("布局 B", () => {
 describe("布局 C", () => {
   // 契约：逐级进入目录，选入口后右侧文件预览显示详情；路径栏逐级显示，选中项写入 URL。
   it("逐级进入目录并在预览区查看详情", async () => {
-    const page = mountPage("/datasets?robot_type=franka", datasetFetch([], store("C")));
+    const page = mountPage("/datasets?robot_model=franka", datasetFetch([], store("C")));
     try {
       const columns = await screen.findByRole("region", { name: "目录分栏" });
       expect(screen.getByText("从目录开始浏览")).toBeTruthy();
@@ -245,7 +245,7 @@ describe("布局 C", () => {
         expect(page.router.state.location.search).toMatchObject({
           entry_path: "按任务",
           tree_view: "task",
-          robot_type: "franka",
+          robot_model: "franka",
         });
       });
       fireEvent.click(await within(columns).findByRole("button", { name: "打开 libero_10" }));
@@ -271,7 +271,7 @@ describe("布局 C", () => {
         expect(page.router.state.location.search.selected).toBeUndefined();
       });
       expect(page.router.state.location.search).toMatchObject({
-        robot_type: "franka",
+        robot_model: "franka",
         entry_path: "按任务",
       });
       expect(screen.getByText("从目录开始浏览")).toBeTruthy();

@@ -86,6 +86,7 @@ export function ManualCheckHelp(): ReactElement {
               </ul>
               <Typography.Title level={4}>检查什么</Typography.Title>
               <ul>
+                <li>与原文件比对：型号、FPS 和 LeRobot 的 meta/info.json 是否一致（只提示）</li>
                 <li>
                   导航文件：JSON
                   能不能读、必填字段、编号和名称是否一致、按任务和按格式两份副本是否一致、顶层有没有不认识的目录。

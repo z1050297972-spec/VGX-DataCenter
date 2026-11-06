@@ -12,6 +12,7 @@ import { LayoutA } from "./LayoutA";
 import { LayoutB } from "./LayoutB";
 import { LayoutC } from "./LayoutC";
 import type { DatasetLayout } from "../api/datasets";
+import { InformationBackfillEntry } from "./InformationBackfill";
 import { CreateDatasetEntry } from "./CreationEntries";
 import "./browser.css";
 
@@ -51,8 +52,7 @@ function BrowserContent(): ReactElement {
   const search = route.useSearch();
   const layout = useDatasetLayout();
   const query = useDatasetBrowser({
-    robot_type: search.robot_type,
-    robot_model_id: search.robot_model_id,
+    robot_model: search.robot_model,
     data_origin: search.data_origin,
     scene: search.scene,
     tasks: search.tasks,
@@ -84,6 +84,7 @@ function BrowserContent(): ReactElement {
               ]}
             />
           )}
+          <InformationBackfillEntry />
           <CreateDatasetEntry />
         </Flex>
       </Flex>

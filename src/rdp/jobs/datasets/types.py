@@ -190,11 +190,12 @@ class EntrySnapshot:
         findings: 读取和记录值提取发现，空表示这两个步骤无发现。
         provenance_state: 来源.json 的三态（M1-07）：不存在、可读、无法读取；与
             provenance_present 并存，后者仍只表示目录项有无。默认 ABSENT，只加不改。
-        data_origin: 来源文件有效且身份与入口一致时的筛选编码；其余为 unknown（M1-10）。
+        data_origin: 信息顶层中文来源映射的筛选编码；缺失或非法为 unknown。
         scene: 顶层 scene 的场景集合，兼容旧字符串；去空格、去空项、去重保序，不可用为空元组
             （M1.5-03）。不校验是否在词表内，词表外的值照样保留。
         tasks: 顶层 tasks 数组里的非空文本项，去重并保持原顺序；缺失或不是数组为空元组。
-        robot_model: 顶层 robot_model 的非空文本原值；缺失、空串、非文本为 None。
+        robot_model: 顶层 robot_model 去首尾空白后的非空文本；未填写为 None。
+        fps: 信息顶层正整数帧率，单位帧/秒；缺失或非法为 None。
     """
 
     location: EntryLocation
@@ -211,3 +212,4 @@ class EntrySnapshot:
     scene: tuple[str, ...] = ()
     tasks: tuple[str, ...] = ()
     robot_model: str | None = None
+    fps: int | None = None

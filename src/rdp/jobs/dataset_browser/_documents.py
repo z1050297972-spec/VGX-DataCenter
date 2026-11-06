@@ -12,7 +12,6 @@ from rdp.infra.diagnostics import Diagnostic, DiagnosticCategory, ExternalError,
 from rdp.jobs.dataset_browser import _index, _listing
 from rdp.jobs.dataset_browser.errors import DatasetNotFoundError
 from rdp.jobs.dataset_browser.schemas import (
-    DataOriginAttribution,
     DatasetLink,
     DatasetProvenance,
     DatasetSource,
@@ -52,14 +51,7 @@ def provenance(root: Path, row: EntryRow | None) -> DatasetProvenance | None:
         row.name,
     ):
         return DatasetProvenance(state=ProvenanceState.INVALID)
-    stamp = document.data_origin_set_by
-    return DatasetProvenance(
-        state=ProvenanceState.VALID,
-        data_origin=document.data_origin,
-        data_origin_set_by=DataOriginAttribution(account_name=stamp.account_name, at=stamp.at)
-        if stamp is not None
-        else None,
-    )
+    return DatasetProvenance(state=ProvenanceState.VALID)
 
 
 def checkpoint() -> None:

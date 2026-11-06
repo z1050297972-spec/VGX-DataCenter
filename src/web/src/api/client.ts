@@ -3,12 +3,11 @@ import type { Client, ClientOptions } from "openapi-fetch";
 import createClient from "openapi-fetch";
 import { createProblemFetch } from "./problems";
 import type { components, paths } from "./schema";
-import type { SceneArrays } from "./sceneTypes";
 
 /** 健康响应只引用生成类型，禁止另写重复的接口结构。 */
 export type HealthResponse = components["schemas"]["HealthResponse"];
 /** 客户端方法和路径由 OpenAPI 约束。 */
-export type HealthClient = Client<SceneArrays<paths>>;
+export type HealthClient = Client<paths>;
 /** 注入边界沿用 openapi-fetch 的 Request 输入契约，测试不用替换全局 fetch。 */
 export type FetchImplementation = NonNullable<ClientOptions["fetch"]>;
 
@@ -36,5 +35,8 @@ export const defaultFetch: FetchImplementation = (...args) => {
  * @timeSemantics 同步创建；请求的取消和超时由调用方的 AbortSignal 控制。
  */
 export function createHealthClient(fetchImpl: FetchImplementation = defaultFetch): HealthClient {
-  return createClient<SceneArrays<paths>>({ baseUrl: "", fetch: createProblemFetch(fetchImpl) });
+  return createClient<paths>({
+    baseUrl: "",
+    fetch: createProblemFetch(fetchImpl),
+  });
 }

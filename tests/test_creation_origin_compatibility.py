@@ -1,5 +1,6 @@
-"""第 08、10 张合并回归：创建与来源标注共用临时导航层、写入底座和来源模型。"""
+"""第 08、10 张合并回归：创建与字段编辑共用临时导航层、写入底座和来源模型。"""
 
+import json
 from pathlib import Path
 
 from creation_support import creation_api_case, preview_job, run_queued
@@ -9,7 +10,7 @@ from nav_manifest import FakeNavigation
 def test_created_dataset_supports_origin_detail_filter_and_update(
     tmp_path: Path, fake_nav: FakeNavigation
 ) -> None:
-    """合并契约：新建来源可被两视图详情、索引筛选及第 10 张后续标注读取，格式副本不复制来源。"""
+    """合并契约：新建来源可被两视图详情、索引筛选及字段编辑读取，格式副本不复制来源。"""
     with creation_api_case(tmp_path, fake_nav) as (api, deps):
         preview = preview_job(
             api, deps, fake_nav, operation="dataset", format_entries=[{"format": "mcap"}]
@@ -26,9 +27,23 @@ def test_created_dataset_supports_origin_detail_filter_and_update(
 
         for origin, code in (("开源下载", "open_source"), ("仿真生成", "simulation")):
             if origin == "仿真生成":
+                page = api.client.get(
+                    f"/api/datasets/{dataset}/editable-fields",
+                    params={"document": "数据集信息.json"},
+                ).json()
                 response = api.client.post(
-                    "/api/navigation/data-origin/preview",
-                    json={"dataset_id": dataset, "data_origin": origin},
+                    "/api/navigation/fields/preview",
+                    json={
+                        "dataset_id": dataset,
+                        "changes": [
+                            {
+                                "document": "数据集信息.json",
+                                "expected_sha256": page["sha256"],
+                                "path": ["data_origin"],
+                                "value": origin,
+                            }
+                        ],
+                    },
                 )
                 assert response.status_code == 201, response.text
                 identifier = response.json()["job_id"]
@@ -54,8 +69,10 @@ def test_created_dataset_supports_origin_detail_filter_and_update(
                 response = api.client.get("/api/datasets/detail", params={"entry_path": entry})
                 assert response.status_code == 200, response.text
                 provenance = response.json()["provenance"]
-                assert provenance["state"] == "valid" and provenance["data_origin"] == origin
-                assert provenance["data_origin_set_by"]["account_name"] == "管理员"
+                assert provenance == {"state": "valid"}
+                assert (
+                    json.loads(response.json()["information"]["content"])["data_origin"] == origin
+                )
                 assert response.json()["index_stale"] is False
             response = api.client.get("/api/datasets", params={"data_origin": code})
             assert response.status_code == 200, response.text

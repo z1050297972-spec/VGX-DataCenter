@@ -123,7 +123,7 @@ def read_entry(
         EntrySnapshot，三份文件缺失、打不开、非普通文件或 parse_document 拒绝时逐份记录发现。
         一份失败不丢弃其余文件；全部失败仍返回按目录名可展示的入口，dataset_id=None。
         links/source.entry_path 由位置推导，JSON 原值留给面板核对；来源.json 读取三态，
-        有效且身份匹配时投影来源筛选编码，否则 unknown，不从按格式副本猜测规范来源。
+        其中数据来源字段忽略；来源筛选编码只读信息顶层，缺失或非法为 unknown。
         第4项原文保留但不解析，recorded_size_bytes 固定为 None。
         scene/tasks/robot_model 只投影信息文件顶层，不解析 Markdown；空值按未标注，自定义文本保留。
 
@@ -164,15 +164,11 @@ def read_entry(
         else ()
     )
     provenance = read_provenance(nav_root / location.path) if "来源.json" in names else None
-    source = provenance.document if provenance else None
-    origin = (
-        ORIGIN_CODES[source.data_origin]
-        if source is not None
-        and source.dataset_id == identity
-        and source.dataset_name == location.dataset_name
-        and location.view.value == "task"
-        else "unknown"
-    )
+    information = documents[1].payload or {}
+    raw_origin = information.get("data_origin")
+    origin = ORIGIN_CODES.get(raw_origin, "unknown") if isinstance(raw_origin, str) else "unknown"
+    raw_fps = information.get("fps")
+    fps = raw_fps if type(raw_fps) is int and raw_fps > 0 else None
     return EntrySnapshot(
         location,
         documents,
@@ -186,6 +182,7 @@ def read_entry(
         provenance.state if provenance else ProvenanceState.ABSENT,
         origin,
         *classification(documents[1]),
+        fps,
     )
 
 
@@ -245,7 +242,7 @@ def classification(
 
     Returns:
         (scene, tasks, robot_model)：scene 兼容旧字符串，去空格、去空项、去重保序；
-        缺失或无有效场景为空元组。robot_model 是非空文本原值，缺失、空串、非文本为 None；
+        缺失或无有效场景为空元组。robot_model 是去首尾空白后的非空文本，缺失、空串、非文本为 None；
         tasks 是数组里的非空文本项，去重并保持原顺序，缺失或不是数组为空元组。
         词表是推荐值，可以自定义；自定义值保留且不产生词表提示，tasks 不去除首尾空白，不读取 14 项 Markdown。
 
@@ -306,7 +303,7 @@ def scene_values(value: object) -> tuple[str, ...]:
 
 def _text_or_none(value: object) -> str | None:
     """分类字段只接受非空文本，其余按未填写处理。"""
-    return value if isinstance(value, str) and value else None
+    return value.strip() if isinstance(value, str) and value.strip() else None
 
 
 def _validate_location(location: EntryLocation) -> None:

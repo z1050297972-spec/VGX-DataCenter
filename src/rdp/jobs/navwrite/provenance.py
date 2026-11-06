@@ -1,8 +1,7 @@
 """`来源.json` 的格式与读写（领域层，M1-07，ADR 0008）。
 
-第 1 版格式以 15 号票的草样为起点：去掉 `_example_platform_record`，其余字段保留。
-只在按任务入口存在，按格式入口不放副本。血缘记录只追加；数据来源可以改，改的时候记下是谁、什么时候改的。
-没有这份文件的数据集按"数据来源未知、来历未知"处理（一致性面板只给提示）。
+第 2 版只存身份、采集任务和血缘；兼容读取第 1 版并忽略其中的数据来源字段。
+只在按任务入口存在，按格式入口不放副本。血缘记录只追加；没有文件表示来历未知。
 本模块负责内存里的模型和纯函数；写盘走 NavWritePlan 的 WriteFileStep，不另开写路径。
 """
 
@@ -14,19 +13,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from rdp.jobs.datasets import _io
 from rdp.jobs.datasets.catalog import MAX_DOCUMENT_BYTES, PROVENANCE_DOCUMENT
 from rdp.jobs.datasets.types import JsonObject, ProvenanceState
 from rdp.jobs.navwrite.errors import nav_external_error, nav_input_error
-from rdp.jobs.navwrite.policy import DATA_ORIGINS, PROVENANCE_FORMAT_VERSION
+from rdp.jobs.navwrite.policy import PROVENANCE_FORMAT_VERSION
 
 _FROZEN = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
 
 
 class ActorStamp(BaseModel):
-    """记录“谁在什么时候做的”的印记，数据来源和血缘记录共用。
+    """记录“谁在什么时候做的”的印记，供血缘记录使用。
 
     Attributes:
         model_config: 冻结，拒绝未知字段。
@@ -84,36 +83,23 @@ class LineageRecord(BaseModel):
 
 
 class ProvenanceDocument(BaseModel):
-    """`来源.json` 第 1 版的完整内容；字段顺序即写出顺序。
+    """`来源.json` 第 2 版的完整内容；字段顺序即写出顺序。
 
     Attributes:
         model_config: 冻结，拒绝未知字段。
-        schema_version: 固定 1；读到更大的版本一律拒绝解析。
+        schema_version: 固定 2；第 1 版读取时先丢弃来源字段再转换。
         dataset_id: 永久编号，必须与入口里其他三份 JSON 一致。
         dataset_name: 数据集名，等于按任务入口的目录名。
-        data_origin: 取值为 DATA_ORIGINS 之一（真机采集、UMI 采集、ego 采集、仿真生成、开源下载、未知）。
-        data_origin_set_by: 最后一次设置数据来源的印记；"未知"且从未标注时为 None。
-            旧值不留在文件里，历史靠变更记录追溯。
         collection_task_id: 所属采集任务的编号文本，没有为 None（采集任务编号形式由 M2 定）。
         lineage: 血缘记录，按 record_id 升序，空元组表示"来历未知"。
     """
 
     model_config = _FROZEN
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     dataset_id: str = Field(min_length=1)
     dataset_name: str = Field(min_length=1)
-    data_origin: str = Field(min_length=1)
-    data_origin_set_by: ActorStamp | None
     collection_task_id: str | None
     lineage: tuple[LineageRecord, ...]
-
-    @field_validator("data_origin")
-    @classmethod
-    def _known_origin(cls, value: str) -> str:
-        """数据来源必须是登记的取值之一。"""
-        if value not in DATA_ORIGINS:
-            raise ValueError("data_origin 不在取值表里")
-        return value
 
 
 @dataclass(frozen=True)
@@ -162,71 +148,31 @@ def read_provenance(entry_dir: Path) -> ProvenanceRead:
         raise problem from error
 
 
-def new_provenance(
-    dataset_id: str, dataset_name: str, origin: str, set_by: ActorStamp | None
-) -> ProvenanceDocument:
-    """为一个还没有来源.json 的数据集构造第一份内容，血缘为空表示"来历未知"。
+def new_provenance(dataset_id: str, dataset_name: str) -> ProvenanceDocument:
+    """为新数据集构造第 2 版来源文件，空血缘表示来历未知。
 
     Args:
-        dataset_id: 永久编号，非空，如 `dataset-36`。
-        dataset_name: 按任务入口目录名，非空。
-        origin: 数据来源，必须在 DATA_ORIGINS 里；新增数据集时由用户必填，补写旧数据集时可为"未知"。
-        set_by: 设置者印记；origin 为"未知"且无人标注时传 None，其余必须有值。
+        dataset_id: 非空永久编号，例如 dataset-36。
+        dataset_name: 非空按任务入口目录名。
 
     Returns:
-        ProvenanceDocument：`collection_task_id` 为 None，`lineage` 为空元组。
+        第 2 版 ProvenanceDocument，collection_task_id 为 None，lineage 为空元组。
 
     Raises:
-        InputError: origin 不在取值表里，或 origin 不是"未知"却没有 set_by。
+        ValidationError: 编号或名称为空或类型不合法。
 
     Side Effects:
-        无。
+        无；数据来源由调用方写入数据集信息.json。
 
     Time Semantics:
-        同步纯函数；时刻由调用方放进 set_by.at，函数本身不读时钟。
+        同步纯函数，不读取时钟。
     """
-    _check_origin(origin)
-    if origin != "未知" and set_by is None:
-        problem = nav_input_error("NAV_PROVENANCE", "数据来源不是未知，必须记下是谁设置的")
-        raise problem
     return ProvenanceDocument(
         dataset_id=dataset_id,
         dataset_name=dataset_name,
-        data_origin=origin,
-        data_origin_set_by=set_by,
         collection_task_id=None,
         lineage=(),
     )
-
-
-def with_data_origin(
-    document: ProvenanceDocument, origin: str, set_by: ActorStamp
-) -> ProvenanceDocument:
-    """改数据来源，并记下是谁、什么时候改的；血缘和其他字段不动。
-
-    Args:
-        document: 现有内容。
-        origin: 新的数据来源，必须在 DATA_ORIGINS 里。
-        set_by: 本次修改者印记，kind 为"人工标注"或"人工补录"。
-
-    Returns:
-        新 ProvenanceDocument：`data_origin` 与 `data_origin_set_by` 被替换，`lineage` 原样。
-        新旧来源相同时仍更新印记，不静默忽略；调用方要避免空写入就先比较。
-
-    Raises:
-        InputError: origin 不在取值表里，或 set_by.kind 不是人工类。
-
-    Side Effects:
-        无；返回新对象。
-
-    Time Semantics:
-        同步纯函数；set_by.at 由调用方的注入时钟生成。
-    """
-    _check_origin(origin)
-    if set_by.kind not in ("人工标注", "人工补录"):
-        problem = nav_input_error("NAV_PROVENANCE", "修改数据来源的印记必须是人工标注或人工补录")
-        raise problem
-    return document.model_copy(update={"data_origin": origin, "data_origin_set_by": set_by})
 
 
 def with_lineage_record(document: ProvenanceDocument, record: LineageRecord) -> ProvenanceDocument:
@@ -267,7 +213,7 @@ def dump_provenance(document: ProvenanceDocument) -> JsonObject:
         document: 要写出的内容。
 
     Returns:
-        键顺序为 schema_version、dataset_id、dataset_name、data_origin、data_origin_set_by、
+        键顺序为 schema_version、dataset_id、dataset_name、
         collection_task_id、lineage；没有值的字段显式写 null，不省略；时间保持 UTC `Z` 文本。
 
     Raises:
@@ -280,15 +226,6 @@ def dump_provenance(document: ProvenanceDocument) -> JsonObject:
         同步纯函数，无时钟、无 I/O。
     """
     return cast(JsonObject, document.model_dump(mode="json"))
-
-
-def _check_origin(origin: str) -> None:
-    """数据来源必须在取值表里。"""
-    if origin not in DATA_ORIGINS:
-        problem = nav_input_error(
-            "NAV_PROVENANCE", "数据来源不在取值表里", expected="、".join(DATA_ORIGINS)
-        )
-        raise problem
 
 
 def _invalid(reason: str, digest: str | None = None) -> ProvenanceRead:
@@ -334,7 +271,7 @@ def _read_regular(fd: int) -> bytes:
 
 
 def _parse(content: bytes) -> ProvenanceRead:
-    """解析并校验第 1 版格式；任何一步不合格都是 INVALID，不替换成空文档。"""
+    """兼容第 1 版并校验第 2 版格式；任何一步不合格都是 INVALID，不替换成空文档。"""
     digest = hashlib.sha256(content).hexdigest()
     try:
         loaded = json.loads(content.decode("utf-8"))
@@ -342,10 +279,17 @@ def _parse(content: bytes) -> ProvenanceRead:
         return _invalid("来源.json 不是合法的 UTF-8 JSON", digest)
     if not isinstance(loaded, dict):
         return _invalid("来源.json 顶层不是对象", digest)
-    if cast(JsonObject, loaded).get("schema_version") != PROVENANCE_FORMAT_VERSION:
+    payload = cast(JsonObject, loaded)
+    version = payload.get("schema_version")
+    if type(version) is not int or version not in (1, PROVENANCE_FORMAT_VERSION):
         return _invalid("来源.json 的 schema_version 不认识", digest)
+    if version == 1:
+        # 旧字段不再拥有显示或筛选语义，也不要求它们仍满足旧编辑契约。
+        payload.pop("data_origin", None)
+        payload.pop("data_origin_set_by", None)
+        payload["schema_version"] = PROVENANCE_FORMAT_VERSION
     try:
-        document = ProvenanceDocument.model_validate(loaded)
+        document = ProvenanceDocument.model_validate(payload)
     except ValidationError:
-        return _invalid("来源.json 的字段不符合第 1 版格式", digest)
+        return _invalid("来源.json 的字段不符合第 2 版格式", digest)
     return ProvenanceRead(ProvenanceState.VALID, document, digest, None)

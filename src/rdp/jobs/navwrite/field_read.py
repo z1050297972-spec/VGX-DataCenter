@@ -84,6 +84,17 @@ def read_editable_fields(
                 }
             )
         )
+        original_fps = tuple(
+            sorted(
+                {
+                    value
+                    for value in session.scalars(
+                        select(SourceRow.fps).where(SourceRow.entry_path == path)
+                    )
+                    if value is not None
+                }
+            )
+        )
     objects = (("dataset_id", dataset_id), ("file", document), ("entry_path", path))
     try:
         with _io.directory(nav_root / path) as descriptor:
@@ -123,6 +134,7 @@ def read_editable_fields(
         total=total,
         fields=tuple(fields),
         original_robot_types=robot_types,
+        original_fps=original_fps,
     )
 
 

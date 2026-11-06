@@ -22,7 +22,7 @@ from rdp.api.storage import configure_storage
 from rdp.infra.config import StorageConfig, WebConfig
 from rdp.infra.state import StatePaths
 from rdp.infra.storage import MountInspector
-from rdp.jobs.dataset_browser.service import DatasetBrowserService, read_unregistered_robot_models
+from rdp.jobs.dataset_browser.service import DatasetBrowserService
 from rdp.jobs.file_viewer import FileViewerService
 from rdp.jobs.registry import JobRegistry
 from rdp.jobs.scheduling_types import SchedulingCatalog
@@ -159,7 +159,6 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
                     runtime.engine,
                     runtime.nav_root,
                     app.state.job_service,
-                    read_unregistered_robot_models,
                 ),
             )
         if runtime.nav_root is not None:

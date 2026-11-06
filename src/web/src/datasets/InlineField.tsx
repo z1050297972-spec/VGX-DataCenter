@@ -2,6 +2,7 @@
 import type { ReactElement } from "react";
 import type { EditablePage } from "../api/fieldEditing";
 import type { FieldEditingState } from "./fieldEditingState";
+import { INFORMATION_FIELD_ROWS } from "./informationFieldPlacement";
 import { FieldInput, ModelReference } from "./FieldInputs";
 import { useDatasetFilterOptions } from "./queries";
 
@@ -11,7 +12,7 @@ interface Props {
   /** 原始字段投影，路径不因布局变化而改写。 */ field: EditablePage["fields"][number];
 }
 /**
- * 在原位置编辑一个字段，第5、6项附带结构化分类输入。
+ * 在原位置编辑一个字段，第3、5、6、8项附带结构化输入。
  * @param props - 会话、所属页和字段投影。
  * @returns 单项输入；型号参考随第5项或独立型号输入展示。
  * @throws 无。
@@ -22,14 +23,17 @@ export function InlineField(props: Props): ReactElement {
   const { state, data, field } = props;
   const vocabulary = useDatasetFilterOptions().data;
   const names =
-    field.path[0] === "fields" && field.label === "第 5 项：采集机器人型号"
-      ? ["robot_model"]
-      : field.path[0] === "fields" && field.label === "第 6 项：任务与场景"
-        ? ["scene", "tasks"]
-        : [];
+    field.path[0] === "fields"
+      ? Object.keys(INFORMATION_FIELD_ROWS).filter(
+          (key) => INFORMATION_FIELD_ROWS[key] === field.label,
+        )
+      : [];
   return (
     <div className="field-inline">
       {field.path[0] === "robot_model" && <ModelReference data={data} changes={state.changes} />}
+      {field.path[0] === "fps" && (
+        <p>原文件 fps（索引参考）：{data.original_fps.join("、") || "未知"}</p>
+      )}
       {data.fields
         .filter((entry) => entry.path.length === 1 && names.includes(String(entry.path[0])))
         .map((entry) => (

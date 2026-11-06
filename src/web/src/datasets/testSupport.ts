@@ -1,4 +1,5 @@
 // M1-04 页面测试样本：按生成类型手写两个有区别的数据集，不读取真实导航层。
+import type { DatasetFilters, DatasetList } from "../api/datasets";
 import type { components } from "../api/schema";
 import type { SceneArrays } from "../api/sceneTypes";
 import type { FetchImplementation } from "../api/client";
@@ -29,20 +30,18 @@ export const formatEntry: Schema["EntrySummary"] = {
   format: "lerobot",
   version: "2.1",
 };
-export const datasets: Schema["DatasetListResponse"] = {
+export const datasets: DatasetList = {
   items: [
     {
       dataset_id: "dataset-14",
       name: "libero_10",
       canonical_entry_path: taskEntry.entry_path,
       entries: [formatEntry, taskEntry],
-      robot_types: ["franka"],
-      robot_model_ids: [],
+      robot_model: "franka",
       fps: [20],
       data_origin: "unknown",
       scene: ["tabletop", "kitchen", "自定义场景"],
       tasks: ["pick_place", "tidy"],
-      robot_model: "Franka",
       indexed_at: "2026-10-29T12:00:00Z",
       size,
     },
@@ -53,13 +52,11 @@ export const datasets: Schema["DatasetListResponse"] = {
       entries: [
         { ...taskEntry, dataset_id: "dataset-20", entry_path: "按任务/other", name: "other" },
       ],
-      robot_types: ["g2a"],
-      robot_model_ids: [],
+      robot_model: "g2a",
       fps: [30],
       data_origin: "unknown",
       scene: [],
       tasks: [],
-      robot_model: null,
       indexed_at: "2026-10-29T12:00:00Z",
       size,
     },
@@ -161,15 +158,11 @@ trees.nodes.push(
     size: treeSize,
   },
 );
-export const filters: Schema["DatasetFilterOptions"] = {
-  robot_models_registered: false,
-  default_robot_filter: "robot_type",
-  robot_models: [],
-  robot_model_options: [{ value: "unknown", label: "未知", count: 2 }],
-  robot_types: [
+export const filters: DatasetFilters = {
+  robot_models: [
     { value: "franka", label: "franka", count: 1 },
     { value: "g2a", label: "g2a", count: 1 },
-    { value: "unknown", label: "未知", count: 0 },
+    { value: "unlabeled", label: "未标注", count: 0 },
   ],
   fps: [
     { value: "20", label: "20", count: 1 },
@@ -196,7 +189,7 @@ export const filters: Schema["DatasetFilterOptions"] = {
   ],
 };
 export const detail: Schema["DatasetDetailResponse"] = {
-  provenance: { state: "absent", data_origin: "未知", data_origin_set_by: null },
+  provenance: { state: "absent" },
   entry: taskEntry,
   entries: [taskEntry, formatEntry],
   canonical_entry_path: taskEntry.entry_path,
@@ -309,8 +302,8 @@ export function datasetFetch(
     if (url.pathname === "/api/datasets") {
       const selected = datasets.items.filter(
         (item) =>
-          (!url.searchParams.has("robot_type") ||
-            item.robot_types.includes(url.searchParams.get("robot_type"))) &&
+          (!url.searchParams.has("robot_model") ||
+            item.robot_model === url.searchParams.get("robot_model")) &&
           (!url.searchParams.has("fps") || item.fps.includes(Number(url.searchParams.get("fps")))),
       );
       return Promise.resolve(
