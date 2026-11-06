@@ -33,11 +33,12 @@
   max-height: 480px;
   overflow: auto;
   background: var(--rdp-subtle);
-  border-radius: var(--rdp-radius-small);
+  border-radius: var(--rdp-radius-control);
   padding: var(--rdp-space-4);
   margin: 0;
   font-family: var(--rdp-mono);
-  font-size: 12px;
+  font-size: var(--rdp-font-code);
+  line-height: var(--rdp-code-line-height);
 }
 
 /* 窄屏先显示标题，再显示可换行的操作链接。 */

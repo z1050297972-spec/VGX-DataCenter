@@ -26,6 +26,10 @@
   overflow: hidden;
 }
 .dataset-json {
+  font-family: var(--rdp-mono);
+  font-size: var(--rdp-font-code);
+  line-height: var(--rdp-code-line-height);
+  border-radius: var(--rdp-radius-control);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 65vh;
@@ -36,7 +40,12 @@
 .dataset-filters {
   margin: 0;
 }
+/* 既有字段 label 没有独立类名，限定筛选区统一小字标签。 */
 .dataset-filters label {
+  font-family: var(--rdp-mono);
+  font-size: var(--rdp-font-label);
+  letter-spacing: var(--rdp-tracking-label);
+  color: var(--rdp-muted);
   display: flex;
   gap: var(--rdp-space-2);
   flex-direction: column;
@@ -241,4 +250,18 @@
   font-weight: 600;
   margin-top: 0;
   margin-bottom: var(--rdp-space-3);
+}
+
+/* 筛选托盘只覆盖独立的筛选卡，避免把带表格的内容卡一起染灰。 */
+.browser-filter-card.ant-card {
+  background: var(--rdp-subtle);
+  border-color: transparent;
+}
+/* Select 的容器色通过组件变量控制，弹出菜单仍使用 elevated 表面。 */
+.browser-filter-card .ant-select {
+  --ant-select-selector-bg: var(--rdp-surface);
+}
+.dataset-classification,
+.dataset-tree-meta {
+  font-variant-numeric: tabular-nums;
 }
