@@ -56,23 +56,21 @@ export function FieldInput(props: InputProps): ReactElement {
     </label>
   );
 }
-// 同一组设置决定候选来源与交互形态，避免场景单选和任务多选的配置分散。
+// 同一组设置决定候选来源与交互形态，避免场景与任务的词表配置分散。
 const classificationSettings = {
   scene: {
     terms: "scene_vocabulary",
     candidates: "scenes",
-    mode: undefined,
-    placeholder: "选择或输入场景（回车确认）",
+    placeholder: "选择或输入场景（可多选，回车确认）",
   },
   tasks: {
     terms: "task_vocabulary",
     candidates: "tasks",
-    mode: "tags",
     placeholder: "选择或输入任务（可多选，回车确认）",
   },
 } as const;
 
-// 场景保持单选，任务使用 tags；推荐词表和平台已有自定义值共用服务端候选。
+// 场景和任务均使用 tags；推荐词表和平台已有自定义值共用服务端候选。
 function ClassificationInput({
   field,
   value,
@@ -81,17 +79,16 @@ function ClassificationInput({
   vocabulary,
 }: InputProps): ReactElement {
   const [search, setSearch] = useState("");
-  const multiple = field.path[0] === "tasks";
   const selected = typeof value === "string" ? [value].filter(Boolean) : value;
-  const settings = classificationSettings[multiple ? "tasks" : "scene"];
+  const settings = classificationSettings[field.path[0] === "tasks" ? "tasks" : "scene"];
   const terms = vocabulary?.[settings.terms];
   const candidates = vocabulary?.[settings.candidates];
-  const options = classificationOptions(terms, candidates, selected, multiple ? "" : search);
+  const options = classificationOptions(terms, candidates, selected);
   return (
     <label className="field-input">
       <span>{field.label}</span>
-      <Select<string | string[], { value: string; label: string }>
-        mode={settings.mode}
+      <Select<string[], { value: string; label: string }>
+        mode="tags"
         showSearch={{
           searchValue: search,
           onSearch: setSearch,
@@ -103,13 +100,13 @@ function ClassificationInput({
         virtual={false}
         aria-label={field.label}
         placeholder={settings.placeholder}
-        value={multiple ? selected : selected[0]}
+        value={selected}
         disabled={disabled || !vocabulary}
         loading={!vocabulary}
         getPopupContainer={popupContainer}
         options={options}
-        onChange={(next: string | string[] | undefined) => {
-          onChange(normalizeClassification(next, multiple));
+        onChange={(next: string[]) => {
+          onChange(normalizeClassification(next));
           setSearch("");
         }}
       />
@@ -121,23 +118,17 @@ function classificationOptions(
   terms: DatasetFilters["scene_vocabulary"] | undefined,
   candidates: DatasetFilters["scenes"] | undefined,
   selected: string[],
-  search: string,
 ) {
   const options = new Map<string, { value: string; label: string }>();
   for (const term of terms ?? []) options.set(term.code, { value: term.code, label: term.name });
   for (const value of [...(candidates?.map((item) => item.value) ?? []), ...selected]) {
     if (value !== "unlabeled" && !options.has(value)) options.set(value, { value, label: value });
   }
-  const input = search.trim();
-  // 单选没有自动创建行为；追加候选让回车仍由 Select 处理。
-  if (input && !options.has(input)) options.set(input, { value: input, label: `新建：${input}` });
   return [...options.values()];
 }
-// 输入只做首尾去空格和任务去重，其他合法性由已有服务端契约判断。
-function normalizeClassification(next: string | string[] | undefined, multiple: boolean): Value {
-  if (Array.isArray(next)) return [...new Set(next.map((item) => item.trim()).filter(Boolean))];
-  if (multiple) return [];
-  return next?.trim() ?? "";
+// 分类输入统一去首尾空格和去重，其他合法性由服务端契约判断。
+function normalizeClassification(next: string[]): string[] {
+  return [...new Set(next.map((item) => item.trim()).filter(Boolean))];
 }
 /**
  * 显示导航型号与原文件型号的参考差异。

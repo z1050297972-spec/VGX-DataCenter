@@ -90,7 +90,7 @@ it("列表和详情显示分类中文名称", async () => {
             content: JSON.stringify({
               title: "人工标题",
               robot_model: "Franka",
-              scene: "tabletop",
+              scene: ["tabletop", "kitchen", "自定义场景"],
               tasks: ["pick_place", "tidy"],
               fields: [],
             }),
@@ -100,11 +100,11 @@ it("列表和详情显示分类中文名称", async () => {
   );
   try {
     const list = await screen.findByRole("region", { name: "数据集列表" });
-    expect(await within(list).findByText(/场景：桌面/)).toBeTruthy();
+    expect(await within(list).findByText("场景：桌面、家居-厨房、自定义场景")).toBeTruthy();
     expect(within(list).getByText(/任务：抓取放置、收纳整理/)).toBeTruthy();
     fireEvent.click(within(list).getByRole("button", { name: "打开 libero_10" }));
     const summary = await screen.findByRole("region", { name: "导航层结构化信息" });
-    expect(await within(summary).findByText("桌面")).toBeTruthy();
+    expect(await within(summary).findByText("桌面、家居-厨房、自定义场景")).toBeTruthy();
     expect(within(summary).getByText("抓取放置、收纳整理")).toBeTruthy();
     expect(within(summary).getByText("Franka")).toBeTruthy();
   } finally {

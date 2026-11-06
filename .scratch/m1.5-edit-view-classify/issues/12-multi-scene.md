@@ -46,3 +46,4 @@ Status: in-progress
 ## Comments
 
 - 2026-11-05 开票（执行线；负责人点名，两个决定当面选定）。
+- 2026-11-05 20:24 前后端交回（medium，并行约 30 分钟）。索引迁移 0017_multi_scene（datasets.scene_json），正常升级不用重扫。评审无阻塞问题；执行线修了 2 个文件的 Prettier 格式。make check 全绿（2763 passed，Vitest 385，0 skipped）；变异抽查（多场景只取第一个）被 test_scene_tree_groups_canonical_entries 抓到。前端 api/sceneTypes.ts 的临时类型覆盖可在以后删掉（生成类型已更新），不阻塞。合并待负责人。

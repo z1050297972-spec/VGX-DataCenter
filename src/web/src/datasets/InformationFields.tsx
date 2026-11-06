@@ -23,7 +23,7 @@ const ITEMS = [
   [13, "轨迹／帧数"],
   [14, "信息来源与核验日期"],
 ] as const;
-const EMPTY: DatasetInformationInput = { fields: [], robot_model: "", scene: "", tasks: [] };
+const EMPTY: DatasetInformationInput = { fields: [], robot_model: "", scene: [], tasks: [] };
 interface Props {
   /** 未填写时为 undefined 或 null；编号只包含可编辑项。 */
   value?: DatasetInformationInput | null;
@@ -45,7 +45,9 @@ export function InformationFields(props: Props): ReactElement {
   const value = props.value ?? EMPTY;
   function change(next: DatasetInformationInput): void {
     props.onChange(
-      next.fields.length || next.robot_model || next.scene || next.tasks.length ? next : undefined,
+      next.fields.length || next.robot_model || next.scene.length || next.tasks.length
+        ? next
+        : undefined,
     );
   }
   return (
@@ -71,14 +73,15 @@ export function InformationFields(props: Props): ReactElement {
                     path: [key],
                     label: { robot_model: "机器人型号", scene: "场景", tasks: "任务" }[key],
                     value: value[key],
-                    multiple: key === "tasks",
+                    multiple: key !== "robot_model",
                   }}
                   value={value[key]}
                   vocabulary={vocabulary.data}
                   disabled={props.disabled}
                   onChange={(next) => {
-                    if (key === "tasks" && Array.isArray(next)) change({ ...value, tasks: next });
-                    else if (key !== "tasks" && typeof next === "string")
+                    if (key !== "robot_model" && Array.isArray(next))
+                      change({ ...value, [key]: next });
+                    else if (key === "robot_model" && typeof next === "string")
                       change({ ...value, [key]: next });
                   }}
                 />

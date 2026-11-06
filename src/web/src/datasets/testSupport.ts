@@ -1,9 +1,10 @@
 // M1-04 页面测试样本：按生成类型手写两个有区别的数据集，不读取真实导航层。
 import type { components } from "../api/schema";
+import type { SceneArrays } from "../api/sceneTypes";
 import type { FetchImplementation } from "../api/client";
 import { pageFetch } from "../scheduling/pageTestSupport";
 
-type Schema = components["schemas"];
+type Schema = SceneArrays<components["schemas"]>;
 export const size: Schema["DatasetSize"] = {
   display_bytes: 2048,
   display_source: "measured",
@@ -39,7 +40,7 @@ export const datasets: Schema["DatasetListResponse"] = {
       robot_model_ids: [],
       fps: [20],
       data_origin: "unknown",
-      scene: "tabletop",
+      scene: ["tabletop", "kitchen", "自定义场景"],
       tasks: ["pick_place", "tidy"],
       robot_model: "Franka",
       indexed_at: "2026-10-29T12:00:00Z",
@@ -56,7 +57,7 @@ export const datasets: Schema["DatasetListResponse"] = {
       robot_model_ids: [],
       fps: [30],
       data_origin: "unknown",
-      scene: null,
+      scene: [],
       tasks: [],
       robot_model: null,
       indexed_at: "2026-10-29T12:00:00Z",

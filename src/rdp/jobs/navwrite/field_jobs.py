@@ -9,7 +9,7 @@ from functools import partial
 from rdp.accounts.types import Role
 from rdp.infra.diagnostics import DefectError, InputError
 from rdp.jobs.datasets.catalog import REQUIRED_DOCUMENTS
-from rdp.jobs.datasets.reading import discover_entries
+from rdp.jobs.datasets.reading import discover_entries, scene_values
 from rdp.jobs.datasets.types import EntrySnapshot, View
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.navwrite import _create_plan as plans
@@ -115,6 +115,9 @@ def _build(
                     ("field", "/".join(map(str, edit.path))),
                 ),
             ) from error
+    # 保存时才升级旧场景，纳入同一预览及撤回前像，不在读取或扫描时改文件。
+    information = payloads["数据集信息.json"]
+    information["scene"] = list(scene_values(information.get("scene")))
     files = tuple(
         dump_navigation_json(
             payloads[name]

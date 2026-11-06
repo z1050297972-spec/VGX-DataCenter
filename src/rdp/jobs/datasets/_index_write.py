@@ -138,7 +138,7 @@ def _dataset(session: Session, item: DatasetObservation, scan_id: int) -> None:
             scan_id=scan_id,
             fingerprint=item.fingerprint.model_dump(mode="json"),
             data_origin=selected.data_origin if selected else "unknown",
-            scene=selected.scene if selected else None,
+            scene=list(selected.scene) if selected else [],
             tasks=list(selected.tasks) if selected else [],
             robot_model=selected.robot_model if selected else None,
             recorded_size_bytes=None,

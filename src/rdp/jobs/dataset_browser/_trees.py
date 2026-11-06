@@ -89,19 +89,21 @@ def scenes(
         entry = selected.get(item.canonical_entry_path or "")
         if entry is None:
             continue
-        parent = scene_path(item.scene)
-        path = parent + "/" + entry.name
+        # 根节点每个数据集只累计一次，多个场景叶不能让根的数量和大小重复。
         groups["按场景"].append(entry)
-        groups.setdefault(parent, []).append(entry)
-        groups[path] = [entry]
-        leaves[path] = entry
-        # 自定义场景按原值显示，不再标注词表外（M1.5-06）。
-        names[parent] = (
-            (vocabulary.scene_name(item.scene) or item.scene)
-            if item.scene
-            else vocabulary.UNLABELED_NAME
-        )
-        names[path] = entry.name
+        for scene in item.scene or (vocabulary.UNLABELED,):
+            parent = scene_path(scene)
+            path = parent + "/" + entry.name
+            groups.setdefault(parent, []).append(entry)
+            groups[path] = [entry]
+            leaves[path] = entry
+            # 自定义场景按原值显示，不再标注词表外（M1.5-06）。
+            names[parent] = (
+                vocabulary.UNLABELED_NAME
+                if scene == vocabulary.UNLABELED
+                else vocabulary.scene_name(scene) or scene
+            )
+            names[path] = entry.name
     return tuple(
         DatasetTreeNode(
             path=path,

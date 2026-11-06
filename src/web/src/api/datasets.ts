@@ -1,13 +1,14 @@
 // 数据集 HTTP 边界（M1-04）：复用生成类型、账号客户端与有界请求，不访问数据路径。
 import type { components, operations } from "./schema";
+import type { SceneArrays } from "./sceneTypes";
 import type { AccountCall } from "./accounts";
 import { boundedRequest } from "./_request";
 import { toFailureView } from "./problems";
 
-export type DatasetList = components["schemas"]["DatasetListResponse"];
+export type DatasetList = SceneArrays<components["schemas"]["DatasetListResponse"]>;
 export type DatasetTrees = components["schemas"]["DatasetTreesResponse"];
 export type DatasetFilters = components["schemas"]["DatasetFilterOptions"];
-export type DatasetDetail = components["schemas"]["DatasetDetailResponse"];
+export type DatasetDetail = SceneArrays<components["schemas"]["DatasetDetailResponse"]>;
 export type DatasetPanel = components["schemas"]["DatasetPanelResponse"];
 export type DatasetLayout = components["schemas"]["LayoutResponse"]["layout"];
 export type DatasetQuery = NonNullable<operations["list_datasets"]["parameters"]["query"]>;

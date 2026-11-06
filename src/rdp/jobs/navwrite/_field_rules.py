@@ -6,6 +6,7 @@
 import copy
 from typing import cast
 
+from rdp.jobs.datasets.reading import scene_values
 from rdp.jobs.datasets.types import JsonObject, JsonValue
 from rdp.jobs.datasets.vocabulary import UNLABELED
 from rdp.jobs.errors import JobInputError
@@ -51,8 +52,10 @@ def page_fields(
                 _field(
                     (key,),
                     label,
-                    payload.get(key, [] if key == "tasks" else ""),
-                    multiple=key == "tasks",
+                    list(scene_values(payload.get(key)))
+                    if key == "scene"
+                    else payload.get(key, [] if key == "tasks" else ""),
+                    multiple=key in {"scene", "tasks"},
                 )
             )
         for index, item in enumerate(objects(payload, "fields")):
@@ -156,7 +159,7 @@ def check_shape(edit: FieldEdit) -> None:
             if edit.document == "原始路径.json"
             else set[str]()
         )
-        valid = key in allowed and (key == "notes" or array_value == (key == "tasks"))
+        valid = key in allowed and (key == "notes" or array_value == (key in {"scene", "tasks"}))
     elif len(path) == 3 and isinstance(path[1], int):
         allowed = (
             {"value_markdown"}
@@ -178,14 +181,14 @@ def check_shape(edit: FieldEdit) -> None:
 
 
 def _classification_value(edit: FieldEdit) -> FieldValue:
-    """推荐词表允许自定义；分类值去空格，拒绝保留字及空任务，任务去重保序。"""
+    """推荐词表允许自定义；分类值去空格，拒绝保留字及空项，数组去重保序。"""
     if edit.document != "数据集信息.json" or edit.path not in {("scene",), ("tasks",)}:
         return edit.value
     return normalize_classification(edit.value)
 
 
 def normalize_classification(value: FieldValue) -> FieldValue:
-    """新建与编辑共用分类规则：空场景可清空，任务去重保序且拒绝空项与保留字。"""
+    """新建与编辑共用分类规则：场景和任务去重保序且拒绝空项与保留字，空数组可清空。"""
     if isinstance(value, str):
         normalized = value.strip()
         invalid = normalized == UNLABELED
@@ -196,7 +199,7 @@ def normalize_classification(value: FieldValue) -> FieldValue:
         # 与普通形状校验一样在入队前拒绝，同时保留导航字段诊断码供调用方定位。
         raise JobInputError(
             nav_input_error(
-                "NAV_FIELDS", "场景和任务不能使用未标注保留字，任务项不能为空"
+                "NAV_FIELDS", "场景和任务不能使用未标注保留字，场景和任务项不能为空"
             ).diagnostics
         )
     return normalized
