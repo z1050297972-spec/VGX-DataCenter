@@ -30,8 +30,8 @@ def build_nav_write_dependencies(
         paths: 已初始化的状态布局。
 
     Returns:
-        NavWriteDependencies；统计大小作业经一个只含 dataset_sizing 等既有类型的登记表提交，
-        参数校验与手动提交相同，不重复登记写导航层的类型。
+        NavWriteDependencies；内部服务经生产类型登记表校验和提交统计或自动同步作业，
+        不在提交服务中运行执行器；worker 使用完整依赖的登记表执行。
 
     Raises:
         DefectError: 引擎不受管。

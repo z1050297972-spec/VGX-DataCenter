@@ -224,7 +224,7 @@ class ObjectRef:
         kind: account、audit_settings、job、dataset_index 或 navigation_write；旧值含义不变。
             navigation_write（M1-07）的 object_id 是写入作业编号，也是变更记录编号。
         object_id: account/job 为 1 至 2^63-1 的十进制文本；失败新建尚未分配编号为 None；设置固定 retention；数据集索引固定 all。
-        name: 已确认显示名或固定“日志保留期”，1-64 码点；job 为“显示名 #编号”，最多 61 码点；失败新建account固定“新账号”，job尚无编号固定“新作业”；dataset_index固定“数据集索引”，不抄输入；navigation_write 为“写导航层 #编号”。
+        name: 已确认显示名或固定“日志保留期”，1-64 码点；job 为“显示名 #编号”，最多 61 码点；失败新建account固定“新账号”，job尚无编号固定“新作业”；dataset_index固定“数据集索引”，不抄输入；navigation_write 为“写导航层 #编号”，系统自动写入可加“平台自动：”前缀。
     """
 
     kind: Literal["account", "audit_settings", "job", "dataset_index", "navigation_write"]

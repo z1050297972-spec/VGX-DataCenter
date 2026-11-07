@@ -98,7 +98,10 @@ def target(value: object) -> None:
         ):
             raise invalid("target")
         identifier(int(key))
-        if value.kind == "navigation_write" and value.name != f"写导航层 #{key}":
+        if value.kind == "navigation_write" and value.name not in {
+            f"写导航层 #{key}",
+            f"平台自动：写导航层 #{key}",
+        }:
             raise invalid("target")
     elif value.kind == "navigation_write":
         raise invalid("target")

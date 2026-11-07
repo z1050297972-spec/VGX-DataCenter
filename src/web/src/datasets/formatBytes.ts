@@ -3,31 +3,35 @@
 function isKnown(bytes: number | null | undefined): bytes is number {
   return typeof bytes === "number" && Number.isFinite(bytes) && bytes >= 0;
 }
-const UNITS = ["B", "KiB", "MiB", "GiB", "TiB"] as const;
+// M1.5-17：页面与第4项统一使用十进制字节单位，GB起同时展示TB。
+const UNIT_BASE = 1000;
+const GB_BYTES = UNIT_BASE ** 3;
+const TB_BYTES = UNIT_BASE ** 4;
+const UNITS = ["B", "KB", "MB"] as const;
 
 /**
- * 把字节数换算成 1024 进制的人读文本。
+ * 把字节数换算成 1000 进制的人读文本。
  * @param bytes - 服务端字节数；null、undefined、非有限数或负数都视为未知。
- * @returns 例如 `32.53 TiB`；不足 1024 为整数 B；未知返回「未知」，不会显示成 0。
+ * @returns 两位小数；不足1 GB显示B、KB或MB，达到1 GB显示如 `119.64 GB / 0.12 TB`；未知返回「未知」。
  * @throws 无。
  * @sideEffects 无。
  * @timeSemantics 无时间语义。
  */
 export function formatBytes(bytes: number | null | undefined): string {
   if (!isKnown(bytes)) return "未知";
-  if (bytes < 1024) return `${String(Math.round(bytes))} B`;
+  if (bytes >= GB_BYTES)
+    return `${(bytes / GB_BYTES).toFixed(2)} GB / ${(bytes / TB_BYTES).toFixed(2)} TB`;
   let value = bytes;
   let unit = 0;
-  while (value >= 1024 && unit < UNITS.length - 1) {
-    value /= 1024;
+  while (value >= UNIT_BASE && unit < UNITS.length - 1) {
+    value /= UNIT_BASE;
     unit += 1;
   }
-  if (Number(value.toFixed(2)) >= 1024 && unit < UNITS.length - 1) {
-    value /= 1024;
+  if (Number(value.toFixed(2)) >= UNIT_BASE && unit < UNITS.length - 1) {
+    value /= UNIT_BASE;
     unit += 1;
   }
-  const text = value.toFixed(2).replace(/0$/, "");
-  return `${text} ${UNITS[unit] ?? "TiB"}`;
+  return `${value.toFixed(2)} ${UNITS[unit] ?? "MB"}`;
 }
 
 /**

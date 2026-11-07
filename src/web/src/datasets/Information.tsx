@@ -43,7 +43,7 @@ export function DatasetInformation(props: Props): ReactElement {
       {fields ? (
         <>
           <Typography.Paragraph>
-            来自按任务入口规范副本；数据大小由平台自动计算
+            来自按任务入口规范副本；数据大小由平台统计，并自动写进第 4 项
           </Typography.Paragraph>
           <Table
             scroll={{ x: "max-content" }}
