@@ -111,6 +111,26 @@ export function getDatasetPanel(input: AccountCall): Promise<DatasetPanel> {
 }
 
 /**
+ * 手动提交一次全量导航层与存储一致性排查。
+ * @param input - 已认证客户端、undefined payload 和取消信号；范围固定为全部数据集。
+ * @returns 新提交的扫描作业；权限沿用现有通用作业入口。
+ * @throws Error 请求失败交统一诊断，不自动重发提交。
+ * @sideEffects POST /api/jobs，只写作业及审计记录，扫描由 worker 只读执行。
+ * @timeSemantics 请求最多 DATASET_REQUEST_TIMEOUT_MS，不等待扫描结束；结果时间来自发布索引。
+ */
+export function rescanAllDatasets(
+  input: AccountCall,
+): Promise<components["schemas"]["JobResponse"]> {
+  return boundedRequest(input.signal, DATASET_REQUEST_TIMEOUT_MS, async (signal) => {
+    const result = await input.client.POST("/api/jobs", {
+      body: { type_name: "dataset_rescan", parameters: { dataset_id: null } },
+      signal,
+    });
+    return required(result.data);
+  });
+}
+
+/**
  * 为单个已入索引数据集提交重新扫描作业。
  * @param input - 客户端、永久 dataset_id 与取消信号，不能传入口或存储路径冒充编号。
  * @returns 已创建作业记录，不等待扫描完成。
