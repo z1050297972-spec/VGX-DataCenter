@@ -124,3 +124,7 @@ Blocked by: 14（基于 t/m15-14-manual-check 分支开工，合并时先合 14�
 - 2026-11-06 09:37 负责人说继续：续接核心会话（rdp-m15-15-core2），附上回填会话报的两处集成问题。
 - 2026-11-06 10:13 核心交回（迁移 0018_information_filters，升级后需重扫；通用预览接口迁到 api/navigation_writes.py）。执行线跑 make api-types；前端续接删掉临时类型（10:16）。make check 全绿：后端 2753 passed、Vitest 376 passed、0 skipped。变异抽查：回填清 robot_model 空格、FPS 规则不认括号说明，均被 tests/test_information_backfill.py 抓到。评审无阻塞问题。待办（不阻塞）：比对按数据块出提示，EgoProDemo 会多条。剩：真实演练（回填真实导航层）和合并，等负责人；合并顺序先 14 后 15。
 - 2026-11-06 18:55 负责人说合并：先合 14（e49530d）再合 15。接着做真实演练。
+- 2026-11-06 合并后升级真实部署到 bdf1f68（迁移 0018，数据库备份 rdp-before-20261107T015842…-0017_multi_scene），worker 启动时已全量扫描。
+- 2026-11-06 发现主仓 .venv 的 rdp editable 被并行会话改成指向 m15-15 工作目录（工作目录 .venv 是主仓软链，会话里跑 uv 时重装）；执行线 `uv sync --frozen` 改回主仓。合并钩子的后端测试因此测的是工作目录代码，与合并后 main 代码相同，结论有效。
+- 2026-11-06 **副本演练**（`~/.cache/rdp-drill/m15-15/drill.sh` → `run.log`）：回填预览作业 5 → 写入 6 completed。逐份核对：数据集信息新增 fps 62 份（31 个数据集 × 两个视图）、data_origin 70 份，来源.json 升版 35 份，其他文件 0，违规 0（14 项、robot_model 等其余键值与顺序不变）。FPS 不写的 4 个与预期一致（EgoProDemo、EgoProStandard、R1_lite_mcap、agibot_world_alpha）。筛选：型号 15 个值 + 未标注 10（前导空格已去掉），FPS 31 个有值 + unknown 4，来源 真机 24/UMI 1/ego 2/仿真 8。撤回 42→43 completed，副本与写入前逐字节相同。/mnt/datasets 清单不变，两块盘写入扇区 96/128 前后不变，worker.log ERROR 0。
+- 2026-11-06 真实导航层回填前，执行线把 105 份数据集信息.json/来源.json 复制到 `~/.cache/rdp-drill/m15-15/real-before/` 备查。回填需管理员账号，等负责人在页面上点。
