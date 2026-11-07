@@ -2695,6 +2695,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/navigation/classification/remove/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Classification Remove
+         * @description 提交指定场景或任务值的全局删除预览。
+         *
+         *     Args:
+         *         context: 已通过认证、改密及同源检查的作业上下文。
+         *         datasets: 当前应用的导航层只读配置。
+         *         body: scene 或 tasks 及要删除的候选原值，不接收路径。
+         *
+         *     Returns:
+         *         HTTP 201，queued 作业记录；job_id 是十进制文本。
+         *
+         *     Raises:
+         *         JobInputError: 未标注占位符、无人使用或参数不合法，422。
+         *         InputError: 规范入口数据不可读，400。
+         *         AuthenticationError: 未登录或会话失效，401。
+         *         AuthorizationError: 请求非同源，403。
+         *         PasswordChangeRequiredError: 账号必须改密，403。
+         *         ConflictError: 提交事务竞争，409。
+         *         ExternalError: 导航层读取或数据库提交失败，502。
+         *         DefectError: 服务装配或响应映射错误，500。
+         *
+         *     Side Effects:
+         *         只读导航规范副本；成功时新增预览作业及提交日志，不写导航层。
+         *
+         *     Time Semantics:
+         *         使用请求唯一 UTC 时刻；worker 会重新核对范围，响应不等待预览完成。
+         */
+        post: operations["preview_classification_remove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/navigation/fields/preview": {
         parameters: {
             query?: never;
@@ -3334,6 +3378,24 @@ export interface components {
          * @enum {string}
          */
         CheckScope: "full" | "sampled" | "after_execution";
+        /**
+         * ClassificationRemoveParameters
+         * @description 删除所有规范副本中指定的一个分类值。
+         *
+         *     Attributes:
+         *         model_config: 冻结且拒绝额外字段，错误不回显原输入。
+         *         kind: scene 或 tasks，只允许这两个顶层字段。
+         *         value: 非空分类文本；使用现有候选原值，不接受未标注占位符。
+         */
+        ClassificationRemoveParameters: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "scene" | "tasks";
+            /** Value */
+            value: string;
+        };
         /**
          * ConfirmCreationRequest
          * @description 用户确认保存的预览，不能夹带替换参数或计划。
@@ -13634,6 +13696,120 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["BackfillParameters"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    preview_classification_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassificationRemoveParameters"];
             };
         };
         responses: {
