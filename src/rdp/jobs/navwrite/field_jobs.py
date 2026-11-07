@@ -115,7 +115,7 @@ def _build(
                     ("field", "/".join(map(str, edit.path))),
                 ),
             ) from error
-    # 保存时才升级旧场景，纳入同一预览及撤回前像，不在读取或扫描时改文件。
+    # 保存时才升级旧场景，纳入同一预览及变更记录前像，不在读取或扫描时改文件。
     information = payloads["数据集信息.json"]
     information["scene"] = list(scene_values(information.get("scene")))
     files = tuple(
@@ -175,7 +175,7 @@ def _build(
 
 
 def _write(steps: list[WriteFileStep], path: str, before: bytes, after: bytes) -> None:
-    """只计划原字节不同的文件，前像用于底座回滚和撤回。"""
+    """只计划原字节不同的文件，前像用于底座回滚和变更记录。"""
     if before != after:
         steps.append(
             WriteFileStep(

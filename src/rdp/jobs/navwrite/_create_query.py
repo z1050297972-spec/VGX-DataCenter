@@ -151,7 +151,7 @@ def confirm_queue(
     dataset_ids: tuple[str, ...],
     acknowledged_queue_job_ids: tuple[int, ...],
 ) -> None:
-    """统一创建、改指向和撤回的排队确认规则，提醒不代替写锁内核对。"""
+    """统一创建和改指向的排队确认规则，提醒不代替写锁内核对。"""
     acknowledged = validate_queue_ids(acknowledged_queue_job_ids)
     waiting = queued(access, request, dataset_ids)
     unseen = tuple(item for item in waiting if int(item.job_id) not in acknowledged)

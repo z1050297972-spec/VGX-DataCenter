@@ -1,4 +1,4 @@
-"""删除分类值的关键验收；真实 HTTP、worker 和撤回流水线只使用临时导航层。"""
+"""删除分类值的关键验收；真实 HTTP、worker 和写入流水线只使用临时导航层。"""
 
 from pathlib import Path
 
@@ -12,10 +12,10 @@ from rdp.jobs.datasets.types import JsonObject, JsonValue
 from rdp.jobs.navwrite.jsonio import dump_navigation_json, load_navigation_json
 
 
-def test_remove_tasks_preserves_information_syncs_and_reverts(
+def test_remove_tasks_preserves_information_and_syncs(
     tmp_path: Path, fake_nav: FakeNavigation
 ) -> None:
-    """两个数据集只去掉洗碗，保留其他键值和顺序，格式同步，预览不写，撤回逐字节恢复。"""
+    """两个数据集只去掉洗碗，保留其他键值和顺序，格式同步，预览不写。"""
     originals: dict[Path, JsonObject] = {}
     for name in ("EgoProDemo", "libero_10"):
         path = fake_nav.nav_root / "按任务" / name / "数据集信息.json"
@@ -41,7 +41,7 @@ def test_remove_tasks_preserves_information_syncs_and_reverts(
         preview = case.client.get(f"/api/navigation/previews/{preview_id}")
         assert preview.status_code == 200, preview.text
         assert len(preview.json()["dataset_ids"]) == 2
-        applied_id = _apply(case, fake_nav, preview_id)
+        _apply(case, fake_nav, preview_id)
         for path, original in originals.items():
             written = load_navigation_json(path.read_bytes())
             assert list(written) == list(original)
@@ -62,16 +62,6 @@ def test_remove_tasks_preserves_information_syncs_and_reverts(
         assert {path for path in before if before[path] != after[path]} == expected_paths
         options = case.client.get("/api/datasets/filters").json()["tasks"]
         assert "洗碗" not in {item["value"] for item in options}
-        reverted = case.client.post(
-            "/api/jobs",
-            json={"type_name": "nav_revert_preview", "parameters": {"target_job_id": applied_id}},
-        )
-        assert reverted.status_code == 201, reverted.text
-        revert_id = int(reverted.json()["job_id"])
-        result = run_submitted(case, fake_nav, revert_id)
-        assert result.summary is not None and not result.summary.aborted, result.diagnostics
-        _apply(case, fake_nav, revert_id)
-        assert tree_state(fake_nav.nav_root) == before
 
 
 def test_remove_only_scene_becomes_unlabeled(tmp_path: Path, fake_nav: FakeNavigation) -> None:

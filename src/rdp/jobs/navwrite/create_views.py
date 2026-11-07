@@ -63,7 +63,7 @@ class CreationPreviewView(CreationValue):
     Attributes:
         preview_job_id: 成功预览作业编号，文本，确认请求仅引用此编号。
         created_at: 预览保存的 UTC 时刻，不是 GET 请求时刻。
-        operation: create_link 或 create_dataset；不允许拿撤回预览调用本票确认入口。
+        operation: create_link 或 create_dataset；不接受其他类型的预览。
         dataset_id: 已有编号或预计分配的新编号；后者尚未占用。
         dataset_name: 规范入口名称。
         parameters: 原样回显已校验参数，不能在确认时覆盖。

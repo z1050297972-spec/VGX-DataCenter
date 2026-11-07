@@ -1,4 +1,4 @@
-// M1-09 HTTP 边界：载荷只取生成契约，不在浏览器重算路径或反向计划。
+// M1-09 HTTP 边界：载荷只取生成契约，不在浏览器重算路径。
 import type { AccountCall } from "./accounts";
 import type { components } from "./schema";
 import { boundedRequest } from "./_request";
@@ -43,25 +43,6 @@ export function confirmNavigationWrite(input: AccountCall<WriteConfirmation>): P
       signal,
     });
     if (!response.data) throw new Error("导航写入未返回作业");
-    return response.data;
-  });
-}
-
-/**
- * 为实际写作业提交只读撤回预览。
- * @param input - 被撤回作业的文本编号、账号客户端及取消信号。
- * @returns nav_revert_preview 的 queued 作业，不直接执行撤回。
- * @throws Error 目标不存在、类型错误、权限或请求失败经统一诊断呈现。
- * @sideEffects 一次同源 POST；永久变更记录和后像差异由 worker 检查。
- * @timeSemantics 使用 JOB_REQUEST_TIMEOUT_MS；不因打开撤回页面自动调用，不重试。
- */
-export function previewRevert(input: AccountCall<string>): Promise<Job> {
-  return boundedRequest(input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
-    const response = await input.client.POST("/api/jobs/{target_job_id}/revert-previews", {
-      params: { path: { target_job_id: input.payload } },
-      signal,
-    });
-    if (!response.data) throw new Error("撤回预览未返回作业");
     return response.data;
   });
 }

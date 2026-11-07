@@ -130,7 +130,7 @@ def diff_preview_state(
         无（只读导航层）。
 
     Time Semantics:
-        写入作业在写锁内调用；撤回预览也调用它与 #N 的后像比对前先调用一次。不读墙钟，不重试。
+        写入作业在写锁内调用。不读墙钟，不重试。
     """
     if str(nav_root) != expected.nav_root:
         return (

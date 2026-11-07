@@ -63,7 +63,7 @@ function BackfillForm(): ReactElement {
     <>
       <Typography.Paragraph>
         覆盖全部数据集：仅补充缺失的顶层 FPS 和数据来源，并将来源文件升级为只存血缘的第 2 版。14
-        项正文和机器人型号保持不变。请先核对预览，再确认写入；完成后可在作业详情撤回。
+        项正文和机器人型号保持不变。请先核对预览，再确认写入。
       </Typography.Paragraph>
       {reason && <Alert type="warning" title={reason} />}
       {[recovery.error, preview.error, confirm.error].map((error, index) =>
