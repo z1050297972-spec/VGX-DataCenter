@@ -1,14 +1,13 @@
 // 数据集 HTTP 边界（M1-04）：复用生成类型、账号客户端与有界请求，不访问数据路径。
 import type { components, operations } from "./schema";
-import type { SceneArrays } from "./sceneTypes";
 import type { AccountCall } from "./accounts";
 import { boundedRequest } from "./_request";
 import { toFailureView } from "./problems";
 
-export type DatasetList = SceneArrays<components["schemas"]["DatasetListResponse"]>;
+export type DatasetList = components["schemas"]["DatasetListResponse"];
 export type DatasetTrees = components["schemas"]["DatasetTreesResponse"];
 export type DatasetFilters = components["schemas"]["DatasetFilterOptions"];
-export type DatasetDetail = SceneArrays<components["schemas"]["DatasetDetailResponse"]>;
+export type DatasetDetail = components["schemas"]["DatasetDetailResponse"];
 export type DatasetPanel = components["schemas"]["DatasetPanelResponse"];
 export type DatasetLayout = components["schemas"]["LayoutResponse"]["layout"];
 export type DatasetQuery = NonNullable<operations["list_datasets"]["parameters"]["query"]>;
@@ -65,7 +64,7 @@ function required<T>(value: T | undefined): T {
 /**
  * 读取未应用当前筛选的全局候选。
  * @param input - 账号客户端及取消信号，payload 为 undefined。
- * @returns 型号表、标签与 FPS 候选，未知项由服务器给出。
+ * @returns 导航型号、FPS 与分类候选，未知项由服务器给出。
  * @throws Error 请求失败、取消、超时或缺少响应体。
  * @sideEffects 发一次 GET /api/datasets/filters，不探测机器人或存储根。
  * @timeSemantics 候选是最近索引快照，单次最多 60 秒。

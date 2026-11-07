@@ -85,7 +85,7 @@ export function InlineEditActions({
         error ? <DiagnosticCard key={i} failure={toFailureView(error)} /> : null,
       )}
       {state.stale && <Alert type="error" title="文件已变化，请取消编辑后重新加载" />}
-      <p>已修改 {count} 项；场景单选、任务多选。</p>
+      <p>已修改 {count} 项；场景和任务可多选。</p>
       <Flex gap="small">
         <Button
           type="primary"

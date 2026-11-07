@@ -1,18 +1,18 @@
 import "./browser.css";
 // 共用筛选栏（16、M1-04）；筛选实际含义由后端决定，页面不从 Markdown 提取值。
 import { UNLABELED_FILTER } from "./classificationLabels";
-import { useState, type ReactElement } from "react";
-import { Button, Col, Row, Select } from "antd";
+import { type ReactElement } from "react";
+import { Col, Row, Select, Typography } from "antd";
 import type { DatasetFilters } from "../api/datasets";
 import type { DatasetSearch } from "./search";
 
 interface FilterProps {
-  /** 全局候选及默认筛选方式。 */ options: DatasetFilters;
+  /** 导航层全局候选。 */ options: DatasetFilters;
   /** 当前 URL 条件。 */ search: DatasetSearch;
   /** 修改条件时由布局更新 URL。 */ onChange: (search: DatasetSearch) => void;
 }
 /**
- * 按型号表的默认方式展示型号或标签候选，更多筛选保留原始标签。
+ * 展示导航层信息的五个筛选条件和来源说明。
  * @param props - 候选、当前筛选与变化回调。
  * @returns 带中文名称和候选计数的筛选栏。
  * @throws 无。
@@ -20,52 +20,27 @@ interface FilterProps {
  * @timeSemantics 候选计数来自索引，浏览器不独立刷新统计。
  */
 export function DatasetFilterBar(props: FilterProps): ReactElement {
-  const [more, setMore] = useState(false);
-  const byModel = props.options.default_robot_filter === "robot_model";
   return (
     <Row gutter={[16, 16]} className="dataset-filters">
-      {byModel && (
-        <Col xs={24} sm={12} className="browser-filter-column">
-          <label>
-            机器人型号
-            <Select
-              aria-label="机器人型号"
-              allowClear
-              virtual={false}
-              className="browser-filter-wide"
-              value={props.search.robot_model_id ?? undefined}
-              options={props.options.robot_model_options.map((item) => ({
-                value: item.value,
-                label: `${item.label}（${String(item.count)}）`,
-              }))}
-              onChange={(value: string | undefined) => {
-                props.onChange({ ...props.search, robot_model_id: value, offset: undefined });
-              }}
-            />
-          </label>
-        </Col>
-      )}
-      {(!byModel || more) && (
-        <Col xs={24} sm={12} className="browser-filter-column">
-          <label>
-            型号标签
-            <Select
-              aria-label="型号标签"
-              allowClear
-              virtual={false}
-              className="browser-filter-wide"
-              value={props.search.robot_type ?? undefined}
-              options={props.options.robot_types.map((item) => ({
-                value: item.value,
-                label: `${item.label}（${String(item.count)}）`,
-              }))}
-              onChange={(value: string | undefined) => {
-                props.onChange({ ...props.search, robot_type: value, offset: undefined });
-              }}
-            />
-          </label>
-        </Col>
-      )}
+      <Col xs={24} sm={12} className="browser-filter-column">
+        <label>
+          机器人型号
+          <Select
+            aria-label="机器人型号"
+            allowClear
+            virtual={false}
+            className="browser-filter-wide"
+            value={props.search.robot_model ?? undefined}
+            options={props.options.robot_models.map((item) => ({
+              value: item.value,
+              label: `${item.label}（${String(item.count)}）`,
+            }))}
+            onChange={(value: string | undefined) => {
+              props.onChange({ ...props.search, robot_model: value, offset: undefined });
+            }}
+          />
+        </label>
+      </Col>
       <Col xs={24} sm={12} className="browser-filter-column">
         <label>
           FPS
@@ -110,18 +85,11 @@ export function DatasetFilterBar(props: FilterProps): ReactElement {
         </label>
       </Col>
       <ClassificationFilters {...props} />
-      {byModel && (
-        <Col xs={24} sm={12} className="browser-filter-action">
-          <Button
-            aria-expanded={more}
-            onClick={() => {
-              setMore(!more);
-            }}
-          >
-            更多筛选
-          </Button>
-        </Col>
-      )}
+      <Col span={24}>
+        <Typography.Text type="secondary">
+          筛选以导航层的数据集信息为准，不读原数据文件。与原文件不一致的地方见一致性面板，正式使用数据集前请核对。
+        </Typography.Text>
+      </Col>
     </Row>
   );
 }

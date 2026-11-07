@@ -19,7 +19,7 @@ NAV_PREVIEWS_DIRNAME: Final = "nav-previews"
 JOURNAL_FORMAT_VERSION: Final = 1
 PREVIEW_FORMAT_VERSION: Final = 1
 CHANGE_FORMAT_VERSION: Final = 1
-PROVENANCE_FORMAT_VERSION: Final = 1
+PROVENANCE_FORMAT_VERSION: Final = 2
 
 # 写入日志的文件名。journal.json 先写成 journal.json.tmp、fsync，再 rename，所以它出现就是完整的；
 # 只有 .tmp 或目录为空，说明日志没落完整，导航层一处都还没动（ADR 0009）。

@@ -6,7 +6,7 @@ import { getCreationOptions } from "../api/datasetCreation";
 import * as scenario from "./creationTestSupport";
 import { creationOptions, creationFetch } from "./creationTestSupport";
 import { mountPage } from "../scheduling/pageTestSupport";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor, within } from "@testing-library/react";
 
 describe("建链与新增数据集的契约行为", () => {
   // 验证契约：建链页按 填参数→预览→明确确认→原页作业卡片 完整流转，预览不触发写入。
@@ -72,7 +72,9 @@ describe("建链与新增数据集的契约行为", () => {
       fireEvent.change(screen.getByLabelText("链接名"), { target: { value: "新链接" } });
       fireEvent.change(screen.getByLabelText("目标路径"), { target: { value: "/fake/disk/new" } });
       const section = screen.getByRole("region", { name: "14 项数据集信息（可选）" });
-      expect(section.querySelectorAll("textarea")).toHaveLength(14);
+      // 型号现在是单值 AutoComplete，13项说明仍保留多行文字框。
+      expect(section.querySelectorAll("textarea")).toHaveLength(13);
+      expect(within(section).getByRole("combobox", { name: "机器人型号" })).toBeTruthy();
       expect(screen.getByText("第 4 项：数据大小（自动计算）")).toBeTruthy();
       expect(screen.queryByRole("textbox", { name: /第 4 项/ })).toBeNull();
       fireEvent.change(screen.getByRole("textbox", { name: "第 6 项：任务与场景" }), {

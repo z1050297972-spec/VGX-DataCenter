@@ -59,7 +59,10 @@ def test_confirm_moves_and_creates_navigation(tmp_path: Path, fake_nav: FakeNavi
             assert (h.nav / entry / "原始数据").readlink() == target
             assert (h.nav / entry / "原始数据/data/sample.parquet").read_bytes() == b"sample"
         source = json.loads((h.nav / "按任务/repo/来源.json").read_text())
-        assert source["data_origin"] == "开源下载"
+        assert source["schema_version"] == 2 and "data_origin" not in source
+        for entry in ("按任务/repo", "按格式/lerobot/3.0/repo"):
+            information = json.loads((h.nav / entry / "数据集信息.json").read_text())
+            assert information["data_origin"] == "开源下载"
         lineage = source["lineage"][0]
         assert lineage["parameters"]["repo_id"] == "org/repo"
         assert lineage["parameters"]["commit"] == COMMIT

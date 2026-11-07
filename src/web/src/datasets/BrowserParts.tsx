@@ -170,7 +170,7 @@ export function DatasetListTable(props: ListProps): ReactElement {
           {
             title: "型号标签",
             key: "robot",
-            render: (_, item) => item.robot_types.map((value) => value ?? "未知").join("、"),
+            render: (_, item) => item.robot_model ?? "未标注",
           },
           {
             title: "FPS",

@@ -27,7 +27,7 @@ def test_migration_preserves_populated_index_and_expands_origins(
         source,
         historical,
         ignore=shutil.ignore_patterns(
-            "v0011*", "v0012*", "v0013*", "v0014*", "v0015*", "v0016*", "v0017*"
+            "v0011*", "v0012*", "v0013*", "v0014*", "v0015*", "v0016*", "v0017*", "v0018*"
         ),
     )
     with monkeypatch.context() as patch:
@@ -58,7 +58,7 @@ def test_migration_preserves_populated_index_and_expands_origins(
                     str(Path(__file__).parents[1] / "src/rdp/infra/db/migration.py"),
                 )
                 result = migrate(paths, now=NOW)
-                assert result.changed and result.current_revision == "0017_multi_scene"
+                assert result.changed and result.current_revision == "0018_information_filters"
                 with session_scope(engine, read_only=True) as session:
                     after = {
                         table: session.execute(
@@ -69,10 +69,12 @@ def test_migration_preserves_populated_index_and_expands_origins(
                         for table in tables
                     }
                     assert {
-                        key: [tuple(row[:-3]) for row in rows] if key == "datasets" else rows
+                        key: [tuple(row[:-4]) for row in rows] if key == "datasets" else rows
                         for key, rows in after.items()
                     } == before
-                    assert all(tuple(row[-3:]) == ("[]", None, "[]") for row in after["datasets"])
+                    assert all(
+                        tuple(row[-4:]) == ("[]", None, "[]", None) for row in after["datasets"]
+                    )
                     assert session.execute(text("PRAGMA foreign_key_check")).all() == []
                 for origin in ("real", "umi", "ego", "simulation", "open_source", "unknown"):
                     with session_scope(engine) as session:

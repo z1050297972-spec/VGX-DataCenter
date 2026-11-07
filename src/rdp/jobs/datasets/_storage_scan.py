@@ -24,6 +24,7 @@ from rdp.infra.diagnostics import (
 )
 from rdp.infra.storage import OFFLINE_REASON_LABELS, StorageAccessChecker, StorageRootStatus
 from rdp.infra.timeutil import ensure_utc
+from rdp.jobs.datasets._info_compare import compare
 from rdp.jobs.datasets._panel_issue import difference
 from rdp.jobs.datasets._readonly import open_file, scan_directory
 from rdp.jobs.datasets._references import references
@@ -153,8 +154,28 @@ def _source_findings(
     for dataset in navigation.datasets:
         findings: list[Finding] = []
         for entry in dataset.entries:
+            information = next(
+                (doc.payload for doc in entry.documents if doc.name == "数据集信息.json"), None
+            )
             for ordinal, source in enumerate(entry.sources):
                 observed = indexed.get((str(entry.location.path), ordinal))
+                # 补读与超时降级完成后才比；直接取本轮规范载荷，不依赖索引迁移。
+                if (
+                    entry.location.view is View.TASK
+                    and source.format == "lerobot"
+                    and information is not None
+                    and observed is not None
+                    and observed.status is SourceStatus.AVAILABLE
+                    and observed.meta_checked_at is not None
+                ):
+                    findings.extend(
+                        compare(
+                            entry,
+                            observed,
+                            robot_model=information.get("robot_model"),
+                            fps=information.get("fps"),
+                        )
+                    )
                 if observed and observed.status is SourceStatus.UNREGISTERED:
                     findings.append(
                         difference(

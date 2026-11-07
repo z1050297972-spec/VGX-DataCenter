@@ -12,7 +12,6 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from rdp.infra.diagnostics import Diagnostic
 from rdp.jobs.datasets.catalog import MAX_SCAN_ENTRIES
 from rdp.jobs.datasets.types import FindingGroup, ProvenanceState, View
-from rdp.jobs.navwrite.policy import DATA_ORIGINS
 
 # M1-03：每页最多100项，树受已有扫描入口预算限制；不截断并冒充完整树。
 BROWSER_PAGE_LIMIT = 100
@@ -30,7 +29,7 @@ class BrowserValue(BaseModel):
 
 
 class DataOrigin(StrEnum):
-    """13 Q5 的六种来源编码；来源文件中文值由扫描映射到这些稳定编码。"""
+    """13 Q5 的六种来源编码；信息顶层中文值由扫描映射到这些稳定编码。"""
 
     REAL = "real"
     UMI = "umi"
@@ -41,23 +40,17 @@ class DataOrigin(StrEnum):
 
 
 class DatasetFilters(BrowserValue):
-    """所有树/列表共享的筛选；不同维度 AND，tasks 多选取交集，其余元信息匹配任一数据块。
+    """五个筛选均使用规范信息的顶层索引；不同维度取交集，任务多选取交集。
 
-    未提供表示不限；unknown 是独立的未知项。型号标签精确且区分大小写，
-    型号按已登记标签并集匹配；型号 unknown 指没有任何已映射标签（不等于标签未知）。
-    元信息以规范入口为准；无规范入口取全部格式入口并集，重复规范入口不任取。
-    FPS 用索引 fps_rounded，29.97→30、30.5→31，不能重新读 meta/info.json。
-    空来源、无数据块、非 LeRobot 或未检查元信息都具有未知项；混合已知/未知均可匹配。
+    robot_model 精确匹配去首尾空白后的文本，unlabeled 匹配未标注；FPS 为正整数或 unknown。
+    无唯一规范入口时不从格式副本补值，不读取原数据或解析 Markdown。
     """
 
-    robot_model_id: str | None = Field(
-        default=None, min_length=1, description="型号编号或 unknown；空表时指定编号返回空集"
+    robot_model: str | None = Field(
+        default=None, min_length=1, description="机器人型号文本；unlabeled 表示未标注"
     )
-    robot_type: str | None = Field(
-        default=None, min_length=1, description="原始型号标签或 unknown；不解析 Markdown"
-    )
-    fps: Annotated[int, Field(ge=0)] | Literal["unknown"] | None = Field(
-        default=None, description="四舍五入后非负整数帧/秒或 unknown"
+    fps: Annotated[int, Field(gt=0)] | Literal["unknown"] | None = Field(
+        default=None, description="导航信息顶层正整数帧/秒或 unknown"
     )
     scene: str | None = Field(
         default=None, min_length=1, description="场景原编码；unlabeled 表示未标注"
@@ -85,14 +78,6 @@ class DatasetListQuery(DatasetFilters):
     limit: int = Field(default=BROWSER_PAGE_LIMIT, ge=1, le=BROWSER_PAGE_LIMIT)
 
 
-class RobotModelOption(BrowserValue):
-    """登记型号的最小只读投影；一个标签最多属于一个型号，停用型号仍能筛历史数据。"""
-
-    model_id: str = Field(min_length=1, description="平台永久编号文本，不接受标签冒充")
-    name: str = Field(min_length=1)
-    robot_types: tuple[str, ...] = Field(description="去重排序的对应标签，允许空")
-
-
 class FilterOption(BrowserValue):
     """筛选值及中文标签；count 是全索引中匹配的数据集数，不重复计跨视图副本。"""
 
@@ -114,11 +99,7 @@ class DatasetFilterOptions(BrowserValue):
     型号等候选按值排序；分类候选按词表顺序、词表外原值排序，未标注固定最后；零计数词表项保留。
     """
 
-    robot_models_registered: bool
-    default_robot_filter: Literal["robot_model", "robot_type"]
-    robot_models: tuple[RobotModelOption, ...]
-    robot_model_options: tuple[FilterOption, ...]
-    robot_types: tuple[FilterOption, ...]
+    robot_models: tuple[FilterOption, ...]
     fps: tuple[FilterOption, ...] = Field(
         description="value 为整数十进制文本或 unknown；已知按数值排序"
     )
@@ -173,8 +154,6 @@ class DatasetListItem(BrowserValue):
     entries: tuple[EntrySummary, ...] = Field(
         description="全部关联入口按路径排序，供跨视图跳转；无身份时恰好一项"
     )
-    robot_types: tuple[str | None, ...]
-    robot_model_ids: tuple[str, ...]
     fps: tuple[int | None, ...]
     data_origin: DataOrigin
     scene: tuple[str, ...] = ()
@@ -292,19 +271,10 @@ class DatasetSource(BrowserValue):
     )
 
 
-class DataOriginAttribution(BrowserValue):
-    """最近一次标注的公开印记，不暴露无需展示的账号内部编号。"""
-
-    account_name: str | None = Field(description="标注时的账号名快照；平台自动设置时可为空")
-    at: str = Field(description="来源文件中的 UTC ISO 8601 秒精度时刻，不使用文件 mtime")
-
-
 class DatasetProvenance(BrowserValue):
-    """规范入口的当前来源观察，缺文件与坏文件保持不同状态。"""
+    """规范入口血缘文件的读取状态，数据来源从信息顶层读取。"""
 
     state: ProvenanceState
-    data_origin: str = Field(default="未知", json_schema_extra={"enum": list(DATA_ORIGINS)})
-    data_origin_set_by: DataOriginAttribution | None = None
 
 
 class DatasetDetailResponse(BrowserValue):
@@ -331,7 +301,7 @@ class DatasetDetailResponse(BrowserValue):
     )
     diagnostics: tuple[Diagnostic, ...]
     provenance: DatasetProvenance | None = Field(
-        default=None, description="本次只读规范入口来源文件的来源与标注印记；无唯一规范入口时不可用"
+        default=None, description="本次只读规范入口血缘文件的状态；无唯一规范入口时不可用"
     )
 
 

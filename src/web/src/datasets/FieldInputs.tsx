@@ -1,6 +1,6 @@
 // M1.5-09/10 共用字段输入；供新建与详情就地编辑使用，不维护独立编辑器。
 import { useState, type ReactElement } from "react";
-import { Alert, Input, Select } from "antd";
+import { Alert, AutoComplete, Input, InputNumber, Select } from "antd";
 import type { DatasetFilters } from "../api/datasets";
 import type { EditablePage } from "../api/fieldEditing";
 import type { FieldChange } from "./fieldEditingState";
@@ -26,6 +26,11 @@ export function FieldInput(props: InputProps): ReactElement {
   const { field, value, disabled, onChange } = props;
   if (field.path.length === 1 && (field.path[0] === "scene" || field.path[0] === "tasks"))
     return <ClassificationInput {...props} />;
+  if (
+    field.path.length === 1 &&
+    ["robot_model", "fps", "data_origin"].includes(String(field.path[0]))
+  )
+    return <InformationInput {...props} />;
   return (
     <label className="field-input">
       <span>{field.label}</span>
@@ -56,6 +61,66 @@ export function FieldInput(props: InputProps): ReactElement {
     </label>
   );
 }
+// 来源使用工单的六个中文值；筛选参数的英文编码不能用于字段写入。
+const ORIGINS = ["真机采集", "UMI 采集", "ego 采集", "仿真生成", "开源下载", "未知"];
+function InformationInput({
+  field,
+  value,
+  disabled,
+  onChange,
+  vocabulary,
+}: InputProps): ReactElement {
+  return (
+    <label className="field-input">
+      <span>{field.label}</span>
+      {field.path[0] === "robot_model" ? (
+        <AutoComplete
+          aria-label={field.label}
+          value={text(value)}
+          disabled={disabled}
+          options={vocabulary?.robot_models
+            .filter((item) => item.value !== "unlabeled")
+            .map((item) => ({ value: item.value }))}
+          showSearch={{
+            filterOption: (input, option) =>
+              !!option?.value.toLowerCase().includes(input.toLowerCase()),
+          }}
+          getPopupContainer={popupContainer}
+          onChange={(next: string) => {
+            onChange(next);
+          }}
+          onBlur={() => {
+            onChange(text(value).trim());
+          }}
+          placeholder="选择已有型号或输入新型号"
+        />
+      ) : field.path[0] === "fps" ? (
+        <InputNumber
+          aria-label={field.label}
+          value={typeof value === "number" ? value : null}
+          min={1}
+          step={1}
+          disabled={disabled}
+          onChange={(next) => {
+            onChange(next ?? "");
+          }}
+        />
+      ) : (
+        <Select
+          aria-label={field.label}
+          value={text(value) || "未知"}
+          disabled={disabled}
+          virtual={false}
+          getPopupContainer={popupContainer}
+          options={ORIGINS.map((origin) => ({ value: origin, label: origin }))}
+          onChange={(next: string) => {
+            onChange(next);
+          }}
+        />
+      )}
+    </label>
+  );
+}
 // 同一组设置决定候选来源与交互形态，避免场景与任务的词表配置分散。
 const classificationSettings = {
   scene: {
@@ -79,7 +144,7 @@ function ClassificationInput({
   vocabulary,
 }: InputProps): ReactElement {
   const [search, setSearch] = useState("");
-  const selected = typeof value === "string" ? [value].filter(Boolean) : value;
+  const selected = typeof value === "string" ? [value].filter(Boolean) : list(value);
   const settings = classificationSettings[field.path[0] === "tasks" ? "tasks" : "scene"];
   const terms = vocabulary?.[settings.terms];
   const candidates = vocabulary?.[settings.candidates];
@@ -154,7 +219,9 @@ export function ModelReference({
     typeof model === "string" &&
     model !== "" &&
     data.original_robot_types.length > 0 &&
-    !data.original_robot_types.includes(model);
+    !data.original_robot_types.some(
+      (original) => original.trim().toLowerCase() === model.trim().toLowerCase(),
+    );
   return (
     <>
       <p>原文件 robot_type（索引参考）：{data.original_robot_types.join("、") || "未知"}</p>
@@ -169,5 +236,5 @@ function text(value: Value): string {
   return typeof value === "string" ? value : "";
 }
 function list(value: Value): string[] {
-  return typeof value === "string" ? [] : value;
+  return Array.isArray(value) ? value : [];
 }

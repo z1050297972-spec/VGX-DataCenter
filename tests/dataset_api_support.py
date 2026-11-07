@@ -23,7 +23,6 @@ from rdp.api import create_app
 from rdp.api.datasets import configure_datasets
 from rdp.api.jobs import configure_jobs
 from rdp.audit.types import OPS_AUDIT_CONTEXT
-from rdp.jobs.dataset_browser.schemas import RobotModelOption
 from rdp.jobs.dataset_browser.service import DatasetBrowserService
 from rdp.jobs.registry import production_registry
 
@@ -35,9 +34,8 @@ FORMAT_ENTRY = "按格式/lerobot/3.0/libero_10"
 def browser_case(
     root: Path,
     nav: FakeNavigation,
-    models: list[RobotModelOption] | None = None,
 ) -> Generator[ApiCase]:
-    """以真实公开扫描接口准备索引，模型目录作为尚未实现M3的外部读取边界注入。"""
+    """以真实公开扫描接口准备索引和浏览服务，不访问真实数据盘。"""
     with dataset_case(root, nav) as scan:
         scan.run()
         accounts = AccountService(
@@ -61,7 +59,6 @@ def browser_case(
                 scan.engine,
                 nav.nav_root,
                 app.state.job_service,
-                lambda _session: tuple(models or ()),
             ),
         )
         with TestClient(

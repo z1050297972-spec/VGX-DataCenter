@@ -4,14 +4,7 @@ import type { DatasetQuery } from "../api/datasets";
 
 export type DatasetSearch = Pick<
   DatasetQuery,
-  | "data_origin"
-  | "robot_model_id"
-  | "robot_type"
-  | "offset"
-  | "fps"
-  | "entry_path"
-  | "scene"
-  | "tasks"
+  "data_origin" | "robot_model" | "offset" | "fps" | "entry_path" | "scene" | "tasks"
 > & {
   /** URL 错误仅作页面提示，不传 API。 */ invalidDatasetSearch?: true;
   /** 顶栏一致性面板是否打开。 */ panel?: boolean;
@@ -36,8 +29,7 @@ export function validateDatasetSearch(input: Record<string, unknown>): DatasetSe
         input.tree_view === "scene" ? "scene" : input.tree_view === "task" ? "task" : "format",
       entry_path: optionalText(input.entry_path),
       fps: input.fps === "unknown" ? "unknown" : optionalInteger(input.fps),
-      robot_type: optionalText(input.robot_type),
-      robot_model_id: optionalText(input.robot_model_id),
+      robot_model: optionalText(input.robot_model),
       data_origin: optionalOrigin(input.data_origin),
       scene: optionalText(input.scene),
       tasks: optionalTasks(input.tasks),

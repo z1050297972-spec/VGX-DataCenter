@@ -58,7 +58,7 @@ def configure_datasets(app: FastAPI, service: DatasetBrowserService) -> None:
 
     Args:
         app: 尚未启动的create_app应用，路由与全局安全边界已登记。
-        service: 显式数据库、导航根、作业服务及型号读取器构造的浏览服务。
+        service: 显式数据库、导航根、作业服务构造的浏览服务。
 
     Returns:
         无；app.state.dataset_browser_service保存该服务，离线导出不需要调用。
@@ -127,7 +127,7 @@ def get_dataset_trees(
 
     Args:
         context: 当前已登录且完成改密的账号及浏览服务。
-        filters: 型号、原标签、整数FPS/unknown、来源、场景、任务交集和视图路径筛选；未提供表示不限。
+        filters: 型号文本、正整数FPS/unknown、来源、场景、任务交集和视图路径筛选；未提供表示不限。
 
     Returns:
         200，nodes平铺节点及indexed_at；每节点含数量、大小来源计数和原统计时间范围。
@@ -138,7 +138,7 @@ def get_dataset_trees(
         AuthenticationError: 读事务重验失败，401。
         PasswordChangeRequiredError: 账号须改密，403。
         ConflictError: 树读取锁超时，409。
-        ExternalError: 数据库或型号目录不可读，502。
+        ExternalError: 索引数据库不可读，502。
         DefectError: 聚合或响应模型非法，500；状态映射以规范6.2为准。
 
     Side Effects:
@@ -169,8 +169,8 @@ def list_datasets(
         AuthenticationError: 当前会话失效，401。
         PasswordChangeRequiredError: 强制改密，403。
         ConflictError: 列表事务竞争，409。
-        ExternalError: 数据或映射查询失败，502。
-        DefectError: 型号多重对应或序列化违约，500。
+        ExternalError: 索引查询失败，502。
+        DefectError: 投影或序列化违约，500。
 
     Side Effects:
         只查索引；不把14项或子任务全文塞入列表，不更新索引。
@@ -183,29 +183,29 @@ def list_datasets(
 
 @router.get("/filters", response_model=DatasetFilterOptions, operation_id="get_dataset_filters")
 def get_dataset_filters(context: DatasetContext) -> DatasetFilterOptions:
-    """返回筛选选项及型号空目录时的前端降级提示。
+    """返回规范信息顶层的五个筛选候选及计数。
 
     Args:
         context: 全局安全检查通过的账号上下文与浏览服务。
 
     Returns:
-        200，robot_models_registered、default_robot_filter及型号/标签/FPS/来源/场景/任务候选。
+        200，robot_models、fps、data_origins、scenes、tasks 候选及计数。
         scene_vocabulary/task_vocabulary 提供编辑器用的受控编码与中文名。
-        空目录默认robot_type，登记后默认robot_model；每类unknown项独立且保留零计数。
+        型号未标注使用 unlabeled，FPS 未标注使用 unknown；零计数的未标注项仍保留。
 
     Raises:
         AuthenticationError: 查询阶段会话失效，401。
         PasswordChangeRequiredError: 必须改密，403。
         InputError: 元信息索引损坏，400。
         ConflictError: 候选读取竞争，409。
-        ExternalError: 型号读取器或数据库失败，502。
-        DefectError: 型号重复、响应形状非法，500。
+        ExternalError: 索引数据库失败，502。
+        DefectError: 响应形状非法，500。
 
     Side Effects:
-        只读全索引候选及型号投影；不读取meta文件、不登记新型号。
+        只读规范信息索引；不读取meta文件。
 
     Time Semantics:
-        每次请求读取最新已提交目录，不缓存空型号表；无轮询等待。
+        每次请求读取最新已提交索引；无轮询等待。
     """
     return context.service.filter_options(_request(context))
 
@@ -255,7 +255,7 @@ def get_dataset_detail(
     Returns:
         200，原始路径与信息原文、规范信息、推导数据块、索引链接/大小和index_stale；
         子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看；
-        provenance 返回规范入口当前来源、文件状态和标注人/UTC时刻。
+        provenance 返回规范入口血缘文件状态；数据来源取信息文件顶层。
 
     Raises:
         DatasetNotFoundError: 入口不在索引，404。

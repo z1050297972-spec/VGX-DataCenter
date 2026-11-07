@@ -47,7 +47,6 @@ def items(index: _index.Index) -> tuple[DatasetListItem, ...]:
     moments = {scan.scan_id: scan.committed_at for scan in index.scans}
     result: list[DatasetListItem] = []
     for dataset in index.datasets:
-        labels, fps, models = _index.metadata(index, dataset)
         result.append(
             DatasetListItem(
                 dataset_id=dataset.dataset_id,
@@ -56,9 +55,7 @@ def items(index: _index.Index) -> tuple[DatasetListItem, ...]:
                 entries=tuple(
                     entry(row) for row in index.entries if row.dataset_id == dataset.dataset_id
                 ),
-                robot_types=labels,
-                fps=fps,
-                robot_model_ids=models,
+                fps=(dataset.fps,),
                 data_origin=DataOrigin(dataset.data_origin),
                 scene=tuple(dataset.scene),
                 tasks=tuple(dataset.tasks),
@@ -75,9 +72,7 @@ def items(index: _index.Index) -> tuple[DatasetListItem, ...]:
                     name=row.name,
                     canonical_entry_path=None,
                     entries=(entry(row),),
-                    robot_types=(None,),
                     fps=(None,),
-                    robot_model_ids=(),
                     data_origin=DataOrigin.UNKNOWN,
                     size=size(None),
                     indexed_at=moments[row.scan_id],
@@ -96,20 +91,12 @@ def items(index: _index.Index) -> tuple[DatasetListItem, ...]:
 
 
 def matches(item: DatasetListItem, filters: DatasetFilters) -> bool:
-    """不同维度取交集；型号未知意味着没有任何已映射标签。"""
-    label = None if filters.robot_type == "unknown" else filters.robot_type
+    """不同维度取交集，五个字段仅匹配规范信息索引。"""
     fps = None if filters.fps == "unknown" else filters.fps
+    model = None if filters.robot_model == UNLABELED else filters.robot_model
     return (
-        (filters.robot_type is None or label in item.robot_types)
+        (filters.robot_model is None or model == item.robot_model)
         and (filters.fps is None or fps in item.fps)
-        and (
-            filters.robot_model_id is None
-            or (
-                not item.robot_model_ids
-                if filters.robot_model_id == "unknown"
-                else filters.robot_model_id in item.robot_model_ids
-            )
-        )
         and (filters.data_origin is None or filters.data_origin == item.data_origin)
         and (filters.scene is None or filters.scene in (item.scene or (UNLABELED,)))
         and all(task in (item.tasks or (UNLABELED,)) for task in filters.tasks)

@@ -12,11 +12,14 @@ const information: EditablePage = {
   entry_path: "按任务/libero_10",
   document: "数据集信息.json",
   original_robot_types: ["franka"],
+  original_fps: [30],
   sha256: "a".repeat(64),
   offset: 0,
   limit: 20,
   total: 1,
   fields: [
+    { path: ["fps"], label: "FPS", value: 30, multiple: false },
+    { path: ["data_origin"], label: "数据来源", value: "未知", multiple: false },
     { path: ["title"], label: "标题", value: "原来的标题", multiple: false },
     { path: ["robot_model"], label: "机器人型号", value: "Franka", multiple: false },
     { path: ["scene"], label: "场景", value: [], multiple: true },
@@ -32,6 +35,18 @@ const information: EditablePage = {
       path: ["fields", 1, "value_markdown"],
       label: "第 5 项：采集机器人型号",
       value: "原型号说明",
+      multiple: false,
+    },
+    {
+      path: ["fields", 2, "value_markdown"],
+      label: "第 3 项：类型与组成",
+      value: "原来源说明",
+      multiple: false,
+    },
+    {
+      path: ["fields", 3, "value_markdown"],
+      label: "第 8 项：FPS",
+      value: "原帧率说明",
       multiple: false,
     },
   ],
@@ -113,8 +128,8 @@ it("编辑模式只读取数据集信息且没有数据块字段", async () => {
   }
 });
 
-// 契约：第6项可选择两个场景并提交数组，正文和分类使用原JSON路径且只提交实际变更。
-it("就地编辑第6项选择两个场景并按原路径提交数组", async () => {
+// 契约：第3、8项的来源与FPS保留文字框，和第6项分类一起按顶层路径提交；替代独立来源编辑测试。
+it("来源FPS与分类并入字段编辑并按原路径提交", async () => {
   const requests: Request[] = [];
   const page = inlinePage(requests);
   try {
@@ -126,6 +141,16 @@ it("就地编辑第6项选择两个场景并按原路径提交数组", async () 
     fireEvent.click(await screen.findByRole("option", { name: "桌面" }));
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "场景" }));
     fireEvent.click(await screen.findByRole("option", { name: "家居-厨房" }));
+    const section = within(screen.getByRole("region", { name: "14 项数据集信息" }));
+    const fpsRow = within(section.getByRole("row", { name: /原文件 fps/ }));
+    expect(fpsRow.getByRole("textbox", { name: "第 8 项：FPS" })).toBeTruthy();
+    expect(fpsRow.getByText("原文件 fps（索引参考）：30")).toBeTruthy();
+    fireEvent.change(fpsRow.getByRole("spinbutton", { name: "FPS" }), { target: { value: "50" } });
+    const originRow = within(section.getByRole("row", { name: /类型与组成/ }));
+    expect(originRow.getByRole("textbox", { name: "第 3 项：类型与组成" })).toBeTruthy();
+    fireEvent.mouseDown(originRow.getByRole("combobox", { name: "数据来源" }));
+    fireEvent.click(await screen.findByRole("option", { name: "仿真生成" }));
+    expect(screen.queryByRole("region", { name: "数据来源标注" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "预览改动" }));
     await waitFor(() => {
       expect(
@@ -151,6 +176,18 @@ it("就地编辑第6项选择两个场景并按原路径提交数组", async () 
           expected_sha256: information.sha256,
           path: ["scene"],
           value: ["tabletop", "kitchen"],
+        },
+        {
+          document: "数据集信息.json",
+          expected_sha256: information.sha256,
+          path: ["fps"],
+          value: 50,
+        },
+        {
+          document: "数据集信息.json",
+          expected_sha256: information.sha256,
+          path: ["data_origin"],
+          value: "仿真生成",
         },
       ],
     });

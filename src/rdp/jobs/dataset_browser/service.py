@@ -2,10 +2,9 @@
 
 复用 session_scope、账号事务重验、JobService.submit 和第01张的读取/指纹能力；
 不自行实现队列、哈希或 JSON 解析器。导航原文读取复用 datasets._io 的描述符边界，
-禁止 resolve/exists/stat 跟随数据链接。型号读取器由装配方提供，不能硬编码业务型号。
+禁止 resolve/exists/stat 跟随数据链接。筛选只依赖规范信息顶层的索引值。
 """
 
-from collections.abc import Callable
 from pathlib import Path
 
 from sqlalchemy import Engine
@@ -15,9 +14,6 @@ from rdp.accounts.service import authorize_job_actor
 from rdp.infra.diagnostics import DefectError
 from rdp.jobs.dataset_browser.commands import DatasetCommands
 from rdp.jobs.dataset_browser.queries import DatasetQueries, QueryAccess, SubtasksDocument
-from rdp.jobs.dataset_browser.queries import (
-    read_unregistered_robot_models as read_unregistered_robot_models,
-)
 from rdp.jobs.dataset_browser.schemas import (
     DatasetDetailResponse,
     DatasetFilterOptions,
@@ -28,7 +24,6 @@ from rdp.jobs.dataset_browser.schemas import (
     DatasetTreesResponse,
     Layout,
     LayoutResponse,
-    RobotModelOption,
 )
 from rdp.jobs.service import JobRequest, JobService
 from rdp.jobs.types import JobRecord
@@ -42,22 +37,19 @@ class DatasetBrowserService:
         engine: Engine,
         nav_root: Path,
         jobs: JobService,
-        read_robot_models: Callable[[Session], tuple[RobotModelOption, ...]],
     ) -> None:
-        """绑定索引、导航根、作业提交与型号映射读取能力。
+        """绑定索引、导航根与作业提交能力。
 
         Args:
             engine: 受管SQLite引擎，须已迁移；调用者负责生命周期。
             nav_root: 配置中的绝对导航目录，不含..；仅保存路径，不检查存储根。
             jobs: 共用同一引擎的M0作业服务，登记表由入口构造，不在这里导入执行函数。
-            read_robot_models: 必填只读会话回调；M1用read_unregistered_robot_models，
-                M3读取型号表。返回按编号排序的唯一型号，标签最多对应一个型号。
 
         Returns:
             无；得到可被多个请求共用的无请求状态服务。
 
         Raises:
-            DefectError: 引擎不受管、两个服务数据库不一致、路径不是绝对路径或回调不可调用。
+            DefectError: 引擎不受管、两个服务数据库不一致、路径不是绝对路径。
 
         Side Effects:
             仅保存依赖；不连接数据库、不读导航、不创建线程或登记作业。
@@ -67,7 +59,7 @@ class DatasetBrowserService:
         """
         if jobs.engine is not engine:
             raise DefectError()
-        self.queries = DatasetQueries(engine, nav_root, read_robot_models)
+        self.queries = DatasetQueries(engine, nav_root)
         self.commands = DatasetCommands(engine, jobs)
 
     def trees(self, request: JobRequest, filters: DatasetFilters) -> DatasetTreesResponse:
@@ -88,11 +80,11 @@ class DatasetBrowserService:
             AuthenticationError: 读事务中会话已失效或账号停用。
             PasswordChangeRequiredError: 事务中账号被标记须改密。
             ConflictError: 索引读锁等待超限。
-            ExternalError: 查询失败或型号读取器数据库I/O失败。
-            DefectError: 型号映射重复、返回类型或注入时刻非法。
+            ExternalError: 索引数据库查询失败。
+            DefectError: 返回类型或注入时刻非法。
 
         Side Effects:
-            无（只读索引和型号映射，不打开任何导航文件、挂载表或存储根）。
+            无（只读索引，不打开任何导航文件、挂载表或存储根）。
 
         Time Semantics:
             单个读事务保证本次树聚合一致；沿用BUSY_TIMEOUT_MS，不重试。
@@ -109,10 +101,10 @@ class DatasetBrowserService:
 
         Returns:
             按名称、dataset_id、入口路径排序；同编号只一行，无编号入口各一行。
-            型号映射为空时任意具体型号匹配空集；未知型号匹配无映射的数据集。
-            元信息优先唯一规范入口；没有或重复规范入口则取格式入口并集，并保留面板发现。
+            型号匹配规范信息去首尾空白后的文本；unlabeled 匹配未标注。
+            五个筛选值均取唯一规范入口；没有或重复规范入口时按未标注或未知处理。
             当前筛选匹配任一入口即入选，响应entries仍含全部位置；不返回JSON正文。
-            场景、任务、导航型号只取唯一规范副本，不从格式入口补值；场景精确匹配，任务多选取交集。
+            型号、FPS、来源、场景和任务只取唯一规范副本，不从格式入口补值；场景精确匹配，任务多选取交集。
             unlabeled 仅匹配无标注。
 
         Raises:
@@ -121,11 +113,11 @@ class DatasetBrowserService:
             AuthenticationError: 当前会话在读取时失效。
             PasswordChangeRequiredError: 当前账号必须改密。
             ConflictError: 分页查询锁超时。
-            ExternalError: 列表或型号目录读取失败。
-            DefectError: 型号标签多重归属或查询投影违反展示模型。
+            ExternalError: 列表索引读取失败。
+            DefectError: 查询投影违反展示模型。
 
         Side Effects:
-            只读索引与型号表，total和items在同一读事务；不刷新索引或写查看日志。
+            只读索引，total和items在同一读事务；不刷新索引或写查看日志。
 
         Time Semantics:
             行保留自身索引代次时间；分页跨请求不承诺固定快照，扫描发布后前端重新取首页。
@@ -134,29 +126,28 @@ class DatasetBrowserService:
         return self.queries.list(_access(request), query)
 
     def filter_options(self, request: JobRequest) -> DatasetFilterOptions:
-        """返回三个布局共用的候选值和默认机器人筛选模式。
+        """返回三个布局共用的五个筛选候选及计数。
 
         Args:
             request: 当前账号的会话、唯一UTC时刻和请求来源。
 
         Returns:
-            全索引的型号、标签、FPS、来源、场景、任务选项和计数，每种未知项即使为零也保留。
-            型号空目录时registered=False且默认robot_type；非空时默认robot_model。
-            FPS用整数十进制文本传候选，标签保持原始大小写；M1来源计数仅unknown非零。
+            全索引的型号、FPS、来源、场景、任务选项和计数，未标注或未知项即使为零也保留。
+            FPS用正整数十进制文本传候选，型号保持大小写；来源按索引稳定编码计数。
 
         Raises:
             AuthenticationError: 身份失效，不能提供索引统计。
             PasswordChangeRequiredError: 当前账号须先改密。
             InputError: 索引元信息违反已合并字段约束。
             ConflictError: 候选聚合读锁超限。
-            ExternalError: 型号目录或索引数据库不可读。
-            DefectError: 型号编号重复、标签多重映射或时钟不是aware。
+            ExternalError: 索引数据库不可读。
+            DefectError: 候选投影违约或时钟不是aware。
 
         Side Effects:
-            只查索引和注入型号目录，不创建型号、不读取meta/info.json或14项Markdown。
+            只查规范信息索引，不读取meta/info.json或14项Markdown。
 
         Time Semantics:
-            每次读同一事务快照，型号登记后下一请求生效；不持久缓存“没有登记型号”。
+            每次读同一事务快照；重新扫描发布后下一请求生效。
         """
         return self.queries.filter_options(_access(request))
 

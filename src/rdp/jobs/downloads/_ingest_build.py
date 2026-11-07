@@ -86,6 +86,7 @@ def build_creation(
     metadata = cast(JsonObject, facts["metadata"])
     fields = information_fields(receipt, metadata, int(str(facts["size_bytes"])), stamp)
     information = plans.payload(canonical, 1)
+    information["data_origin"] = "开源下载"
     for field in cast(list[JsonObject], information["fields"]):
         field["value_markdown"] = fields[str(field["name"])]
     link = FirstLink(name="原始数据", target_path=target.path)
@@ -109,7 +110,7 @@ def build_creation(
             dump_navigation_json(plans.payload(canonical, index)),
         )
     provenance = with_lineage_record(
-        new_provenance(canonical.dataset_id or "", name, "开源下载", stamp),
+        new_provenance(canonical.dataset_id or "", name),
         download_lineage(receipt, parameters.download_job_id, stamp, *times).model_copy(
             update={
                 "outputs": (

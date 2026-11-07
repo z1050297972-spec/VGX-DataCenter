@@ -1,4 +1,4 @@
-// M1-10 页面测试只替换 HTTP 边界，预览报告和作业使用独立已知样本，不访问真实导航层。
+// 字段编辑页面测试只替换 HTTP 边界，预览报告和作业使用独立已知样本，不访问真实导航层。
 import type { components } from "../api/schema";
 import type { FetchImplementation } from "../api/client";
 import { completedJob, job } from "../jobs/testSupport";
@@ -8,8 +8,8 @@ export const originUrl = '/datasets?selected="按任务/libero_10"';
 export const originPreview: components["schemas"]["NavigationPreviewResponse"] = {
   preview_job_id: "301",
   created_at: "2026-10-30T07:00:00Z",
-  parameters: { dataset_id: "dataset-14", data_origin: "开源下载" },
-  operation: "set_data_origin",
+  parameters: { dataset_id: "dataset-14", changes: [] },
+  operation: "edit_dataset_fields",
   dataset_ids: ["dataset-14"],
   changes: [],
   queued_jobs: [],
@@ -20,7 +20,7 @@ export const originPreview: components["schemas"]["NavigationPreviewResponse"] =
     field_counts: [],
     listed_changes: [
       {
-        file: "按任务/libero_10/来源.json",
+        file: "按任务/libero_10/数据集信息.json",
         json_path: "data_origin",
         before: "未知",
         after: "开源下载",
@@ -34,8 +34,8 @@ export const originPreview: components["schemas"]["NavigationPreviewResponse"] =
 export const previewJob = {
   ...completedJob,
   job_id: "301",
-  type_name: "nav_data_origin_preview",
-  display_name: "预览改数据来源",
+  type_name: "nav_fields_preview",
+  display_name: "预览字段编辑",
 };
 export const writingJob = {
   ...job,
@@ -80,7 +80,7 @@ export function originFetch(
     }
     const responses: Record<string, unknown> = {
       "/api/navigation/recovery-block": { blocked: false },
-      "/api/navigation/data-origin/preview": { ...previewJob, state: "queued", summary: null },
+      "/api/navigation/fields/preview": { ...previewJob, state: "queued", summary: null },
       "/api/jobs/301": previewJob,
       "/api/navigation/previews/301": originPreview,
     };

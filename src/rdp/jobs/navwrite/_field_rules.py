@@ -12,6 +12,7 @@ from rdp.jobs.datasets.vocabulary import UNLABELED
 from rdp.jobs.errors import JobInputError
 from rdp.jobs.navwrite.errors import nav_input_error
 from rdp.jobs.navwrite.field_models import EditableField, FieldEdit, FieldValue
+from rdp.jobs.navwrite.policy import DATA_ORIGINS
 
 # 信息文件按14项固定顺序登记，第4项由统计作业计算，不接受文字覆盖（M1.5-07）。
 SIZE_FIELD_INDEX = 3
@@ -22,6 +23,8 @@ INFO_LABELS = (
     ("scene", "场景"),
     ("tasks", "任务"),
     ("subtask_notes", "子任务"),
+    ("fps", "FPS"),
+    ("data_origin", "数据来源"),
 )
 TASK_LABELS = (("display_name", "任务名"), ("description", "描述"), ("source_ids", "关联数据块"))
 SOURCE_LABELS = (
@@ -54,7 +57,9 @@ def page_fields(
                     label,
                     list(scene_values(payload.get(key)))
                     if key == "scene"
-                    else payload.get(key, [] if key == "tasks" else ""),
+                    else payload.get(
+                        key, [] if key == "tasks" else "未知" if key == "data_origin" else ""
+                    ),
                     multiple=key in {"scene", "tasks"},
                 )
             )
@@ -136,7 +141,9 @@ def apply_edit(
 def _field(
     path: tuple[str | int, ...], label: str, value: JsonValue | None, *, multiple: bool = False
 ) -> EditableField:
-    """只接受文本或文本数组；坏值必须明确报错，不能在保存时被空值覆盖。"""
+    """接受文本、文本数组及 FPS 正整数；坏值明确报错，避免保存时被空值覆盖。"""
+    if path == ("fps",) and type(value) is int and value > 0:
+        return EditableField(path=path, label=label, value=value)
     if isinstance(value, str):
         return EditableField(path=path, label=label, value=value, multiple=multiple)
     if isinstance(value, list) and all(isinstance(item, str) for item in value):
@@ -177,11 +184,28 @@ def check_shape(edit: FieldEdit) -> None:
         valid = False
     if not valid:
         raise ValueError("字段路径或值类型不属于编辑范围")
+    if edit.document == "数据集信息.json" and path == ("fps",):
+        if type(edit.value) is not int or edit.value <= 0:
+            raise ValueError("FPS 必须是正整数")
+    elif not isinstance(edit.value, (str, tuple)):
+        raise ValueError("字段必须是文字或文字数组")
+    if (
+        edit.document == "数据集信息.json"
+        and path == ("data_origin",)
+        and edit.value not in DATA_ORIGINS
+    ):
+        raise ValueError("数据来源不在取值表里")
     _classification_value(edit)
 
 
 def _classification_value(edit: FieldEdit) -> FieldValue:
     """推荐词表允许自定义；分类值去空格，拒绝保留字及空项，数组去重保序。"""
+    if (
+        edit.document == "数据集信息.json"
+        and edit.path == ("robot_model",)
+        and isinstance(edit.value, str)
+    ):
+        return edit.value.strip()
     if edit.document != "数据集信息.json" or edit.path not in {("scene",), ("tasks",)}:
         return edit.value
     return normalize_classification(edit.value)
@@ -192,9 +216,11 @@ def normalize_classification(value: FieldValue) -> FieldValue:
     if isinstance(value, str):
         normalized = value.strip()
         invalid = normalized == UNLABELED
-    else:
+    elif isinstance(value, tuple):
         normalized = tuple(dict.fromkeys(item.strip() for item in value))
         invalid = any(not item or item == UNLABELED for item in normalized)
+    else:
+        raise ValueError("分类必须是文字或文字数组")
     if invalid:
         # 与普通形状校验一样在入队前拒绝，同时保留导航字段诊断码供调用方定位。
         raise JobInputError(

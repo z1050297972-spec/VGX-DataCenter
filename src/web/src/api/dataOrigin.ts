@@ -1,32 +1,11 @@
-// M1-10 来源标注 HTTP 边界；类型只取生成契约，所有请求沿用账号客户端与有界等待。
+// 导航预览报告与通用确认的 HTTP 边界；来源编辑使用普通字段接口。
 import type { components } from "./schema";
 import type { AccountCall } from "./accounts";
 import { boundedRequest } from "./_request";
 import { JOB_REQUEST_TIMEOUT_MS, type Job } from "./jobs";
 
-/** 六选一中文来源及永久数据集编号，不接收路径或操作者。 */
-export type DataOriginInput = components["schemas"]["DataOriginParameters"];
 /** 服务端生成的同一份计划报告；页面不重新计算旧值或改动文件。 */
 export type NavigationPreview = components["schemas"]["NavigationPreviewResponse"];
-
-/**
- * 提交只读的数据来源预览作业。
- * @param input - 账号客户端、生成的参数和生命周期取消信号。
- * @returns 新 queued 作业，预览结果在该作业完成后读取。
- * @throws Error 请求、权限或参数失败经统一诊断返回。
- * @sideEffects 一次 POST，不写导航层，不自动确认。
- * @timeSemantics 最多 JOB_REQUEST_TIMEOUT_MS，无重试；卸载取消等待。
- */
-export function previewDataOrigin(input: AccountCall<DataOriginInput>): Promise<Job> {
-  return boundedRequest(input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
-    const response = await input.client.POST("/api/navigation/data-origin/preview", {
-      body: input.payload,
-      signal,
-    });
-    if (!response.data) throw new Error("预览提交未返回作业");
-    return response.data;
-  });
-}
 
 /**
  * 读取一个已成功完成的预览报告。

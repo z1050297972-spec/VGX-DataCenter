@@ -1,6 +1,6 @@
 # 五个筛选统一以数据集信息.json 为准；数据来源挪出来源.json；与原文件比对
 
-Status: in-progress
+Status: done
 
 分级：骨架关卡。理由：改两份导航文件的格式（`数据集信息.json` 加 `fps`、`data_origin`；`来源.json` 去掉数据来源，升到第 2 版），改筛选接口契约（去掉 `robot_type`、`robot_model_id`），还有一次批量写导航层的迁移（3.0 第 1 条"数据契约""改已有契约的含义"）。按"只做关键测试"；安全底线照旧。
 
@@ -118,3 +118,9 @@ Blocked by: 14（基于 t/m15-14-manual-check 分支开工，合并时先合 14�
 - 2026-11-06 开票（执行线；负责人点名"按照你说的来吧"）。ADR 0006、0008 已追加修订节。等第 14 张合并后派工。
 - 2026-11-06 负责人定了三点（见「负责人已定」）。回填改成只新增 `fps`、`data_origin`，不碰 `robot_model` 和 14 项。
 - 2026-11-06 负责人："现在就开始做吧"。契约已逐条当面定，按工单契约直接实现，不另交骨架。基于 t/m15-14-manual-check 开分支 t/m15-15-filters-info；前后端两个并行会话（gpt-6-astra medium）。真实演练（回填写真实导航层）另等负责人。
+- 2026-11-06 05:34 派工：前后端两个会话（systemd 单元 rdp-m15-15-be / rdp-m15-15-fe，日志 ~/.cache/rdp-dispatch/m15-15/），超时 60 分钟。
+- 2026-11-06 05:38 负责人要求多开并行：停掉后端单会话（未改文件），拆成核心/回填/比对三个会话（rdp-m15-15-core/backfill/compare），前端会话照旧。make api-types 由执行线最后统一跑。
+- 2026-11-06 06:04 负责人要求暂停。比对（05:49）、前端（06:02）、回填（06:02）三个会话已交回；后端核心会话被手动停掉，改动做了一半留在工作目录（未提交），Codex 会话 "thread_id":"01a1b0dd-b314-76b2-a5de-6ead1d195dea"，可用 codex exec resume 续做。已知待办：核心会话删 api/data_origin.py 时要保留通用接口 GET /api/navigation/previews/{job_id}，并清理注册表里的 build_data_origin_definition；之后执行线统一 make api-types、删前端临时类型 api/informationTypes.ts、跑 make check。待办（不阻塞）：比对按数据块逐个出提示，EgoProDemo 会刷很多条，以后改为每个数据集一条。
+- 2026-11-06 09:37 负责人说继续：续接核心会话（rdp-m15-15-core2），附上回填会话报的两处集成问题。
+- 2026-11-06 10:13 核心交回（迁移 0018_information_filters，升级后需重扫；通用预览接口迁到 api/navigation_writes.py）。执行线跑 make api-types；前端续接删掉临时类型（10:16）。make check 全绿：后端 2753 passed、Vitest 376 passed、0 skipped。变异抽查：回填清 robot_model 空格、FPS 规则不认括号说明，均被 tests/test_information_backfill.py 抓到。评审无阻塞问题。待办（不阻塞）：比对按数据块出提示，EgoProDemo 会多条。剩：真实演练（回填真实导航层）和合并，等负责人；合并顺序先 14 后 15。
+- 2026-11-06 18:55 负责人说合并：先合 14（e49530d）再合 15。接着做真实演练。

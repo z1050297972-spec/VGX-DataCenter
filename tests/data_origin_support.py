@@ -1,4 +1,4 @@
-"""数据来源 HTTP 演练夹具：在临时应用里执行真实已提交作业，不开端口或额外线程。"""
+"""导航写入 HTTP 演练夹具：在临时应用里执行真实已提交作业，不开端口或额外线程。"""
 
 import time
 from threading import Event, Lock

@@ -151,7 +151,7 @@ def build_dataset_preview(
         dependencies: worker 扫描依赖，具有只读本地目标检查能力；不允许客户端覆盖导航根。
         parameters: 数据集名、必填来源、第一条链接、可选information及格式位置；不含dataset_id。
         set_by: 从预览作业提交人生成的人工标注印记，包含账号编号、名字及注入的 UTC 时刻；
-            显式选择未知也记录印记，不接受客户端操作者或时间。
+            调用方保留的提交人上下文；不再将印记写入来源文件，操作归属由日志追溯。
         checkpoint: 取消/停止检查点，遍历导航入口及每个读块之间调用。
 
     Returns:
@@ -202,6 +202,8 @@ def build_dataset_preview(
     )
     identifier = allocate_dataset_id(dependencies.nav_root)
     canonical = plans.new_snapshot(location, identifier, parameters.information)
+    information = plans.payload(canonical, 1)
+    information["data_origin"] = parameters.data_origin
     selected = plans.format_locations(parameters.dataset_name, parameters.format_entries)
     target = reads.target(dependencies, parameters.link, checkpoint)
     planning = plans.Planning(dependencies.nav_root, canonical)
@@ -214,7 +216,7 @@ def build_dataset_preview(
         canonical,
         (
             first,
-            dump_navigation_json(plans.payload(canonical, 1)),
+            dump_navigation_json(information),
             dump_navigation_json(plans.payload(canonical, 2)),
         ),
     )
@@ -224,7 +226,7 @@ def build_dataset_preview(
             None,
             dump_navigation_json(plans.payload(canonical, REQUIRED_DOCUMENTS.index(document.name))),
         )
-    provenance = new_provenance(identifier, parameters.dataset_name, parameters.data_origin, set_by)
+    provenance = new_provenance(identifier, parameters.dataset_name)
     planning.write(
         str(location.path / "来源.json"), None, dump_navigation_json(dump_provenance(provenance))
     )
