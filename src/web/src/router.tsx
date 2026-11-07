@@ -34,7 +34,6 @@ import { validateDownloadSearch } from "./downloads/search";
 const DownloadPage = lazyRouteComponent(() => import("./downloads/Pages"), "DownloadPage");
 const MonitoringPage = lazyRouteComponent(() => import("./monitoring/Pages"), "MonitoringPage");
 const JobsPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobsPage");
-const RevertPage = lazyRouteComponent(() => import("./navwrites/Revert"), "RevertPage");
 const JobDetailPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobDetailPage");
 import type { JobSearch } from "./api/jobs";
 import { validateJobSearch } from "./jobs/search";
@@ -168,11 +167,6 @@ export function createAppRouter(options: AppRouterOptions) {
     },
     component: JobDetailPage,
   });
-  const revertJob = createRoute({
-    getParentRoute: () => root,
-    path: "/jobs/$jobId/revert",
-    component: RevertPage,
-  });
   const scheduling = createRoute({
     getParentRoute: () => root,
     path: "/scheduling",
@@ -218,7 +212,6 @@ export function createAppRouter(options: AppRouterOptions) {
       downloads,
       monitoring,
       jobDetail,
-      revertJob,
       scheduling,
       storageRoots,
       datasets,

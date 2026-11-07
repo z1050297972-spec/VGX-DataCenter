@@ -6,8 +6,6 @@ from rdp.jobs.datasets.catalog import MAX_SCAN_ENTRIES, REQUIRED_DOCUMENTS
 
 # Web 提交和 worker 登记共用的写入类型键；参数只引用持久预览。
 NAV_APPLY_TYPE: Final = "nav_write_apply"
-# Web 与 worker 共用撤回预览键，Web 不导入 worker 作业入口模块。
-NAV_REVERT_PREVIEW_TYPE: Final = "nav_revert_preview"
 
 # 状态目录下三个子目录名；ADR 0009 与运维手册 4.4 的固定名字，不可由配置改写。
 NAV_JOURNAL_DIRNAME: Final = "nav-journal"

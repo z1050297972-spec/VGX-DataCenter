@@ -26,8 +26,8 @@ class NavOperation(StrEnum):
         CREATE_DATASET: create_dataset，新增数据集（M1-08，L5、L6）。
         REPOINT_DATASET: repoint_dataset，改指向（M1-09，L17-L19）。
         EDIT_DATASET_FIELDS: edit_dataset_fields，编辑导航层字段（M1.5-02）。
-        SET_DATA_ORIGIN: set_data_origin，历史来源标注变更；仅为读取和撤回已有变更保留。
-        REVERT_CHANGE: revert_change，撤回某个已完成作业（L16，本票）。
+        SET_DATA_ORIGIN: set_data_origin，历史来源标注变更；仅为读取历史变更保留。
+        REVERT_CHANGE: revert_change，历史撤回操作码，仅为解析已有日志和变更记录保留。
     """
 
     CREATE_LINK = "create_link"
@@ -126,7 +126,7 @@ class MovePathStep(BaseModel):
 
 
 class RemovePathStep(BaseModel):
-    """删除一个文件、软链接或空目录（撤回"新建"类操作时用；ADR 0009 L16）。
+    """删除一个文件、软链接或空目录（含历史计划；日志恢复仍需识别此步骤）。
 
     Attributes:
         model_config: 冻结，拒绝未知字段。
@@ -356,7 +356,7 @@ class ApplyResult(BaseModel):
         link_count: 实际建或改的链接数。
         reindexed_dataset_ids: 已更新索引的数据集；回滚或 noop 时为空。
         sizing_job_ids: 随后提交的统计大小作业编号，每个仍存在的数据集一个；回滚或 noop 时为空。
-        sizing_skipped_dataset_ids: 写入或撤回后入口已删除、因此没有提交统计的数据集编号，顺序同计划。
+        sizing_skipped_dataset_ids: 写入后入口已删除、因此没有提交统计的数据集编号，顺序同计划。
     """
 
     model_config = _FROZEN

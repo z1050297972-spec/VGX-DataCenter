@@ -1,4 +1,4 @@
-"""导航预览报告、改指向和撤回的 HTTP 入口；只调用 Web 领域服务，不执行写入。"""
+"""导航预览报告、改指向的 HTTP 入口；只调用 Web 领域服务，不执行写入。"""
 
 from fastapi import APIRouter
 from pydantic import AwareDatetime, BaseModel, ConfigDict, JsonValue
@@ -14,14 +14,12 @@ from rdp.infra.ids import error_source_kind
 from rdp.jobs.errors import JobInputError
 from rdp.jobs.navwrite import write_service as service
 from rdp.jobs.navwrite.create_service import CreationAccess
-from rdp.jobs.navwrite.create_views import CreationJobId, QueuedNavigationJob
+from rdp.jobs.navwrite.create_views import QueuedNavigationJob
 from rdp.jobs.navwrite.errors import nav_input_error
 from rdp.jobs.navwrite.models import ListedChange, NavOperation, PlanReport
-from rdp.jobs.navwrite.policy import NAV_REVERT_PREVIEW_TYPE
 from rdp.jobs.navwrite.previews import read_preview
 from rdp.jobs.navwrite.repoint_models import REPOINT_PREVIEW_TYPE, RepointParameters
 from rdp.jobs.navwrite.write_service import read_navigation_preview
-from rdp.jobs.navwrite.write_views import ReversalDetails
 from rdp.jobs.service import JobRequest
 from rdp.jobs.types import JobState
 
@@ -65,51 +63,13 @@ def submit_repoint_preview(context: CreationContext, body: RepointParameters) ->
 
 
 @router.post(
-    "/jobs/{target_job_id}/revert-previews",
-    response_model=JobResponse,
-    status_code=201,
-    operation_id="submit_navigation_revert_preview",
-)
-def submit_revert_preview(context: CreationContext, target_job_id: CreationJobId) -> JobResponse:
-    """提交指定写导航层作业的撤回预览。
-
-    Args:
-        context: 当前确认者的认证及审计来源，无管理员角色限制。
-        target_job_id: 目标作业的规范十进制文本，数值 1 至 MAX_SQLITE_INTEGER。
-
-    Returns:
-        201，nav_revert_preview 排队记录；worker 检查永久变更记录并列出后像差异。
-
-    Raises:
-        JobNotFoundError: 目标作业不存在，404。
-        JobInputError: 编号非法，422。
-        InputError: 目标不是写导航层作业，400。
-        AuthenticationError: 提交会话失效，401。
-        AuthorizationError: Origin 检查失败，403。
-        PasswordChangeRequiredError: 提交者必须改密，403。
-        ConflictError: 提交竞争，409。
-        ExternalError: 数据库读取或提交失败，502。
-        DefectError: 作业服务装配违约，500。
-
-    Side Effects:
-        新增只读撤回预览及提交日志；不读取目标前后像或执行撤回。
-
-    Time Semantics:
-        不受操作日志 30 天保留期约束，失败预览不自动提交写入。
-    """
-    return job_response(
-        service.submit_revert_preview(context.access, _request(context), int(target_job_id))
-    )
-
-
-@router.post(
     "/navigation/writes",
     response_model=JobResponse,
     status_code=201,
     operation_id="confirm_navigation_write",
 )
 def confirm_navigation_write(context: CreationContext, body: ConfirmCreationRequest) -> JobResponse:
-    """确认改指向或撤回预览，统一提交 nav_write_apply。
+    """确认改指向预览，统一提交 nav_write_apply。
 
     Args:
         context: 本次确认者身份、唯一请求时刻及审计上下文。
@@ -161,10 +121,8 @@ class NavigationPreviewResponse(BaseModel):
         operation: 写导航层的稳定操作码。
         dataset_ids: 受影响数据集编号，升序。
         report: 与执行计划共同生成的报告，包含旧值、新值与检查范围。
-        reverts_job_id: 撤回目标的文本编号，其他操作为 None。
-        changes: 改指向与撤回的步骤前后像摘要；旧预览默认为空。
-        queued_jobs: 改指向与撤回的当前同数据集排队提醒；其他预览默认为空。
-        reversal: 原永久报告的反向替换片段，非撤回或缺原报告时为 None。
+        changes: 改指向的步骤前后像摘要；旧预览默认为空。
+        queued_jobs: 改指向的当前同数据集排队提醒；其他预览默认为空。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
@@ -174,10 +132,8 @@ class NavigationPreviewResponse(BaseModel):
     operation: NavOperation
     dataset_ids: tuple[str, ...]
     report: PlanReport
-    reverts_job_id: CreationJobId | None = None
     changes: tuple[ListedChange, ...] = ()
     queued_jobs: tuple[QueuedNavigationJob, ...] = ()
-    reversal: ReversalDetails | None = None
 
 
 @router.get(
@@ -186,7 +142,7 @@ class NavigationPreviewResponse(BaseModel):
     operation_id="get_navigation_preview",
 )
 def get_navigation_preview(context: JobContext, job_id: str) -> NavigationPreviewResponse:
-    """读取已完成预览的报告，供查看后确认写入或撤回。
+    """读取已完成预览的报告，供查看后确认写入。
 
     Args:
         context: 已认证作业上下文；允许全部登录账号。
@@ -226,7 +182,7 @@ def get_navigation_preview(context: JobContext, job_id: str) -> NavigationPrevie
             "NAV_PREVIEW", "预览作业尚未成功结束", objects=(("job_id", job_id),)
         )
         raise problem
-    if job.type_name in (REPOINT_PREVIEW_TYPE, NAV_REVERT_PREVIEW_TYPE):
+    if job.type_name == REPOINT_PREVIEW_TYPE:
         view = read_navigation_preview(
             CreationAccess(context.service.engine, context.paths, context.service),
             _preview_request(context),

@@ -4,7 +4,6 @@ import { screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { mountPage } from "../scheduling/pageTestSupport";
 import type { EditablePage } from "../api/fieldEditing";
 import { detail } from "./testSupport";
-import { repointFetch } from "./repointTestSupport";
 import { originFetch, originUrl, originPreview, previewJob } from "./originTestSupport";
 
 const information: EditablePage = {
@@ -212,33 +211,6 @@ it("取消就地编辑恢复原只读值", async () => {
     expect(screen.queryByRole("region", { name: "数据块字段" })).toBeNull();
     expect(screen.queryByText("不要保存的说明")).toBeNull();
     expect(requests.filter((request) => request.method === "POST")).toHaveLength(0);
-  } finally {
-    page.close();
-  }
-});
-
-// 契约：字段编辑作业不再有自己的撤回按钮，走通用撤回页：先预览，确认只引用保存的反向预览。
-it("字段编辑作业走通用撤回流程", async () => {
-  const requests: Request[] = [];
-  const page = mountPage("/jobs/401", repointFetch(requests));
-  try {
-    expect(screen.queryByRole("button", { name: "预览撤回导航改动" })).toBeNull();
-    fireEvent.click(await screen.findByRole("button", { name: "撤回导航写入" }));
-    fireEvent.click(await screen.findByRole("button", { name: "预览撤回" }));
-    const confirm = await screen.findByRole("button", { name: "确认导航写入" });
-    expect(requests.filter((r) => r.method === "POST")).toHaveLength(1);
-    fireEvent.click(confirm);
-    expect(await screen.findByRole("region", { name: "撤回导航改动 #402" })).toBeTruthy();
-    expect(page.router.state.location.pathname).toBe("/jobs/401/revert");
-    const posts = requests.filter((r) => r.method === "POST");
-    expect(posts.map((r) => new URL(r.url).pathname)).toEqual([
-      "/api/jobs/401/revert-previews",
-      "/api/navigation/writes",
-    ]);
-    expect(await posts[1]?.clone().json()).toEqual({
-      preview_job_id: "302",
-      acknowledged_queue_job_ids: [],
-    });
   } finally {
     page.close();
   }

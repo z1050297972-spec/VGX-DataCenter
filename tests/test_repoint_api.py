@@ -10,8 +10,8 @@ from nav_manifest import FakeNavigation
 from navwrite_support import dataset_id_of, tree_state
 
 
-def test_repoint_apply_then_revert_through_http(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """验证预览→确认→共用写入→撤回预览→确认，两个视图和原字节恢复，HTTP 不传执行正文。"""
+def test_repoint_apply_through_http(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """验证预览→确认→共用写入，导航层更新，HTTP 不传执行正文。"""
     with creation_api_case(tmp_path, fake_nav) as (api, deps):
         old = deps.rescan.roots[1].path
         new = deps.rescan.roots[0].path / "mirror"
@@ -40,21 +40,6 @@ def test_repoint_apply_then_revert_through_http(tmp_path: Path, fake_nav: FakeNa
         assert result.summary is not None and not result.summary.aborted
         assert (fake_nav.nav_root / "按任务/EgoProDemo/原始数据").readlink().is_relative_to(new)
         assert tree_state(fake_nav.nav_root) != before
-        revert = api.client.post(f"/api/jobs/{write_id}/revert-previews")
-        assert revert.status_code == 201, revert.text
-        revert_id = revert.json()["job_id"]
-        reverse_job = run_queued(api, deps, revert_id)
-        assert reverse_job.summary is not None and not reverse_job.summary.aborted
-        reverse = api.client.get(f"/api/navigation/previews/{revert_id}")
-        assert reverse.status_code == 200, reverse.text
-        assert reverse.json()["reverts_job_id"] == write_id
-        assert reverse.json()["operation"] == "revert_change"
-        assert reverse.json()["changes"]
-        apply = api.client.post("/api/navigation/writes", json={"preview_job_id": revert_id})
-        assert apply.status_code == 201, apply.text
-        restored = run_queued(api, deps, apply.json()["job_id"])
-        assert restored.summary is not None and not restored.summary.aborted
-        assert tree_state(fake_nav.nav_root) == before
 
 
 def test_queue_requires_explicit_ids_then_confirms(
@@ -98,111 +83,6 @@ def test_queue_requires_explicit_ids_then_confirms(
         assert tree_state(fake_nav.nav_root) == before
         diagnostics = api.client.get(f"/api/jobs/{stale.job_id}").text
         assert "NAV_PREVIEW_STATE" in diagnostics and "原始路径.json" in diagnostics
-
-
-def test_revert_conflict_lists_after_image_difference(
-    tmp_path: Path, fake_nav: FakeNavigation
-) -> None:
-    """验证 L16：手工改过后像时撤回预览失败并列文件、期望和实际，确认拒绝失败预览。"""
-    from creation_support import preview_job
-
-    with creation_api_case(tmp_path, fake_nav) as (api, deps):
-        preview = preview_job(api, deps, fake_nav)
-        write = api.client.post(
-            "/api/datasets/creation-writes", json={"preview_job_id": preview}
-        ).json()["job_id"]
-        run_queued(api, deps, write)
-        path = fake_nav.nav_root / "按任务/EgoProDemo/原始路径.json"
-        path.write_bytes(path.read_bytes() + b"\n")
-        before = tree_state(fake_nav.nav_root)
-        response = api.client.post(f"/api/jobs/{write}/revert-previews")
-        assert response.status_code == 201, response.text
-        identifier = response.json()["job_id"]
-        result = run_queued(api, deps, identifier)
-        assert result.summary is not None and result.summary.aborted
-        detail = api.client.get(f"/api/jobs/{identifier}").text
-        assert "NAV_CHANGES" in detail and "原始路径.json" in detail
-        assert "sha256" in detail and "diff_1" in detail
-        assert (
-            api.client.post(
-                "/api/navigation/writes", json={"preview_job_id": identifier}
-            ).status_code
-            == 400
-        )
-        assert tree_state(fake_nav.nav_root) == before
-
-
-def test_revert_creation_after_40_days_without_audit(
-    tmp_path: Path, fake_nav: FakeNavigation
-) -> None:
-    """验证 L16：非改指向的写作业在40天且操作日志已清理后仍可预览、确认撤回。"""
-    from datetime import timedelta
-
-    from creation_support import preview_job
-    from sqlalchemy import delete
-
-    from rdp.audit.models import OperationLogRow
-    from rdp.infra.db.connection import session_scope
-
-    with creation_api_case(tmp_path, fake_nav) as (api, deps):
-        before = tree_state(fake_nav.nav_root)
-        preview = preview_job(api, deps, fake_nav, operation="dataset")
-        write = api.client.post(
-            "/api/datasets/creation-writes", json={"preview_job_id": preview}
-        ).json()["job_id"]
-        run_queued(api, deps, write)
-        with session_scope(api.engine) as session:
-            session.execute(delete(OperationLogRow))
-        api.clock.value += timedelta(days=40)
-        assert api.login().status_code == 200
-        revert = api.client.post(f"/api/jobs/{write}/revert-previews")
-        assert revert.status_code == 201, revert.text
-        identifier = revert.json()["job_id"]
-        result = run_queued(api, deps, identifier)
-        assert result.summary is not None and not result.summary.aborted
-        reverse = api.client.get(f"/api/navigation/previews/{identifier}")
-        assert reverse.status_code == 200, reverse.text
-        apply = api.client.post("/api/navigation/writes", json={"preview_job_id": identifier})
-        assert apply.status_code == 201, apply.text
-        restored = run_queued(api, deps, apply.json()["job_id"])
-        assert restored.summary is not None and not restored.summary.aborted
-        assert tree_state(fake_nav.nav_root) == before
-
-
-def test_revert_preview_lists_reverse_replacements(
-    tmp_path: Path, fake_nav: FakeNavigation
-) -> None:
-    """验证撤回预览显示原字段的反向替换，JSON 正文不泄露，链接摘要也反向显示。"""
-    with creation_api_case(tmp_path, fake_nav) as (api, deps):
-        old = deps.rescan.roots[1].path
-        new = deps.rescan.roots[0].path / "mirror"
-        shutil.copytree(old, new)
-        submitted = api.client.post(
-            "/api/datasets/repoint-previews",
-            json={
-                "dataset_id": dataset_id_of(fake_nav, "EgoProDemo"),
-                "old_prefix": str(old),
-                "new_prefix": str(new),
-            },
-        )
-        identifier = submitted.json()["job_id"]
-        run_queued(api, deps, identifier)
-        forward = api.client.get(f"/api/navigation/previews/{identifier}").json()["report"]
-        assert forward["listed_changes"]
-        write = api.client.post(
-            "/api/navigation/writes", json={"preview_job_id": identifier}
-        ).json()["job_id"]
-        run_queued(api, deps, write)
-        revert_id = api.client.post(f"/api/jobs/{write}/revert-previews").json()["job_id"]
-        run_queued(api, deps, revert_id)
-        response = api.client.get(f"/api/navigation/previews/{revert_id}")
-        assert response.status_code == 200, response.text
-        reverse = response.json()["reversal"]
-        assert reverse["field_counts"] == forward["field_counts"]
-        assert reverse["listed_total"] == forward["listed_total"]
-        assert reverse["listed_changes"][0]["before"] == forward["listed_changes"][0]["after"]
-        assert reverse["listed_changes"][0]["after"] == forward["listed_changes"][0]["before"]
-        assert "after_content" not in response.text
 
 
 def test_preview_rejects_plan_dataset_tampering(tmp_path: Path, fake_nav: FakeNavigation) -> None:
@@ -309,8 +189,6 @@ def test_http_guards_validation_and_web_no_storage(
             ).status_code
             == 404
         )
-        assert api.client.post(f"/api/jobs/{identifier}/revert-previews").status_code == 400
-        assert api.client.post("/api/jobs/999999/revert-previews").status_code == 404
         assert api.client.get("/api/navigation/previews/01").status_code == 422
 
 

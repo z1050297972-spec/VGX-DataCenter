@@ -13,7 +13,7 @@ from datasets_storage_support import enable_storage
 from jobs_scheduling_support import claim_fixture, resources_fixture
 from jobs_storage_support import NOW
 from nav_manifest import FakeNavigation
-from navwrite_pipeline_support import Harness, harness, job_rows, run_apply
+from navwrite_pipeline_support import Harness, harness, job_rows
 from navwrite_support import tree_state
 from sqlalchemy import select
 
@@ -55,11 +55,10 @@ def test_size_text_parsing_remains_compatible() -> None:
 
 @pytest.mark.parametrize("old_text", ["旧自由文字", "0 GB（1 B；旧说明）"])
 def test_size_sync_roundtrip(tmp_path: Path, fake_nav: FakeNavigation, old_text: str) -> None:
-    """旧文字或不同大小会更新；其他字节保留、日期按调度时区、格式副本同步、幂等且可撤回。"""
+    """旧文字或不同大小会更新；其他字节保留、日期按调度时区、格式副本同步、幂等并保留变更记录。"""
     with harness(tmp_path, fake_nav) as h:
         enable_storage(h.case)
         path, original = _information(h, "libero_10", old_text)
-        before = tree_state(h.nav)
         h.case.run()
         registry = _registry(h)
         _size(h, registry, "dataset-14")
@@ -82,8 +81,6 @@ def test_size_sync_roundtrip(tmp_path: Path, fake_nav: FakeNavigation, old_text:
         _assert_automatic_audit(h, written.job_id)
         _size(h, registry, "dataset-14")
         assert len([row for row in job_rows(h) if row.type_name == "nav_size_sync"]) == 1
-        _revert(h, registry, written.job_id)
-        assert tree_state(h.nav) == before
 
 
 def test_offline_does_not_sync(tmp_path: Path, fake_nav: FakeNavigation) -> None:
@@ -169,21 +166,6 @@ def _assert_automatic_audit(h: Harness, job_id: int) -> None:
         assert "平台自动" in audits[0].object_name
         details = OperationDetails.model_validate(audits[0].details)
         assert details.after.change_record_id == str(job_id)
-
-
-def _revert(h: Harness, registry: JobRegistry, job_id: int) -> None:
-    """经既有撤回预览及写入流水线恢复原字节。"""
-    definition = registry.lookup("nav_revert_preview")
-    assert definition is not None
-
-    def undo(context: ExecutionContext) -> None:
-        parameters = definition.parameters_model.model_validate({"target_job_id": job_id})
-        definition.execute(replace(context, parameters=parameters))
-
-    reversal = h.case.run(execute=undo)
-    assert reversal.summary is not None and not reversal.summary.aborted, reversal.diagnostics
-    undone = run_apply(h, reversal.job_id)
-    assert undone.error is None
 
 
 def _run_queued(h: Harness, registry: JobRegistry, job_id: int) -> JobRecord:

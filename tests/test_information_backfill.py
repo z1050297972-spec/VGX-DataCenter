@@ -81,10 +81,10 @@ def test_fps_priority_and_unique_canonical_fallback(
                 assert contents[0]["fps"] == expected
 
 
-def test_backfill_preserves_values_is_idempotent_and_reversible(
+def test_backfill_preserves_values_and_is_idempotent(
     tmp_path: Path, fake_nav: FakeNavigation
 ) -> None:
-    """回填只追加两键、保持空型号与血缘；格式副本同步、再次预览为空、撤回恢复原字节。"""
+    """回填只追加两键、保持空型号与血缘；格式副本同步、再次预览为空。"""
     with harness(tmp_path, fake_nav) as h:
         information_path = h.nav / "按任务/EgoProDemo/数据集信息.json"
         information = load_navigation_json(information_path.read_bytes())
@@ -134,22 +134,6 @@ def test_backfill_preserves_values_is_idempotent_and_reversible(
                     h.nav / location.path / "数据集信息.json"
                 ).read_bytes() == information_path.read_bytes()
         assert _preview(h).plan.steps == ()
-        definition = production_registry(h.case.scanning, h.dependencies).lookup(
-            "nav_revert_preview"
-        )
-        assert definition is not None
-
-        def revert(context: ExecutionContext) -> None:
-            parameters = definition.parameters_model.model_validate(
-                {"target_job_id": applied.record.job_id}
-            )
-            definition.execute(replace(context, parameters=parameters))
-
-        reversal = h.case.run(execute=revert)
-        assert reversal.summary is not None and not reversal.summary.aborted, reversal.diagnostics
-        undone = run_apply(h, reversal.job_id)
-        assert undone.error is None, undone.error
-        assert tree_state(h.nav) == before
 
 
 def _existing_information(h: Harness) -> tuple[Path, bytes]:

@@ -1,12 +1,10 @@
 """写入底座的作业类型与预览作业入口（worker 写入侧，领域层，M1-07，ADR 0005、0009）。
 
-本票登记两个通用作业类型，具体的建链、新增数据集、改指向、数据来源标注各自在 M1-08、09、10
+本模块登记通用写入作业类型，具体的建链、新增数据集、改指向、数据来源标注各自在 M1-08、09、10
 加预览作业，用本模块的 run_preview 保存结果，再统一提交 nav_write_apply：
 
 - `nav_write_apply`（写导航层）：参数只有预览作业编号。写导航层，恢复方式"标记中断"，
   JobDefinition.writes_navigation=True，所以"导航层恢复失败"标记在时它只排队、不开始。
-- `nav_revert_preview`（预览撤回）：参数是被撤回的作业编号。只读，不拿写锁，恢复方式"重跑"，
-  产出一份 operation=revert_change 的预览，然后同样提交 nav_write_apply。
 
 "预览是只读 worker 作业"（M1-07 工单）：预览要访问存储根（L1、L3、L19），而 Web 不访问存储根。
 自己写作业而不用现成队列的理由同 ADR 0005：已有 M0 的作业框架，本模块只加类型。
@@ -15,26 +13,22 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
-from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from rdp.accounts.types import Role
 from rdp.infra.diagnostics import DefectError
 from rdp.jobs.execution import ExecutionContext
-from rdp.jobs.navwrite.changes import plan_revert, read_change_record
 from rdp.jobs.navwrite.errors import nav_input_error
 from rdp.jobs.navwrite.models import NavPreview, NavWritePlan, PlanReport
 from rdp.jobs.navwrite.pipeline import NavWriteDependencies, run_write_plan
 from rdp.jobs.navwrite.policy import NAV_APPLY_TYPE as NAV_APPLY_TYPE
-from rdp.jobs.navwrite.policy import NAV_REVERT_PREVIEW_TYPE as NAV_REVERT_PREVIEW_TYPE
 from rdp.jobs.navwrite.previews import preview_path, write_preview
 from rdp.jobs.registry import JobDefinition
 from rdp.jobs.types import ExecutionMode, RecoveryMode
 
 # 稳定的作业类型键，写进持久化的作业记录，不复用历史含义。
 NAV_APPLY_NAME = "写导航层"
-NAV_REVERT_PREVIEW_NAME = "预览撤回"
 
 
 class NavApplyParameters(BaseModel):
@@ -48,18 +42,6 @@ class NavApplyParameters(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
     preview_job_id: int = Field(strict=True, ge=1)
-
-
-class NavRevertPreviewParameters(BaseModel):
-    """撤回预览作业的参数。
-
-    Attributes:
-        model_config: 冻结，拒绝多余字段，不回显不可信输入。
-        target_job_id: 被撤回的写入作业编号，严格整数 ≥ 1；它必须有 COMMITTED 的变更记录。
-    """
-
-    model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
-    target_job_id: int = Field(strict=True, ge=1)
 
 
 @dataclass(frozen=True)
@@ -163,59 +145,17 @@ def execute_apply(dependencies: NavWriteDependencies | None, context: ExecutionC
     run_write_plan(context, dependencies, context.parameters.preview_job_id)
 
 
-def execute_revert_preview(
-    dependencies: NavWriteDependencies | None, context: ExecutionContext
-) -> None:
-    """nav_revert_preview 的执行函数：读变更记录、核对现状、保存反向计划的预览。
-
-    Args:
-        dependencies: worker 的写入依赖；Web 侧登记传 None。
-        context: 参数为 NavRevertPreviewParameters 的执行上下文，mode 允许 FRESH 和 RESTART。
-
-    Returns:
-        无；预览保存在 nav-previews/<作业编号>.json.gz。
-
-    Raises:
-        DefectError: 缺依赖、参数类型或 mode 不对。
-        InputError: 被撤回作业没有 COMMITTED 的变更记录。
-        ConflictError: 当前状态不等于 #N 的后像，诊断列出变了的地方和改过它的作业。
-        ExternalError: 读导航层或状态目录失败。
-        JobCancelledError: 检查点收到取消。
-        WorkerStoppingError: worker 停止。
-
-    Side Effects:
-        经 run_preview 调用 plan_revert 并保存预览；只读导航层，不拿写锁。
-
-    Time Semantics:
-        同 run_preview。无论操作日志是否已按保留期（30 天）清掉，只要变更记录在就能预览（场景三）。
-    """
-    if dependencies is None or not isinstance(context.parameters, NavRevertPreviewParameters):
-        raise DefectError()
-    if context.mode not in (ExecutionMode.FRESH, ExecutionMode.RESTART):
-        raise DefectError()
-    target = context.parameters.target_job_id
-
-    def build(checkpoint: Callable[[], None]) -> PreviewBuild:
-        record = read_change_record(dependencies.paths, target)
-        plan, report = plan_revert(
-            Path(dependencies.rescan.nav_root), dependencies.paths, record, checkpoint=checkpoint
-        )
-        return PreviewBuild(plan, report, {"target_job_id": target})
-
-    run_preview(context, dependencies, build)
-
-
 def build_navwrite_definitions(
     dependencies: NavWriteDependencies | None,
 ) -> tuple[JobDefinition, ...]:
-    """构造本票的两个作业类型定义，供 production_registry 加入登记表。
+    """构造通用写入作业类型定义，供 production_registry 加入登记表。
 
     Args:
         dependencies: worker 传完整依赖；Web 传 None，只能校验提交参数，不能执行。
 
     Returns:
-        (nav_write_apply, nav_revert_preview)：前者 RecoveryMode.INTERRUPT、writes_navigation=True；
-        后者 RecoveryMode.RESTART、writes_navigation=False。两者并发 1、无 GPU、storage 声明为空
+        仅含 nav_write_apply：RecoveryMode.INTERRUPT、writes_navigation=True；
+        并发 1、无 GPU、storage 声明为空
         （写入只碰导航层和状态目录，预览按数据集降级检查存储根，与重新扫描相同）。
 
     Raises:
@@ -241,13 +181,5 @@ def build_navwrite_definitions(
             partial(execute_apply, dependencies),
             writes_navigation=True,
             submission_role=Role.ADMINISTRATOR,
-        ),
-        JobDefinition(
-            NAV_REVERT_PREVIEW_TYPE,
-            NAV_REVERT_PREVIEW_NAME,
-            NavRevertPreviewParameters,
-            RecoveryMode.RESTART,
-            partial(execute_revert_preview, dependencies),
-            submission_role=Role.MEMBER,
         ),
     )

@@ -172,7 +172,7 @@ def _fps(information: JsonObject, deps: NavWriteDependencies, entry: str) -> int
 def _write(
     steps: list[WriteFileStep], originals: dict[str, bytes], path: str, before: bytes, after: bytes
 ) -> None:
-    """只计划不同字节，差异报告与可撤回前像共用同一原文。"""
+    """只计划不同字节，差异报告与变更记录前像共用同一原文。"""
     if before != after:
         originals[path] = before
         steps.append(

@@ -51,9 +51,7 @@ from rdp.jobs.navwrite.changes import ChangeOutcome, read_change_record
 from rdp.jobs.navwrite.errors import nav_external_error
 from rdp.jobs.navwrite.jobs import (
     NAV_APPLY_TYPE,
-    NAV_REVERT_PREVIEW_TYPE,
     NavApplyParameters,
-    NavRevertPreviewParameters,
     PreviewBuild,
     build_navwrite_definitions,
     execute_apply,
@@ -764,26 +762,18 @@ def test_apply_parameters_only_carry_preview_job_id() -> None:
     for bad in bad_cases:
         with pytest.raises(ValidationError):
             NavApplyParameters.model_validate(bad)
-    assert NavRevertPreviewParameters.model_validate({"target_job_id": 2}).target_job_id == 2
-    with pytest.raises(ValidationError):
-        NavRevertPreviewParameters.model_validate({"target_job_id": "2"})
 
 
 def test_definitions_flags_and_recovery_modes(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """契约 build_navwrite_definitions：nav_write_apply 为 INTERRUPT 且 writes_navigation，nav_revert_preview 为 RESTART 且不写导航层。"""
+    """契约 build_navwrite_definitions：nav_write_apply 为 INTERRUPT 且 writes_navigation。"""
     with harness(tmp_path, fake_nav) as h:
-        apply, revert = build_navwrite_definitions(h.dependencies)
+        (apply,) = build_navwrite_definitions(h.dependencies)
     assert (apply.type_name, apply.recovery_mode, apply.writes_navigation) == (
         NAV_APPLY_TYPE,
         RecoveryMode.INTERRUPT,
         True,
     )
-    assert (revert.type_name, revert.recovery_mode, revert.writes_navigation) == (
-        NAV_REVERT_PREVIEW_TYPE,
-        RecoveryMode.RESTART,
-        False,
-    )
-    for definition in (apply, revert):
+    for definition in (apply,):
         assert definition.concurrency == 1 and not definition.requires_gpu
         assert definition.storage == ()
     assert apply.parameters_model is NavApplyParameters
@@ -796,23 +786,20 @@ def test_definitions_without_dependencies_cannot_execute(
     tmp_path: Path, fake_nav: FakeNavigation
 ) -> None:
     """契约 build_navwrite_definitions：Web 侧传 None 只能校验参数，执行时缺依赖为 DefectError。"""
-    apply, revert = build_navwrite_definitions(None)
+    (apply,) = build_navwrite_definitions(None)
     assert apply.parameters_model.model_validate({"preview_job_id": 1})
     with harness(tmp_path, fake_nav) as h:
         raised: list[type[Exception]] = []
 
         def execute(context: ExecutionContext) -> None:
-            for definition, parameters in (
-                (apply, NavApplyParameters(preview_job_id=1)),
-                (revert, NavRevertPreviewParameters(target_job_id=1)),
-            ):
+            for definition, parameters in ((apply, NavApplyParameters(preview_job_id=1)),):
                 try:
                     definition.execute(replace(context, parameters=parameters))
                 except DefectError as error:
                     raised.append(type(error))
 
         h.case.run(execute=execute)
-        assert raised == [DefectError, DefectError]
+        assert raised == [DefectError]
         assert tree_state(h.nav) == h.original
 
 
@@ -820,7 +807,7 @@ def test_apply_job_not_auto_resumed_after_interruption(
     tmp_path: Path, fake_nav: FakeNavigation
 ) -> None:
     """ADR 0005 修订：写导航层的作业被中断后只标记中断并回滚，不自动重新执行。"""
-    apply, _revert = build_navwrite_definitions(None)
+    (apply,) = build_navwrite_definitions(None)
     assert apply.recovery_mode is RecoveryMode.INTERRUPT
     with harness(tmp_path, fake_nav) as h:
         raised: list[type[Exception]] = []
@@ -858,3 +845,16 @@ def test_state_dir_helpers_created_by_initialize_state(tmp_path: Path) -> None:
     (paths.nav_changes / "keep.json.gz").write_text("x", encoding="utf-8")
     assert initialize_state(paths) == ()  # 第二次调用不改任何东西
     assert (paths.nav_changes / "keep.json.gz").read_text(encoding="utf-8") == "x"
+
+
+def test_apply_rejects_saved_revert_preview(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+    """撤回下线后，历史预览不能经公共写入入口继续执行，导航和日志保持不变。"""
+    with harness(tmp_path, fake_nav) as h:
+        plan = two_file_plan(h).model_copy(
+            update={"operation": NavOperation.REVERT_CHANGE, "reverts_job_id": 1}
+        )
+        save_preview(h, plan, 80)
+        result = run_apply(h, 80)
+        assert isinstance(result.error, InputError)
+        assert tree_state(h.nav) == h.original
+        assert not list_journals(h.case.paths)

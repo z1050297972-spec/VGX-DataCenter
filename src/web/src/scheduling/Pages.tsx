@@ -90,7 +90,7 @@ export function SchedulingPage(): ReactElement {
           <Typography.Title level={3}>导航层写锁</Typography.Title>
           <Typography.Paragraph type="secondary">
             {
-              '导航层是数据集的唯一事实来源，同一时间只允许一个作业修改，例如建链、改字段、撤回，避免两个作业同时改坏同一份文件。某个作业一直显示"等待导航层写锁"时，在这里可以看到锁在谁手里。'
+              '导航层是数据集的唯一事实来源，同一时间只允许一个作业修改，例如建链、改字段、改指向，避免两个作业同时改坏同一份文件。某个作业一直显示"等待导航层写锁"时，在这里可以看到锁在谁手里。'
             }
           </Typography.Paragraph>
           {data.navigation_job_id ? (

@@ -49,26 +49,6 @@ export const repointPreview: NavigationPreview = {
     ],
   },
 };
-export const reversePreview: NavigationPreview = {
-  ...repointPreview,
-  preview_job_id: "302",
-  operation: "revert_change",
-  parameters: { target_job_id: 401 },
-  reverts_job_id: "401",
-  reversal: {
-    field_counts: repointPreview.report.field_counts,
-    listed_total: 1,
-    listed_changes: [
-      {
-        file: "按任务/libero_10/子任务.json",
-        json_path: "tasks[0].notes[0]",
-        before: newPrefix,
-        after: oldPrefix,
-      },
-    ],
-  },
-};
-
 /**
  * 构造只替换 HTTP 边界的页面传输。
  * @param requests - 保留实际请求，断言 POST 载荷和调用时机。
@@ -114,12 +94,9 @@ const routes: Record<string, () => Response> = {
   "/api/navigation/recovery-block": () => Response.json({ blocked: false }),
   "/api/datasets/detail": linkDetail,
   "/api/datasets/repoint-previews": () => created("nav_repoint_preview", "301"),
-  "/api/jobs/401/revert-previews": () => created("nav_revert_preview", "302"),
   "/api/jobs/301": () => jobResponse("301"),
-  "/api/jobs/302": () => jobResponse("302"),
   "/api/jobs/401": () => Response.json(writeJob),
   "/api/navigation/previews/301": () => Response.json(repointPreview),
-  "/api/navigation/previews/302": () => Response.json(reversePreview),
   "/api/navigation/writes": () =>
     Response.json({ ...writeJob, job_id: "402", state: "queued", summary: null }, { status: 201 }),
 };

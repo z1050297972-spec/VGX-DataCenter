@@ -69,7 +69,7 @@ function ClassificationForm(): ReactElement {
   return (
     <>
       <Typography.Paragraph>
-        删除会从所有使用它的数据集中去掉该值；内置词表项仍会保留。请先核对预览，再确认写入；完成后可在作业详情撤回。
+        删除会从所有使用它的数据集中去掉该值；内置词表项仍会保留。请先核对预览，再确认写入。
       </Typography.Paragraph>
       {reason && <Alert type="warning" title={reason} />}
       {[filters.error, recovery.error, preview.error, confirm.error].map((error, index) =>

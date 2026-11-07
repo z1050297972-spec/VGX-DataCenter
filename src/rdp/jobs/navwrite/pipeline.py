@@ -1,6 +1,6 @@
 """写入作业的统一流水线（worker 写入侧，领域层，M1-07，ADR 0009 的"一个作业的阶段"）。
 
-建链、新增数据集、改指向、数据来源标注、撤回五种写入共用同一份 NavWritePlan 和同一条流水线，
+建链、新增数据集、改指向、字段编辑等写入共用同一份 NavWritePlan 和同一条流水线，
 各自只负责生成计划（M1-08、09、10 加预览作业）。本模块不含任何"该不该改"的决策（规范 2.1）：
 只按计划执行，并在写锁内先核对预览状态、再落日志、再逐步写入、失败按日志退回。
 只写 nav_root 和状态目录，从不写存储根。import 本模块的只能是 worker 一侧（import-linter 合约）。
@@ -276,7 +276,8 @@ def run_write_plan(
         中途失败不返回，抛出下面的异常，导航层已退回（outcome 即 rolled_back，由异常携带的诊断表达）。
 
     Raises:
-        InputError: 预览文件不存在或损坏、预览所属的导航根与当前不同、预览作业不是成功结束的。
+        InputError: 预览文件不存在或损坏、预览所属的导航根与当前不同、预览作业不是成功结束的，
+            或预览为已下线的历史撤回计划。
         ConflictError: 同 write_plan_locked。
         ExternalError: 同 write_plan_locked；已写完导航层之后的索引、统计、操作日志失败不回滚导航层，
             只记警告并计入作业的 warning_count。
@@ -300,6 +301,10 @@ def run_write_plan(
         if isinstance(preview_job_id, NavPreview)
         else _load_preview(dependencies, preview_job_id)
     )
+    # 保留历史计划的解析能力供恢复使用，但不允许旧撤回预览再次执行。
+    if preview.plan.operation.value == "revert_change":
+        problem = nav_input_error(_RULE, "撤回功能已移除，不能执行历史撤回预览")
+        raise problem
     with session_scope(engine, read_only=True) as session:
         submitter = find_job(session, context.job_id).submitted_by
     progress = _Progress(context)

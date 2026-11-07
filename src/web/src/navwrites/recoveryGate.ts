@@ -5,7 +5,7 @@ import type { RecoveryBlock } from "../api/navigation";
 /**
  * 把恢复状态查询翻译成禁用原因。
  * @param recovery - useRecoveryBlock 的查询结果。
- * @param verb - 被禁止的动作名，用于原因文案（"提交"或"撤回"）。
+ * @param verb - 被禁止的动作名，用于原因文案（例如"提交"）。
  * @returns 可以操作时为 null，否则为面向用户的原因文本。
  * @throws 无。
  * @sideEffects 无。

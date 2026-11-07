@@ -1,4 +1,4 @@
-"""改指向与撤回的 Web 领域服务；只有数据库和状态目录能力，无法访问导航或数据盘。
+"""改指向的 Web 领域服务；只有数据库和状态目录能力，无法访问导航或数据盘。
 
 沿用创建操作的最小依赖、排队提醒、M0 提交与永久作业记录；L19 仅在 worker builder 执行。
 """
@@ -11,10 +11,8 @@ from rdp.accounts.service import authorize_job_actor
 from rdp.infra.db.connection import session_scope
 from rdp.jobs.dataset_browser import _scope
 from rdp.jobs.navwrite import _create_query as query
-from rdp.jobs.navwrite.changes import read_change_record
 from rdp.jobs.navwrite.create_service import CreationAccess
 from rdp.jobs.navwrite.errors import nav_input_error
-from rdp.jobs.navwrite.jobs import NAV_REVERT_PREVIEW_TYPE, NavRevertPreviewParameters
 from rdp.jobs.navwrite.models import (
     ListedChange,
     NavOperation,
@@ -25,7 +23,7 @@ from rdp.jobs.navwrite.models import (
 from rdp.jobs.navwrite.policy import NAV_APPLY_TYPE, PREVIEW_RETENTION_DAYS
 from rdp.jobs.navwrite.previews import read_preview
 from rdp.jobs.navwrite.repoint_models import REPOINT_PREVIEW_TYPE, RepointParameters
-from rdp.jobs.navwrite.write_views import NavigationPreviewView, ReversalDetails
+from rdp.jobs.navwrite.write_views import NavigationPreviewView
 from rdp.jobs.outcome import JobOutcome
 from rdp.jobs.service import JobRequest
 from rdp.jobs.types import JobRecord, JobState
@@ -67,48 +65,10 @@ def submit_repoint_preview(
     return access.jobs.submit(request, REPOINT_PREVIEW_TYPE, parameters.model_dump(mode="json"))
 
 
-def submit_revert_preview(
-    access: CreationAccess, request: JobRequest, target_job_id: int
-) -> JobRecord:
-    """为任意已登记的写导航层作业提交撤回预览。
-
-    Args:
-        access: Web 最小依赖；永久变更记录由 worker 读取。
-        request: 本次提交者认证身份与审计来源，必填。
-        target_job_id: 目标作业正整数编号，不依赖操作日志是否还存在。
-
-    Returns:
-        nav_revert_preview 的 queued 记录；worker 核对 COMMITTED 变更记录及当前后像。
-
-    Raises:
-        JobNotFoundError: 目标作业不存在。
-        InputError: 目标不是写导航层作业。
-        JobInputError: 编号或提交参数不合法。
-        AuthenticationError: 当前会话失效。
-        PasswordChangeRequiredError: 账号需要先改密。
-        ConflictError: 提交事务竞争。
-        ExternalError: 数据库读取或提交失败。
-        DefectError: 最小依赖的引擎不一致。
-
-    Side Effects:
-        只新增预览作业与提交日志，不读取导航，不立即执行反向计划。
-
-    Time Semantics:
-        使用本次请求时刻；永久变更记录不受操作日志保留期限制。
-    """
-    query.validate_access(access)
-    record = access.jobs.get(request, target_job_id)
-    definition = access.jobs.registry.lookup(record.type_name)
-    if definition is None or not definition.writes_navigation:
-        problem = nav_input_error("NAV_REVERT", "目标作业不是写导航层作业")
-        raise problem
-    return access.jobs.submit(request, NAV_REVERT_PREVIEW_TYPE, {"target_job_id": target_job_id})
-
-
 def read_navigation_preview(
     access: CreationAccess, request: JobRequest, preview_job_id: int
 ) -> NavigationPreviewView:
-    """读取改指向或撤回预览及提交前队列提醒。
+    """读取改指向预览及提交前队列提醒。
 
     Args:
         access: Web 只读状态文件和数据库依赖。
@@ -146,18 +106,12 @@ def read_navigation_preview(
     return NavigationPreviewView(
         preview_job_id=str(preview_job_id),
         created_at=preview.created_at,
-        operation="repoint_dataset"
-        if preview.plan.operation is NavOperation.REPOINT_DATASET
-        else "revert_change",
+        operation="repoint_dataset",
         dataset_ids=preview.plan.dataset_ids,
-        reverts_job_id=str(preview.plan.reverts_job_id)
-        if preview.plan.reverts_job_id is not None
-        else None,
         parameters=preview.parameters,
         report=preview.report,
         changes=tuple(changes),
         queued_jobs=query.queued(access, request, preview.plan.dataset_ids),
-        reversal=_reversal(access, preview),
     )
 
 
@@ -167,7 +121,7 @@ def submit_navigation_write(
     preview_job_id: int,
     acknowledged_queue_job_ids: tuple[int, ...],
 ) -> JobRecord:
-    """确认保存的改指向/撤回预览后提交公共写入作业。
+    """确认保存的改指向预览后提交公共写入作业。
 
     Args:
         access: Web 作业与状态依赖，不接受客户端计划。
@@ -207,7 +161,6 @@ def _load(access: CreationAccess, request: JobRequest, identifier: int) -> NavPr
     record = access.jobs.get(request, identifier)
     expected = {
         REPOINT_PREVIEW_TYPE: NavOperation.REPOINT_DATASET,
-        NAV_REVERT_PREVIEW_TYPE: NavOperation.REVERT_CHANGE,
     }
     if (
         record.type_name not in expected
@@ -231,42 +184,14 @@ def _load(access: CreationAccess, request: JobRequest, identifier: int) -> NavPr
     return preview
 
 
-def _reversal(access: CreationAccess, preview: NavPreview) -> ReversalDetails | None:
-    """反向片段来自永久报告；操作日志清理不影响它，也不加载文件前后像正文。"""
-    if preview.plan.reverts_job_id is None:
-        return None
-    original = read_change_record(access.paths, preview.plan.reverts_job_id).report
-    if original is None:
-        return None
-    return ReversalDetails(
-        field_counts=original.field_counts,
-        listed_changes=tuple(
-            ListedChange(
-                file=item.file, json_path=item.json_path, before=item.after, after=item.before
-            )
-            for item in (
-                original.repoint_changes
-                if original.repoint_changes is not None
-                else original.listed_changes
-            )
-        ),
-        listed_total=original.listed_total,
-    )
-
-
 def _association(preview: NavPreview) -> None:
     """值模型通过不代表关联正确，计划必须仍属于原参数指向的数据集/目标作业。"""
     try:
-        if preview.plan.operation is NavOperation.REPOINT_DATASET:
-            params = RepointParameters.model_validate(preview.parameters)
-            valid = (
-                preview.plan.dataset_ids == (params.dataset_id,)
-                and preview.plan.reverts_job_id is None
-            )
-        else:
-            target = NavRevertPreviewParameters.model_validate(preview.parameters)
-            valid = preview.plan.reverts_job_id == target.target_job_id
+        params = RepointParameters.model_validate(preview.parameters)
+        valid = (
+            preview.plan.dataset_ids == (params.dataset_id,) and preview.plan.reverts_job_id is None
+        )
     except ValidationError as error:
         raise nav_input_error("NAV_WRITE_PREVIEW", "保存的预览参数不符合值契约") from error
     if not valid:
-        raise nav_input_error("NAV_WRITE_PREVIEW", "预览计划与输入的数据集或撤回目标不一致")
+        raise nav_input_error("NAV_WRITE_PREVIEW", "预览计划与输入的数据集不一致")

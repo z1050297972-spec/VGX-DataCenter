@@ -2,7 +2,6 @@ import "./jobs.css";
 // 作业页面契约（08）：Ant Design 与统一 DiagnosticCard；不直接 fetch、不计算后端结果。
 import { DownloadDetail } from "./DownloadDetail";
 import { IngestDownload } from "../downloads/Ingest";
-import { RevertEntry } from "../navwrites/Revert";
 import { useState, type ReactElement } from "react";
 import {
   Alert,
@@ -120,7 +119,6 @@ export function JobDetailPage(): ReactElement {
           <IngestDownload job={job} />
         </>
       )}
-      <RevertEntry job={job} />
       <Card title="作业日志">
         <JobLogPanel job={job} />
       </Card>

@@ -798,7 +798,7 @@
       },
       "CreationPreviewView": {
         "additionalProperties": false,
-        "description": "成功预览的页面结果；仅投影已持久保存的同一份 NavPreview。\n\nAttributes:\n    preview_job_id: 成功预览作业编号，文本，确认请求仅引用此编号。\n    created_at: 预览保存的 UTC 时刻，不是 GET 请求时刻。\n    operation: create_link 或 create_dataset；不允许拿撤回预览调用本票确认入口。\n    dataset_id: 已有编号或预计分配的新编号；后者尚未占用。\n    dataset_name: 规范入口名称。\n    parameters: 原样回显已校验参数，不能在确认时覆盖。\n    report: 第 07 张报告，creation 必须非空；差异、计数、检查范围与提示来自同一计划。\n    queued_jobs: 当前数据库里同编号的排队写作业，升序，完整且有上界；仅作提醒。\n    format_entry_options: 预览阶段可勾选的登记格式入口，含已索引及本目标元信息中的版本。",
+        "description": "成功预览的页面结果；仅投影已持久保存的同一份 NavPreview。\n\nAttributes:\n    preview_job_id: 成功预览作业编号，文本，确认请求仅引用此编号。\n    created_at: 预览保存的 UTC 时刻，不是 GET 请求时刻。\n    operation: create_link 或 create_dataset；不接受其他类型的预览。\n    dataset_id: 已有编号或预计分配的新编号；后者尚未占用。\n    dataset_name: 规范入口名称。\n    parameters: 原样回显已校验参数，不能在确认时覆盖。\n    report: 第 07 张报告，creation 必须非空；差异、计数、检查范围与提示来自同一计划。\n    queued_jobs: 当前数据库里同编号的排队写作业，升序，完整且有上界；仅作提醒。\n    format_entry_options: 预览阶段可勾选的登记格式入口，含已索引及本目标元信息中的版本。",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -4134,7 +4134,7 @@
         "type": "object"
       },
       "NavOperation": {
-        "description": "写导航层的操作种类，是预览、变更记录和操作日志共用的稳定码。\n\nAttributes:\n    CREATE_LINK: create_link，建链（M1-08，L1-L4）。\n    CREATE_DATASET: create_dataset，新增数据集（M1-08，L5、L6）。\n    REPOINT_DATASET: repoint_dataset，改指向（M1-09，L17-L19）。\n    EDIT_DATASET_FIELDS: edit_dataset_fields，编辑导航层字段（M1.5-02）。\n    SET_DATA_ORIGIN: set_data_origin，历史来源标注变更；仅为读取和撤回已有变更保留。\n    REVERT_CHANGE: revert_change，撤回某个已完成作业（L16，本票）。",
+        "description": "写导航层的操作种类，是预览、变更记录和操作日志共用的稳定码。\n\nAttributes:\n    CREATE_LINK: create_link，建链（M1-08，L1-L4）。\n    CREATE_DATASET: create_dataset，新增数据集（M1-08，L5、L6）。\n    REPOINT_DATASET: repoint_dataset，改指向（M1-09，L17-L19）。\n    EDIT_DATASET_FIELDS: edit_dataset_fields，编辑导航层字段（M1.5-02）。\n    SET_DATA_ORIGIN: set_data_origin，历史来源标注变更；仅为读取历史变更保留。\n    REVERT_CHANGE: revert_change，历史撤回操作码，仅为解析已有日志和变更记录保留。",
         "enum": [
           "create_link",
           "create_dataset",
@@ -4236,7 +4236,7 @@
       },
       "NavigationPreviewResponse": {
         "additionalProperties": false,
-        "description": "确认写入前展示的预览，不把完整计划和文件正文发送给页面。\n\nAttributes:\n    model_config: 冻结并拒绝未知字段。\n    preview_job_id: 预览作业编号，十进制文本，避免浏览器丢失整数精度。\n    created_at: 预览完成的 UTC 时刻。\n    parameters: 已校验的预览参数。\n    operation: 写导航层的稳定操作码。\n    dataset_ids: 受影响数据集编号，升序。\n    report: 与执行计划共同生成的报告，包含旧值、新值与检查范围。\n    reverts_job_id: 撤回目标的文本编号，其他操作为 None。\n    changes: 改指向与撤回的步骤前后像摘要；旧预览默认为空。\n    queued_jobs: 改指向与撤回的当前同数据集排队提醒；其他预览默认为空。\n    reversal: 原永久报告的反向替换片段，非撤回或缺原报告时为 None。",
+        "description": "确认写入前展示的预览，不把完整计划和文件正文发送给页面。\n\nAttributes:\n    model_config: 冻结并拒绝未知字段。\n    preview_job_id: 预览作业编号，十进制文本，避免浏览器丢失整数精度。\n    created_at: 预览完成的 UTC 时刻。\n    parameters: 已校验的预览参数。\n    operation: 写导航层的稳定操作码。\n    dataset_ids: 受影响数据集编号，升序。\n    report: 与执行计划共同生成的报告，包含旧值、新值与检查范围。\n    changes: 改指向的步骤前后像摘要；旧预览默认为空。\n    queued_jobs: 改指向的当前同数据集排队提醒；其他预览默认为空。",
         "properties": {
           "changes": {
             "default": [],
@@ -4282,28 +4282,6 @@
           },
           "report": {
             "$ref": "#/components/schemas/PlanReport"
-          },
-          "reversal": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ReversalDetails"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "reverts_job_id": {
-            "anyOf": [
-              {
-                "pattern": "^[1-9][0-9]{0,18}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reverts Job Id"
           }
         },
         "required": [
@@ -5179,38 +5157,6 @@
           "days"
         ],
         "title": "RetentionPayload",
-        "type": "object"
-      },
-      "ReversalDetails": {
-        "additionalProperties": false,
-        "description": "原变更报告的反向投影，永久变更记录为唯一来源。\n\nAttributes:\n    field_counts: 原作业按文件字段的替换数，反向操作保持相同数量。\n    listed_changes: 原报告逐处替换的 before/after 对调；改指向取全量，历史报告取其样例。\n    listed_total: 应展示总处数，改指向全量受 REPOINT_LISTED_CHANGE_LIMIT 约束。",
-        "properties": {
-          "field_counts": {
-            "items": {
-              "$ref": "#/components/schemas/FieldChangeCount"
-            },
-            "title": "Field Counts",
-            "type": "array"
-          },
-          "listed_changes": {
-            "items": {
-              "$ref": "#/components/schemas/ListedChange"
-            },
-            "title": "Listed Changes",
-            "type": "array"
-          },
-          "listed_total": {
-            "minimum": 0.0,
-            "title": "Listed Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "field_counts",
-          "listed_changes",
-          "listed_total"
-        ],
-        "title": "ReversalDetails",
         "type": "object"
       },
       "Role": {
@@ -15464,145 +15410,6 @@
         ]
       }
     },
-    "/api/jobs/{target_job_id}/revert-previews": {
-      "post": {
-        "description": "提交指定写导航层作业的撤回预览。\n\nArgs:\n    context: 当前确认者的认证及审计来源，无管理员角色限制。\n    target_job_id: 目标作业的规范十进制文本，数值 1 至 MAX_SQLITE_INTEGER。\n\nReturns:\n    201，nav_revert_preview 排队记录；worker 检查永久变更记录并列出后像差异。\n\nRaises:\n    JobNotFoundError: 目标作业不存在，404。\n    JobInputError: 编号非法，422。\n    InputError: 目标不是写导航层作业，400。\n    AuthenticationError: 提交会话失效，401。\n    AuthorizationError: Origin 检查失败，403。\n    PasswordChangeRequiredError: 提交者必须改密，403。\n    ConflictError: 提交竞争，409。\n    ExternalError: 数据库读取或提交失败，502。\n    DefectError: 作业服务装配违约，500。\n\nSide Effects:\n    新增只读撤回预览及提交日志；不读取目标前后像或执行撤回。\n\nTime Semantics:\n    不受操作日志 30 天保留期约束，失败预览不自动提交写入。",
-        "operationId": "submit_navigation_revert_preview",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "target_job_id",
-            "required": true,
-            "schema": {
-              "pattern": "^[1-9][0-9]{0,18}$",
-              "title": "Target Job Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemResponse"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemResponse"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemResponse"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "413": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemResponse"
-                }
-              }
-            },
-            "description": "Request Entity Too Large"
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemResponse"
-                }
-              }
-            },
-            "description": "Validation Error"
-          },
-          "429": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests"
-          },
-          "500": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemResponse"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "security": [
-          {
-            "SessionCookie": []
-          }
-        ],
-        "summary": "Submit Revert Preview",
-        "tags": [
-          "navigation-writes"
-        ]
-      }
-    },
     "/api/monitoring/mirror": {
       "get": {
         "description": "读取 worker 最近一次镜像检查结果。\n\nArgs:\n    account: 已认证账号。\n    session: 当前请求的只读数据库会话。\n\nReturns:\n    上次保存的状态及检查时间；从未检查时两个字段为空。\n\nRaises:\n    ExternalError: 数据库不可用。\n    ValueError: 数据库检查时间格式损坏。\n\nSide Effects:\n    只读数据库，不执行网络检查。\n\nTime Semantics:\n    检查时间来自 worker 的保存结果，不代表当前实时状态。",
@@ -16662,7 +16469,7 @@
     },
     "/api/navigation/previews/{job_id}": {
       "get": {
-        "description": "读取已完成预览的报告，供查看后确认写入或撤回。\n\nArgs:\n    context: 已认证作业上下文；允许全部登录账号。\n    job_id: 1 至 2^63-1 的规范十进制文本，不接受前导零。\n\nReturns:\n    HTTP 200，预览参数、操作、受影响编号和检查报告；不返回文件正文。\n\nRaises:\n    JobInputError: 编号形状非法，422。\n    JobNotFoundError: 作业不存在，404。\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    InputError: 作业未成功结束、预览不存在、已过七天保留期或文件损坏，400。\n    ConflictError: 读取数据库锁竞争，409。\n    ExternalError: 依赖未配置、数据库或预览读取失败，502。\n    DefectError: 响应映射缺陷，500。\n\nSide Effects:\n    只读作业记录与状态目录；不读导航层，不写操作日志。\n\nTime Semantics:\n    先完成授权查询再读文件，不持数据库事务做文件 I/O；无轮询或等待。",
+        "description": "读取已完成预览的报告，供查看后确认写入。\n\nArgs:\n    context: 已认证作业上下文；允许全部登录账号。\n    job_id: 1 至 2^63-1 的规范十进制文本，不接受前导零。\n\nReturns:\n    HTTP 200，预览参数、操作、受影响编号和检查报告；不返回文件正文。\n\nRaises:\n    JobInputError: 编号形状非法，422。\n    JobNotFoundError: 作业不存在，404。\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    InputError: 作业未成功结束、预览不存在、已过七天保留期或文件损坏，400。\n    ConflictError: 读取数据库锁竞争，409。\n    ExternalError: 依赖未配置、数据库或预览读取失败，502。\n    DefectError: 响应映射缺陷，500。\n\nSide Effects:\n    只读作业记录与状态目录；不读导航层，不写操作日志。\n\nTime Semantics:\n    先完成授权查询再读文件，不持数据库事务做文件 I/O；无轮询或等待。",
         "operationId": "get_navigation_preview",
         "parameters": [
           {
@@ -17054,7 +16861,7 @@
     },
     "/api/navigation/writes": {
       "post": {
-        "description": "确认改指向或撤回预览，统一提交 nav_write_apply。\n\nArgs:\n    context: 本次确认者身份、唯一请求时刻及审计上下文。\n    body: preview_job_id 与已确认排队编号；不能夹带前缀或执行计划。\n\nReturns:\n    201，nav_write_apply 排队记录；未确认新排队项返回 409 并列出编号。\n\nRaises:\n    JobNotFoundError: 预览作业不存在，404。\n    JobInputError: 参数、编号重复或类型未登记，422。\n    InputError: 预览不合法或过期，400。\n    AuthenticationError: 提交事务内会话失效，401。\n    AuthorizationError: 写请求不同源，403。\n    PasswordChangeRequiredError: 确认者必须改密，403。\n    ConflictError: 未确认队列项或提交竞争，409。\n    ExternalError: 读取预览或持久化失败，502。\n    DefectError: 服务装配或响应映射非法，500。\n\nSide Effects:\n    成功只提交作业及操作日志；worker 在写锁内核对，冲突时导航一行不写。\n\nTime Semantics:\n    提交前刷新队列提醒；不自动重试 POST，不等待执行结束。",
+        "description": "确认改指向预览，统一提交 nav_write_apply。\n\nArgs:\n    context: 本次确认者身份、唯一请求时刻及审计上下文。\n    body: preview_job_id 与已确认排队编号；不能夹带前缀或执行计划。\n\nReturns:\n    201，nav_write_apply 排队记录；未确认新排队项返回 409 并列出编号。\n\nRaises:\n    JobNotFoundError: 预览作业不存在，404。\n    JobInputError: 参数、编号重复或类型未登记，422。\n    InputError: 预览不合法或过期，400。\n    AuthenticationError: 提交事务内会话失效，401。\n    AuthorizationError: 写请求不同源，403。\n    PasswordChangeRequiredError: 确认者必须改密，403。\n    ConflictError: 未确认队列项或提交竞争，409。\n    ExternalError: 读取预览或持久化失败，502。\n    DefectError: 服务装配或响应映射非法，500。\n\nSide Effects:\n    成功只提交作业及操作日志；worker 在写锁内核对，冲突时导航一行不写。\n\nTime Semantics:\n    提交前刷新队列提醒；不自动重试 POST，不等待执行结束。",
         "operationId": "confirm_navigation_write",
         "requestBody": {
           "content": {

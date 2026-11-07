@@ -47,7 +47,6 @@ def test_production_submission_roles_and_member_write_rejection(tmp_path: Path) 
         "nav_information_backfill_preview": Role.ADMINISTRATOR,
         "nav_size_sync": Role.ADMINISTRATOR,
         "nav_repoint_preview": Role.MEMBER,
-        "nav_revert_preview": Role.MEMBER,
         "nav_write_apply": Role.ADMINISTRATOR,
         "purge_audit_logs": Role.ADMINISTRATOR,
         "purge_errors": Role.ADMINISTRATOR,

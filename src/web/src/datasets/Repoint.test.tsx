@@ -2,12 +2,11 @@
 import { describe, it, expect } from "vitest";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { mountPage } from "../scheduling/pageTestSupport";
-import { completedJob } from "../jobs/testSupport";
 import { account } from "../accounts/testSupport";
 import { queueConflict } from "./creationTestSupport";
 import { repointFetch, oldPrefix, newPrefix } from "./repointTestSupport";
 
-describe("改指向与撤回的页面契约", () => {
+describe("改指向与移除撤回入口的页面契约", () => {
   // 验证详情入口、前缀表单和逐处替换预览，确认前不提交写入。
   it("详情进入改指向，展示字段计数、正文替换与原本缺失的路径", async () => {
     const requests: Request[] = [];
@@ -77,18 +76,15 @@ describe("改指向与撤回的页面契约", () => {
       page.close();
     }
   });
-  // 验证任意写导航层作业均能从作业详情和操作日志发起撤回。
-  it("作业详情及操作日志中的写导航层作业显示撤回入口", async () => {
+  // 验证契约：写导航层作业详情和操作日志保留记录，但不再提供撤回入口。
+  it("作业详情及操作日志中的写导航层作业没有撤回入口", async () => {
     const requests: Request[] = [];
     const page = mountPage("/jobs/401", repointFetch(requests));
     try {
-      const entry = await screen.findByRole("button", { name: "撤回导航写入" });
-      fireEvent.click(entry);
-      expect(await screen.findByRole("heading", { name: "撤回作业 #401" })).toBeTruthy();
-      expect(
-        requests.filter((r) => new URL(r.url).pathname.endsWith("/revert-previews")),
-      ).toHaveLength(0);
-      expect(await screen.findByRole("button", { name: "预览撤回" })).toBeTruthy();
+      expect(await screen.findByRole("heading", { name: "写导航层 #401" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /撤回/ })).toBeNull();
+      expect(screen.queryByRole("link", { name: /撤回/ })).toBeNull();
+      expect(requests.filter((request) => request.method === "POST")).toHaveLength(0);
     } finally {
       page.close();
     }
@@ -142,94 +138,18 @@ describe("改指向与撤回的页面契约", () => {
       }),
     );
     try {
-      const link = await screen.findByRole("link", { name: "撤回导航作业 401" });
-      expect(link.getAttribute("href")).toBe("/jobs/401/revert");
-      // 字段编辑（edit_dataset_fields）同属 navigation_write，同样显示通用撤回链接。
-      const fieldLink = await screen.findByRole("link", { name: "撤回导航作业 402" });
-      expect(fieldLink.getAttribute("href")).toBe("/jobs/402/revert");
-      fireEvent.click(link);
-      expect(await screen.findByRole("heading", { name: "撤回作业 #401" })).toBeTruthy();
+      expect(await screen.findByText("写导航层 #401")).toBeTruthy();
+      expect(screen.getByText("写导航层 #402")).toBeTruthy();
+      expect(screen.queryByRole("link", { name: /撤回/ })).toBeNull();
+      expect(screen.queryByRole("button", { name: /撤回/ })).toBeNull();
     } finally {
       logs.close();
     }
   });
-  // 验证反向差异展示及冲突诊断，失败时不能继续确认旧预览。
-  it("撤回先展示反向替换，后像变化时列出差异并重新预览", async () => {
-    const requests: Request[] = [];
-    const page = mountPage("/jobs/401/revert", repointFetch(requests));
-    try {
-      fireEvent.click(await screen.findByRole("button", { name: "预览撤回" }));
-      const report = await screen.findByRole("region", { name: "导航写入预览差异" });
-      const cells = within(report)
-        .getAllByRole("cell")
-        .map((cell) => cell.textContent);
-      expect(cells.indexOf(newPrefix)).toBeLessThan(cells.indexOf(oldPrefix));
-      fireEvent.click(screen.getByRole("button", { name: "确认导航写入" }));
-      expect(await screen.findByRole("region", { name: "撤回导航改动 #402" })).toBeTruthy();
-      expect(page.router.state.location.pathname).toBe("/jobs/401/revert");
-      const sent = requests.find((r) => new URL(r.url).pathname === "/api/navigation/writes");
-      expect(await sent?.clone().json()).toEqual({
-        preview_job_id: "302",
-        acknowledged_queue_job_ids: [],
-      });
-    } finally {
-      page.close();
-    }
-    const failed = mountPage(
-      "/jobs/401/revert",
-      repointFetch(requests, (request) => {
-        if (new URL(request.url).pathname === "/api/jobs/302")
-          return Response.json({
-            ...completedJob,
-            job_id: "302",
-            summary: { ...completedJob.summary, outcome: "failed", aborted: true },
-            diagnostics: [
-              {
-                source: "平台",
-                rule: "NAV_CHANGES",
-                total: 1,
-                error_count: 1,
-                warning_count: 0,
-                samples: [
-                  {
-                    level: "error",
-                    category: "conflict",
-                    stage: "写导航层",
-                    source: "平台",
-                    rule: "NAV_CHANGES",
-                    objects: [
-                      {
-                        key: "diff_1",
-                        value: "按任务/libero_10/原始路径.json：应为sha256 aaa，现在sha256 bbb",
-                      },
-                    ],
-                    actual: "当前状态与后像有差异",
-                    expected: "与原作业后像一致",
-                    consequence: "一行未写",
-                    next_step: "核对差异后重新预览",
-                    error_chain: [],
-                  },
-                ],
-              },
-            ],
-          });
-        return undefined;
-      }),
-    );
-    try {
-      fireEvent.click(await screen.findByRole("button", { name: "预览撤回" }));
-      expect(await screen.findByText(/当前状态与后像有差异/)).toBeTruthy();
-      expect(screen.getByText(/应为sha256 aaa，现在sha256 bbb/)).toBeTruthy();
-      expect(screen.queryByRole("button", { name: "确认导航写入" })).toBeNull();
-      expect(screen.getByRole("button", { name: "重新预览撤回" })).toBeTruthy();
-    } finally {
-      failed.close();
-    }
-  });
 });
 
-// 验证恢复门禁既控制详情入口，也控制直接打开的撤回页，不把未知/错误当成可写。
-it("恢复失败时改指向和撤回禁用并说明原因", async () => {
+// 验证契约：移除撤回后仍保留改指向的恢复门禁，恢复失败时不得提交写入。
+it("恢复失败时改指向禁用并说明原因", async () => {
   const requests: Request[] = [];
   const transport = repointFetch(requests, (request) =>
     new URL(request.url).pathname === "/api/navigation/recovery-block"
@@ -243,17 +163,9 @@ it("恢复失败时改指向和撤回禁用并说明原因", async () => {
     expect(
       within(screen.getByRole("region", { name: "数据集改指向" })).getByText(/恢复失败/),
     ).toBeTruthy();
-  } finally {
-    details.close();
-  }
-  const revert = mountPage("/jobs/401/revert", transport);
-  try {
-    const button = await screen.findByRole("button", { name: "预览撤回" });
-    expect(button).toHaveProperty("disabled", true);
-    expect(screen.getByRole("alert", { name: "撤回限制" }).textContent).toContain("恢复失败");
     expect(requests.filter((request) => request.method === "POST")).toHaveLength(0);
   } finally {
-    revert.close();
+    details.close();
   }
 });
 

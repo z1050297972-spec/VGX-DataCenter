@@ -20,7 +20,7 @@ interface ConfirmationProps {
   /** 恢复阻挡、未知或读失败时为 true。 */ blocked: boolean;
 }
 /**
- * 明确确认改指向或撤回，并处理新的排队409。
+ * 明确确认改指向，并处理新的排队409。
  * @param props - 当前预览及恢复门禁。
  * @returns 确认按钮和逐项 antd 勾选列表，确认成功后留在原页显示卡片。
  * @throws 无；请求错误由 DiagnosticCard 呈现。
@@ -53,11 +53,7 @@ export function NavigationConfirmation(props: ConfirmationProps): ReactElement {
         return;
       }
       await cache.invalidateQueries({ queryKey: ["jobs"] });
-      if (isMounted(owner.current))
-        showCard(
-          result.job,
-          props.preview.operation === "revert_change" ? "撤回导航改动" : "修改指向",
-        );
+      if (isMounted(owner.current)) showCard(result.job, "修改指向");
     },
     retry: false,
     gcTime: JOB_GC_TIME_MS,

@@ -252,7 +252,7 @@ def production_registry(
 
     Returns:
         新 JobRegistry：示例、维护、数据集扫描与统计，以及 nav_write_apply、
-        nav_revert_preview、两个创建预览、nav_data_origin_preview、nav_repoint_preview 和
+        两个创建预览、nav_data_origin_preview、nav_repoint_preview 和
         nav_fields_preview、自动写入 nav_size_sync，以及 resume 的 download；扫描与预览为 restart，
         执行能力由入口显式注入。
         三个示例为 interrupt，两个清除为 restart；只有 example_gpu 需要 GPU，各类默认并发 1。

@@ -82,14 +82,8 @@ interface DifferencesProps {
  */
 export function NavigationDifferences(props: DifferencesProps): ReactElement {
   const preview = props.preview;
-  const counts =
-    preview.operation === "revert_change"
-      ? (preview.reversal?.field_counts ?? preview.report.field_counts)
-      : preview.report.field_counts;
-  const changes =
-    preview.operation === "revert_change"
-      ? (preview.reversal?.listed_changes ?? preview.report.listed_changes)
-      : (preview.report.repoint_changes ?? preview.report.listed_changes);
+  const counts = preview.report.field_counts;
+  const changes = preview.report.repoint_changes ?? preview.report.listed_changes;
   const missing = preview.report.notices.filter((notice) => notice.code === "old_path_missing");
   return (
     <section className="navigation-write" aria-label="导航写入预览差异">

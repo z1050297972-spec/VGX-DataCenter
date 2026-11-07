@@ -14,10 +14,8 @@ SUBTASK_NOTES = " 抓取杯子\n移动到桌面\n放下杯子 "
 
 
 @pytest.mark.parametrize("notes", [SUBTASK_NOTES, " 中文\n" * 25600], ids=["short", "200-KiB"])
-def test_information_edit_syncs_and_reverts(
-    tmp_path: Path, fake_nav: FakeNavigation, notes: str
-) -> None:
-    """契约：子任务缺失投影为空串；含200 KiB中文多行原文的编辑经只读预览、同步两视图并可撤回。"""
+def test_information_edit_syncs(tmp_path: Path, fake_nav: FakeNavigation, notes: str) -> None:
+    """契约：子任务缺失投影为空串；含200 KiB中文多行原文的编辑经只读预览、同步两视图并保留操作日志。"""
     with browser_case(tmp_path / "state", fake_nav) as case:
         dataset = dataset_id_of(fake_nav, "libero_10")
         before = tree_state(fake_nav.nav_root)
@@ -86,20 +84,6 @@ def test_information_edit_syncs_and_reverts(
         logs = case.client.get("/api/audit/operations", params={"operation": "edit_dataset_fields"})
         assert logs.status_code == 200, logs.text
         assert str(apply_id) in logs.text
-        response = case.client.post(
-            "/api/jobs",
-            json={"type_name": "nav_revert_preview", "parameters": {"target_job_id": apply_id}},
-        )
-        reverse_id = int(response.json()["job_id"])
-        reverse = run_submitted(case, fake_nav, reverse_id)
-        assert reverse.summary is not None and not reverse.summary.aborted
-        response = case.client.post(
-            "/api/jobs",
-            json={"type_name": "nav_write_apply", "parameters": {"preview_job_id": reverse_id}},
-        )
-        undone = run_submitted(case, fake_nav, int(response.json()["job_id"]))
-        assert undone.summary is not None and not undone.summary.aborted
-        assert tree_state(root) == before
 
 
 def test_reserved_scene_is_rejected(tmp_path: Path, fake_nav: FakeNavigation) -> None:

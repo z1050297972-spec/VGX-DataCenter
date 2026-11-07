@@ -35,3 +35,4 @@ Blocked by: 17（基于 t/m15-17-size-sync 开分支，合并时先合 17）
 ## Comments
 
 - 2026-11-06 开票（执行线；负责人点名"整个撤回功能都不要"）。ADR 0009 已追加修订节。
+- 2026-11-07 00:17 前后端交回；执行线 make api-types。make check 全绿：后端 2753 passed、Vitest 376 passed、0 skipped。journal.py、recovery.py 未改动；recoveryGate.ts 只改了注释文字。合并待负责人，顺序先 17 后 18。
