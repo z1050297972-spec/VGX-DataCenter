@@ -1,7 +1,7 @@
 // M1.5-02 保存预览的审阅界面；复用作业轮询和报告，不在浏览器重算差异。
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "antd";
+import { Button, Typography } from "antd";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import { navigationJobSucceeded } from "./fieldEditingPolicy";
 import { getNavigationPreview, type NavigationPreview } from "../api/dataOrigin";
@@ -63,6 +63,8 @@ function ReportContent({
   options: Props;
 }): ReactElement {
   if (!preview || preview.operation !== "edit_dataset_fields") return <></>;
+  const removingClassification =
+    preview.parameters.kind === "scene" || preview.parameters.kind === "tasks";
   return (
     <>
       <p>
@@ -72,6 +74,7 @@ function ReportContent({
       <p>
         修改 {preview.report.file_count} 个文件 · 差异 {preview.report.listed_total} 项
       </p>
+      <Typography.Paragraph>涉及的数据集：{preview.dataset_ids.join("、")}</Typography.Paragraph>
       <section aria-label="字段预览差异" className="field-differences">
         {preview.report.listed_changes.map((change, index) => (
           <article key={index}>
@@ -84,6 +87,11 @@ function ReportContent({
               <dt>修改后</dt>
               <dd>{change.after}</dd>
             </dl>
+            {removingClassification &&
+              (change.json_path === "scene" || change.json_path === "tasks") &&
+              change.after === "[]" && (
+                <Typography.Paragraph>删除后变成未标注</Typography.Paragraph>
+              )}
           </article>
         ))}
       </section>

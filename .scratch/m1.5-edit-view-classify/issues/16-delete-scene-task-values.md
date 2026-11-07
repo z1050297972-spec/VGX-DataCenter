@@ -52,3 +52,6 @@ Status: in-progress
 
 - 2026-11-06 开票（执行线；负责人提出，选定"从下拉候选里删掉某个值"）。
 - 2026-11-06 负责人："第16张可以开始执行了"，并把大小统计的三条说明并入本票（范围第 4 条）。
+- 2026-11-06 22:24 派工：分支 t/m15-16-delete-values（从 main），前后端两个会话 rdp-m15-16-be/fe（gpt-6-astra medium），日志 ~/.cache/rdp-dispatch/m15-16/。提示里禁止 uv sync。
+- 2026-11-06 22:34 前后端交回；执行线 make api-types，前端续接删掉临时类型；后端续接补 4 个写死作业类型数量的旧测试。make check 全绿：后端 2756 passed、Vitest 380 passed、0 skipped。变异抽查：只写规范副本不写格式副本、顺手改 title，都被 tests/test_classification_remove.py 抓到（顺手删 subtask_notes 没抓到，是因为夹具里没有这个键，不算漏测）。
+- 2026-11-06 **副本演练**（`~/.cache/rdp-drill/m15-16/drill.sh` → `run.log`）：删除任务"洗碗"，预览命中 dataset-06、dataset-25 两个数据集，写入后改动 4 个文件（两个视图），违规 0（只少了"洗碗"这一项，其余键值和顺序不变），候选里"洗碗"消失；撤回后副本逐字节还原。/mnt/datasets 清单不变，两块盘写入扇区 320/128 前后不变，worker.log ERROR 0。评审无阻塞问题，合并待负责人。

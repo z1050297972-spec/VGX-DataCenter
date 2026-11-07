@@ -475,6 +475,31 @@
         "title": "CheckScope",
         "type": "string"
       },
+      "ClassificationRemoveParameters": {
+        "additionalProperties": false,
+        "description": "删除所有规范副本中指定的一个分类值。\n\nAttributes:\n    model_config: 冻结且拒绝额外字段，错误不回显原输入。\n    kind: scene 或 tasks，只允许这两个顶层字段。\n    value: 非空分类文本；使用现有候选原值，不接受未标注占位符。",
+        "properties": {
+          "kind": {
+            "enum": [
+              "scene",
+              "tasks"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "value": {
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "ClassificationRemoveParameters",
+        "type": "object"
+      },
       "ConfirmCreationRequest": {
         "additionalProperties": false,
         "description": "用户确认保存的预览，不能夹带替换参数或计划。\n\nAttributes:\n    preview_job_id: 成功的创建预览编号，规范十进制文本，数值不超过 MAX_SQLITE_INTEGER。\n    acknowledged_queue_job_ids: 已在页面看到并确认的排队作业编号，去重；默认空。\n        新出现未确认的排队编号会再次返回提醒，不能以通配布尔值绕过。",
@@ -16218,6 +16243,143 @@
           }
         ],
         "summary": "Preview Information Backfill",
+        "tags": [
+          "navigation"
+        ]
+      }
+    },
+    "/api/navigation/classification/remove/preview": {
+      "post": {
+        "description": "提交指定场景或任务值的全局删除预览。\n\nArgs:\n    context: 已通过认证、改密及同源检查的作业上下文。\n    datasets: 当前应用的导航层只读配置。\n    body: scene 或 tasks 及要删除的候选原值，不接收路径。\n\nReturns:\n    HTTP 201，queued 作业记录；job_id 是十进制文本。\n\nRaises:\n    JobInputError: 未标注占位符、无人使用或参数不合法，422。\n    InputError: 规范入口数据不可读，400。\n    AuthenticationError: 未登录或会话失效，401。\n    AuthorizationError: 请求非同源，403。\n    PasswordChangeRequiredError: 账号必须改密，403。\n    ConflictError: 提交事务竞争，409。\n    ExternalError: 导航层读取或数据库提交失败，502。\n    DefectError: 服务装配或响应映射错误，500。\n\nSide Effects:\n    只读导航规范副本；成功时新增预览作业及提交日志，不写导航层。\n\nTime Semantics:\n    使用请求唯一 UTC 时刻；worker 会重新核对范围，响应不等待预览完成。",
+        "operationId": "preview_classification_remove",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassificationRemoveParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Preview Classification Remove",
         "tags": [
           "navigation"
         ]

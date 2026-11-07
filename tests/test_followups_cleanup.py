@@ -26,7 +26,7 @@ from rdp.jobs.registry import production_registry
 
 
 def test_production_submission_roles_and_member_write_rejection(tmp_path: Path) -> None:
-    """验证20个生产类型的角色及集合精确匹配，成员不能经通用接口提交写入作业或留下记录。"""
+    """验证21个生产类型的角色及集合精确匹配，成员不能经通用接口提交写入作业或留下记录。"""
     # 期望来自工单D2及已交付的归类表，不能从类型属性推导，否则降权变异会一起改变期望。
     expected_roles = {
         "dataset_rescan": Role.MEMBER,
@@ -40,6 +40,7 @@ def test_production_submission_roles_and_member_write_rejection(tmp_path: Path) 
         "example_count": Role.MEMBER,
         "example_gpu": Role.ADMINISTRATOR,
         "example_navigation": Role.ADMINISTRATOR,
+        "nav_classification_remove_preview": Role.MEMBER,
         "nav_create_dataset_preview": Role.MEMBER,
         "nav_create_link_preview": Role.MEMBER,
         "nav_fields_preview": Role.MEMBER,
