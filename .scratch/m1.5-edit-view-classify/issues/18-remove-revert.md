@@ -1,6 +1,6 @@
 # 去掉"撤回"功能
 
-Status: in-progress
+Status: done
 
 分级：直做。负责人已当面决定（见下）。只删功能，不新增领域对象。按"只做关键测试"。
 
@@ -36,3 +36,4 @@ Blocked by: 17（基于 t/m15-17-size-sync 开分支，合并时先合 17）
 
 - 2026-11-06 开票（执行线；负责人点名"整个撤回功能都不要"）。ADR 0009 已追加修订节。
 - 2026-11-07 00:17 前后端交回；执行线 make api-types。make check 全绿：后端 2753 passed、Vitest 376 passed、0 skipped。journal.py、recovery.py 未改动；recoveryGate.ts 只改了注释文字。合并待负责人，顺序先 17 后 18。
+- 2026-11-07 00:24 负责人："合并、升级、推送"。已合并（17 → b0e760c，18 → a8a51d7），合并钩子在主仓环境下全绿。
