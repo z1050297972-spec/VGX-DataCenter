@@ -30,14 +30,25 @@ from rdp.jobs.registry import JobRegistry, production_registry
 from rdp.jobs.types import ExecutionMode, JobClock, JobRecord
 
 
-def test_size_text_contract() -> None:
-    """契约示例逐字一致；只从规定的字节段解析，旧自由文字不猜数字。"""
-    expected = (
-        "119.64 GB / 0.12 TB（119,642,823,842 B；LeRobot 只计 parquet、mp4 和 meta，"
-        "其他格式计全部文件；统计于 2026-11-07）"
-    )
-    assert format_size_text(119_642_823_842, date(2026, 11, 7)) == expected
-    assert parse_size_bytes(expected) == 119_642_823_842
+@pytest.mark.parametrize(
+    ("size_bytes", "prefix"),
+    [
+        (631_143_349, "0.63 GB（631,143,349 B；"),
+        (119_642_823_842, "119.64 GB（119,642,823,842 B；"),
+        (999_999_999_999, "1000.00 GB（999,999,999,999 B；"),
+        (1_000_000_000_000, "1000.00 GB / 1.00 TB（1,000,000,000,000 B；"),
+    ],
+)
+def test_size_text_contract(size_bytes: int, prefix: str) -> None:
+    """不到1 TB只写GB，达到阈值才附TB；按原始字节判定，两种文字都能解析。"""
+    expected = prefix + "LeRobot 只计 parquet、mp4 和 meta，其他格式计全部文件；统计于 2026-11-06）"
+    assert format_size_text(size_bytes, date(2026, 11, 6)) == expected
+    assert parse_size_bytes(expected) == size_bytes
+
+
+def test_size_text_parsing_remains_compatible() -> None:
+    """解析规则不变：旧双单位文字仍可读取，只认字节片段，不猜自由文字。"""
+    assert parse_size_bytes("119.64 GB / 0.12 TB（119,642,823,842 B；旧说明）") == 119_642_823_842
     assert parse_size_bytes("大小（119642823842 B；说明）") == 119_642_823_842
     assert parse_size_bytes("原来约 119 GB") is None
 

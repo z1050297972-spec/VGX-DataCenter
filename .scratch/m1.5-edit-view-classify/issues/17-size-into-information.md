@@ -61,3 +61,4 @@ Status: in-progress
 - 2026-11-06 23:22 前后端交回。make check 全绿：后端 2761 passed、Vitest 378 passed、0 skipped（后端用 .venv/bin/pytest，主仓 .venv 安装未被改动）。
 - 2026-11-06 **副本演练**（`~/.cache/rdp-drill/m15-17/drill.sh` → `run.log`；全量统计约 1 小时，只统计 libero_10、cmu_stretch、nyu_door_opening）：第一次统计后 3 个 nav_size_sync completed，改动 6 个文件（两个视图），违规 0（只改第 4 项）；第二次统计没有新的 nav_size_sync，导航层无变化。撤回：撤回作业本身成功，但撤回写导航层后照规则触发统计，统计发现第 4 项又不一致，再次自动写回（作业 21、26），所以撤回会被下一次统计覆盖。两块盘写入扇区 320/128 前后不变，/mnt/datasets 清单不变，ERROR 0。
 - 待负责人：(1) 撤回会被自动写回，是否接受（旧文字可从变更记录找回）；(2) 不足 1 GB 时第 4 项写成 `0.63 GB / 0.00 TB`，是否改成只写一个单位。
+- 2026-11-06 负责人："可以只改写成GB"（回答"不足 1 GB 是否只写一个单位"）。执行线定为：不到 1 TB 只写 GB（`0.63 GB（…）`、`119.64 GB（…）`），≥1 TB 才写 `{GB} GB / {TB} TB（…）`；页面 formatBytes 同规则（<1 GB 仍按 KB/MB）。解析字节数的规则不变。撤回问题另开第 18 张（负责人："整个撤回功能都不要"）。

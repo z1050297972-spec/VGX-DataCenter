@@ -19,10 +19,14 @@ _BYTES = re.compile(r"（([0-9]+|[0-9]{1,3}(?:,[0-9]{3})+) B；")
 
 
 def format_size_text(size_bytes: int, local_date: date) -> str:
-    """将非负整数字节数和调用方提供的本地统计日期格式化为第4项文字。"""
+    """按非负整数字节数生成第4项文字；不到1 TB只写GB，日期由调用方提供。"""
     size = Decimal(size_bytes)
+    units = f"{size / _GB_BYTES:.2f} GB"
+    # 负责人修订：以原始字节判断1 TB门槛，避免显示舍入提前带出TB。
+    if size_bytes >= _TB_BYTES:
+        units += f" / {size / _TB_BYTES:.2f} TB"
     return (
-        f"{size / _GB_BYTES:.2f} GB / {size / _TB_BYTES:.2f} TB（{size_bytes:,} B；"
+        f"{units}（{size_bytes:,} B；"
         f"LeRobot 只计 parquet、mp4 和 meta，其他格式计全部文件；统计于 {local_date.isoformat()}）"
     )
 
