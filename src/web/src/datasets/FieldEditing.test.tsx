@@ -84,7 +84,7 @@ function inlinePage(requests: Request[] = []) {
   );
 }
 
-// 契约：14项紧跟页头；编辑模式只替换原行，不增加第二份信息或旧编辑器。
+// 契约：14项紧跟页头；编辑模式只替换原行，第4项只读且说明平台会自动写入统计值。
 it("14项位于最上方且第6项原地编辑", async () => {
   const page = inlinePage();
   try {
@@ -105,6 +105,7 @@ it("14项位于最上方且第6项原地编辑", async () => {
     expect(screen.getAllByRole("region", { name: "14 项数据集信息" })).toHaveLength(1);
     expect(screen.queryByRole("combobox", { name: "选择编辑文件" })).toBeNull();
     expect(screen.queryByRole("textbox", { name: /第 4 项/ })).toBeNull();
+    expect(screen.getByText(/数据大小由平台统计，并自动写进第 4 项/)).toBeTruthy();
   } finally {
     page.close();
   }

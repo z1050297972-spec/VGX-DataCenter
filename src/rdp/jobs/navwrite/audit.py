@@ -25,7 +25,7 @@ from rdp.audit.types import (
     OperationResult,
     OperationType,
 )
-from rdp.infra.actors import ActorRef
+from rdp.infra.actors import SYSTEM_ACTOR, ActorRef
 from rdp.infra.db.connection import session_scope_with_lock_timeout
 from rdp.infra.diagnostics import DiagnosticCategory
 from rdp.jobs.navwrite.policy import AUDIT_DATASET_ID_LIMIT
@@ -75,6 +75,7 @@ def navigation_operation_event(facts: NavigationAuditFacts) -> OperationEvent:
 
     Returns:
         OperationEvent：对象为 ObjectRef("navigation_write", str(job_id), "写导航层 #<job_id>")，
+        系统身份的字段编辑在对象名加“平台自动：”前缀。
         details.before 为空，details.after 含数据集编号、个数、文件数、链接数、变更记录编号等白名单字段；
         失败事件的 after 按 M0 的操作日志约定必须为空（不暗示失败的改动生效），所以摘要字段放在 before；
         change_record_id 取决于是否真的写了变更记录。
@@ -113,7 +114,17 @@ def navigation_operation_event(facts: NavigationAuditFacts) -> OperationEvent:
         occurred_at=facts.occurred_at,
         actor=facts.actor,
         operation=facts.operation,
-        target=ObjectRef("navigation_write", str(facts.job_id), f"写导航层 #{facts.job_id}"),
+        target=ObjectRef(
+            "navigation_write",
+            str(facts.job_id),
+            (
+                "平台自动："
+                if facts.actor == SYSTEM_ACTOR
+                and facts.operation is OperationType.EDIT_DATASET_FIELDS
+                else ""
+            )
+            + f"写导航层 #{facts.job_id}",
+        ),
         result=facts.result,
         failure_category=facts.failure_category,
         context=facts.context,

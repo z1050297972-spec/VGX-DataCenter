@@ -78,7 +78,7 @@ describe("数据集后半段验收", () => {
       expect(within(links).getByText("存储根离线")).toBeTruthy();
       expect(within(links).queryByText("断链")).toBeNull();
       expect(
-        screen.getByText(/统计大小：4.0 KiB · LeRobot 只计 parquet、mp4 和 meta/),
+        screen.getByText(/统计大小：4.10 KB · LeRobot 只计 parquet、mp4 和 meta/),
       ).toBeTruthy();
       expect(screen.getByText(`统计时间：${formatDateTime("2026-10-28T12:00:00Z")}`)).toBeTruthy();
     } finally {

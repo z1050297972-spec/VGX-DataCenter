@@ -6,7 +6,7 @@
 
 import logging
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal, cast
 
@@ -182,7 +182,12 @@ def prepare_service(
             if process == "worker"
             else None
         )
-        navigation = build_nav_write_dependencies(rescan, paths) if rescan is not None else None
+        zone = local_timezone(inputs.localtime)
+        navigation = (
+            replace(build_nav_write_dependencies(rescan, paths), timezone=zone)
+            if rescan is not None
+            else None
+        )
         if rescan is None:
             # Web 不注入存储根访问、进程或散列能力。
             registry = production_registry(rescan, navigation)
@@ -203,7 +208,7 @@ def prepare_service(
         scheduling = SchedulingCatalog(
             resolve_scheduling(config.jobs, registry),
             production_schedules(registry),
-            local_timezone(inputs.localtime),
+            zone,
         )
         version = read_platform_version(inputs.layout, package_version=inputs.package_version)
         return ServiceRuntime(

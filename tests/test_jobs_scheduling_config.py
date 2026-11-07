@@ -141,7 +141,7 @@ def test_state_path(tmp_path: Path) -> None:
 
 
 def test_production_types() -> None:
-    """契约：生产登记二十一种类型，两个清除为restart、三个示例为interrupt，写导航层的 nav_write_apply 和 download_ingest_apply 为interrupt，只有example_gpu需卡。"""
+    """契约：生产登记二十二种类型，两个清除为restart、三个示例为interrupt，写导航层的 nav_write_apply 和 download_ingest_apply 为interrupt，只有example_gpu需卡。"""
     definitions = production_registry().definitions()
     assert [
         (
@@ -171,6 +171,7 @@ def test_production_types() -> None:
         ("nav_information_backfill_preview", "预览回填数据集信息", "restart", 1, False),
         ("nav_repoint_preview", "预览改指向", "restart", 1, False),
         ("nav_revert_preview", "预览撤回", "restart", 1, False),
+        ("nav_size_sync", "同步数据集大小", "interrupt", 1, False),
         ("nav_write_apply", "写导航层", "interrupt", 1, False),
         ("purge_audit_logs", "清除过期日志", "restart", 1, False),
         ("purge_errors", "清除过期报错", "restart", 1, False),
@@ -178,6 +179,7 @@ def test_production_types() -> None:
     assert all(callable(item.execute) for item in definitions)
     assert {item.type_name for item in definitions if item.writes_navigation} == {
         "nav_write_apply",
+        "nav_size_sync",
         "download_ingest_apply",
     }
 

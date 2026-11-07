@@ -1,6 +1,7 @@
 """统计大小作业装配（领域层，M1-02、ADR0005/0006），不写数据、不拿导航写锁。
 
 提交复用JobService及现有类型登记；只发布完整遍历结果，不将未完成统计写成零。
+发布后保存自动大小同步计划并排队 nav_size_sync，统计本身仍不拿写锁、不写导航层。
 """
 
 import logging
@@ -26,7 +27,11 @@ from rdp.jobs.datasets.catalog import SIZING_NAME, SIZING_TYPE
 from rdp.jobs.datasets.fingerprint import fingerprint_dataset
 from rdp.jobs.datasets.rescan import RescanDependencies, RescanParameters
 from rdp.jobs.execution import ExecutionContext
+from rdp.jobs.navwrite.models import NavWritePlan
+from rdp.jobs.navwrite.pipeline import NavWriteDependencies
+from rdp.jobs.navwrite.size_sync import plan_size_update, submit_size_sync
 from rdp.jobs.registry import JobDefinition
+from rdp.jobs.schedules import local_timezone
 from rdp.jobs.types import JobProgress, RecoveryMode
 
 logger = logging.getLogger(__name__)
@@ -35,11 +40,15 @@ logger = logging.getLogger(__name__)
 SizingParameters = RescanParameters
 
 
-def build_sizing_definition(dependencies: RescanDependencies | None) -> JobDefinition:
+def build_sizing_definition(
+    dependencies: RescanDependencies | None,
+    nav_dependencies: NavWriteDependencies | None = None,
+) -> JobDefinition:
     """构造dataset_sizing类型，手动和系统提交使用同一参数校验与执行入口。
 
     Args:
         dependencies: worker的受管数据库、绝对导航根和只读检查器；Web登记传None。
+        nav_dependencies: 自动同步的状态布局及队列依赖；None 只发布索引。
 
     Returns:
         默认并发1、无需GPU、RESTART恢复、无写入存储声明的作业定义。
@@ -58,7 +67,7 @@ def build_sizing_definition(dependencies: RescanDependencies | None) -> JobDefin
         SIZING_NAME,
         SizingParameters,
         RecoveryMode.RESTART,
-        _SizingExecutor(dependencies).execute,
+        _SizingExecutor(dependencies, nav_dependencies).execute,
         submission_role=Role.MEMBER,
     )
 
@@ -69,9 +78,11 @@ class _SizingExecutor:
 
     Attributes:
         dependencies: 只读扫描依赖；None只允许用于Web登记。
+        nav_dependencies: 自动同步依赖；None 不提交写入。
     """
 
     dependencies: RescanDependencies | None
+    nav_dependencies: NavWriteDependencies | None
 
     def execute(self, context: ExecutionContext) -> None:
         """读取索引范围、遍历链接目标并原子发布每个数据集的完整统计。"""
@@ -86,6 +97,7 @@ class _SizingExecutor:
             datasets = _sizing_index.snapshot(session, context.parameters.dataset_id, deps.nav_root)
         if context.parameters.dataset_id is not None and not datasets:
             raise input_error(context.parameters.dataset_id, "数据集尚未建立索引，请先重新扫描")
+        plans: list[NavWritePlan] = []
         warnings = total_bytes = published = 0
         cache: dict[tuple[Path, tuple[SizeSource, ...]], SizeValue] = {}
         for done, dataset in enumerate(datasets, start=1):
@@ -95,14 +107,28 @@ class _SizingExecutor:
                 _verify_navigation(dataset, deps, context)
                 values = _collect(dataset, deps, context, cache)
                 _verify_navigation(dataset, deps, context)
-                with session_scope(deps.engine) as session:
-                    _sizing_index.publish(session, dataset, values, ensure_utc(context.clock.now()))
                 counted = sum(
                     values[(entry.path, link.ordinal)].size_bytes
                     for entry in dataset.entries
                     if entry.canonical
                     for link in entry.links
                 )
+                plan = None
+                if self.nav_dependencies is not None:
+                    nav = self.nav_dependencies
+                    zone = nav.timezone or local_timezone(Path("/etc/localtime"))
+                    plan = plan_size_update(
+                        nav,
+                        dataset,
+                        counted,
+                        ensure_utc(context.clock.now()).astimezone(zone).date(),
+                        context.reporter.check_cancelled,
+                    )
+                # 前像读取仍属于本次观察；只有索引提交成功才把计划交给自动写入。
+                with session_scope(deps.engine) as session:
+                    _sizing_index.publish(session, dataset, values, ensure_utc(context.clock.now()))
+                if plan is not None:
+                    plans.append(plan)
                 total_bytes += counted
                 published += 1
                 logger.info(
@@ -133,6 +159,9 @@ class _SizingExecutor:
                     warning_count=warnings,
                 )
             )
+
+        if self.nav_dependencies is not None:
+            submit_size_sync(context, self.nav_dependencies, plans)
 
 
 def _collect(

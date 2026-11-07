@@ -11,6 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from rdp.audit.types import OPS_AUDIT_CONTEXT, OperationResult, OperationType
 from rdp.infra.actors import ActorRef
@@ -74,11 +75,13 @@ class NavWriteDependencies:
             写入后的索引更新复用它，写入底座不另造一套。
         paths: 已初始化的状态布局，含 nav-journal、nav-changes、nav-previews 三个子目录。
         service: 作业服务，用来在写入以后提交统计大小作业（系统身份）。
+        timezone: 调度使用的本地时区；None 时由统计入口读取 /etc/localtime。
     """
 
     rescan: RescanDependencies
     paths: StatePaths
     service: JobService
+    timezone: ZoneInfo | None = None
 
 
 @dataclass(frozen=True)
@@ -86,6 +89,7 @@ class LockedWrite:
     """持锁写入段的成功结果。
 
     Attributes:
+        preview: 锁内核对后实际执行的计划；自动作业可能已剔除变化数据集。
         journal: 已落盘并已归档的写入日志内容（日志目录此时已删除）。
         file_count: 实际写入的文件数。
         link_count: 实际建或改的链接数。
@@ -94,6 +98,7 @@ class LockedWrite:
         finished_at: 提交点的 UTC 时刻。
     """
 
+    preview: NavPreview
     journal: Journal | None
     file_count: int
     link_count: int
@@ -107,6 +112,8 @@ def write_plan_locked(
     dependencies: NavWriteDependencies,
     preview: NavPreview,
     actor: ActorRef,
+    *,
+    prepare_locked: Callable[[NavPreview], NavPreview] | None = None,
 ) -> LockedWrite:
     """在导航层写锁内完成核对、落日志、逐步写入、归档和删日志；失败按日志退回。
 
@@ -115,6 +122,7 @@ def write_plan_locked(
         dependencies: 写入依赖。
         preview: 预览作业保存的结果，其 plan 就是要执行的计划，不重新计算。
         actor: 提交人身份快照，写进变更记录。
+        prepare_locked: 自动作业在锁内过滤过期计划的回调；None 保持人工确认计划不变。
 
     Returns:
         LockedWrite。计划无步骤时 noop 为 True，仍完成预览状态核对，不落日志。
@@ -145,13 +153,17 @@ def write_plan_locked(
     job_id = context.job_id
 
     def verify() -> None:
+        nonlocal preview, plan
+        if prepare_locked is not None:
+            preview = prepare_locked(preview)
+            plan = preview.plan
         # 持写锁之后、落日志之前再核对一次预览状态；取消和停止在保护段内被框架延后，检查点不抛。
         verify_preview_state(nav_root, plan.state, checkpoint=_no_checkpoint)
 
     def write() -> LockedWrite:
         started = context.clock.now()
         if not plan.steps:
-            return LockedWrite(None, 0, 0, True, started, started)
+            return LockedWrite(preview, None, 0, 0, True, started, started)
         images = capture_before_images(nav_root, plan)
         journal = write_journal(paths, plan, images, job_id, started)
         current = _InFlight(
@@ -171,7 +183,7 @@ def write_plan_locked(
             current.roll_back()
             raise
         _discard_after_commit(current.directory)
-        return LockedWrite(journal, *_counts(plan), False, started, finished)
+        return LockedWrite(preview, journal, *_counts(plan), False, started, finished)
 
     return context.write_navigation(verify, write)
 
@@ -247,14 +259,17 @@ def submit_sizing_jobs(
 def run_write_plan(
     context: ExecutionContext,
     dependencies: NavWriteDependencies,
-    preview_job_id: int,
+    preview_job_id: int | NavPreview,
+    *,
+    prepare_locked: Callable[[NavPreview], NavPreview] | None = None,
 ) -> ApplyResult:
-    """执行一份已确认的预览：读出计划，写入，更新索引，提交统计大小，记操作日志。
+    """执行人工确认或平台自动计划，统一写入、更新索引、提交统计并记审计。
 
     Args:
-        context: 当前写入作业的执行上下文，作业类型 nav_write_apply。
+        context: 当前人工或平台自动写入作业的执行上下文。
         dependencies: 写入依赖。
-        preview_job_id: 预览作业编号，≥ 1；计划取自 nav-previews 里同一份文件。
+        preview_job_id: 人工预览的正整数编号；自动作业传已读取的 NavPreview，不要求人工确认。
+        prepare_locked: 自动计划的锁内过滤回调；None 时保持人工预览冲突即失败的行为。
 
     Returns:
         ApplyResult。committed：已写入，仅为仍存在的数据集提交统计，删除编号记入 sizing_skipped_dataset_ids；noop：核对通过但计划无步骤，操作日志照记。
@@ -280,17 +295,23 @@ def run_write_plan(
         进入阶段 2 之后不可打断，直到提交或退回完成。
     """
     engine = dependencies.rescan.engine
-    preview = _load_preview(dependencies, preview_job_id)
-    plan = preview.plan
+    preview = (
+        preview_job_id
+        if isinstance(preview_job_id, NavPreview)
+        else _load_preview(dependencies, preview_job_id)
+    )
     with session_scope(engine, read_only=True) as session:
         submitter = find_job(session, context.job_id).submitted_by
     progress = _Progress(context)
     progress.stage(1)
     try:
-        locked = write_plan_locked(context, dependencies, preview, submitter)
+        locked = write_plan_locked(
+            context, dependencies, preview, submitter, prepare_locked=prepare_locked
+        )
     except Exception as error:
         _audit_failure(dependencies, context, preview, submitter, error)
         raise
+    plan = locked.preview.plan
     reindexed: tuple[str, ...] = ()
     sizing: tuple[int, ...] = ()
     skipped: tuple[str, ...] = ()
