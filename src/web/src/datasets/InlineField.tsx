@@ -41,9 +41,21 @@ export function InlineField(props: Props): ReactElement {
         ))}
       <FieldInput
         field={field}
-        value={state.changes[JSON.stringify([data.document, field.path])]?.value ?? field.value}
+        value={(state.changes[JSON.stringify([data.document, field.path])] ?? field).value}
         vocabulary={vocabulary}
         disabled={state.busy || state.stale}
+        onOrigin={(origin) => {
+          const originField = data.fields.find(
+            (entry) => entry.path.length === 1 && entry.path[0] === "data_origin",
+          );
+          if (!originField) return;
+          const current = (
+            state.changes[JSON.stringify([data.document, originField.path])] ?? originField
+          ).value;
+          // 只补齐当前草稿的未知来源，不能覆盖用户已填或刚刚手动改过的来源。
+          if (current === null || current === "" || current === "未知")
+            state.update(data, originField, origin);
+        }}
         onChange={(value) => {
           state.update(data, field, value);
         }}

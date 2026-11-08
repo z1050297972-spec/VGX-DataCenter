@@ -183,13 +183,13 @@ def list_datasets(
 
 @router.get("/filters", response_model=DatasetFilterOptions, operation_id="get_dataset_filters")
 def get_dataset_filters(context: DatasetContext) -> DatasetFilterOptions:
-    """返回规范信息顶层的五个筛选候选及计数。
+    """返回规范信息顶层的标注与采集筛选候选及计数。
 
     Args:
         context: 全局安全检查通过的账号上下文与浏览服务。
 
     Returns:
-        200，robot_models、fps、data_origins、scenes、tasks 候选及计数。
+        200，robot_models、fps、data_origins、scenes、tasks 和四个 collection_* 候选及计数。
         scene_vocabulary/task_vocabulary 提供编辑器用的受控编码与中文名。
         型号未标注使用 unlabeled，FPS 未标注使用 unknown；零计数的未标注项仍保留。
 
@@ -256,6 +256,7 @@ def get_dataset_detail(
         200，原始路径与信息原文、规范信息、推导数据块、索引链接/大小和index_stale；
         子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看；
         provenance 返回规范入口血缘文件状态；数据来源取信息文件顶层。
+        collection 返回采集索引和当前登记名称，未知编号保留并标 missing。
 
     Raises:
         DatasetNotFoundError: 入口不在索引，404。

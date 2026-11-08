@@ -9,7 +9,7 @@ from datetime import datetime
 from http import HTTPStatus
 from typing import ClassVar, Literal, cast
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from rdp.accounts.models import AccountRow
@@ -25,6 +25,7 @@ from rdp.audit.types import (
     OperationResult,
     OperationType,
 )
+from rdp.collection.index_models import DatasetCollectionRobotRow, DatasetCollectionRow
 from rdp.collection.models import MethodRow, PurposeRow, RegistryRow, RobotRow
 from rdp.collection.types import MethodInput, PurposeInput, RegistryKind, RegistryStatus, RobotInput
 from rdp.infra.actors import ActorRef
@@ -133,18 +134,31 @@ def reference_count(session: Session, kind: RegistryKind, identifier: int) -> in
         identifier: 已存在对象的正整数编号。
 
     Returns:
-        当前返回 0；M3-03 引入采集信息索引后在此接入统计。
+        当前索引中引用该编号的数据集数量；跨视图和重复机器人编号只计一次。
 
     Raises:
-        无。
+        SQLAlchemyError: 索引查询失败，由调用者事务边界映射。
 
     Side Effects:
-        无；本版本没有采集信息索引可读取。
+        无；只查询采集信息索引，不打开导航文件。
 
     Time Semantics:
         同步返回，不等待外部扫描。
     """
-    return 0
+    if kind == "robots":
+        statement = (
+            select(func.count())
+            .select_from(DatasetCollectionRobotRow)
+            .where(DatasetCollectionRobotRow.robot_id == identifier)
+        )
+    else:
+        column = (
+            DatasetCollectionRow.method_id if kind == "methods" else DatasetCollectionRow.purpose_id
+        )
+        statement = (
+            select(func.count()).select_from(DatasetCollectionRow).where(column == identifier)
+        )
+    return session.scalar(statement) or 0
 
 
 def _record(session: Session, kind: RegistryKind, row: RegistryRow) -> RegistryRecord:

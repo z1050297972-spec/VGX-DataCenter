@@ -9,6 +9,7 @@ from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
+from rdp.collection.information import CollectionStatus
 from rdp.infra.diagnostics import Diagnostic
 from rdp.jobs.datasets.catalog import MAX_SCAN_ENTRIES
 from rdp.jobs.datasets.types import FindingGroup, ProvenanceState, View
@@ -55,6 +56,10 @@ class DatasetFilters(BrowserValue):
     scene: str | None = Field(
         default=None, min_length=1, description="场景原编码；unlabeled 表示未标注"
     )
+    collection_status: CollectionStatus | Literal["unlabeled"] | None = None
+    collection_method: str | None = Field(default=None, pattern=r"^(?:[1-9][0-9]*|unlabeled)$")
+    collection_purpose: str | None = Field(default=None, pattern=r"^(?:[1-9][0-9]*|unlabeled)$")
+    collection_robot: str | None = Field(default=None, pattern=r"^(?:[1-9][0-9]*|unlabeled)$")
     tasks: tuple[Annotated[str, Field(min_length=1)], ...] = Field(
         default=(), description="重复 tasks 参数；全部任务取交集；unlabeled 必须单独使用"
     )
@@ -106,6 +111,10 @@ class DatasetFilterOptions(BrowserValue):
     data_origins: tuple[FilterOption, ...]
     scenes: tuple[FilterOption, ...]
     tasks: tuple[FilterOption, ...]
+    collection_statuses: tuple[FilterOption, ...]
+    collection_methods: tuple[FilterOption, ...]
+    collection_purposes: tuple[FilterOption, ...]
+    collection_robots: tuple[FilterOption, ...]
     scene_vocabulary: tuple[VocabularyTerm, ...]
     task_vocabulary: tuple[VocabularyTerm, ...]
 
@@ -277,6 +286,37 @@ class DatasetProvenance(BrowserValue):
     state: ProvenanceState
 
 
+class CollectionTerm(BrowserValue):
+    """当前词表身份；编号未知时 name 为 null、status 为 missing。"""
+
+    id: int
+    name: str | None
+    status: Literal["active", "retired", "missing"]
+
+
+class CollectionMethod(CollectionTerm):
+    """采集方式当前来源；未知编号没有可推断来源。"""
+
+    data_origin: str | None
+
+
+class CollectionRobot(BrowserValue):
+    """采集机器人当前名称与启停状态，保留不存在的永久编号。"""
+
+    robot_id: int
+    name: str | None
+    status: Literal["active", "retired", "missing"]
+
+
+class DatasetCollection(BrowserValue):
+    """采集索引和当前登记名称的联合投影，robots 保留原编号顺序。"""
+
+    status: CollectionStatus
+    method: CollectionMethod | None
+    purpose: CollectionTerm | None
+    robots: tuple[CollectionRobot, ...]
+
+
 class DatasetDetailResponse(BrowserValue):
     """入口详情保留原文和规范信息，子任务正文只由独立接口提供。"""
 
@@ -300,6 +340,9 @@ class DatasetDetailResponse(BrowserValue):
         description="服务端本次请求UTC时刻，不伪装为全文件原子快照时间"
     )
     diagnostics: tuple[Diagnostic, ...]
+    collection: DatasetCollection | None = Field(
+        default=None, description="采集索引中的编号及数据库当前名称；无有效采集信息为 null"
+    )
     provenance: DatasetProvenance | None = Field(
         default=None, description="本次只读规范入口血缘文件的状态；无唯一规范入口时不可用"
     )

@@ -10,6 +10,7 @@ from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 from typing import cast
 
+from rdp.collection.information import read_collection
 from rdp.infra.diagnostics import InputError
 from rdp.jobs.datasets import _io, _json
 from rdp.jobs.datasets._discovery import discover
@@ -126,6 +127,7 @@ def read_entry(
         其中数据来源字段忽略；来源筛选编码只读信息顶层，缺失或非法为 unknown。
         第4项原文保留但不解析，recorded_size_bytes 固定为 None。
         scene/tasks/robot_model 只投影信息文件顶层，不解析 Markdown；空值按未标注，自定义文本保留。
+        collection 缺键或 null 为无采集信息；格式非法局部降级并产生 COLLECTION_INVALID 提示。
 
     Raises:
         InputError: location 越界、目录项数量超过 MAX_ENTRY_MEMBERS 或调用参数非法。
@@ -167,6 +169,16 @@ def read_entry(
     information = documents[1].payload or {}
     raw_origin = information.get("data_origin")
     origin = ORIGIN_CODES.get(raw_origin, "unknown") if isinstance(raw_origin, str) else "unknown"
+    collection = read_collection(information.get("collection"))
+    if information.get("collection") is not None and collection is None:
+        issues += (
+            finding(
+                str(location.path),
+                "COLLECTION_INVALID",
+                "collection 格式非法，按无采集信息处理",
+                notice=True,
+            ),
+        )
     raw_fps = information.get("fps")
     fps = raw_fps if type(raw_fps) is int and raw_fps > 0 else None
     return EntrySnapshot(
@@ -183,6 +195,7 @@ def read_entry(
         origin,
         *classification(documents[1]),
         fps,
+        collection,
     )
 
 

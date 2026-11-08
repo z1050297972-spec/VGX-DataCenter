@@ -493,6 +493,105 @@
         "title": "ClassificationRemoveParameters",
         "type": "object"
       },
+      "CollectionIdentifier": {
+        "maximum": 9.223372036854776e+18,
+        "minimum": 1.0,
+        "type": "integer"
+      },
+      "CollectionInformation": {
+        "additionalProperties": false,
+        "description": "导航层只保存采集状态与编号，不把可变名称复制成另一份事实。\n\nAttributes:\n    status: planned、collecting 或 done，必填。\n    method_id: 采集方式永久正整数编号，None 表示未填。\n    purpose_id: 用途永久正整数编号，None 表示未填。\n    robot_ids: 0 至 16 个机器人编号，去重保序。",
+        "properties": {
+          "method_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CollectionIdentifier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purpose_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CollectionIdentifier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "robot_ids": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionIdentifier"
+            },
+            "maxItems": 16,
+            "title": "Robot Ids",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CollectionStatus"
+          }
+        },
+        "required": [
+          "status",
+          "method_id",
+          "purpose_id",
+          "robot_ids"
+        ],
+        "title": "CollectionInformation",
+        "type": "object"
+      },
+      "CollectionMethod": {
+        "additionalProperties": false,
+        "description": "采集方式当前来源；未知编号没有可推断来源。",
+        "properties": {
+          "data_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Origin"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "retired",
+              "missing"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "data_origin"
+        ],
+        "title": "CollectionMethod",
+        "type": "object"
+      },
       "CollectionOrigin": {
         "enum": [
           "真机采集",
@@ -501,6 +600,88 @@
           "仿真生成"
         ],
         "type": "string"
+      },
+      "CollectionRobot": {
+        "additionalProperties": false,
+        "description": "采集机器人当前名称与启停状态，保留不存在的永久编号。",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "robot_id": {
+            "title": "Robot Id",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "retired",
+              "missing"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "robot_id",
+          "name",
+          "status"
+        ],
+        "title": "CollectionRobot",
+        "type": "object"
+      },
+      "CollectionStatus": {
+        "enum": [
+          "planned",
+          "collecting",
+          "done"
+        ],
+        "type": "string"
+      },
+      "CollectionTerm": {
+        "additionalProperties": false,
+        "description": "当前词表身份；编号未知时 name 为 null、status 为 missing。",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "retired",
+              "missing"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "title": "CollectionTerm",
+        "type": "object"
       },
       "ConfirmCreationRequest": {
         "additionalProperties": false,
@@ -885,6 +1066,50 @@
         "title": "DataOrigin",
         "type": "string"
       },
+      "DatasetCollection": {
+        "additionalProperties": false,
+        "description": "采集索引和当前登记名称的联合投影，robots 保留原编号顺序。",
+        "properties": {
+          "method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CollectionMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purpose": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CollectionTerm"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "robots": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionRobot"
+            },
+            "title": "Robots",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CollectionStatus"
+          }
+        },
+        "required": [
+          "status",
+          "method",
+          "purpose",
+          "robots"
+        ],
+        "title": "DatasetCollection",
+        "type": "object"
+      },
       "DatasetDetailResponse": {
         "additionalProperties": false,
         "description": "入口详情保留原文和规范信息，子任务正文只由独立接口提供。",
@@ -910,6 +1135,17 @@
               }
             ],
             "description": "14项业务展示以此规范副本为准；缺失/重复规范入口为null，不将格式副本冒充规范副本"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetCollection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "采集索引中的编号及数据库当前名称；无有效采集信息为 null"
           },
           "dataset_size": {
             "$ref": "#/components/schemas/DatasetSize"
@@ -1011,6 +1247,34 @@
         "additionalProperties": false,
         "description": "未应用当前筛选的全局候选。\n\n型号等候选按值排序；分类候选按词表顺序、词表外原值排序，未标注固定最后；零计数词表项保留。",
         "properties": {
+          "collection_methods": {
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            },
+            "title": "Collection Methods",
+            "type": "array"
+          },
+          "collection_purposes": {
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            },
+            "title": "Collection Purposes",
+            "type": "array"
+          },
+          "collection_robots": {
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            },
+            "title": "Collection Robots",
+            "type": "array"
+          },
+          "collection_statuses": {
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            },
+            "title": "Collection Statuses",
+            "type": "array"
+          },
           "data_origins": {
             "items": {
               "$ref": "#/components/schemas/FilterOption"
@@ -1068,6 +1332,10 @@
           "data_origins",
           "scenes",
           "tasks",
+          "collection_statuses",
+          "collection_methods",
+          "collection_purposes",
+          "collection_robots",
           "scene_vocabulary",
           "task_vocabulary"
         ],
@@ -2323,7 +2591,7 @@
       },
       "EditableField": {
         "additionalProperties": false,
-        "description": "表单中的一项可编辑值。\n\nAttributes:\n    path: 与提交参数一致的 JSON 定位路径。\n    label: 中文标签，包含编号或任务身份。\n    value: 当前文本、多选值或正整数 FPS；缺省结构化字段显示为空。\n    multiple: 是否使用字符串多选输入。",
+        "description": "表单中的一项可编辑值。\n\nAttributes:\n    path: 与提交参数一致的 JSON 定位路径。\n    label: 中文标签，包含编号或任务身份。\n    value: 当前采集信息对象或 null、文本、多选值或正整数 FPS；缺省结构化字段显示为空。\n    multiple: 是否使用字符串多选输入。",
         "properties": {
           "label": {
             "title": "Label",
@@ -2563,7 +2831,7 @@
       },
       "FieldEdit": {
         "additionalProperties": false,
-        "description": "一项字段改动。\n\nAttributes:\n    document: 三份基础 JSON 之一；数据来源属于信息顶层字段。\n    expected_sha256: 表单读取的原字节摘要，防止预览覆盖填表期间的改动。\n    path: 字段路径，最多三层；不接受文件系统路径。\n    value: 新文本、字符串数组或正整数 FPS；文本空值表示清空，不表示删除键。",
+        "description": "一项字段改动。\n\nAttributes:\n    document: 三份基础 JSON 之一；数据来源属于信息顶层字段。\n    expected_sha256: 表单读取的原字节摘要，防止预览覆盖填表期间的改动。\n    path: 字段路径，最多三层；不接受文件系统路径。\n    value: 采集信息对象或 null、新文本、字符串数组或正整数 FPS；文本空值表示清空，不表示删除键。",
         "properties": {
           "document": {
             "$ref": "#/components/schemas/EditableDocument"
@@ -2661,6 +2929,12 @@
           {
             "exclusiveMinimum": 0.0,
             "type": "integer"
+          },
+          {
+            "$ref": "#/components/schemas/CollectionInformation"
+          },
+          {
+            "type": "null"
           }
         ]
       },
@@ -10279,6 +10553,77 @@
             }
           },
           {
+            "in": "query",
+            "name": "collection_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CollectionStatus"
+                },
+                {
+                  "const": "unlabeled",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Collection Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "collection_method",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(?:[1-9][0-9]*|unlabeled)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Collection Method"
+            }
+          },
+          {
+            "in": "query",
+            "name": "collection_purpose",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(?:[1-9][0-9]*|unlabeled)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Collection Purpose"
+            }
+          },
+          {
+            "in": "query",
+            "name": "collection_robot",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(?:[1-9][0-9]*|unlabeled)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Collection Robot"
+            }
+          },
+          {
             "description": "重复 tasks 参数；全部任务取交集；unlabeled 必须单独使用",
             "in": "query",
             "name": "tasks",
@@ -11074,7 +11419,7 @@
     },
     "/api/datasets/detail": {
       "get": {
-        "description": "读取所选入口原文及规范信息，独立返回推导值和索引过期标记。\n\nArgs:\n    context: 当前账号、服务端UTC时刻及受限导航读取服务。\n    entry_path: 树/列表返回的相对入口路径；先查索引再打开，不接受任意绝对路径。\n\nReturns:\n    200，原始路径与信息原文、规范信息、推导数据块、索引链接/大小和index_stale；\n    子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看；\n    provenance 返回规范入口血缘文件状态；数据来源取信息文件顶层。\n\nRaises:\n    DatasetNotFoundError: 入口不在索引，404。\n    DatasetQueryError: 路径穿越或参数非法，422。\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 须改密，403。\n    InputError: 索引损坏或整体导航预算超限，400。\n    ConflictError: 索引查询锁超时，409。\n    ExternalError: 数据库或导航根整体不可读，502；单文件失败以诊断局部返回。\n    DefectError: 推导或响应字段错误，500。\n\nSide Effects:\n    只读导航普通文件和链接自身；不跟随存储目标，不修改索引，不隐藏坏JSON原文。\n\nTime Semantics:\n    SQL完成后再读文件；L12比较使用内容指纹，不用mtime，漂移时保守标过期。",
+        "description": "读取所选入口原文及规范信息，独立返回推导值和索引过期标记。\n\nArgs:\n    context: 当前账号、服务端UTC时刻及受限导航读取服务。\n    entry_path: 树/列表返回的相对入口路径；先查索引再打开，不接受任意绝对路径。\n\nReturns:\n    200，原始路径与信息原文、规范信息、推导数据块、索引链接/大小和index_stale；\n    子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看；\n    provenance 返回规范入口血缘文件状态；数据来源取信息文件顶层。\n    collection 返回采集索引和当前登记名称，未知编号保留并标 missing。\n\nRaises:\n    DatasetNotFoundError: 入口不在索引，404。\n    DatasetQueryError: 路径穿越或参数非法，422。\n    AuthenticationError: 会话失效，401。\n    PasswordChangeRequiredError: 须改密，403。\n    InputError: 索引损坏或整体导航预算超限，400。\n    ConflictError: 索引查询锁超时，409。\n    ExternalError: 数据库或导航根整体不可读，502；单文件失败以诊断局部返回。\n    DefectError: 推导或响应字段错误，500。\n\nSide Effects:\n    只读导航普通文件和链接自身；不跟随存储目标，不修改索引，不隐藏坏JSON原文。\n\nTime Semantics:\n    SQL完成后再读文件；L12比较使用内容指纹，不用mtime，漂移时保守标过期。",
         "operationId": "get_dataset_detail",
         "parameters": [
           {
@@ -11214,7 +11559,7 @@
     },
     "/api/datasets/filters": {
       "get": {
-        "description": "返回规范信息顶层的五个筛选候选及计数。\n\nArgs:\n    context: 全局安全检查通过的账号上下文与浏览服务。\n\nReturns:\n    200，robot_models、fps、data_origins、scenes、tasks 候选及计数。\n    scene_vocabulary/task_vocabulary 提供编辑器用的受控编码与中文名。\n    型号未标注使用 unlabeled，FPS 未标注使用 unknown；零计数的未标注项仍保留。\n\nRaises:\n    AuthenticationError: 查询阶段会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    InputError: 元信息索引损坏，400。\n    ConflictError: 候选读取竞争，409。\n    ExternalError: 索引数据库失败，502。\n    DefectError: 响应形状非法，500。\n\nSide Effects:\n    只读规范信息索引；不读取meta文件。\n\nTime Semantics:\n    每次请求读取最新已提交索引；无轮询等待。",
+        "description": "返回规范信息顶层的标注与采集筛选候选及计数。\n\nArgs:\n    context: 全局安全检查通过的账号上下文与浏览服务。\n\nReturns:\n    200，robot_models、fps、data_origins、scenes、tasks 和四个 collection_* 候选及计数。\n    scene_vocabulary/task_vocabulary 提供编辑器用的受控编码与中文名。\n    型号未标注使用 unlabeled，FPS 未标注使用 unknown；零计数的未标注项仍保留。\n\nRaises:\n    AuthenticationError: 查询阶段会话失效，401。\n    PasswordChangeRequiredError: 必须改密，403。\n    InputError: 元信息索引损坏，400。\n    ConflictError: 候选读取竞争，409。\n    ExternalError: 索引数据库失败，502。\n    DefectError: 响应形状非法，500。\n\nSide Effects:\n    只读规范信息索引；不读取meta文件。\n\nTime Semantics:\n    每次请求读取最新已提交索引；无轮询等待。",
         "operationId": "get_dataset_filters",
         "responses": {
           "200": {
@@ -12409,6 +12754,77 @@
               ],
               "description": "场景原编码；unlabeled 表示未标注",
               "title": "Scene"
+            }
+          },
+          {
+            "in": "query",
+            "name": "collection_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CollectionStatus"
+                },
+                {
+                  "const": "unlabeled",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Collection Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "collection_method",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(?:[1-9][0-9]*|unlabeled)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Collection Method"
+            }
+          },
+          {
+            "in": "query",
+            "name": "collection_purpose",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(?:[1-9][0-9]*|unlabeled)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Collection Purpose"
+            }
+          },
+          {
+            "in": "query",
+            "name": "collection_robot",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(?:[1-9][0-9]*|unlabeled)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Collection Robot"
             }
           },
           {

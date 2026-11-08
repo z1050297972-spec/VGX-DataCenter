@@ -1,5 +1,5 @@
 // M1-04 页面测试样本：按生成类型手写两个有区别的数据集，不读取真实导航层。
-import type { DatasetFilters, DatasetList } from "../api/datasets";
+import type { DatasetDetail, DatasetFilters, DatasetList } from "../api/datasets";
 import type { components } from "../api/schema";
 import type { SceneArrays } from "../api/sceneTypes";
 import type { FetchImplementation } from "../api/client";
@@ -159,6 +159,10 @@ trees.nodes.push(
   },
 );
 export const filters: DatasetFilters = {
+  collection_statuses: [],
+  collection_methods: [],
+  collection_purposes: [],
+  collection_robots: [],
   robot_models: [
     { value: "franka", label: "franka", count: 1 },
     { value: "g2a", label: "g2a", count: 1 },
@@ -188,7 +192,8 @@ export const filters: DatasetFilters = {
     { code: "tidy", name: "收纳整理" },
   ],
 };
-export const detail: Schema["DatasetDetailResponse"] = {
+export const detail: DatasetDetail = {
+  collection: null,
   provenance: { state: "absent" },
   entry: taskEntry,
   entries: [taskEntry, formatEntry],

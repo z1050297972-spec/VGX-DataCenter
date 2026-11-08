@@ -12,7 +12,7 @@ interface FilterProps {
   /** 修改条件时由布局更新 URL。 */ onChange: (search: DatasetSearch) => void;
 }
 /**
- * 展示导航层信息的五个筛选条件和来源说明。
+ * 展示导航层信息与采集信息筛选条件和来源说明。
  * @param props - 候选、当前筛选与变化回调。
  * @returns 带中文名称和候选计数的筛选栏。
  * @throws 无。
@@ -85,6 +85,27 @@ export function DatasetFilterBar(props: FilterProps): ReactElement {
         </label>
       </Col>
       <ClassificationFilters {...props} />
+      {collectionFilters.map(([key, options, label]) => (
+        <Col key={key} xs={24} sm={12} className="browser-filter-column">
+          <label>
+            {label}
+            <Select<string>
+              aria-label={`筛选${label}`}
+              allowClear
+              virtual={false}
+              className="browser-filter-medium"
+              value={props.search[key] ?? undefined}
+              options={props.options[options].map((item) => ({
+                value: item.value,
+                label: `${item.label}（${String(item.count)}）`,
+              }))}
+              onChange={(value: string | undefined) => {
+                props.onChange({ ...props.search, [key]: value, offset: undefined });
+              }}
+            />
+          </label>
+        </Col>
+      ))}
       <Col span={24}>
         <Typography.Text type="secondary">
           筛选以导航层的数据集信息为准，不读原数据文件。与原文件不一致的地方见一致性面板，正式使用数据集前请核对。
@@ -149,3 +170,11 @@ function ClassificationFilters(props: FilterProps): ReactElement {
     </>
   );
 }
+
+// A/B/C 使用同一筛选栏，沿用场景的单选及跨维度组合语义。
+const collectionFilters = [
+  ["collection_status", "collection_statuses", "采集状态"],
+  ["collection_method", "collection_methods", "采集方式"],
+  ["collection_purpose", "collection_purposes", "用途"],
+  ["collection_robot", "collection_robots", "机器人"],
+] as const;

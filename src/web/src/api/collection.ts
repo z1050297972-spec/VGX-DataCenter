@@ -4,6 +4,13 @@ import { ACCOUNT_TIMEOUT_MS, type AccountCall } from "./accounts";
 import { toFailureView } from "./problems";
 import type { components } from "./schema";
 
+/** 数据集采集状态，取服务端生成枚举。 */
+export type CollectionStatus = components["schemas"]["CollectionStatus"];
+/** 导航采集信息，字段编辑仅提交编号和状态。 */
+export type CollectionValue = components["schemas"]["CollectionInformation"];
+/** 数据集采集详情，含当前登记名称和缺失引用状态。 */
+export type CollectionDetail = components["schemas"]["DatasetCollection"];
+
 /** 历史身份沿用作业提交人的生成模型。 */
 export type HistoricalActor = components["schemas"]["HistoricalActorResponse"];
 /** 登记对象的状态以服务端枚举为准。 */

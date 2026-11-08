@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import PurePosixPath
 
+from rdp.collection.information import CollectionInformation
 from rdp.infra.diagnostics import Diagnostic, DiagnosticGroup
 
 type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[str, JsonValue]
@@ -191,6 +192,7 @@ class EntrySnapshot:
         provenance_state: 来源.json 的三态（M1-07）：不存在、可读、无法读取；与
             provenance_present 并存，后者仍只表示目录项有无。默认 ABSENT，只加不改。
         data_origin: 信息顶层中文来源映射的筛选编码；缺失或非法为 unknown。
+        collection: 有效采集信息；缺失或格式非法为 None。
         scene: 顶层 scene 的场景集合，兼容旧字符串；去空格、去空项、去重保序，不可用为空元组
             （M1.5-03）。不校验是否在词表内，词表外的值照样保留。
         tasks: 顶层 tasks 数组里的非空文本项，去重并保持原顺序；缺失或不是数组为空元组。
@@ -213,3 +215,4 @@ class EntrySnapshot:
     tasks: tuple[str, ...] = ()
     robot_model: str | None = None
     fps: int | None = None
+    collection: CollectionInformation | None = None

@@ -27,7 +27,16 @@ def test_migration_preserves_populated_index_and_expands_origins(
         source,
         historical,
         ignore=shutil.ignore_patterns(
-            "v0011*", "v0012*", "v0013*", "v0014*", "v0015*", "v0016*", "v0017*", "v0018*", "v0019*"
+            "v0011*",
+            "v0012*",
+            "v0013*",
+            "v0014*",
+            "v0015*",
+            "v0016*",
+            "v0017*",
+            "v0018*",
+            "v0019*",
+            "v0020*",
         ),
     )
     with monkeypatch.context() as patch:
@@ -58,7 +67,7 @@ def test_migration_preserves_populated_index_and_expands_origins(
                     str(Path(__file__).parents[1] / "src/rdp/infra/db/migration.py"),
                 )
                 result = migrate(paths, now=NOW)
-                assert result.changed and result.current_revision == "0019_collection_registry"
+                assert result.changed and result.current_revision == "0020_dataset_collection"
                 with session_scope(engine, read_only=True) as session:
                     after = {
                         table: session.execute(

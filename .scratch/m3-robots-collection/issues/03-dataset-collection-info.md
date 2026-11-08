@@ -1,6 +1,6 @@
 # 数据集的采集信息
 
-Status: ready-for-agent
+Status: done
 
 分级：直做。领域决定见 `.scratch/m3-robots-collection/decisions.md`（负责人选"采集任务就是数据集"）。按"只做关键测试"。写导航层，要做副本演练。
 
@@ -55,3 +55,6 @@ Blocked by: 01、02（已合并后从 main 开分支）
 ## Comments
 
 - 2026-11-08 开票（执行线）。
+- 2026-11-08 前后端交回（后端 gpt-6-astra high、前端 medium），执行线 make api-types 后前端续接换成生成类型。make check 全绿：后端 2780 passed、Vitest 396 passed、0 skipped。数据来源带出放在后端预览阶段（来源为空或"未知"时补，同批显式提交优先），前端也带出。
+- 2026-11-08 **副本演练**（`~/.cache/rdp-drill/m3-03/drill.sh` → `run.log`、`run2.log`）：登记机器人 1，给 R1_lite_table_withdrawing_mcap 填采集信息（已完成、主从臂遥操作、训练、机器人 1），预览、确认作业 completed；改动 2 个文件（两个视图），违规 0（只新增 `collection`，来源原本就是真机采集）；四个筛选计数正确，按机器人筛到 1 个；机器人被引用数 1，删除 409；详情返回名称和来源。/mnt/datasets 清单不变，两块盘写入扇区 5776/62904 前后不变，worker.log ERROR 0。
+- 遗留（不阻塞）：选了采集方式后，用户手动把来源改回原来的"未知"，前端草稿去重会省掉这一项，后端照样自动补来源。少见，以后要改就让前端在用户动过来源时显式提交。

@@ -6,6 +6,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from rdp.infra.diagnostics import DefectError
+from rdp.jobs.datasets import _collection_index
 from rdp.jobs.datasets.models import (
     DatasetRow,
     DatasetScanRow,
@@ -16,6 +17,7 @@ from rdp.jobs.datasets.models import (
     ScanRootRow,
     SourceRow,
 )
+from rdp.jobs.datasets.panel import aggregate_findings
 from rdp.jobs.datasets.scan_types import DatasetObservation, IndexReplacement, ScanPublication
 from rdp.jobs.datasets.types import EntrySnapshot, FindingGroup, View
 
@@ -52,8 +54,9 @@ def apply(session: Session, plan: IndexReplacement) -> ScanPublication:
     for path in plan.deleted_entry_paths:
         session.execute(delete(EntryRow).where(EntryRow.path == path))
         session.execute(delete(FindingRow).where(FindingRow.owner_key == "entry:" + path))
-    for observation in plan.accepted:
-        _dataset(session, observation, scan.scan_id)
+    collection_count = sum(
+        _dataset(session, observation, scan.scan_id) for observation in plan.accepted
+    )
     if nav.requested_dataset_id is None:
         _findings(session, "global", nav.global_findings, scan.scan_id, clear=True)
     _findings(session, "global", plan.notices, scan.scan_id, clear=False)
@@ -70,7 +73,7 @@ def apply(session: Session, plan: IndexReplacement) -> ScanPublication:
         entries,
         failed,
         len(plan.skipped),
-        count + storage_count,
+        count + storage_count + collection_count,
         len(plan.skipped) + plan.storage.warning_count,
     )
 
@@ -110,10 +113,10 @@ def _roots(
         )
 
 
-def _dataset(session: Session, item: DatasetObservation, scan_id: int) -> None:
+def _dataset(session: Session, item: DatasetObservation, scan_id: int) -> int:
     """规范副本唯一才取其数据集属性；重复或缺失时保留全部入口供面板处理。"""
     if not item.entries:
-        return
+        return 0
     old_entries = {
         row.path: row
         for row in session.scalars(
@@ -126,6 +129,7 @@ def _dataset(session: Session, item: DatasetObservation, scan_id: int) -> None:
         session.expunge(row)
     canonical = tuple(entry for entry in item.entries if entry.location.view is View.TASK)
     selected = canonical[0] if len(canonical) == 1 else None
+    collection_findings = ()
     if item.dataset_id is not None:
         old = session.get(DatasetRow, item.dataset_id)
         same = selected is not None and _same_links(session, selected, item)
@@ -148,6 +152,7 @@ def _dataset(session: Session, item: DatasetObservation, scan_id: int) -> None:
         )
         session.merge(values)
         session.flush()
+        collection_findings = _collection_index.replace(session, item.dataset_id, selected)
         new_paths = [str(entry.location.path) for entry in item.entries]
         session.execute(
             delete(EntryRow).where(
@@ -162,6 +167,8 @@ def _dataset(session: Session, item: DatasetObservation, scan_id: int) -> None:
         else "entry:" + str(item.entries[0].location.path)
     )
     _findings(session, owner, item.findings, scan_id, clear=True)
+    _findings(session, owner, aggregate_findings(collection_findings), scan_id, clear=False)
+    return len(collection_findings)
 
 
 def _same_links(session: Session, entry: EntrySnapshot, observation: DatasetObservation) -> bool:
