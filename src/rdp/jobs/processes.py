@@ -1,16 +1,20 @@
 """外部进程执行边界（08、规范 6.9）；复用 subprocess/POSIX 进程组，不执行 shell。
 
 stdout/stderr 分别读出线程流式捕获；普通 subprocess.run 无法同时满足实时逐行日志与取消升级，
-因此用 Popen。JSON上报管道协议由M4接转换实现，本模块只处理原始输出和退出码。
+因此用 Popen。M4-02 的伪终端仅替换 stderr 读出，取消、超时与进程组回收共用同一实现。
 worker被SIGKILL时Python finally不会运行，生产依赖第11张systemd KillMode=control-group清理孤儿工具，
 TimeoutStopSec不得小于WORKER_STOP_TIMEOUT_S（30秒）；测试由夹具独立清理。
 """
 
+import fcntl
 import math
 import os
+import pty
 import signal
+import struct
 import subprocess
 import tempfile
+import termios
 import time
 import unicodedata
 from contextlib import ExitStack
@@ -31,6 +35,7 @@ from rdp.infra.diagnostics import (
 from rdp.jobs._clock import ClockReader
 from rdp.jobs._inherited_fds import INHERITED_FDS
 from rdp.jobs._process_io import OutputReader
+from rdp.jobs._terminal_io import TerminalReader
 from rdp.jobs.logs import JobLog
 from rdp.jobs.policy import (
     OUTPUT_JOIN_TIMEOUT_S,
@@ -39,6 +44,7 @@ from rdp.jobs.policy import (
     PROCESS_TERM_GRACE_S,
 )
 from rdp.jobs.progress import ProgressReporter
+from rdp.jobs.terminal.types import TerminalParser
 from rdp.jobs.types import JobClock
 
 
@@ -113,6 +119,62 @@ def run_external_process(
         KILL 后 wait 最多 PROCESS_REAP_TIMEOUT_S、读线程回收最多 OUTPUT_JOIN_TIMEOUT_S。
         直接子进程退出但后代仍持管道时也终止组，不能无限等 EOF；所有期限用 monotonic。
     """
+    return _prepare_run(command, reporter, log, clock, gpu_index).run()
+
+
+def run_terminal_process(  # noqa: PLR0913  # 理由：M4-02指定此六参数公开契约，与普通执行入口一致并增加parser。
+    command: ToolCommand,
+    reporter: ProgressReporter,
+    log: JobLog,
+    clock: JobClock,
+    *,
+    gpu_index: int | None = None,
+    parser: TerminalParser,
+) -> int:
+    """以200列、50行伪终端捕获工具进度，复用普通外部命令的生命周期。
+
+    Args:
+        command: 可信登记代码提供的无秘密命令，绝对程序/工作目录，timeout_s为有限正秒数。
+        reporter: 当前作业的进度、取消和输出线程登记对象。
+        log: 当前作业的线程安全日志，不另外建立输出文件。
+        clock: UTC墙钟和单调秒时钟，应与reporter来自同一作业。
+        gpu_index: 已分配的非负物理卡号；None沿用环境，不改变父进程环境。
+        parser: 本次执行独占的流式解析器；不以解析结果判断成败。
+
+    Returns:
+        正常退出且进程组和读线程回收后的零退出码。
+
+    Raises:
+        JobCancelledError: 取消请求经进程组清理后传播。
+        WorkerStoppingError: worker停止经清理后传播，不落作业终态。
+        ExternalError: 启动、非零退出、超时、读出或资源清理失败；包含stderr文本尾和最后进度。
+            bwrap缺失或启动失败同样报告，不回退到无沙箱执行。
+        DefectError: 命令、GPU编号或时钟不合法。
+
+    Side Effects:
+        stdin接/dev/null，stdout原样逐行记日志；stderr经伪终端解析，仅文本加工具名前缀入日志。
+        每30秒另写一条进度快照；连续30秒无可解析进度只警告一次，之后只报阶段级进度。
+        GPU环境、独立进程组、退出码保存和TERM/KILL/读线程登记清理与run_external_process共用。
+        工具失败的产物保留，伪终端原始重画字节不落日志。
+
+    Time Semantics:
+        进度常规上报间隔至少0.5秒，终端结束强制最后一次；落库仍按reporter一秒预算。
+        执行期限为command.timeout_s；TERM宽限10秒、KILL回收及每轮读线程join各最多2秒。
+        每PROCESS_POLL_INTERVAL_S检查取消，无输出也检查降级期限；所有期限使用单调时钟。
+    """
+    run = _prepare_run(command, reporter, log, clock, gpu_index)
+    run.parser = parser
+    return run.run()
+
+
+def _prepare_run(
+    command: ToolCommand,
+    reporter: ProgressReporter,
+    log: JobLog,
+    clock: JobClock,
+    gpu_index: int | None,
+) -> "_ProcessRun":
+    """两个执行入口共用命令校验与GPU环境设置，不修改进程全局环境。"""
     _validate_command(command)
     environment = None
     if gpu_index is not None:
@@ -123,7 +185,7 @@ def run_external_process(
         environment["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     reader = ClockReader(clock)
     reader.read()
-    return _ProcessRun(command, reporter, log, reader, environment).run()
+    return _ProcessRun(command, reporter, log, reader, environment)
 
 
 class ManagedExternalProcess:
@@ -283,6 +345,8 @@ class _ProcessRun:
         self.process: subprocess.Popen[bytes] | None = None
         self.readers: list[OutputReader] = []
         self.threads: list[Thread] = []
+        self.parser: TerminalParser | None = None
+        self.terminal_stream: BinaryIO | None = None
 
     def run(self) -> int:
         """任何路径都进入有限清理；清理失败优先报告，不能伪称取消已完成。"""
@@ -316,30 +380,31 @@ class _ProcessRun:
                 + self.environment["CUDA_DEVICE_ORDER"],
                 now=self.clock.clock.now(),
             )
-        try:
-            self.process = subprocess.Popen(  # noqa: S603  # 理由：已校验绝对程序路径，登记函数提供argv，禁止shell。
-                self.command.argv,
-                cwd=self.command.cwd,
-                env=self.environment,
-                stdin=self.stdin,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                start_new_session=True,
-                close_fds=True,
-                # 只继承当前作业显式登记的下载协调锁；worker 锁仍不可继承。
-                pass_fds=INHERITED_FDS.get(),
-            )
-        except OSError as error:
-            failure = self._failure("启动外部工具失败")
-            raise failure from error
-        for name, stream in (("stdout", self.process.stdout), ("stderr", self.process.stderr)):
-            if not (stream is not None):
+        with ExitStack() as stack:
+            stderr: int = subprocess.PIPE
+            if self.parser is not None:
+                master, stderr = pty.openpty()
+                stack.callback(os.close, stderr)
+                self.terminal_stream = cast(BinaryIO, os.fdopen(master, "rb", buffering=0))
+                # M4真实样本以此窗口录制；保持宽度使字段不被终端截断。
+                fcntl.ioctl(stderr, termios.TIOCSWINSZ, struct.pack("HHHH", 50, 200, 0, 0))
+            self._spawn(stderr)
+        if self.process is None:
+            raise DefectError()
+        streams = (
+            ("stdout", self.process.stdout),
+            ("stderr", self.terminal_stream if self.parser is not None else self.process.stderr),
+        )
+        for name, stream in streams:
+            if stream is None:
                 raise DefectError()
-            reader = OutputReader(
-                cast(BinaryIO, stream),
-                f"{name} {self.command.tool_name}│",
-                self.log,
-                self.clock.clock,
+            binary = cast(BinaryIO, stream)
+            reader = (
+                TerminalReader(binary, self.command.tool_name, self.log, self.reporter, self.parser)
+                if name == "stderr" and self.parser is not None
+                else OutputReader(
+                    binary, f"{name} {self.command.tool_name}│", self.log, self.clock.clock
+                )
             )
             context = copy_context()
             thread = Thread(target=context.run, args=(reader.run,), daemon=True)
@@ -347,6 +412,24 @@ class _ProcessRun:
             self.readers.append(reader)
             self.threads.append(thread)
             thread.start()
+
+    def _spawn(self, stderr: int) -> None:
+        """只替换终端所需描述符；session、继承边界和GPU设置仍来自同一处。"""
+        try:
+            self.process = subprocess.Popen(  # noqa: S603  # 理由：登记代码提供已校验绝对程序及参数，禁止shell。
+                self.command.argv,
+                cwd=self.command.cwd,
+                env=self.environment,
+                stdin=subprocess.DEVNULL if self.parser is not None else self.stdin,
+                stdout=subprocess.PIPE,
+                stderr=stderr,
+                start_new_session=True,
+                close_fds=True,
+                pass_fds=INHERITED_FDS.get(),
+            )
+        except OSError as error:
+            failure = self._failure(f"启动外部工具失败：{error}")
+            raise failure from error
 
     def _poll(self) -> str | None:
         """无输出也检查取消及补写截止，不能阻塞在readline里。"""
@@ -366,6 +449,7 @@ class _ProcessRun:
     def cleanup(self, *, terminate: bool) -> None:
         """TERM有宽限，KILL后仍有独立回收上限；存活daemon读线程交monitor保留。"""
         process = self.process
+        self._close_idle_terminal()
         if process is None:
             return
         if terminate or process.poll() is None:
@@ -380,6 +464,18 @@ class _ProcessRun:
             failure = self._failure("SIGKILL后进程仍未回收")
             raise failure from error
         self.reporter.tool_exit(process.returncode)
+        self._join_output()
+
+    def _close_idle_terminal(self) -> None:
+        """启动失败时也回收尚未交给读线程的主端；不关闭存活线程正在读取的流。"""
+        if self.terminal_stream is not None and not any(
+            reader.stream is self.terminal_stream and thread.is_alive()
+            for reader, thread in zip(self.readers, self.threads, strict=True)
+        ):
+            self.terminal_stream.close()
+
+    def _join_output(self) -> None:
+        """终止仍持有输出描述符的后代并有界排空两个输出流。"""
         # 父工具退出不代表后代关闭了管道；先结束剩余组再等EOF，不能无限读。
         if any(thread.is_alive() for thread in self.threads):
             self._signal(signal.SIGTERM)

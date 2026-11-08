@@ -54,7 +54,10 @@ def test_find_job_detached_snapshot(tmp_path: Path) -> None:
         assert record.submitted_by == ActorRef(7, "历史提交人")
         assert record.submitted_at == record.started_at == record.progress_at == NOW
         assert record.ended_at is record.summary is record.resubmitted_from is None
-        assert record.progress is not None and record.progress.model_dump() == PROGRESS
+        # M4-02：历史JSON未存parts时仍可读，默认投影为空元组。
+        assert record.progress is not None and record.progress.model_dump() == PROGRESS | {
+            "parts": ()
+        }
         assert record.parameters == {"steps": 4, "interval_ms": 0}
         assert record.artifacts == ("产物/样例",)
         assert (record.elapsed_s, record.tool_exit_code, record.diagnostics) == (2.5, 0, ())

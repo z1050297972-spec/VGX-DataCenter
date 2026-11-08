@@ -5406,12 +5406,18 @@ export interface components {
          *         warning_count: 作业累计警告条数，非负；和失败条目数独立。
          *         failed_items: 作业累计失败条目数，非负且不大于 total_items。
          *         total_items: 作业累计已处理条目数，非负；示例每步为一个条目。
+         *         parts: 按工具显示顺序排列的分项，最多16项；旧记录或无分项时为空元组。
          */
         JobProgress: {
             /** Done */
             done: number;
             /** Failed Items */
             failed_items: number;
+            /**
+             * Parts
+             * @default []
+             */
+            parts: components["schemas"]["ProgressPart"][];
             /** Stage Count */
             stage_count: number;
             /** Stage Index */
@@ -6202,6 +6208,27 @@ export interface components {
              * @constant
              */
             type: "about:blank";
+        };
+        /**
+         * ProgressPart
+         * @description 工具一个特征的独立完成计数（M4-02），不参与作业条目成败计算。
+         *
+         *     Attributes:
+         *         model_config: 不可变且禁止额外字段，不回显非法值。
+         *         name: 分项名，1-40 码点且非空白。
+         *         done: 已完成数，严格非负整数，单位见 unit。
+         *         total: 总数，不小于 done；未知为 None。
+         *         unit: 非空白计数单位。
+         */
+        ProgressPart: {
+            /** Done */
+            done: number;
+            /** Name */
+            name: string;
+            /** Total */
+            total: number | null;
+            /** Unit */
+            unit: string;
         };
         /**
          * ProvenanceState
