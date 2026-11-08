@@ -2609,48 +2609,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/navigation/backfill/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Preview Information Backfill
-         * @description 管理员提交覆盖全部数据集的只读回填预览作业。
-         *
-         *     Args:
-         *         context: 服务端认证身份、请求唯一 UTC 时刻和作业服务。
-         *         body: 空对象；不接受路径、数据集范围或执行计划。
-         *
-         *     Returns:
-         *         HTTP 201，queued 作业记录，job_id 是十进制文本。
-         *
-         *     Raises:
-         *         AuthenticationError: 未登录或会话失效，401。
-         *         AuthorizationError: 非管理员或 Origin 非本站，403。
-         *         PasswordChangeRequiredError: 账号必须改密，403。
-         *         JobInputError: 参数或类型非法，422。
-         *         ConflictError: 提交数据库事务竞争，409。
-         *         ExternalError: 数据库或作业依赖不可用，502。
-         *         DefectError: 依赖装配或响应映射错误，500。
-         *
-         *     Side Effects:
-         *         原子新增作业和操作日志；不读取导航，不执行迁移。
-         *
-         *     Time Semantics:
-         *         沿用请求唯一时刻，提交后立即返回；worker 完成预览后再由用户确认写入。
-         */
-        post: operations["preview_information_backfill"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/navigation/classification/remove/preview": {
         parameters: {
             query?: never;
@@ -3255,14 +3213,6 @@ export interface components {
             /** Status */
             status?: ("enabled" | "disabled") | null;
         };
-        /**
-         * BackfillParameters
-         * @description 全量回填无业务参数，拒绝客户端传入计划、路径或身份。
-         *
-         *     Attributes:
-         *         model_config: 冻结、禁止额外字段且不回显输入。
-         */
-        BackfillParameters: Record<string, never>;
         /**
          * Capacity
          * @description 本次只读容量观察，所有大小单位均为字节。
@@ -13471,120 +13421,6 @@ export interface operations {
                 };
             };
             /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Too Many Requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Bad Gateway */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-        };
-    };
-    preview_information_backfill: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BackfillParameters"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Request Entity Too Large */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Validation Error */
             422: {
                 headers: {
                     [name: string]: unknown;

@@ -1,6 +1,6 @@
 # 去掉"回填数据集信息"功能
 
-Status: in-progress
+Status: ready-for-review
 
 分级：直做。负责人已当面决定（见下）。只删功能，不新增领域对象。按"只做关键测试"。
 
@@ -33,3 +33,4 @@ Status: in-progress
 ## Comments
 
 - 2026-11-08 开票（执行线；负责人点名）。ADR 0006 已追加修订节。
+- 2026-11-08 前后端交回；执行线用工作树代码重新生成接口类型（PYTHONPATH）。make check 全绿：后端 2751 passed、Vitest 377 passed、0 skipped。迁移文件和 _info_compare.py 未改动。合并待负责人。

@@ -12,7 +12,6 @@ import { LayoutA } from "./LayoutA";
 import { LayoutB } from "./LayoutB";
 import { LayoutC } from "./LayoutC";
 import type { DatasetLayout } from "../api/datasets";
-import { InformationBackfillEntry } from "./InformationBackfill";
 import { ClassificationManagementEntry } from "./ClassificationManagement";
 import { CreateDatasetEntry } from "./CreationEntries";
 import "./browser.css";
@@ -85,7 +84,6 @@ function BrowserContent(): ReactElement {
               ]}
             />
           )}
-          <InformationBackfillEntry />
           <ClassificationManagementEntry />
           <CreateDatasetEntry />
         </Flex>

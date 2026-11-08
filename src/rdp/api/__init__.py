@@ -25,7 +25,6 @@ from rdp.api._body_limit import RequestBodyLimit, install_body_limit
 from rdp.api.account_auth import install_account_security
 from rdp.api.accounts import router as accounts_router
 from rdp.api.audit import router as audit_router
-from rdp.api.backfill import router as backfill_router
 from rdp.api.classification import router as classification_router
 from rdp.api.database import configure_database
 from rdp.api.datasets import router as datasets_router
@@ -145,7 +144,6 @@ def _unknown_api() -> Response:
 def _install_job_and_monitoring_routes(app: FastAPI) -> None:
     """一次登记作业、下载凭据和监控入口；只装配路由，不执行采样。"""
     app.include_router(jobs_router)
-    app.include_router(backfill_router)
     app.include_router(classification_router)
     app.include_router(download_ingest_router)
     app.include_router(download_tokens_router)
