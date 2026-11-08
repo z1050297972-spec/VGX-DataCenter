@@ -49,6 +49,7 @@ const CreateDatasetPage = lazyRouteComponent(
   "CreateDatasetPage",
 );
 const StorageRootsPage = lazyRouteComponent(() => import("./storage/Pages"), "StorageRootsPage");
+const ToolsPage = lazyRouteComponent(() => import("./tools/Pages"), "ToolsPage");
 const NavigationRecoveryPage = lazyRouteComponent(
   () => import("./navigation/Pages"),
   "NavigationRecoveryPage",
@@ -177,6 +178,11 @@ export function createAppRouter(options: AppRouterOptions) {
     path: "/storage-roots",
     component: StorageRootsPage,
   });
+  const tools = createRoute({
+    getParentRoute: () => root,
+    path: "/tools",
+    component: ToolsPage,
+  });
   const navigationRecovery = createRoute({
     getParentRoute: () => root,
     path: "/navigation/recovery",
@@ -214,6 +220,7 @@ export function createAppRouter(options: AppRouterOptions) {
       jobDetail,
       scheduling,
       storageRoots,
+      tools,
       datasets,
       createLink,
       createDataset,

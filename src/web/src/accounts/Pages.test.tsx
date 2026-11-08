@@ -771,6 +771,7 @@ it.each(["administrator", "member"] as const)(
       "调度",
       "数据集",
       "存储根",
+      "工具库",
       ...(role === "administrator" ? ["账号管理", "操作日志", "登录日志"] : []),
     ]);
     expect(screen.getByRole("button", { name: "登出" })).toBeTruthy();
@@ -811,6 +812,7 @@ it("验证验收14：强制改密码成功后恢复完整菜单，点击改密�
     "调度",
     "数据集",
     "存储根",
+    "工具库",
     "账号管理",
     "操作日志",
     "登录日志",

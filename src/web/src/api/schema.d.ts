@@ -2946,6 +2946,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tools
+         * @description 向登录成员返回全部工具的登记摘要和状态。
+         *
+         *     Args:
+         *         registry: 认证后读取的工具快照，包含清单无效的条目。
+         *
+         *     Returns:
+         *         按工具名排序的列表，含程序路径、登记指纹前 12 位及五段诊断。
+         *
+         *     Raises:
+         *         ExternalError: 登记根目录不可读取，经统一边界返回 502。
+         *
+         *     Side Effects:
+         *         无；依赖只读登记包和工具程序，不执行命令或写操作日志。
+         *
+         *     Time Semantics:
+         *         返回本次请求快照；文件身份未变时复用进程内指纹，不缓存清单。
+         */
+        get: operations["list_tools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tools/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Tool
+         * @description 返回指定登记工具的配置全文及命令模板。
+         *
+         *     Args:
+         *         name: 登记包目录名，只在快照中匹配，不拼接为文件路径。
+         *         registry: 认证后读取的快照，配置全文和配置哈希来自同一份字节。
+         *
+         *     Returns:
+         *         摘要、配置快照、命令模板和源码说明；清单无效时详情字段为空并保留诊断。
+         *
+         *     Raises:
+         *         _ToolNotFoundError: name 不存在，映射为 404，诊断包含请求的工具名。
+         *         ExternalError: 登记根目录读取失败，统一返回 502。
+         *
+         *     Side Effects:
+         *         无；不读取源码仓库，不执行 --version，不修改工具或配置。
+         *
+         *     Time Semantics:
+         *         详情沿用本次请求的登记快照；不自动重试，不解释源码提交时间。
+         */
+        get: operations["get_tool"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/version": {
         parameters: {
             query?: never;
@@ -5835,6 +5907,138 @@ export interface components {
         TokenState: {
             /** Configured */
             configured: boolean;
+        };
+        /**
+         * ToolCommands
+         * @description 不经过 shell 的参数模板，不包含程序路径本身。
+         *
+         *     Attributes:
+         *         verify: 预检参数元组，须含 config 和 inputs 占位符。
+         *         convert: 转换参数元组，config、output、format、inputs 各出现一次，禁用 --force。
+         */
+        ToolCommands: {
+            /** Convert */
+            convert: string[];
+            /** Verify */
+            verify: string[];
+        };
+        /**
+         * ToolConfiguration
+         * @description 登记包内一份型号配置的读取快照。
+         *
+         *     Attributes:
+         *         robot_model: 数据集使用的型号字符串。
+         *         filename: 相对登记包的配置路径。
+         *         content: 完整 UTF-8 配置文本，保留换行。
+         *         sha256: 配置原始字节的完整 SHA-256，64 位小写十六进制。
+         */
+        ToolConfiguration: {
+            /** Content */
+            content: string;
+            /** Filename */
+            filename: string;
+            /** Robot Model */
+            robot_model: string;
+            /** Sha256 */
+            sha256: string;
+        };
+        /**
+         * ToolDetailResponse
+         * @description 列表摘要之外的登记详情，不读取工具源码或工具目录的配置。
+         *
+         *     Attributes:
+         *         configurations: 每个型号的文件名、配置全文与完整 SHA-256；清单无效时为空。
+         *         command: 两条命令模板；清单无效时为 None。
+         *         source_commit: 登记时的提交说明；未填写或清单无效时为 None。
+         *         source_note: 登记时源码状态说明；未填写或清单无效时为 None。
+         */
+        ToolDetailResponse: {
+            command: components["schemas"]["ToolCommands"] | null;
+            /** Configurations */
+            configurations: components["schemas"]["ToolConfiguration"][];
+            /** Diagnostics */
+            diagnostics: components["schemas"]["Diagnostic"][];
+            /** Input Format */
+            input_format: string | null;
+            /** Name */
+            name: string;
+            /** Needs Gpu */
+            needs_gpu: boolean | null;
+            /** Output Format */
+            output_format: string | null;
+            /** Output Versions */
+            output_versions: string[];
+            /** Program Path */
+            program_path: string | null;
+            /** Robot Models */
+            robot_models: string[];
+            /** Sha256 Prefix */
+            sha256_prefix: string | null;
+            /** Source Commit */
+            source_commit: string | null;
+            /** Source Note */
+            source_note: string | null;
+            status: components["schemas"]["ToolStatus"];
+            /** Summary */
+            summary: string | null;
+            /** Version */
+            version: string | null;
+        };
+        /**
+         * ToolListResponse
+         * @description 当前工具登记列表。
+         *
+         *     Attributes:
+         *         items: 按工具名排序，空登记目录返回空元组，不过滤无效清单。
+         */
+        ToolListResponse: {
+            /** Items */
+            items: components["schemas"]["ToolSummaryResponse"][];
+        };
+        /** @enum {string} */
+        ToolStatus: "可用" | "程序找不到" | "指纹不符" | "清单无效";
+        /**
+         * ToolSummaryResponse
+         * @description 工具列表中的一条状态。
+         *
+         *     Attributes:
+         *         name: 登记包目录名。
+         *         version: 程序版本；清单无效时为 None。
+         *         summary: 工具用途；清单无效时为 None。
+         *         input_format: 输入格式；清单无效时为 None。
+         *         output_format: 输出格式；清单无效时为 None。
+         *         output_versions: 按清单顺序的输出版本；清单无效时为空。
+         *         robot_models: 按清单顺序的适用型号字符串；清单无效时为空。
+         *         needs_gpu: 是否必须分配 GPU；清单无效时为 None。
+         *         status: 四种工具状态之一。
+         *         diagnostics: 统一五段诊断，可用时为空。
+         *         program_path: 已核对边界的程序绝对路径；清单无效时为 None。
+         *         sha256_prefix: 登记的程序 SHA-256 前 12 位；清单无效时为 None。
+         */
+        ToolSummaryResponse: {
+            /** Diagnostics */
+            diagnostics: components["schemas"]["Diagnostic"][];
+            /** Input Format */
+            input_format: string | null;
+            /** Name */
+            name: string;
+            /** Needs Gpu */
+            needs_gpu: boolean | null;
+            /** Output Format */
+            output_format: string | null;
+            /** Output Versions */
+            output_versions: string[];
+            /** Program Path */
+            program_path: string | null;
+            /** Robot Models */
+            robot_models: string[];
+            /** Sha256 Prefix */
+            sha256_prefix: string | null;
+            status: components["schemas"]["ToolStatus"];
+            /** Summary */
+            summary: string | null;
+            /** Version */
+            version: string | null;
         };
         /**
          * TreeSize
@@ -14317,6 +14521,228 @@ export interface operations {
                 };
             };
             /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    list_tools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_tool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
             422: {
                 headers: {
                     [name: string]: unknown;

@@ -579,6 +579,7 @@ export function AccountMenu(): ReactElement {
             <Link to="/scheduling">调度</Link>
             <Link to="/datasets">数据集</Link>
             <Link to="/storage-roots">存储根</Link>
+            <Link to="/tools">工具库</Link>
             {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
             {identity.data.role === "administrator" && (
               <>
