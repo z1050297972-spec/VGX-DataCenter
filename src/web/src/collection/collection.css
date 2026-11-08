@@ -1,0 +1,4 @@
+/* 停用记录保留在列表中，用主题灰色区别；状态标签仍明确写出停用。 */
+.collection-retired {
+  color: var(--rdp-muted);
+}

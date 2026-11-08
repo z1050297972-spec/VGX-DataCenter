@@ -62,6 +62,9 @@ def historical_audit_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
             "schedule_submissions",
             "worker_gpu_checks",
             "nav_recovery_failure",
+            "robots",
+            "collection_methods",
+            "collection_purposes",
         }
         and not name.startswith("dataset")
     }

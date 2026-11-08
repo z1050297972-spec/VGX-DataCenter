@@ -493,6 +493,15 @@
         "title": "ClassificationRemoveParameters",
         "type": "object"
       },
+      "CollectionOrigin": {
+        "enum": [
+          "真机采集",
+          "UMI 采集",
+          "ego 采集",
+          "仿真生成"
+        ],
+        "type": "string"
+      },
       "ConfirmCreationRequest": {
         "additionalProperties": false,
         "description": "用户确认保存的预览，不能夹带替换参数或计划。\n\nAttributes:\n    preview_job_id: 成功的创建预览编号，规范十进制文本，数值不超过 MAX_SQLITE_INTEGER。\n    acknowledged_queue_job_ids: 已在页面看到并确认的排队作业编号，去重；默认空。\n        新出现未确认的排队编号会再次返回提醒，不能以通配布尔值绕过。",
@@ -4028,6 +4037,76 @@
         "title": "LoginResult",
         "type": "string"
       },
+      "MethodInput": {
+        "additionalProperties": false,
+        "description": "采集方式必须明确选择平台自产数据的四种来源之一。",
+        "properties": {
+          "data_origin": {
+            "$ref": "#/components/schemas/CollectionOrigin"
+          },
+          "name": {
+            "$ref": "#/components/schemas/ShortName"
+          }
+        },
+        "required": [
+          "name",
+          "data_origin"
+        ],
+        "title": "MethodInput",
+        "type": "object"
+      },
+      "MethodResponse": {
+        "additionalProperties": false,
+        "description": "采集方式响应，包含对应数据来源。",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/HistoricalActorResponse"
+          },
+          "data_origin": {
+            "$ref": "#/components/schemas/CollectionOrigin"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "$ref": "#/components/schemas/ShortName"
+          },
+          "reference_count": {
+            "title": "Reference Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RegistryStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "$ref": "#/components/schemas/HistoricalActorResponse"
+          }
+        },
+        "required": [
+          "status",
+          "reference_count",
+          "created_by",
+          "created_at",
+          "updated_by",
+          "updated_at",
+          "name",
+          "data_origin",
+          "id"
+        ],
+        "title": "MethodResponse",
+        "type": "object"
+      },
       "MirrorCheckResponse": {
         "description": "手动检查请求已被记录。\n\nAttributes:\n    accepted: 标记已写入的请求，并不代表检查已完成。",
         "properties": {
@@ -4125,6 +4204,28 @@
         ],
         "title": "MismatchItemResponse",
         "type": "object"
+      },
+      "ModelOptionsResponse": {
+        "description": "登记型号与数据集索引型号合并、去重、排序后的候选。",
+        "properties": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ModelOptionsResponse",
+        "type": "object"
+      },
+      "Name": {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
       },
       "NavOperation": {
         "description": "写导航层的操作种类，是预览、变更记录和操作日志共用的稳定码。\n\nAttributes:\n    CREATE_LINK: create_link，建链（M1-08，L1-L4）。\n    CREATE_DATASET: create_dataset，新增数据集（M1-08，L5、L6）。\n    REPOINT_DATASET: repoint_dataset，改指向（M1-09，L17-L19）。\n    EDIT_DATASET_FIELDS: edit_dataset_fields，编辑导航层字段（M1.5-02）。\n    SET_DATA_ORIGIN: set_data_origin，历史来源标注变更；仅为读取历史变更保留。\n    REVERT_CHANGE: revert_change，历史撤回操作码，仅为解析已有日志和变更记录保留。",
@@ -4290,7 +4391,7 @@
       },
       "ObjectResponse": {
         "additionalProperties": false,
-        "description": "对象的历史名字，保留给未来撤回功能定位。\n\nAttributes:\n    kind: account/audit_settings/job/dataset_index/navigation_write，必填；job 不表示账号。\n    object_id: 账号/作业编号十进制文本或设置键 retention、索引键 all；失败新建尚无编号时 None。\n    name: 当时显示名、固定设置名或“作业显示名 #编号”，1-64 码点，必填。\n    deleted: 账号编号已不存在为 True；设置、作业或未分配编号为 False。",
+        "description": "对象的历史名字，保留给未来撤回功能定位。\n\nAttributes:\n    kind: account/audit_settings/job/dataset_index/navigation_write/robot/collection_method/collection_purpose，必填；job 不表示账号。\n    object_id: 账号/作业编号十进制文本或设置键 retention、索引键 all；失败新建尚无编号时 None。\n    name: 当时显示名、固定设置名或“作业显示名 #编号”，1-64 码点，必填。\n    deleted: 账号编号已不存在为 True；设置、作业或未分配编号为 False。",
         "properties": {
           "deleted": {
             "title": "Deleted",
@@ -4302,7 +4403,10 @@
               "audit_settings",
               "job",
               "dataset_index",
-              "navigation_write"
+              "navigation_write",
+              "robot",
+              "collection_method",
+              "collection_purpose"
             ],
             "title": "Kind",
             "type": "string"
@@ -4496,6 +4600,16 @@
       "OperationType": {
         "description": "稳定的操作码；新增操作用新增枚举值，不改历史值（第 8 张可增加作业操作）。",
         "enum": [
+          "create_robot",
+          "update_robot",
+          "retire_robot",
+          "restore_robot",
+          "delete_robot",
+          "create_collection_term",
+          "update_collection_term",
+          "retire_collection_term",
+          "restore_collection_term",
+          "delete_collection_term",
           "create_account",
           "set_role",
           "disable_account",
@@ -4875,6 +4989,68 @@
         "title": "ProvenanceState",
         "type": "string"
       },
+      "PurposeInput": {
+        "additionalProperties": false,
+        "description": "用途名称，去首尾空白后 1 至 32 字符。",
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/ShortName"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PurposeInput",
+        "type": "object"
+      },
+      "PurposeResponse": {
+        "additionalProperties": false,
+        "description": "用途响应，不含 data_origin。",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/HistoricalActorResponse"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "$ref": "#/components/schemas/ShortName"
+          },
+          "reference_count": {
+            "title": "Reference Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RegistryStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "$ref": "#/components/schemas/HistoricalActorResponse"
+          }
+        },
+        "required": [
+          "status",
+          "reference_count",
+          "created_by",
+          "created_at",
+          "updated_by",
+          "updated_at",
+          "name",
+          "id"
+        ],
+        "title": "PurposeResponse",
+        "type": "object"
+      },
       "QueuedNavigationJob": {
         "additionalProperties": false,
         "description": "提交前发现的同数据集排队写作业；不把预览作业算进写冲突提醒。\n\nAttributes:\n    job_id: 规范十进制作业编号文本，禁止前端转 Number。\n    dataset_ids: 与本次预览重叠的永久编号，去重升序。",
@@ -4975,6 +5151,13 @@
           "interrupt"
         ],
         "title": "RecoveryMode",
+        "type": "string"
+      },
+      "RegistryStatus": {
+        "enum": [
+          "active",
+          "retired"
+        ],
         "type": "string"
       },
       "RepointParameters": {
@@ -5152,6 +5335,224 @@
         "title": "RetentionPayload",
         "type": "object"
       },
+      "RobotInput": {
+        "additionalProperties": false,
+        "description": "完整机器人登记值；PUT 替换全部可编辑字段，不接受状态或操作者。",
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 253,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "macs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RobotMac"
+            },
+            "maxItems": 8,
+            "title": "Macs",
+            "type": "array"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Name"
+          },
+          "robot_model": {
+            "$ref": "#/components/schemas/Name"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Name"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ssh_port": {
+            "default": 22,
+            "maximum": 65535.0,
+            "minimum": 1.0,
+            "title": "Ssh Port",
+            "type": "integer"
+          },
+          "ssh_user": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "pattern": "^\\S+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ssh User"
+          }
+        },
+        "required": [
+          "name",
+          "robot_model"
+        ],
+        "title": "RobotInput",
+        "type": "object"
+      },
+      "RobotMac": {
+        "additionalProperties": false,
+        "description": "单块网卡；接口名可空，MAC 保存规范形式。",
+        "properties": {
+          "interface": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShortName"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mac": {
+            "title": "Mac",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mac"
+        ],
+        "title": "RobotMac",
+        "type": "object"
+      },
+      "RobotResponse": {
+        "additionalProperties": false,
+        "description": "机器人完整登记响应，robot_id 是工单约定的整数。",
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 253,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/HistoricalActorResponse"
+          },
+          "macs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RobotMac"
+            },
+            "maxItems": 8,
+            "title": "Macs",
+            "type": "array"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Name"
+          },
+          "reference_count": {
+            "title": "Reference Count",
+            "type": "integer"
+          },
+          "robot_id": {
+            "title": "Robot Id",
+            "type": "integer"
+          },
+          "robot_model": {
+            "$ref": "#/components/schemas/Name"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Name"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ssh_port": {
+            "default": 22,
+            "maximum": 65535.0,
+            "minimum": 1.0,
+            "title": "Ssh Port",
+            "type": "integer"
+          },
+          "ssh_user": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "pattern": "^\\S+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ssh User"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RegistryStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "$ref": "#/components/schemas/HistoricalActorResponse"
+          }
+        },
+        "required": [
+          "status",
+          "reference_count",
+          "created_by",
+          "created_at",
+          "updated_by",
+          "updated_at",
+          "name",
+          "robot_model",
+          "robot_id"
+        ],
+        "title": "RobotResponse",
+        "type": "object"
+      },
+      "RobotsResponse": {
+        "description": "机器人按编号升序排列，包含停用项。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RobotResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "RobotsResponse",
+        "type": "object"
+      },
       "Role": {
         "description": "仅有管理员和成员两种角色。\n\nAttributes:\n    ADMINISTRATOR: 管理员，固定 administrator，无单位、不可空、无默认选择。\n    MEMBER: 成员，固定 member，无单位、不可空、无默认选择。",
         "enum": [
@@ -5316,6 +5717,11 @@
         ],
         "title": "SchedulingResponse",
         "type": "object"
+      },
+      "ShortName": {
+        "maxLength": 32,
+        "minLength": 1,
+        "type": "string"
       },
       "SourceAddition": {
         "additionalProperties": false,
@@ -5812,6 +6218,31 @@
         ],
         "title": "View",
         "type": "string"
+      },
+      "VocabularyResponse": {
+        "description": "两个词表独立按编号升序排列，包含停用项。",
+        "properties": {
+          "methods": {
+            "items": {
+              "$ref": "#/components/schemas/MethodResponse"
+            },
+            "title": "Methods",
+            "type": "array"
+          },
+          "purposes": {
+            "items": {
+              "$ref": "#/components/schemas/PurposeResponse"
+            },
+            "title": "Purposes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "methods",
+          "purposes"
+        ],
+        "title": "VocabularyResponse",
+        "type": "object"
       },
       "VocabularyTerm": {
         "additionalProperties": false,
@@ -8255,6 +8686,1529 @@
         "summary": "Change Own Password",
         "tags": [
           "账号与会话"
+        ]
+      }
+    },
+    "/api/collection-vocabulary": {
+      "get": {
+        "description": "返回采集方式和用途两个完整词表。\n\nArgs:\n    session: 请求只读事务，不升级为写会话。\n    context: 已认证成员或管理员，强制改密已完成。\n\nReturns:\n    methods 和 purposes 分别按 id 升序，包含停用项及历史身份。\n\nRaises:\n    ExternalError: 词表读取失败，502。\n    InputError: 词表历史数据损坏，400。\n\nSide Effects:\n    无；读取两个词表及账号存在性，不补写初始值。\n\nTime Semantics:\n    两个词表共用一个请求快照，结束读事务后发送响应。",
+        "operationId": "collection_vocabulary_api_collection_vocabulary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VocabularyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Collection Vocabulary",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/collection-vocabulary/methods": {
+      "post": {
+        "description": "创建采集方式并记录操作日志。\n\nArgs:\n    body: 采集方式完整可编辑字段，按工单校验并规范化。\n    session: 创建采集方式使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    201，创建后的采集方式及历史身份快照。\n\nRaises:\n    ConflictError: 采集方式唯一字段已占用，409。\n    RequestValidationError: 采集方式输入字段不合法，422。\n    AuthenticationError: 创建前会话或账号失效，401。\n    ExternalError: 创建采集方式的数据库写入失败，502。\n\nSide Effects:\n    创建采集方式与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再创建，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送201，不执行外部机器人通信。",
+        "operationId": "create_collection_method_api_collection_vocabulary_methods_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MethodInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MethodResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Create Collection Method",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/collection-vocabulary/methods/{id}": {
+      "delete": {
+        "description": "删除采集方式并记录操作日志。\n\nArgs:\n    id: 采集方式永久编号，1至2^63-1。\n    session: 删除采集方式使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    204，无响应体。\n\nRaises:\n    CollectionNotFoundError: 采集方式编号不存在，404。\n    ConflictError: 采集方式仍有数据集引用，409，提示改用停用。\n    AuthenticationError: 删除前会话或账号失效，401。\n    ExternalError: 删除采集方式的数据库写入失败，502。\n\nSide Effects:\n    删除采集方式与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再删除，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送204，不执行外部机器人通信。",
+        "operationId": "delete_collection_method_api_collection_vocabulary_methods__id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Delete Collection Method",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      },
+      "put": {
+        "description": "修改采集方式并记录操作日志。\n\nArgs:\n    id: 采集方式永久编号，1至2^63-1。\n    body: 采集方式完整可编辑字段，按工单校验并规范化。\n    session: 修改采集方式使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    200，修改后的采集方式及历史身份快照。\n\nRaises:\n    CollectionNotFoundError: 采集方式编号不存在，404。\n    ConflictError: 采集方式唯一字段已占用，409。\n    RequestValidationError: 采集方式输入字段不合法，422。\n    AuthenticationError: 修改前会话或账号失效，401。\n    ExternalError: 修改采集方式的数据库写入失败，502。\n\nSide Effects:\n    修改采集方式与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再修改，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送200，不执行外部机器人通信。",
+        "operationId": "update_collection_method_api_collection_vocabulary_methods__id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MethodInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MethodResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Update Collection Method",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/collection-vocabulary/methods/{id}/restore": {
+      "post": {
+        "description": "恢复采集方式并记录操作日志。\n\nArgs:\n    id: 采集方式永久编号，1至2^63-1。\n    session: 恢复采集方式使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    200，恢复后的采集方式及历史身份快照。\n\nRaises:\n    CollectionNotFoundError: 采集方式编号不存在，404。\n    AuthenticationError: 恢复前会话或账号失效，401。\n    ExternalError: 恢复采集方式的数据库写入失败，502。\n\nSide Effects:\n    恢复采集方式与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再恢复，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送200，不执行外部机器人通信。",
+        "operationId": "restore_collection_method_api_collection_vocabulary_methods__id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MethodResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Restore Collection Method",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/collection-vocabulary/methods/{id}/retire": {
+      "post": {
+        "description": "停用采集方式并记录操作日志。\n\nArgs:\n    id: 采集方式永久编号，1至2^63-1。\n    session: 停用采集方式使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    200，停用后的采集方式及历史身份快照。\n\nRaises:\n    CollectionNotFoundError: 采集方式编号不存在，404。\n    AuthenticationError: 停用前会话或账号失效，401。\n    ExternalError: 停用采集方式的数据库写入失败，502。\n\nSide Effects:\n    停用采集方式与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再停用，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送200，不执行外部机器人通信。",
+        "operationId": "retire_collection_method_api_collection_vocabulary_methods__id__retire_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MethodResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Retire Collection Method",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/collection-vocabulary/purposes": {
+      "post": {
+        "description": "创建用途并记录操作日志。\n\nArgs:\n    body: 用途完整可编辑字段，按工单校验并规范化。\n    session: 创建用途使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    201，创建后的用途及历史身份快照。\n\nRaises:\n    ConflictError: 用途唯一字段已占用，409。\n    RequestValidationError: 用途输入字段不合法，422。\n    AuthenticationError: 创建前会话或账号失效，401。\n    ExternalError: 创建用途的数据库写入失败，502。\n\nSide Effects:\n    创建用途与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再创建，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送201，不执行外部机器人通信。",
+        "operationId": "create_collection_purpose_api_collection_vocabulary_purposes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurposeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurposeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Create Collection Purpose",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/collection-vocabulary/purposes/{id}": {
+      "delete": {
+        "description": "删除用途并记录操作日志。\n\nArgs:\n    id: 用途永久编号，1至2^63-1。\n    session: 删除用途使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    204，无响应体。\n\nRaises:\n    CollectionNotFoundError: 用途编号不存在，404。\n    ConflictError: 用途仍有数据集引用，409，提示改用停用。\n    AuthenticationError: 删除前会话或账号失效，401。\n    ExternalError: 删除用途的数据库写入失败，502。\n\nSide Effects:\n    删除用途与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再删除，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送204，不执行外部机器人通信。",
+        "operationId": "delete_collection_purpose_api_collection_vocabulary_purposes__id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Delete Collection Purpose",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      },
+      "put": {
+        "description": "修改用途并记录操作日志。\n\nArgs:\n    id: 用途永久编号，1至2^63-1。\n    body: 用途完整可编辑字段，按工单校验并规范化。\n    session: 修改用途使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    200，修改后的用途及历史身份快照。\n\nRaises:\n    CollectionNotFoundError: 用途编号不存在，404。\n    ConflictError: 用途唯一字段已占用，409。\n    RequestValidationError: 用途输入字段不合法，422。\n    AuthenticationError: 修改前会话或账号失效，401。\n    ExternalError: 修改用途的数据库写入失败，502。\n\nSide Effects:\n    修改用途与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再修改，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送200，不执行外部机器人通信。",
+        "operationId": "update_collection_purpose_api_collection_vocabulary_purposes__id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurposeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurposeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Update Collection Purpose",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/collection-vocabulary/purposes/{id}/restore": {
+      "post": {
+        "description": "恢复用途并记录操作日志。\n\nArgs:\n    id: 用途永久编号，1至2^63-1。\n    session: 恢复用途使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    200，恢复后的用途及历史身份快照。\n\nRaises:\n    CollectionNotFoundError: 用途编号不存在，404。\n    AuthenticationError: 恢复前会话或账号失效，401。\n    ExternalError: 恢复用途的数据库写入失败，502。\n\nSide Effects:\n    恢复用途与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再恢复，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送200，不执行外部机器人通信。",
+        "operationId": "restore_collection_purpose_api_collection_vocabulary_purposes__id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurposeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Restore Collection Purpose",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/collection-vocabulary/purposes/{id}/retire": {
+      "post": {
+        "description": "停用用途并记录操作日志。\n\nArgs:\n    id: 用途永久编号，1至2^63-1。\n    session: 停用用途使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    200，停用后的用途及历史身份快照。\n\nRaises:\n    CollectionNotFoundError: 用途编号不存在，404。\n    AuthenticationError: 停用前会话或账号失效，401。\n    ExternalError: 停用用途的数据库写入失败，502。\n\nSide Effects:\n    停用用途与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再停用，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送200，不执行外部机器人通信。",
+        "operationId": "retire_collection_purpose_api_collection_vocabulary_purposes__id__retire_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurposeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Retire Collection Purpose",
+        "tags": [
+          "机器人与采集词表"
         ]
       }
     },
@@ -16849,6 +18803,956 @@
         "summary": "Confirm Navigation Write",
         "tags": [
           "navigation-writes"
+        ]
+      }
+    },
+    "/api/robots": {
+      "get": {
+        "description": "列出全部机器人，包括停用项。\n\nArgs:\n    session: 请求只读业务事务。\n    context: 已完成强制改密的成员或管理员。\n\nReturns:\n    items 按 robot_id 升序，允许空列表。\n\nRaises:\n    ExternalError: 查询数据库不可用，统一边界返回502。\n    InputError: 历史字段损坏，统一边界返回400。\n\nSide Effects:\n    无；仅查询机器人及历史账号存在性。\n\nTime Semantics:\n    请求快照内完成列表，响应发送前结束读事务，无网络探测。",
+        "operationId": "list_robots_api_robots_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "List Robots",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      },
+      "post": {
+        "description": "创建机器人并记录操作日志。\n\nArgs:\n    body: 机器人完整可编辑字段，按工单校验并规范化。\n    session: 创建机器人使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    201，创建后的机器人及历史身份快照。\n\nRaises:\n    ConflictError: 机器人唯一字段已占用，409。\n    RequestValidationError: 机器人输入字段不合法，422。\n    AuthenticationError: 创建前会话或账号失效，401。\n    ExternalError: 创建机器人的数据库写入失败，502。\n\nSide Effects:\n    创建机器人与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再创建，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送201，不执行外部机器人通信。",
+        "operationId": "create_robot_api_robots_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RobotInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Create Robot",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/robots/model-options": {
+      "get": {
+        "description": "合并机器人登记与数据集索引中的型号候选。\n\nArgs:\n    session: 同一请求只读会话。\n    context: 已登录且完成改密的成员或管理员。\n\nReturns:\n    items 去重、排序，不包含空值；允许输入候选以外的新型号。\n\nRaises:\n    ExternalError: 数据集或机器人索引查询不可用，502。\n\nSide Effects:\n    无；只读取数据库，不扫描导航层或存储根。\n\nTime Semantics:\n    两组候选来自同一数据库快照，不等待新扫描。",
+        "operationId": "robot_model_options_api_robots_model_options_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelOptionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Robot Model Options",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/robots/{robot_id}": {
+      "delete": {
+        "description": "删除机器人并记录操作日志。\n\nArgs:\n    robot_id: 机器人永久编号，1至2^63-1。\n    session: 删除机器人使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    204，无响应体。\n\nRaises:\n    CollectionNotFoundError: 机器人编号不存在，404。\n    ConflictError: 机器人仍有数据集引用，409，提示改用停用。\n    AuthenticationError: 删除前会话或账号失效，401。\n    ExternalError: 删除机器人的数据库写入失败，502。\n\nSide Effects:\n    删除机器人与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再删除，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送204，不执行外部机器人通信。",
+        "operationId": "delete_robot_api_robots__robot_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "robot_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Robot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Delete Robot",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      },
+      "put": {
+        "description": "修改机器人并记录操作日志。\n\nArgs:\n    robot_id: 机器人永久编号，1至2^63-1。\n    body: 机器人完整可编辑字段，按工单校验并规范化。\n    session: 修改机器人使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    200，修改后的机器人及历史身份快照。\n\nRaises:\n    CollectionNotFoundError: 机器人编号不存在，404。\n    ConflictError: 机器人唯一字段已占用，409。\n    RequestValidationError: 机器人输入字段不合法，422。\n    AuthenticationError: 修改前会话或账号失效，401。\n    ExternalError: 修改机器人的数据库写入失败，502。\n\nSide Effects:\n    修改机器人与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再修改，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送200，不执行外部机器人通信。",
+        "operationId": "update_robot_api_robots__robot_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "robot_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Robot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RobotInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Update Robot",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/robots/{robot_id}/restore": {
+      "post": {
+        "description": "恢复机器人并记录操作日志。\n\nArgs:\n    robot_id: 机器人永久编号，1至2^63-1。\n    session: 恢复机器人使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    200，恢复后的机器人及历史身份快照。\n\nRaises:\n    CollectionNotFoundError: 机器人编号不存在，404。\n    AuthenticationError: 恢复前会话或账号失效，401。\n    ExternalError: 恢复机器人的数据库写入失败，502。\n\nSide Effects:\n    恢复机器人与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再恢复，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送200，不执行外部机器人通信。",
+        "operationId": "restore_robot_api_robots__robot_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "robot_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Robot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Restore Robot",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/robots/{robot_id}/retire": {
+      "post": {
+        "description": "停用机器人并记录操作日志。\n\nArgs:\n    robot_id: 机器人永久编号，1至2^63-1。\n    session: 停用机器人使用的已持锁写事务，发送响应前提交。\n    context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。\n\nReturns:\n    200，停用后的机器人及历史身份快照。\n\nRaises:\n    CollectionNotFoundError: 机器人编号不存在，404。\n    AuthenticationError: 停用前会话或账号失效，401。\n    ExternalError: 停用机器人的数据库写入失败，502。\n\nSide Effects:\n    停用机器人与对应操作日志同事务提交；发生异常则全部回滚。\n\nTime Semantics:\n    领域层先重验身份再停用，采用本请求UTC时刻；修改时刻不倒退。\n    提交完成后才发送200，不执行外部机器人通信。",
+        "operationId": "retire_robot_api_robots__robot_id__retire_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "robot_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Robot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Retire Robot",
+        "tags": [
+          "机器人与采集词表"
         ]
       }
     },

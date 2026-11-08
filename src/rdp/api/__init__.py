@@ -26,6 +26,7 @@ from rdp.api.account_auth import install_account_security
 from rdp.api.accounts import router as accounts_router
 from rdp.api.audit import router as audit_router
 from rdp.api.classification import router as classification_router
+from rdp.api.collection import router as collection_router
 from rdp.api.database import configure_database
 from rdp.api.datasets import router as datasets_router
 from rdp.api.datasets.creation import router as dataset_creation_router
@@ -246,6 +247,7 @@ def create_app(
     )
     # 账号路由与既有 API 共用鉴权、时钟和 S1 兜底。
     app.include_router(accounts_router)
+    app.include_router(collection_router)
     # 07 日志接口登记管理员路径和 OpenAPI；全局边界在参数校验前识别 get_admin_context。
     app.include_router(audit_router)
     # 08 作业和心跳均允许全部登录账号，复用全局鉴权和同源写请求边界。

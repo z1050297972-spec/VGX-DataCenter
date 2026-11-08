@@ -65,6 +65,16 @@ export const OPERATION_LABELS = {
   revert_change: "撤回改动",
   rollback_navigation_write: "回滚中断的写入",
   confirm_navigation_recovery: "确认恢复失败",
+  create_robot: "新建机器人",
+  update_robot: "修改机器人",
+  retire_robot: "停用机器人",
+  restore_robot: "恢复机器人",
+  delete_robot: "删除机器人",
+  create_collection_term: "新增采集词表项",
+  update_collection_term: "修改采集词表项",
+  retire_collection_term: "停用采集词表项",
+  restore_collection_term: "恢复采集词表项",
+  delete_collection_term: "删除采集词表项",
 } satisfies Record<NonNullable<OperationSearch["operation"]>, string>;
 /** 操作结果筛选和展示使用同一字典。 */
 export const OPERATION_RESULTS = { success: "成功", failure: "失败" };

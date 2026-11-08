@@ -605,6 +605,421 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/collection-vocabulary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Collection Vocabulary
+         * @description 返回采集方式和用途两个完整词表。
+         *
+         *     Args:
+         *         session: 请求只读事务，不升级为写会话。
+         *         context: 已认证成员或管理员，强制改密已完成。
+         *
+         *     Returns:
+         *         methods 和 purposes 分别按 id 升序，包含停用项及历史身份。
+         *
+         *     Raises:
+         *         ExternalError: 词表读取失败，502。
+         *         InputError: 词表历史数据损坏，400。
+         *
+         *     Side Effects:
+         *         无；读取两个词表及账号存在性，不补写初始值。
+         *
+         *     Time Semantics:
+         *         两个词表共用一个请求快照，结束读事务后发送响应。
+         */
+        get: operations["collection_vocabulary_api_collection_vocabulary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/collection-vocabulary/methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Collection Method
+         * @description 创建采集方式并记录操作日志。
+         *
+         *     Args:
+         *         body: 采集方式完整可编辑字段，按工单校验并规范化。
+         *         session: 创建采集方式使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         201，创建后的采集方式及历史身份快照。
+         *
+         *     Raises:
+         *         ConflictError: 采集方式唯一字段已占用，409。
+         *         RequestValidationError: 采集方式输入字段不合法，422。
+         *         AuthenticationError: 创建前会话或账号失效，401。
+         *         ExternalError: 创建采集方式的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         创建采集方式与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再创建，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送201，不执行外部机器人通信。
+         */
+        post: operations["create_collection_method_api_collection_vocabulary_methods_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/collection-vocabulary/methods/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Collection Method
+         * @description 修改采集方式并记录操作日志。
+         *
+         *     Args:
+         *         id: 采集方式永久编号，1至2^63-1。
+         *         body: 采集方式完整可编辑字段，按工单校验并规范化。
+         *         session: 修改采集方式使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         200，修改后的采集方式及历史身份快照。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 采集方式编号不存在，404。
+         *         ConflictError: 采集方式唯一字段已占用，409。
+         *         RequestValidationError: 采集方式输入字段不合法，422。
+         *         AuthenticationError: 修改前会话或账号失效，401。
+         *         ExternalError: 修改采集方式的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         修改采集方式与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再修改，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送200，不执行外部机器人通信。
+         */
+        put: operations["update_collection_method_api_collection_vocabulary_methods__id__put"];
+        post?: never;
+        /**
+         * Delete Collection Method
+         * @description 删除采集方式并记录操作日志。
+         *
+         *     Args:
+         *         id: 采集方式永久编号，1至2^63-1。
+         *         session: 删除采集方式使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         204，无响应体。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 采集方式编号不存在，404。
+         *         ConflictError: 采集方式仍有数据集引用，409，提示改用停用。
+         *         AuthenticationError: 删除前会话或账号失效，401。
+         *         ExternalError: 删除采集方式的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         删除采集方式与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再删除，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送204，不执行外部机器人通信。
+         */
+        delete: operations["delete_collection_method_api_collection_vocabulary_methods__id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/collection-vocabulary/methods/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Collection Method
+         * @description 恢复采集方式并记录操作日志。
+         *
+         *     Args:
+         *         id: 采集方式永久编号，1至2^63-1。
+         *         session: 恢复采集方式使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         200，恢复后的采集方式及历史身份快照。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 采集方式编号不存在，404。
+         *         AuthenticationError: 恢复前会话或账号失效，401。
+         *         ExternalError: 恢复采集方式的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         恢复采集方式与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再恢复，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送200，不执行外部机器人通信。
+         */
+        post: operations["restore_collection_method_api_collection_vocabulary_methods__id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/collection-vocabulary/methods/{id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retire Collection Method
+         * @description 停用采集方式并记录操作日志。
+         *
+         *     Args:
+         *         id: 采集方式永久编号，1至2^63-1。
+         *         session: 停用采集方式使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         200，停用后的采集方式及历史身份快照。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 采集方式编号不存在，404。
+         *         AuthenticationError: 停用前会话或账号失效，401。
+         *         ExternalError: 停用采集方式的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         停用采集方式与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再停用，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送200，不执行外部机器人通信。
+         */
+        post: operations["retire_collection_method_api_collection_vocabulary_methods__id__retire_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/collection-vocabulary/purposes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Collection Purpose
+         * @description 创建用途并记录操作日志。
+         *
+         *     Args:
+         *         body: 用途完整可编辑字段，按工单校验并规范化。
+         *         session: 创建用途使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         201，创建后的用途及历史身份快照。
+         *
+         *     Raises:
+         *         ConflictError: 用途唯一字段已占用，409。
+         *         RequestValidationError: 用途输入字段不合法，422。
+         *         AuthenticationError: 创建前会话或账号失效，401。
+         *         ExternalError: 创建用途的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         创建用途与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再创建，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送201，不执行外部机器人通信。
+         */
+        post: operations["create_collection_purpose_api_collection_vocabulary_purposes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/collection-vocabulary/purposes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Collection Purpose
+         * @description 修改用途并记录操作日志。
+         *
+         *     Args:
+         *         id: 用途永久编号，1至2^63-1。
+         *         body: 用途完整可编辑字段，按工单校验并规范化。
+         *         session: 修改用途使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         200，修改后的用途及历史身份快照。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 用途编号不存在，404。
+         *         ConflictError: 用途唯一字段已占用，409。
+         *         RequestValidationError: 用途输入字段不合法，422。
+         *         AuthenticationError: 修改前会话或账号失效，401。
+         *         ExternalError: 修改用途的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         修改用途与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再修改，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送200，不执行外部机器人通信。
+         */
+        put: operations["update_collection_purpose_api_collection_vocabulary_purposes__id__put"];
+        post?: never;
+        /**
+         * Delete Collection Purpose
+         * @description 删除用途并记录操作日志。
+         *
+         *     Args:
+         *         id: 用途永久编号，1至2^63-1。
+         *         session: 删除用途使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         204，无响应体。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 用途编号不存在，404。
+         *         ConflictError: 用途仍有数据集引用，409，提示改用停用。
+         *         AuthenticationError: 删除前会话或账号失效，401。
+         *         ExternalError: 删除用途的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         删除用途与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再删除，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送204，不执行外部机器人通信。
+         */
+        delete: operations["delete_collection_purpose_api_collection_vocabulary_purposes__id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/collection-vocabulary/purposes/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Collection Purpose
+         * @description 恢复用途并记录操作日志。
+         *
+         *     Args:
+         *         id: 用途永久编号，1至2^63-1。
+         *         session: 恢复用途使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         200，恢复后的用途及历史身份快照。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 用途编号不存在，404。
+         *         AuthenticationError: 恢复前会话或账号失效，401。
+         *         ExternalError: 恢复用途的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         恢复用途与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再恢复，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送200，不执行外部机器人通信。
+         */
+        post: operations["restore_collection_purpose_api_collection_vocabulary_purposes__id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/collection-vocabulary/purposes/{id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retire Collection Purpose
+         * @description 停用用途并记录操作日志。
+         *
+         *     Args:
+         *         id: 用途永久编号，1至2^63-1。
+         *         session: 停用用途使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         200，停用后的用途及历史身份快照。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 用途编号不存在，404。
+         *         AuthenticationError: 停用前会话或账号失效，401。
+         *         ExternalError: 停用用途的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         停用用途与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再停用，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送200，不执行外部机器人通信。
+         */
+        post: operations["retire_collection_purpose_api_collection_vocabulary_purposes__id__retire_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/datasets": {
         parameters: {
             query?: never;
@@ -2909,6 +3324,252 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/robots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Robots
+         * @description 列出全部机器人，包括停用项。
+         *
+         *     Args:
+         *         session: 请求只读业务事务。
+         *         context: 已完成强制改密的成员或管理员。
+         *
+         *     Returns:
+         *         items 按 robot_id 升序，允许空列表。
+         *
+         *     Raises:
+         *         ExternalError: 查询数据库不可用，统一边界返回502。
+         *         InputError: 历史字段损坏，统一边界返回400。
+         *
+         *     Side Effects:
+         *         无；仅查询机器人及历史账号存在性。
+         *
+         *     Time Semantics:
+         *         请求快照内完成列表，响应发送前结束读事务，无网络探测。
+         */
+        get: operations["list_robots_api_robots_get"];
+        put?: never;
+        /**
+         * Create Robot
+         * @description 创建机器人并记录操作日志。
+         *
+         *     Args:
+         *         body: 机器人完整可编辑字段，按工单校验并规范化。
+         *         session: 创建机器人使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         201，创建后的机器人及历史身份快照。
+         *
+         *     Raises:
+         *         ConflictError: 机器人唯一字段已占用，409。
+         *         RequestValidationError: 机器人输入字段不合法，422。
+         *         AuthenticationError: 创建前会话或账号失效，401。
+         *         ExternalError: 创建机器人的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         创建机器人与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再创建，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送201，不执行外部机器人通信。
+         */
+        post: operations["create_robot_api_robots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/robots/model-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Robot Model Options
+         * @description 合并机器人登记与数据集索引中的型号候选。
+         *
+         *     Args:
+         *         session: 同一请求只读会话。
+         *         context: 已登录且完成改密的成员或管理员。
+         *
+         *     Returns:
+         *         items 去重、排序，不包含空值；允许输入候选以外的新型号。
+         *
+         *     Raises:
+         *         ExternalError: 数据集或机器人索引查询不可用，502。
+         *
+         *     Side Effects:
+         *         无；只读取数据库，不扫描导航层或存储根。
+         *
+         *     Time Semantics:
+         *         两组候选来自同一数据库快照，不等待新扫描。
+         */
+        get: operations["robot_model_options_api_robots_model_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/robots/{robot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Robot
+         * @description 修改机器人并记录操作日志。
+         *
+         *     Args:
+         *         robot_id: 机器人永久编号，1至2^63-1。
+         *         body: 机器人完整可编辑字段，按工单校验并规范化。
+         *         session: 修改机器人使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         200，修改后的机器人及历史身份快照。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 机器人编号不存在，404。
+         *         ConflictError: 机器人唯一字段已占用，409。
+         *         RequestValidationError: 机器人输入字段不合法，422。
+         *         AuthenticationError: 修改前会话或账号失效，401。
+         *         ExternalError: 修改机器人的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         修改机器人与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再修改，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送200，不执行外部机器人通信。
+         */
+        put: operations["update_robot_api_robots__robot_id__put"];
+        post?: never;
+        /**
+         * Delete Robot
+         * @description 删除机器人并记录操作日志。
+         *
+         *     Args:
+         *         robot_id: 机器人永久编号，1至2^63-1。
+         *         session: 删除机器人使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         204，无响应体。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 机器人编号不存在，404。
+         *         ConflictError: 机器人仍有数据集引用，409，提示改用停用。
+         *         AuthenticationError: 删除前会话或账号失效，401。
+         *         ExternalError: 删除机器人的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         删除机器人与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再删除，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送204，不执行外部机器人通信。
+         */
+        delete: operations["delete_robot_api_robots__robot_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/robots/{robot_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Robot
+         * @description 恢复机器人并记录操作日志。
+         *
+         *     Args:
+         *         robot_id: 机器人永久编号，1至2^63-1。
+         *         session: 恢复机器人使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         200，恢复后的机器人及历史身份快照。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 机器人编号不存在，404。
+         *         AuthenticationError: 恢复前会话或账号失效，401。
+         *         ExternalError: 恢复机器人的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         恢复机器人与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再恢复，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送200，不执行外部机器人通信。
+         */
+        post: operations["restore_robot_api_robots__robot_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/robots/{robot_id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retire Robot
+         * @description 停用机器人并记录操作日志。
+         *
+         *     Args:
+         *         robot_id: 机器人永久编号，1至2^63-1。
+         *         session: 停用机器人使用的已持锁写事务，发送响应前提交。
+         *         context: 允许成员和管理员，携带请求身份、UTC时刻和审计来源。
+         *
+         *     Returns:
+         *         200，停用后的机器人及历史身份快照。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 机器人编号不存在，404。
+         *         AuthenticationError: 停用前会话或账号失效，401。
+         *         ExternalError: 停用机器人的数据库写入失败，502。
+         *
+         *     Side Effects:
+         *         停用机器人与对应操作日志同事务提交；发生异常则全部回滚。
+         *
+         *     Time Semantics:
+         *         领域层先重验身份再停用，采用本请求UTC时刻；修改时刻不倒退。
+         *         提交完成后才发送200，不执行外部机器人通信。
+         */
+        post: operations["retire_robot_api_robots__robot_id__retire_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/storage-roots": {
         parameters: {
             query?: never;
@@ -3302,6 +3963,8 @@ export interface components {
             /** Value */
             value: string;
         };
+        /** @enum {string} */
+        CollectionOrigin: "真机采集" | "UMI 采集" | "ego 采集" | "仿真生成";
         /**
          * ConfirmCreationRequest
          * @description 用户确认保存的预览，不能夹带替换参数或计划。
@@ -4993,6 +5656,39 @@ export interface components {
          */
         LoginResult: "success" | "wrong_password" | "disabled" | "waiting" | "account_missing" | "failure";
         /**
+         * MethodInput
+         * @description 采集方式必须明确选择平台自产数据的四种来源之一。
+         */
+        MethodInput: {
+            data_origin: components["schemas"]["CollectionOrigin"];
+            name: components["schemas"]["ShortName"];
+        };
+        /**
+         * MethodResponse
+         * @description 采集方式响应，包含对应数据来源。
+         */
+        MethodResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["HistoricalActorResponse"];
+            data_origin: components["schemas"]["CollectionOrigin"];
+            /** Id */
+            id: number;
+            name: components["schemas"]["ShortName"];
+            /** Reference Count */
+            reference_count: number;
+            status: components["schemas"]["RegistryStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            updated_by: components["schemas"]["HistoricalActorResponse"];
+        };
+        /**
          * MirrorCheckResponse
          * @description 手动检查请求已被记录。
          *
@@ -5043,6 +5739,15 @@ export interface components {
             /** Step Index */
             step_index: number;
         };
+        /**
+         * ModelOptionsResponse
+         * @description 登记型号与数据集索引型号合并、去重、排序后的候选。
+         */
+        ModelOptionsResponse: {
+            /** Items */
+            items: string[];
+        };
+        Name: string;
         /**
          * NavOperation
          * @description 写导航层的操作种类，是预览、变更记录和操作日志共用的稳定码。
@@ -5148,7 +5853,7 @@ export interface components {
          * @description 对象的历史名字，保留给未来撤回功能定位。
          *
          *     Attributes:
-         *         kind: account/audit_settings/job/dataset_index/navigation_write，必填；job 不表示账号。
+         *         kind: account/audit_settings/job/dataset_index/navigation_write/robot/collection_method/collection_purpose，必填；job 不表示账号。
          *         object_id: 账号/作业编号十进制文本或设置键 retention、索引键 all；失败新建尚无编号时 None。
          *         name: 当时显示名、固定设置名或“作业显示名 #编号”，1-64 码点，必填。
          *         deleted: 账号编号已不存在为 True；设置、作业或未分配编号为 False。
@@ -5160,7 +5865,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "account" | "audit_settings" | "job" | "dataset_index" | "navigation_write";
+            kind: "account" | "audit_settings" | "job" | "dataset_index" | "navigation_write" | "robot" | "collection_method" | "collection_purpose";
             /** Name */
             name: string;
             /** Object Id */
@@ -5251,7 +5956,7 @@ export interface components {
          * @description 稳定的操作码；新增操作用新增枚举值，不改历史值（第 8 张可增加作业操作）。
          * @enum {string}
          */
-        OperationType: "create_account" | "set_role" | "disable_account" | "enable_account" | "reset_password" | "reset_password_from_ops" | "delete_account" | "change_password" | "create_first_admin" | "set_retention" | "set_download_token" | "clear_download_token" | "submit_job" | "cancel_job" | "rebuild_index" | "create_link" | "create_dataset" | "repoint_dataset" | "edit_dataset_fields" | "set_data_origin" | "revert_change" | "rollback_navigation_write" | "confirm_navigation_recovery";
+        OperationType: "create_robot" | "update_robot" | "retire_robot" | "restore_robot" | "delete_robot" | "create_collection_term" | "update_collection_term" | "retire_collection_term" | "restore_collection_term" | "delete_collection_term" | "create_account" | "set_role" | "disable_account" | "enable_account" | "reset_password" | "reset_password_from_ops" | "delete_account" | "change_password" | "create_first_admin" | "set_retention" | "set_download_token" | "clear_download_token" | "submit_job" | "cancel_job" | "rebuild_index" | "create_link" | "create_dataset" | "repoint_dataset" | "edit_dataset_fields" | "set_data_origin" | "revert_change" | "rollback_navigation_write" | "confirm_navigation_recovery";
         /**
          * PanelGroup
          * @description 面板四组；存储相关两组由扫描第二段提供。
@@ -5438,6 +6143,37 @@ export interface components {
          */
         ProvenanceState: "absent" | "valid" | "invalid";
         /**
+         * PurposeInput
+         * @description 用途名称，去首尾空白后 1 至 32 字符。
+         */
+        PurposeInput: {
+            name: components["schemas"]["ShortName"];
+        };
+        /**
+         * PurposeResponse
+         * @description 用途响应，不含 data_origin。
+         */
+        PurposeResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["HistoricalActorResponse"];
+            /** Id */
+            id: number;
+            name: components["schemas"]["ShortName"];
+            /** Reference Count */
+            reference_count: number;
+            status: components["schemas"]["RegistryStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            updated_by: components["schemas"]["HistoricalActorResponse"];
+        };
+        /**
          * QueuedNavigationJob
          * @description 提交前发现的同数据集排队写作业；不把预览作业算进写冲突提醒。
          *
@@ -5480,6 +6216,8 @@ export interface components {
          * @enum {string}
          */
         RecoveryMode: "resume" | "restart" | "interrupt";
+        /** @enum {string} */
+        RegistryStatus: "active" | "retired";
         /**
          * RepointParameters
          * @description 一次一个数据集的前缀替换输入。
@@ -5582,6 +6320,86 @@ export interface components {
             days: number;
         };
         /**
+         * RobotInput
+         * @description 完整机器人登记值；PUT 替换全部可编辑字段，不接受状态或操作者。
+         */
+        RobotInput: {
+            /** Address */
+            address?: string | null;
+            /**
+             * Macs
+             * @default []
+             */
+            macs: components["schemas"]["RobotMac"][];
+            name: components["schemas"]["Name"];
+            robot_model: components["schemas"]["Name"];
+            serial_number?: components["schemas"]["Name"] | null;
+            /**
+             * Ssh Port
+             * @default 22
+             */
+            ssh_port: number;
+            /** Ssh User */
+            ssh_user?: string | null;
+        };
+        /**
+         * RobotMac
+         * @description 单块网卡；接口名可空，MAC 保存规范形式。
+         */
+        RobotMac: {
+            interface?: components["schemas"]["ShortName"] | null;
+            /** Mac */
+            mac: string;
+        };
+        /**
+         * RobotResponse
+         * @description 机器人完整登记响应，robot_id 是工单约定的整数。
+         */
+        RobotResponse: {
+            /** Address */
+            address?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["HistoricalActorResponse"];
+            /**
+             * Macs
+             * @default []
+             */
+            macs: components["schemas"]["RobotMac"][];
+            name: components["schemas"]["Name"];
+            /** Reference Count */
+            reference_count: number;
+            /** Robot Id */
+            robot_id: number;
+            robot_model: components["schemas"]["Name"];
+            serial_number?: components["schemas"]["Name"] | null;
+            /**
+             * Ssh Port
+             * @default 22
+             */
+            ssh_port: number;
+            /** Ssh User */
+            ssh_user?: string | null;
+            status: components["schemas"]["RegistryStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            updated_by: components["schemas"]["HistoricalActorResponse"];
+        };
+        /**
+         * RobotsResponse
+         * @description 机器人按编号升序排列，包含停用项。
+         */
+        RobotsResponse: {
+            /** Items */
+            items: components["schemas"]["RobotResponse"][];
+        };
+        /**
          * Role
          * @description 仅有管理员和成员两种角色。
          *
@@ -5665,6 +6483,7 @@ export interface components {
             /** Worker Online */
             worker_online: boolean;
         };
+        ShortName: string;
         /**
          * SourceAddition
          * @description 规范副本 sources[] 新增的数据块；已有 source_id 永不重算。
@@ -5925,6 +6744,16 @@ export interface components {
          * @enum {string}
          */
         View: "task" | "format";
+        /**
+         * VocabularyResponse
+         * @description 两个词表独立按编号升序排列，包含停用项。
+         */
+        VocabularyResponse: {
+            /** Methods */
+            methods: components["schemas"]["MethodResponse"][];
+            /** Purposes */
+            purposes: components["schemas"]["PurposeResponse"][];
+        };
         /**
          * VocabularyTerm
          * @description 受控编码及中文名，只由服务端词表生成，不含筛选专用项。
@@ -7615,6 +8444,1244 @@ export interface operations {
                 headers: {
                     /** @description 向上取整的剩余秒数，1-60 */
                     "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    collection_vocabulary_api_collection_vocabulary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VocabularyResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    create_collection_method_api_collection_vocabulary_methods_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MethodInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MethodResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    update_collection_method_api_collection_vocabulary_methods__id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MethodInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MethodResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    delete_collection_method_api_collection_vocabulary_methods__id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    restore_collection_method_api_collection_vocabulary_methods__id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MethodResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    retire_collection_method_api_collection_vocabulary_methods__id__retire_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MethodResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    create_collection_purpose_api_collection_vocabulary_purposes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurposeInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurposeResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    update_collection_purpose_api_collection_vocabulary_purposes__id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurposeInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurposeResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    delete_collection_purpose_api_collection_vocabulary_purposes__id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    restore_collection_purpose_api_collection_vocabulary_purposes__id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurposeResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    retire_collection_purpose_api_collection_vocabulary_purposes__id__retire_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurposeResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {
@@ -14150,6 +16217,790 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    list_robots_api_robots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RobotsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    create_robot_api_robots_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RobotInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RobotResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    robot_model_options_api_robots_model_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelOptionsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    update_robot_api_robots__robot_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                robot_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RobotInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RobotResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    delete_robot_api_robots__robot_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                robot_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    restore_robot_api_robots__robot_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                robot_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RobotResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    retire_robot_api_robots__robot_id__retire_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                robot_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RobotResponse"];
                 };
             };
             /** @description Bad Request */

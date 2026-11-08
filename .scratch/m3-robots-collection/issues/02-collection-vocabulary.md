@@ -1,6 +1,6 @@
 # 采集方式与用途词表
 
-Status: in-progress
+Status: done
 
 分级：直做。和第 01 张同一分支、同一批会话做（共用迁移 `0019_collection_registry`）。按"只做关键测试"。
 
@@ -49,3 +49,4 @@ Status: in-progress
 ## Comments
 
 - 2026-11-08 开票（执行线）。
+- 2026-11-08 前后端交回（Codex gpt-6-astra medium），执行线 make api-types 后前端续接换成生成类型。make check 全绿：后端 2770 passed、Vitest 386 passed、0 skipped。临时实例实测：新建、MAC 规范化、MAC 重复 409、删除后编号不复用、初始词表、/robots 页面。负责人授权按顺序做完 M3，执行线合并。

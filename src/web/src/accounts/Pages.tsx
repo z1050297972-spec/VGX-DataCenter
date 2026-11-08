@@ -578,6 +578,10 @@ export function AccountMenu(): ReactElement {
             <Link to="/monitoring">网络与资源</Link>
             <Link to="/scheduling">调度</Link>
             <Link to="/datasets">数据集</Link>
+            <Link to="/robots">机器人</Link>
+            <Link to="/collection-vocabulary" search={{ tab: "methods" }}>
+              采集词表
+            </Link>
             <Link to="/storage-roots">存储根</Link>
             {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
             {identity.data.role === "administrator" && (

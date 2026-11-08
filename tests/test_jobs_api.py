@@ -236,6 +236,9 @@ def test_openapi_job_schema() -> None:
         "job",
         "dataset_index",
         "navigation_write",
+        "robot",
+        "collection_method",
+        "collection_purpose",
     ]
     assert components["JobResponse"]["properties"]["job_id"]["type"] == "string"
     assert components["JobResponse"]["properties"]["recovery_count"]["maximum"] == 3

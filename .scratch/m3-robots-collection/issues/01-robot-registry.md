@@ -1,6 +1,6 @@
 # 机器人登记
 
-Status: in-progress
+Status: done
 
 分级：直做。领域决定已在「核心领域模型与术语」（`.scratch/platform-v1/issues/13-domain-model.md`）和 `.scratch/m3-robots-collection/decisions.md` 定好。按"只做关键测试"。和第 02 张同一分支、同一批会话做（共用一个迁移）。
 
@@ -63,3 +63,4 @@ Status: in-progress
 ## Comments
 
 - 2026-11-08 开票（执行线；负责人："请按照顺序依次完成这些任务，直至M3结束"）。
+- 2026-11-08 前后端交回（Codex gpt-6-astra medium），执行线 make api-types 后前端续接换成生成类型。make check 全绿：后端 2770 passed、Vitest 386 passed、0 skipped。临时实例实测：新建、MAC 规范化、MAC 重复 409、删除后编号不复用、初始词表、/robots 页面。负责人授权按顺序做完 M3，执行线合并。
