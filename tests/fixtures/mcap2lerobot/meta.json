@@ -20,6 +20,6 @@
     "error-output-exists.ptylog.jsonl": "同一命令再跑一次（输出目录已存在、未加 --force）：退出码 1，进度条出现前报错。",
     "error-truncated-input.ptylog.jsonl": "输入换成上面 MCAP 的前 300,000,000 字节：退出码 1，进度条画出后报 Bad magic number（带 Caused by 链）。",
     "verify-stdout.txt": "verify -c r1lite.toml <输入> 的 stdout（退出码 0，verify 只写 stdout，不画进度条）。",
-    "lerobot-v3/": "convert-v3 产物里的 meta/（info.json、stats.json、tasks.parquet、episodes）和 data/ parquet，原样复制；videos/ 未复制（3 路 HEVC 共约 105 MB）。"
+    "lerobot-v3/": "仅保留 convert-v3 真实产物的 meta/info.json 和 meta/stats.json；parquet 被仓库 *.parquet 规则忽略，视频未复制。测试在 tmp 中生成 parquet 和小视频并调整副本的视频尺寸；真实产物由执行线演练验证。"
   }
 }

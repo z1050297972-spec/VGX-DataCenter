@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from rdp.infra.actors import ActorRef
 from rdp.infra.diagnostics import DiagnosticGroup
+from rdp.jobs.conversion.check_models import IngestCheckResult
 from rdp.jobs.outcome import JobOutcome
 from rdp.jobs.policy import JOB_PAGE_LIMIT, JOB_TEXT_MAX_CHARS
 
@@ -112,6 +113,7 @@ class JobProgress(BaseModel):
         total_items: 作业累计已处理条目数，非负；示例每步为一个条目。
         parts: 按工具显示顺序排列的分项，最多16项；旧记录或无分项时为空元组。
         conversion: 转换收尾结果；其他作业或尚未收尾为None。
+        ingest_check: 入库四层检查快照，其他类型省略。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
@@ -127,6 +129,10 @@ class JobProgress(BaseModel):
     parts: tuple[ProgressPart, ...] = Field(default=(), max_length=16)
     # 非转换作业保持既有JSON形状；仅收尾成功后序列化新增结果。
     conversion: ConversionResult | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+
+    ingest_check: IngestCheckResult | None = Field(
         default=None, exclude_if=lambda value: value is None
     )
 

@@ -1,7 +1,7 @@
 import "./jobs.css";
 // 作业页面契约（08）：Ant Design 与统一 DiagnosticCard；不直接 fetch、不计算后端结果。
 import { DownloadDetail } from "./DownloadDetail";
-import { IngestDownload } from "../downloads/Ingest";
+import { IngestConversion, IngestDownload } from "../downloads/Ingest";
 import { useState, type ReactElement } from "react";
 import {
   Alert,
@@ -44,6 +44,7 @@ export function JobsPage(): ReactElement {
           <Typography.Title level={2} className="jobs-title">
             作业列表
           </Typography.Title>
+          <Link to="/conversions">转换暂存</Link>
         </Flex>
       </header>
       <Card>
@@ -118,6 +119,9 @@ export function JobDetailPage(): ReactElement {
           <DownloadDetail job={job} />
           <IngestDownload job={job} />
         </>
+      )}
+      {job.type_name.startsWith("convert_") && isJobTerminal(job) && (
+        <IngestConversion jobId={job.job_id} />
       )}
       <Card title="作业日志">
         <JobLogPanel job={job} />

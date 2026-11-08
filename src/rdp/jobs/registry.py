@@ -267,6 +267,8 @@ def production_registry(
         Web 和 worker 启动时各调用一次并注入；无时钟、等待和自动发现。
     """
     # 延迟导入避免登记定义和执行上下文的模块环；每次构造都返回独立对象。
+    from rdp.jobs.conversion.ingest import build_ingest_definitions as conversion_ingest_definitions
+    from rdp.jobs.conversion.staging_delete import build_delete_definition
     from rdp.jobs.datasets.rescan import build_rescan_definition
     from rdp.jobs.datasets.sizing import build_sizing_definition
     from rdp.jobs.downloads.cleanup import (
@@ -381,12 +383,14 @@ def production_registry(
             submission_role=Role.ADMINISTRATOR,
         )
     )
+    registry.register(build_delete_definition(nav_write_dependencies))
     registry.register(build_rescan_definition(rescan_dependencies))
     registry.register(build_sizing_definition(rescan_dependencies, nav_write_dependencies))
     for definition in (
         *build_navwrite_definitions(nav_write_dependencies),
         *build_creation_definitions(nav_write_dependencies),
         *build_ingest_definitions(nav_write_dependencies),
+        *conversion_ingest_definitions(nav_write_dependencies),
     ):
         registry.register(definition)
     registry.register(build_repoint_definition(nav_write_dependencies))

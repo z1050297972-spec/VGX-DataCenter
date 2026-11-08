@@ -30,8 +30,21 @@ def information_fields(
     receipt: Receipt, metadata: JsonObject, size_bytes: int, stamp: ActorStamp
 ) -> dict[str, str]:
     """从下载回执和格式元信息填 14 项，顺序来自唯一的 M1 名称表。"""
-    result: dict[str, str] = dict.fromkeys(INFORMATION_FIELD_NAMES, "")
+    result = metadata_fields(metadata, size_bytes)
     request = receipt.parameters
+    result.update(
+        {
+            "数据集标识": request.repo_id,
+            "地址": f"https://hf-mirror.com/datasets/{request.repo_id}/tree/{receipt.commit}",
+            "信息来源与核验日期": f"hf-mirror 下载，{request.repo_id}@{receipt.commit}，{stamp.at[:10]}",
+        }
+    )
+    return result
+
+
+def metadata_fields(metadata: JsonObject, size_bytes: int) -> dict[str, str]:
+    """从格式元信息填充可证明的字段，来源身份留给下载或转换调用方。"""
+    result: dict[str, str] = dict.fromkeys(INFORMATION_FIELD_NAMES, "")
     features = metadata.get("features")
     features = features if isinstance(features, dict) else {}
     cameras = [
@@ -41,8 +54,6 @@ def information_fields(
     ]
     result.update(
         {
-            "数据集标识": request.repo_id,
-            "地址": f"https://hf-mirror.com/datasets/{request.repo_id}/tree/{receipt.commit}",
             "数据大小": f"{size_bytes} bytes",
             "采集机器人型号": _text(metadata.get("robot_type")),
             "数据格式": _text(metadata.get("codebase_version")),
@@ -50,7 +61,6 @@ def information_fields(
             "相机配置": "\n".join(cameras),
             "状态维度": _shape(features.get("observation.state")),
             "动作维度": _shape(features.get("action")),
-            "信息来源与核验日期": f"hf-mirror 下载，{request.repo_id}@{receipt.commit}，{stamp.at[:10]}",
         }
     )
     episodes, frames = metadata.get("total_episodes"), metadata.get("total_frames")

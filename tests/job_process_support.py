@@ -309,7 +309,11 @@ def worker_main(root: Path, mode: str) -> None:
         del result
         gc.collect()
         (root / f"gc-{os.getpid()}").touch()
-        (root / f"returned-{os.getpid()}.json").write_text(json.dumps(recorded))
+        # 父进程以文件出现判断完成；原子发布避免读到刚创建但尚未写入的空文件。
+        result_file = root / f"returned-{os.getpid()}.json"
+        temporary = result_file.with_suffix(".tmp")
+        temporary.write_text(json.dumps(recorded))
+        temporary.replace(result_file)
         if mode in {"shutdown_timeout", "reader_timeout"} and retained:
             _wait(lambda: (root / f"exit-{os.getpid()}").exists(), FAILED_WORKER_HOLD_S)
         raise SystemExit(code)

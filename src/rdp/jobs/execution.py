@@ -554,6 +554,11 @@ class _ExecutionRun:
                     aborted=self.aborted and target is JobState.COMPLETED,
                 ),
             )
+            from rdp.jobs._followups import submit_followup
+
+            submit_followup(
+                session, self.dependencies.registry, result, self.dependencies.clock.now()
+            )
         return result
 
     def _save_stopping(self) -> None:

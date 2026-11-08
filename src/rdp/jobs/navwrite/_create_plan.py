@@ -344,6 +344,8 @@ def new_snapshot(
         for key, value in classification.items():
             if value:
                 information[key] = value
+        if supplied.fps is not None:
+            information["fps"] = supplied.fps
     subtasks: JsonObject = {
         "schema_version": 1,
         "dataset_id": dataset_id,

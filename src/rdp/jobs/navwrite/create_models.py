@@ -229,12 +229,14 @@ class DatasetInformation(CreationValue):
         robot_model: 机器人型号文字，空串不写顶层键。
         scene: 场景数组去首尾空格、去重保序；拒绝空项和unlabeled，空数组表示未填写。
         tasks: 任务去首尾空格、去重保序；拒绝空项和unlabeled，空数组不写键。
+        fps: 帧率，单位帧/秒；仅接受严格正整数，None不写顶层键。
     """
 
     fields: tuple[DatasetInformationField, ...] = ()
     robot_model: str = Field(default="", strict=True)
     scene: tuple[Annotated[str, Field(strict=True)], ...] = ()
     tasks: tuple[Annotated[str, Field(strict=True)], ...] = ()
+    fps: int | None = Field(default=None, strict=True, gt=0)
 
     @field_validator("fields")
     @classmethod

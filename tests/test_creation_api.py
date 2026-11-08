@@ -467,7 +467,7 @@ def test_creation_response_rejects_inconsistent_branches(
 
 
 def test_create_information_preview_and_write(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """验证09号契约：文字与分类进入预览及两视图文件，第4项和未填写项留空。"""
+    """验证09号契约：文字与分类写入两视图，未填项留空，不传FPS不写顶层键。"""
     import json
 
     from creation_support import creation_api_case, preview_job, run_queued
@@ -521,6 +521,7 @@ def test_create_information_preview_and_write(tmp_path: Path, fake_nav: FakeNavi
         assert info["robot_model"] == "R1 Lite"
         assert info["scene"] == ["家居", "tabletop"]
         assert info["tasks"] == ["收纳", "抓取"]
+        assert "fps" not in info
 
 
 @pytest.mark.parametrize(

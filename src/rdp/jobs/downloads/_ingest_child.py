@@ -27,9 +27,9 @@ _FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
 
 
 @contextmanager
-def _directory(root: Path, parts: tuple[str, ...], *, create: bool = False) -> Generator[int]:
+def _directory(root: Path | int, parts: tuple[str, ...], *, create: bool = False) -> Generator[int]:
     """逐层持有真实目录描述符，不跟随任何软链接。"""
-    fd = os.open(root, _FLAGS)
+    fd = os.dup(root) if isinstance(root, int) else os.open(root, _FLAGS)
     try:
         for part in parts:
             if create:
@@ -98,6 +98,23 @@ def _check(root: Path, stage: str, target: str, receipt: Receipt) -> JsonObject:
     }
 
 
+def _probe(root: Path, stage: str, target: str) -> JsonObject:
+    """只查同根目录身份和目标占用，供转换预览与改名前复核。"""
+    with _directory(root, _target_parts(stage)) as fd:
+        identity = os.fstat(fd)
+    occupied = False
+    try:
+        with _directory(root, _target_parts(target)[:-1]) as fd:
+            try:
+                os.stat(_target_parts(target)[-1], dir_fd=fd, follow_symlinks=False)
+                occupied = True
+            except FileNotFoundError:
+                pass
+    except FileNotFoundError:
+        pass
+    return {"dev": identity.st_dev, "ino": identity.st_ino, "target_exists": occupied}
+
+
 def _move(root: Path, source: str, target: str) -> None:
     """两端固定父目录后复用内核不覆盖改名；绝不通过路径竞态跟随新软链接。"""
     before, after = _target_parts(source), _target_parts(target)
@@ -138,6 +155,8 @@ def _main() -> int:
         if action == "check":
             receipt = Receipt.model_validate_json(Path(receipt_path).read_bytes())
             result = _check(Path(root), source, target, receipt)
+        elif action == "probe":
+            result = _probe(Path(root), source, target)
         elif action == "restore":
             _restore(Path(root), source, target, Path(receipt_path))
             result = {}

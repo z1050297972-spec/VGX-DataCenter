@@ -27,7 +27,7 @@ INGEST_IO_TIMEOUT_S = 30.0
 
 
 def access(
-    action: Literal["check", "move", "restore"],
+    action: Literal["check", "move", "restore", "probe"],
     root: StorageRootConfig,
     stage: str,
     target: str,

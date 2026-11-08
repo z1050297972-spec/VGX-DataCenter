@@ -38,6 +38,7 @@ from rdp.jobs.downloads.plan import (
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.navwrite._create_plan import image
 from rdp.jobs.navwrite._create_read import Target
+from rdp.jobs.navwrite._ingest_creation import with_ingest_date
 from rdp.jobs.navwrite.create_models import FormatEntrySelection, validate_entry_name
 from rdp.jobs.navwrite.errors import nav_input_error
 from rdp.jobs.navwrite.jobs import NavApplyParameters, PreviewBuild, run_preview
@@ -236,22 +237,12 @@ def _finalize(preview: NavPreview, context: ExecutionContext, started_at: str) -
                 after=image(content),
                 after_content=content.decode(),
             )
-        elif step.op == "write_file" and step.path.endswith("/数据集信息.json"):
-            payload = cast(JsonObject, json.loads(step.after_content))
-            for field in cast(list[JsonObject], payload["fields"]):
-                if field["name"] == "信息来源与核验日期":
-                    value = str(field["value_markdown"]).rsplit("，", 1)[0]
-                    field["value_markdown"] = f"{value}，{context.clock.now().date().isoformat()}"
-            content = dump_navigation_json(payload)
-            step = WriteFileStep(
-                path=step.path,
-                before=step.before,
-                after=image(content),
-                after_content=content.decode(),
-            )
         steps.append(step)
-    return preview.model_copy(
-        update={"plan": preview.plan.model_copy(update={"steps": tuple(steps)})}
+    return with_ingest_date(
+        preview.model_copy(
+            update={"plan": preview.plan.model_copy(update={"steps": tuple(steps)})}
+        ),
+        context.clock.now(),
     )
 
 
