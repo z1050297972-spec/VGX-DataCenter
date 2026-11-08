@@ -12,6 +12,7 @@ from navwrite_pipeline_support import Harness, harness
 
 from rdp.jobs.navwrite.create_models import FirstLink, LinkPreviewParameters
 from rdp.jobs.navwrite.pipeline import NavWriteDependencies
+from rdp.jobs.registry import JobRegistry
 from rdp.jobs.types import JobRecord
 
 
@@ -85,7 +86,13 @@ def creation_api_case(
         yield api, NavWriteDependencies(value.scanning, paths, api.app.state.job_service)
 
 
-def run_queued(api: ApiCase, dependencies: NavWriteDependencies, identifier: str) -> JobRecord:
+def run_queued(
+    api: ApiCase,
+    dependencies: NavWriteDependencies,
+    identifier: str,
+    *,
+    registry: JobRegistry | None = None,
+) -> JobRecord:
     """通过真实领取和执行器运行指定作业，不替换任何业务执行函数。"""
     import time
     from threading import Event, Lock
@@ -99,7 +106,7 @@ def run_queued(api: ApiCase, dependencies: NavWriteDependencies, identifier: str
     from rdp.jobs.registry import production_registry
     from rdp.jobs.types import ExecutionMode, JobClock
 
-    registry = production_registry(dependencies.rescan, dependencies)
+    registry = registry or production_registry(dependencies.rescan, dependencies)
     with session_scope(api.engine) as session:
         record = claim_job(
             session, int(identifier), now=api.clock(), paths=dependencies.paths, gpu_index=None

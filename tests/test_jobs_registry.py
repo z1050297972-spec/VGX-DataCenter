@@ -59,7 +59,7 @@ def test_production_example_only() -> None:
     first, second = production_registry(), production_registry()
     assert first is not second
     definitions = first.definitions()
-    assert len(definitions) == 21
+    assert len(definitions) == 24
     definition = first.lookup("example_count")
     assert definition is not None
     assert (definition.type_name, definition.display_name, definition.recovery_mode) == (

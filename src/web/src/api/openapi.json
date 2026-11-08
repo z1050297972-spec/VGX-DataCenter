@@ -433,6 +433,45 @@
         "title": "ChangePasswordRequest",
         "type": "object"
       },
+      "CheckLayer": {
+        "description": "一层检查的结论；前置层失败时，后续层明确记为未检查。",
+        "properties": {
+          "diagnostics": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "name": {
+            "enum": [
+              "结构",
+              "计数",
+              "视频",
+              "内容"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "通过",
+              "有警告",
+              "不通过",
+              "未检查"
+            ],
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "result"
+        ],
+        "title": "CheckLayer",
+        "type": "object"
+      },
       "CheckNote": {
         "additionalProperties": false,
         "description": "一项检查及其范围。\n\nAttributes:\n    model_config: 冻结，拒绝未知字段。\n    name: 检查名，中文，非空。\n    scope: 检查范围。\n    detail: 补充说明（抽样口径、为什么要执行后才知道），可为空串。",
@@ -457,6 +496,40 @@
         ],
         "title": "CheckNote",
         "type": "object"
+      },
+      "CheckReport": {
+        "description": "同一次检查的四层结果；warning_count为报告中警告诊断的数量。",
+        "properties": {
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/CheckLayer"
+            },
+            "title": "Layers",
+            "type": "array"
+          },
+          "result": {
+            "$ref": "#/components/schemas/CheckResult"
+          },
+          "warning_count": {
+            "default": 0,
+            "title": "Warning Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "result",
+          "layers"
+        ],
+        "title": "CheckReport",
+        "type": "object"
+      },
+      "CheckResult": {
+        "enum": [
+          "通过",
+          "有警告",
+          "不通过"
+        ],
+        "type": "string"
       },
       "CheckScope": {
         "description": "预览里一项检查的范围（规范 2.4）：全量、抽样，还是执行之后才知道。\n\nAttributes:\n    FULL: full，全量检查。\n    SAMPLED: sampled，抽样检查，detail 写抽样口径。\n    AFTER_EXECUTION: after_execution，预览时无法检查，要执行之后才知道。",
@@ -707,6 +780,120 @@
           "preview_job_id"
         ],
         "title": "ConfirmCreationRequest",
+        "type": "object"
+      },
+      "ConversionIngestParameters": {
+        "additionalProperties": false,
+        "description": "检查与预览参数；automatic 仅由 worker 的成功收尾触发器填写。",
+        "properties": {
+          "automatic": {
+            "default": false,
+            "title": "Automatic",
+            "type": "boolean"
+          },
+          "conversion_job_id": {
+            "minimum": 1.0,
+            "title": "Conversion Job Id",
+            "type": "integer"
+          },
+          "dataset_name": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Name"
+          },
+          "format_entries": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FormatEntrySelection"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format Entries"
+          },
+          "target_subdir": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Subdir"
+          }
+        },
+        "required": [
+          "conversion_job_id"
+        ],
+        "title": "ConversionIngestParameters",
+        "type": "object"
+      },
+      "ConversionIngestPreviewView": {
+        "additionalProperties": false,
+        "description": "保存预览的可展示部分；修改选项后必须重新检查并预览。",
+        "properties": {
+          "check": {
+            "$ref": "#/components/schemas/CheckReport"
+          },
+          "checks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "format_entry_options": {
+            "items": {
+              "$ref": "#/components/schemas/FormatEntrySelection"
+            },
+            "title": "Format Entry Options",
+            "type": "array"
+          },
+          "notices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notices",
+            "type": "array"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/ConversionIngestParameters"
+          },
+          "preview_job_id": {
+            "title": "Preview Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preview_job_id",
+          "parameters",
+          "fields",
+          "check",
+          "checks",
+          "notices",
+          "format_entry_options"
+        ],
+        "title": "ConversionIngestPreviewView",
         "type": "object"
       },
       "ConversionParameters": {
@@ -1426,7 +1613,7 @@
       },
       "DatasetInformation": {
         "additionalProperties": false,
-        "description": "新建数据集的可选信息，文字与结构化分类分别保存。\n\nAttributes:\n    fields: 可只给部分文字项，编号1至14但不含4，不能重复；缺省为空。\n    robot_model: 机器人型号文字，空串不写顶层键。\n    scene: 场景数组去首尾空格、去重保序；拒绝空项和unlabeled，空数组表示未填写。\n    tasks: 任务去首尾空格、去重保序；拒绝空项和unlabeled，空数组不写键。",
+        "description": "新建数据集的可选信息，文字与结构化分类分别保存。\n\nAttributes:\n    fields: 可只给部分文字项，编号1至14但不含4，不能重复；缺省为空。\n    robot_model: 机器人型号文字，空串不写顶层键。\n    scene: 场景数组去首尾空格、去重保序；拒绝空项和unlabeled，空数组表示未填写。\n    tasks: 任务去首尾空格、去重保序；拒绝空项和unlabeled，空数组不写键。\n    fps: 帧率，单位帧/秒；仅接受严格正整数，None不写顶层键。",
         "properties": {
           "fields": {
             "default": [],
@@ -1435,6 +1622,18 @@
             },
             "title": "Fields",
             "type": "array"
+          },
+          "fps": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fps"
           },
           "robot_model": {
             "default": "",
@@ -3471,6 +3670,40 @@
         "title": "IndexedStorageRoot",
         "type": "object"
       },
+      "IngestCheckResult": {
+        "description": "作业结果内的检查快照；自动就绪仅在默认名、位置空闲且全通过时为真。",
+        "properties": {
+          "automatic_ready": {
+            "default": false,
+            "title": "Automatic Ready",
+            "type": "boolean"
+          },
+          "conversion_job_id": {
+            "title": "Conversion Job Id",
+            "type": "integer"
+          },
+          "report": {
+            "$ref": "#/components/schemas/CheckReport"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          }
+        },
+        "required": [
+          "conversion_job_id",
+          "report"
+        ],
+        "title": "IngestCheckResult",
+        "type": "object"
+      },
       "IngestConfirmation": {
         "additionalProperties": false,
         "description": "只确认保存的预览，不接受客户端计划。\n\nAttributes:\n    preview_job_id: 正整数编号的十进制文本，范围沿用 M1。",
@@ -3714,7 +3947,7 @@
       },
       "JobProgress": {
         "additionalProperties": false,
-        "description": "执行线程最近一次完整上报，所有计数为严格非负整数，不从诊断样例反推。\n\nAttributes:\n    model_config: 不可变且禁止额外字段；不回显非法输入。\n    stage_index: 当前阶段序号，1 起，不超过 stage_count。\n    stage_count: 总阶段数，正整数。\n    stage_name: 非空阶段名称，至多 JOB_TEXT_MAX_CHARS 码点。\n    done: 当前阶段实际完成数，单位见 unit，非负；阶段切换允许归零。\n    total: 当前阶段总数，不小于 done；未知为 None，不编造百分比。\n    unit: 非空计数单位，至多 JOB_TEXT_MAX_CHARS 码点。\n    warning_count: 作业累计警告条数，非负；和失败条目数独立。\n    failed_items: 作业累计失败条目数，非负且不大于 total_items。\n    total_items: 作业累计已处理条目数，非负；示例每步为一个条目。\n    parts: 按工具显示顺序排列的分项，最多16项；旧记录或无分项时为空元组。\n    conversion: 转换收尾结果；其他作业或尚未收尾为None。",
+        "description": "执行线程最近一次完整上报，所有计数为严格非负整数，不从诊断样例反推。\n\nAttributes:\n    model_config: 不可变且禁止额外字段；不回显非法输入。\n    stage_index: 当前阶段序号，1 起，不超过 stage_count。\n    stage_count: 总阶段数，正整数。\n    stage_name: 非空阶段名称，至多 JOB_TEXT_MAX_CHARS 码点。\n    done: 当前阶段实际完成数，单位见 unit，非负；阶段切换允许归零。\n    total: 当前阶段总数，不小于 done；未知为 None，不编造百分比。\n    unit: 非空计数单位，至多 JOB_TEXT_MAX_CHARS 码点。\n    warning_count: 作业累计警告条数，非负；和失败条目数独立。\n    failed_items: 作业累计失败条目数，非负且不大于 total_items。\n    total_items: 作业累计已处理条目数，非负；示例每步为一个条目。\n    parts: 按工具显示顺序排列的分项，最多16项；旧记录或无分项时为空元组。\n    conversion: 转换收尾结果；其他作业或尚未收尾为None。\n    ingest_check: 入库四层检查快照，其他类型省略。",
         "properties": {
           "conversion": {
             "anyOf": [
@@ -3735,6 +3968,16 @@
             "minimum": 0.0,
             "title": "Failed Items",
             "type": "integer"
+          },
+          "ingest_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IngestCheckResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "parts": {
             "default": [],
@@ -6458,6 +6701,109 @@
           "modified_at"
         ],
         "title": "StagingEntry",
+        "type": "object"
+      },
+      "StagingItem": {
+        "description": "转换及其最新检查、入库状态；大小是最近一次worker检查时的字节数。",
+        "properties": {
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "in_use": {
+            "title": "In Use",
+            "type": "boolean"
+          },
+          "input_dataset": {
+            "title": "Input Dataset",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "output_format": {
+            "title": "Output Format",
+            "type": "string"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "status": {
+            "enum": [
+              "待检查",
+              "待确认",
+              "已入库",
+              "不通过",
+              "失败"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "input_dataset",
+          "tool",
+          "output_format",
+          "size_bytes",
+          "check",
+          "status",
+          "in_use",
+          "deleted"
+        ],
+        "title": "StagingItem",
+        "type": "object"
+      },
+      "StagingPage": {
+        "description": "按转换编号倒序的暂存页，next_before为空表示已到底。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StagingItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Before"
+          }
+        },
+        "required": [
+          "items",
+          "next_before"
+        ],
+        "title": "StagingPage",
         "type": "object"
       },
       "StagingSnapshot": {
@@ -11228,6 +11574,291 @@
         "summary": "Retire Collection Purpose",
         "tags": [
           "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/conversions/staging": {
+      "get": {
+        "description": "读取转换暂存的作业状态投影。\n\nArgs:\n    context: 已认证账号与作业数据库、本机状态目录。\n    before: 可选十进制编号游标，读取更早的一页。\n\nReturns:\n    最新50项转换、检查结果和后续游标；大小是最近检查的快照。\n\nRaises:\n    AuthenticationError: 会话失效。\n    ExternalError: 数据库或提交记录不可读。\n\nSide Effects:\n    无写入，不读取存储根。\n\nTime Semantics:\n    当前数据库快照；不等待worker完成。",
+        "operationId": "get_conversion_staging",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[1-9][0-9]{0,18}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Staging",
+        "tags": [
+          "conversion-staging"
+        ]
+      }
+    },
+    "/api/conversions/{job_id}/delete": {
+      "post": {
+        "description": "为未入库的转换提交暂存删除，执行前由worker重新核对占用。\n\nArgs:\n    context: 管理员身份、请求UTC时刻和审计上下文。\n    job_id: 规范正整数转换编号文本。\n\nReturns:\n    201，排队中的删除作业。\n\nRaises:\n    AuthenticationError: 会话失效。\n    AuthorizationError: 非管理员或写请求Origin不符合要求。\n    InputError: 参数非法。\n    ExternalError: 数据库提交失败。\n\nSide Effects:\n    原子增加作业和审计记录；本请求不删除任何文件。\n\nTime Semantics:\n    立即返回；worker在暂存锁内重读已入库和活跃作业状态。",
+        "operationId": "delete_conversion_staging",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Delete Staging",
+        "tags": [
+          "conversion-staging"
         ]
       }
     },
@@ -16024,6 +16655,143 @@
         ]
       }
     },
+    "/api/jobs/conversion-ingest": {
+      "post": {
+        "description": "确认同一份成功预览并提交转换入库写作业。\n\nArgs:\n    context: 确认人的身份、UTC 请求时刻及审计来源。\n    body: 只有预览编号，不接受修改后的名字、路径或计划。\n\nReturns:\n    201，受导航写门禁保护的排队入库作业。\n\nRaises:\n    InputError: 预览未成功、不可读或编号非法。\n    AuthenticationError: 会话失效。\n    AuthorizationError: 写请求 Origin 非本站。\n    ExternalError: 数据库提交失败。\n\nSide Effects:\n    新增确认人的写作业与操作日志；导航和存储仅由 worker 修改。\n\nTime Semantics:\n    提交立即返回；worker 写前复核并以冲突拒绝过期计划，不自动重试。",
+        "operationId": "confirm_conversion_ingest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Confirm Ingest",
+        "tags": [
+          "conversion-ingest"
+        ]
+      }
+    },
     "/api/jobs/convert/{tool_name}": {
       "post": {
         "description": "提交工具转换作业，Web仅校验登记选项和数据块索引。\n\nArgs:\n    context: 已认证身份、请求时刻和审计上下文。\n    tool_name: 工具列表返回的登记包名称。\n    body: 数据集、1至200个数据块、型号及可选输出版本。\n\nReturns:\n    新排队作业，默认输出版本已由工具清单补齐。\n\nRaises:\n    JobInputError: 工具未登记、型号/版本无效或数据块归属/格式不符，422。\n    AuthenticationError: 当前会话失效，401。\n    ConflictError: 数据库写锁竞争，409。\n    ExternalError: 数据库不可用，502。\n\nSide Effects:\n    经JobService同事务写作业和操作日志；不访问输入存储根或执行工具。\n\nTime Semantics:\n    使用请求UTC时刻，不等待worker或GPU，不重试提交。",
@@ -17541,6 +18309,292 @@
         "summary": "Cancel Job",
         "tags": [
           "jobs"
+        ]
+      }
+    },
+    "/api/jobs/{job_id}/conversion-ingest-preview": {
+      "get": {
+        "description": "读取 worker 保存的入库预览摘要。\n\nArgs:\n    context: 已认证账号、作业服务与只读状态目录。\n    job_id: 成功预览编号的规范十进制文本。\n\nReturns:\n    名字、相对位置、勾选入口、14 项和检查说明。\n\nRaises:\n    InputError: 作业不是成功预览、过期或文件不可用。\n    AuthenticationError: 会话失效。\n    ExternalError: 只读查询失败。\n\nSide Effects:\n    只读数据库和状态预览，不访问存储根。\n\nTime Semantics:\n    返回已保存快照；七天过期后要求重新预览。",
+        "operationId": "get_conversion_ingest_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionIngestPreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Ingest Preview",
+        "tags": [
+          "conversion-ingest"
+        ]
+      },
+      "post": {
+        "description": "为成功转换提交入库预览。\n\nArgs:\n    context: 当前成员身份、唯一 UTC 请求时刻与作业服务。\n    job_id: 转换编号的规范十进制文本，正数且不超过 SQLite 整数范围。\n    body: 可选数据集名、同根相对位置与按格式入口；无绝对路径。\n\nReturns:\n    201，worker 预览作业，不等待检查完成。\n\nRaises:\n    InputError: 编号、参数或作业类型非法。\n    AuthenticationError: 会话失效。\n    AuthorizationError: 写请求 Origin 非本站。\n    ExternalError: 作业数据库不可用。\n\nSide Effects:\n    只原子写入作业与操作日志，不读取数据或导航文件。\n\nTime Semantics:\n    沿用 M0 提交预算，不重试写请求；存储检查由 worker 执行。",
+        "operationId": "submit_conversion_ingest_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestOptions"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Submit Ingest Preview",
+        "tags": [
+          "conversion-ingest"
         ]
       }
     },

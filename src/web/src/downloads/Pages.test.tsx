@@ -443,3 +443,71 @@ it("成功的数据集下载可入库，预览的名字和同根位置可改，�
     view.close();
   }
 });
+
+it("转换暂存显示检查结果，检查并入库可修改名字和同根位置", async () => {
+  // M4-04验收6：经真实路由和HTTP边界验证列表、检查预览和修改后的重新预览。
+  const sent: unknown[] = [];
+  const fetchImpl: FetchImplementation = async (request) => {
+    const path = new URL(request.url).pathname;
+    if (path === "/api/conversions/staging")
+      return Response.json({
+        items: [
+          {
+            job_id: "60",
+            input_dataset: "输入_mcap",
+            tool: "mcap2lerobot",
+            output_format: "v3.0",
+            size_bytes: 1000,
+            check: { result: "有警告", warning_count: 1, layers: [] },
+            status: "待确认",
+            in_use: false,
+            deleted: false,
+          },
+        ],
+        next_before: null,
+      });
+    if (path === "/api/jobs/60/conversion-ingest-preview") {
+      sent.push(await request.json());
+      return Response.json(
+        { ...completedJob, job_id: "80", type_name: "conversion_ingest_preview" },
+        { status: 201 },
+      );
+    }
+    if (path === "/api/jobs/80") return Response.json({ ...completedJob, job_id: "80" });
+    if (path === "/api/jobs/80/conversion-ingest-preview")
+      return Response.json({
+        preview_job_id: "80",
+        parameters: {
+          conversion_job_id: 60,
+          dataset_name: sent.length > 1 ? "人工名字" : "输入_lerobot",
+          target_subdir: sent.length > 1 ? "转换/人工位置" : "转换/输入_lerobot",
+          format_entries: [{ format: "lerobot", version: "3.0" }],
+        },
+        fields: { FPS: "30" },
+        checks: ["四层检查完成"],
+        notices: [],
+        check: { result: "有警告", warning_count: 1, layers: [] },
+        format_entry_options: [{ format: "lerobot", version: "3.0" }],
+      });
+    return transport(request);
+  };
+  const page = mount("/conversions", fetchImpl);
+  try {
+    expect(await screen.findByText("有警告")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "检查并入库" }));
+    await screen.findByText("四层检查完成");
+    fireEvent.change(screen.getByLabelText("入库数据集名"), { target: { value: "人工名字" } });
+    fireEvent.change(screen.getByLabelText("入库存放位置"), { target: { value: "转换/人工位置" } });
+    expect(screen.getByRole("button", { name: "确认入库" })).toHaveProperty("disabled", true);
+    fireEvent.click(screen.getByRole("button", { name: "预览入库" }));
+    await waitFor(() => {
+      expect(sent).toHaveLength(2);
+    });
+    expect(sent[1]).toMatchObject({ dataset_name: "人工名字", target_subdir: "转换/人工位置" });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "确认入库" })).toHaveProperty("disabled", false);
+    });
+  } finally {
+    page.close();
+  }
+});

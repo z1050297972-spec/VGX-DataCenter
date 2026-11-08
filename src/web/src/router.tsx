@@ -33,6 +33,10 @@ const SchedulingPage = lazyRouteComponent(() => import("./scheduling/Pages"), "S
 import { validateDownloadSearch } from "./downloads/search";
 const DownloadPage = lazyRouteComponent(() => import("./downloads/Pages"), "DownloadPage");
 const MonitoringPage = lazyRouteComponent(() => import("./monitoring/Pages"), "MonitoringPage");
+const ConversionStagingPage = lazyRouteComponent(
+  () => import("./conversions/Pages"),
+  "ConversionStagingPage",
+);
 const JobsPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobsPage");
 const JobDetailPage = lazyRouteComponent(() => import("./jobs/Pages"), "JobDetailPage");
 import type { JobSearch } from "./api/jobs";
@@ -153,6 +157,18 @@ export function createAppRouter(options: AppRouterOptions) {
     validateSearch: validateDownloadSearch,
     component: DownloadPage,
   });
+  const conversions = createRoute({
+    getParentRoute: () => root,
+    path: "/conversions",
+    component: ConversionStagingPage,
+    validateSearch: (search): { before?: string } => {
+      const before =
+        typeof search.before === "string" || typeof search.before === "number"
+          ? String(search.before)
+          : "";
+      return /^[1-9][0-9]*$/u.test(before) ? { before } : {};
+    },
+  });
   const monitoring = createRoute({
     getParentRoute: () => root,
     path: "/monitoring",
@@ -234,6 +250,7 @@ export function createAppRouter(options: AppRouterOptions) {
       loginLogs,
       jobs,
       downloads,
+      conversions,
       monitoring,
       jobDetail,
       scheduling,

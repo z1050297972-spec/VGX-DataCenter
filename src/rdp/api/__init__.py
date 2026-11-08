@@ -27,6 +27,8 @@ from rdp.api.accounts import router as accounts_router
 from rdp.api.audit import router as audit_router
 from rdp.api.classification import router as classification_router
 from rdp.api.collection import router as collection_router
+from rdp.api.conversion_ingest import router as conversion_ingest_router
+from rdp.api.conversion_ingest import staging_router as conversion_staging_router
 from rdp.api.database import configure_database
 from rdp.api.datasets import router as datasets_router
 from rdp.api.datasets.creation import router as dataset_creation_router
@@ -150,6 +152,8 @@ def _install_job_and_monitoring_routes(app: FastAPI) -> None:
     app.include_router(classification_router)
     app.include_router(lineage_router)
     app.include_router(download_ingest_router)
+    app.include_router(conversion_ingest_router)
+    app.include_router(conversion_staging_router)
     app.include_router(download_tokens_router)
     app.include_router(monitoring_router)
     app.include_router(tools_router)
