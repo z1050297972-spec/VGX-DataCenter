@@ -1,6 +1,6 @@
 # 工具登记与工具库页面
 
-Status: ready-for-agent
+Status: in-progress
 
 分级：直做（负责人 2026-11-08："可以拜托你按照顺序帮忙完成M4吗"，此前"其他按照推荐来"；骨架和合并由执行线按建议过，记进 Comments）。按"只做关键测试"。不写导航层。
 
@@ -76,3 +76,4 @@ Blocked by: 无（和第 02 张并行，文件不重叠）
 ## Comments
 
 - 2026-11-08 开票（执行线）。
+- 2026-11-08 05:1x 派工（直做，一次交付）：worktree `robot-data-platform.wt/m4-01-tool-registry`，分支 `t/m4-01-tool-registry`；systemd 单元 `rdp-m4-01`；模型 `gpt-6-astra` high，90 分钟上限；会话 `01a1bb11-9d41-74c0-944b-565981d1ec4b`；提示和日志在 `~/.cache/rdp-dispatch/m4-01/`。第 01、02 张并行。
