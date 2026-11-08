@@ -21,6 +21,8 @@ from rdp.jobs.datasets.types import EntrySnapshot, Finding, FindingGroup, PanelG
 class NavigationRule(StrEnum):
     """稳定规则码供五段诊断聚合，不能把对象名放进规则码。"""
 
+    COLLECTION_INVALID = "COLLECTION_INVALID"
+    COLLECTION_UNKNOWN_REF = "COLLECTION_UNKNOWN_REF"
     JSON_UNREADABLE = "JSON_UNREADABLE"
     JSON_INVALID = "JSON_INVALID"
     JSON_REQUIRED_FIELD = "JSON_REQUIRED_FIELD"

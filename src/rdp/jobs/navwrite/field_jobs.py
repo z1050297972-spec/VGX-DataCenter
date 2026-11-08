@@ -10,10 +10,11 @@ from rdp.accounts.types import Role
 from rdp.infra.diagnostics import DefectError, InputError
 from rdp.jobs.datasets.catalog import REQUIRED_DOCUMENTS
 from rdp.jobs.datasets.reading import discover_entries, scene_values
-from rdp.jobs.datasets.types import EntrySnapshot, View
+from rdp.jobs.datasets.types import EntrySnapshot, JsonObject, View
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.navwrite import _create_plan as plans
 from rdp.jobs.navwrite import _create_read as reads
+from rdp.jobs.navwrite import _field_collection
 from rdp.jobs.navwrite._field_diff import differences
 from rdp.jobs.navwrite._field_rules import apply_edit, source_references
 from rdp.jobs.navwrite.errors import nav_conflict_error, nav_input_error
@@ -94,30 +95,7 @@ def _build(
     payloads = {
         name: plans.payload(current, index) for index, name in enumerate(REQUIRED_DOCUMENTS)
     }
-    known = source_references(payloads["原始路径.json"], payloads["子任务.json"])
-    for edit in parameters.changes:
-        checkpoint()
-        if plans.image(raw[edit.document]).sha256 != edit.expected_sha256:
-            raise nav_conflict_error(
-                "NAV_FIELDS",
-                "表单读取后文件发生变化，请重新加载",
-                objects=(("dataset_id", parameters.dataset_id), ("file", edit.document)),
-            )
-        try:
-            apply_edit(payloads[edit.document], edit, known)
-        except InputError as error:
-            raise nav_input_error(
-                "NAV_FIELDS",
-                error.diagnostics[0].actual,
-                objects=(
-                    ("dataset_id", parameters.dataset_id),
-                    ("file", edit.document),
-                    ("field", "/".join(map(str, edit.path))),
-                ),
-            ) from error
-    # 保存时才升级旧场景，纳入同一预览及变更记录前像，不在读取或扫描时改文件。
-    information = payloads["数据集信息.json"]
-    information["scene"] = list(scene_values(information.get("scene")))
+    _edit_payloads(deps, parameters, payloads, raw, checkpoint)
     files = tuple(
         dump_navigation_json(
             payloads[name]
@@ -172,6 +150,49 @@ def _build(
         notices=(),
     )
     return PreviewBuild(plan, report, parameters.model_dump(mode="json"))
+
+
+def _edit_payloads(
+    deps: NavWriteDependencies,
+    parameters: FieldEditParameters,
+    payloads: dict[str, JsonObject],
+    raw: dict[str, bytes],
+    checkpoint: Callable[[], None],
+) -> None:
+    """先验证表单摘要和登记约束，再修改内存副本供同一预览报告使用。"""
+    known = source_references(payloads["原始路径.json"], payloads["子任务.json"])
+    # 摘要先于登记查询及自动补值校验，过期表单不能参与新预览决策。
+    for edit in parameters.changes:
+        if plans.image(raw[edit.document]).sha256 != edit.expected_sha256:
+            raise nav_conflict_error(
+                "NAV_FIELDS",
+                "表单读取后文件发生变化，请重新加载",
+                objects=(("dataset_id", parameters.dataset_id), ("file", edit.document)),
+            )
+    _field_collection.prepare(deps.rescan.engine, payloads["数据集信息.json"], parameters)
+    for edit in parameters.changes:
+        checkpoint()
+        try:
+            apply_edit(payloads[edit.document], edit, known)
+        except InputError as error:
+            raise nav_input_error(
+                "NAV_FIELDS",
+                error.diagnostics[0].actual,
+                objects=(
+                    ("dataset_id", parameters.dataset_id),
+                    ("file", edit.document),
+                    ("field", "/".join(map(str, edit.path))),
+                ),
+            ) from error
+    # 保存时才升级旧场景，纳入同一预览及变更记录前像，不在读取或扫描时改文件。
+    information = payloads["数据集信息.json"]
+    # 仅编辑采集组时不能顺带升级无关旧字段，保证信息文件只改 collection/data_origin。
+    collection_only = all(
+        edit.document == "数据集信息.json" and edit.path in {("collection",), ("data_origin",)}
+        for edit in parameters.changes
+    ) and any(edit.path == ("collection",) for edit in parameters.changes)
+    if not collection_only:
+        information["scene"] = list(scene_values(information.get("scene")))
 
 
 def _write(steps: list[WriteFileStep], path: str, before: bytes, after: bytes) -> None:

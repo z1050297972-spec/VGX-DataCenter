@@ -6,6 +6,7 @@
 import copy
 from typing import cast
 
+from rdp.collection.information import CollectionInformation, read_collection
 from rdp.jobs.datasets.reading import scene_values
 from rdp.jobs.datasets.types import JsonObject, JsonValue
 from rdp.jobs.datasets.vocabulary import UNLABELED
@@ -25,6 +26,7 @@ INFO_LABELS = (
     ("subtask_notes", "子任务"),
     ("fps", "FPS"),
     ("data_origin", "数据来源"),
+    ("collection", "采集信息"),
 )
 TASK_LABELS = (("display_name", "任务名"), ("description", "描述"), ("source_ids", "关联数据块"))
 SOURCE_LABELS = (
@@ -112,7 +114,13 @@ def apply_edit(
     """分类去空格、任务去重保序后写入；关系编辑只接受已存在引用的 source_id。"""
     path = edit.path
     normalized = _classification_value(edit)
-    value: JsonValue = list(normalized) if isinstance(normalized, tuple) else normalized
+    value: JsonValue = (
+        cast(JsonObject, normalized.model_dump(mode="json"))
+        if isinstance(normalized, CollectionInformation)
+        else list(normalized)
+        if isinstance(normalized, tuple)
+        else normalized
+    )
     target = payload
     key = str(path[-1])
     if len(path) == 3 and isinstance(path[1], int):
@@ -142,6 +150,8 @@ def _field(
     path: tuple[str | int, ...], label: str, value: JsonValue | None, *, multiple: bool = False
 ) -> EditableField:
     """接受文本、文本数组及 FPS 正整数；坏值明确报错，避免保存时被空值覆盖。"""
+    if path == ("collection",):
+        return EditableField(path=path, label=label, value=read_collection(value))
     if path == ("fps",) and type(value) is int and value > 0:
         return EditableField(path=path, label=label, value=value)
     if isinstance(value, str):
@@ -156,6 +166,10 @@ def _field(
 def check_shape(edit: FieldEdit) -> None:
     """入队前校验路径、形状和分类值；形状失败交给 Pydantic，分类失败抛 JobInputError。"""
     path = edit.path
+    if edit.document == "数据集信息.json" and path == ("collection",):
+        if edit.value is not None and not isinstance(edit.value, CollectionInformation):
+            raise ValueError("采集信息必须是对象或 null")
+        return
     key = str(path[-1])
     array_value = isinstance(edit.value, tuple)
     if len(path) == 1:

@@ -1,4 +1,5 @@
 // M1.5-09/10 共用字段输入；供新建与详情就地编辑使用，不维护独立编辑器。
+import { CollectionInput } from "./CollectionInput";
 import { useState, type ReactElement } from "react";
 import { Alert, AutoComplete, Input, InputNumber, Select } from "antd";
 import type { DatasetFilters } from "../api/datasets";
@@ -12,6 +13,7 @@ interface InputProps {
   /** 当前局部草稿值，未改时为原值。 */ value: Value;
   /** 服务端分类词表；未加载时分类控件不可改。 */ vocabulary?: DatasetFilters;
   /** 提交中或基线过期时禁用。 */ disabled: boolean;
+  /** 方式选择后由会话决定是否补齐来源。 */ onOrigin?: (origin: string) => void;
   /** 将新值交给会话，不直接提交。 */ onChange: (value: Value) => void;
 }
 /**
@@ -24,6 +26,16 @@ interface InputProps {
  */
 export function FieldInput(props: InputProps): ReactElement {
   const { field, value, disabled, onChange } = props;
+  if (field.path[0] === "collection")
+    return (
+      <CollectionInput
+        value={collectionValue(value)}
+        original={collectionValue(field.value)}
+        disabled={disabled}
+        onChange={onChange}
+        onOrigin={props.onOrigin}
+      />
+    );
   if (field.path.length === 1 && (field.path[0] === "scene" || field.path[0] === "tasks"))
     return <ClassificationInput {...props} />;
   if (
@@ -237,4 +249,9 @@ function text(value: Value): string {
 }
 function list(value: Value): string[] {
   return Array.isArray(value) ? value : [];
+}
+
+// collection 是唯一对象字段；旧文本控件仍只处理原有标量和数组。
+function collectionValue(value: Value) {
+  return typeof value === "object" && !Array.isArray(value) ? value : null;
 }

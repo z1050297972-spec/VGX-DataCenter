@@ -4,7 +4,17 @@ import type { DatasetQuery } from "../api/datasets";
 
 export type DatasetSearch = Pick<
   DatasetQuery,
-  "data_origin" | "robot_model" | "offset" | "fps" | "entry_path" | "scene" | "tasks"
+  | "data_origin"
+  | "robot_model"
+  | "offset"
+  | "fps"
+  | "entry_path"
+  | "scene"
+  | "tasks"
+  | "collection_status"
+  | "collection_method"
+  | "collection_purpose"
+  | "collection_robot"
 > & {
   /** URL 错误仅作页面提示，不传 API。 */ invalidDatasetSearch?: true;
   /** 顶栏一致性面板是否打开。 */ panel?: boolean;
@@ -32,6 +42,10 @@ export function validateDatasetSearch(input: Record<string, unknown>): DatasetSe
       robot_model: optionalText(input.robot_model),
       data_origin: optionalOrigin(input.data_origin),
       scene: optionalText(input.scene),
+      collection_status: optionalCollectionStatus(input.collection_status),
+      collection_method: optionalCollectionId(input.collection_method),
+      collection_purpose: optionalCollectionId(input.collection_purpose),
+      collection_robot: optionalCollectionId(input.collection_robot),
       tasks: optionalTasks(input.tasks),
       offset: optionalInteger(input.offset),
     };
@@ -80,4 +94,26 @@ function optionalTasks(value: unknown): string[] | undefined {
   if (values.includes(UNLABELED_FILTER) && new Set(values).size > 1)
     throw new Error("筛选参数不合法");
   return [...new Set(values)];
+}
+
+// Router 会把未加引号的十进制编号解成 number，统一恢复为接口要求的文本。
+function optionalCollectionId(value: unknown): string | undefined {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return String(value);
+  const text = optionalText(value);
+  if (text !== undefined && text !== "unlabeled" && !/^[1-9]\d*$/.test(text))
+    throw new Error("筛选参数不合法");
+  return text;
+}
+
+// 状态是封闭枚举，非法 URL 与现有来源筛选一样在页面提示，不退回全量列表。
+function optionalCollectionStatus(value: unknown): DatasetQuery["collection_status"] {
+  if (
+    value === undefined ||
+    value === "planned" ||
+    value === "collecting" ||
+    value === "done" ||
+    value === "unlabeled"
+  )
+    return value;
+  throw new Error("筛选参数不合法");
 }

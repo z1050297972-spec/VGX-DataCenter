@@ -6,6 +6,7 @@ import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import { useJobAction } from "../jobs/_actions";
 import { DiagnosticCard, DiagnosticEntries } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
+import { CollectionInformation } from "./CollectionInformation";
 import { SubtaskNotes } from "./SubtaskNotes";
 import { DatasetSizeSummary } from "./Sizes";
 import { RepointEditor } from "./Repoint";
@@ -153,6 +154,7 @@ function DetailContent({
           editing={editing}
         />
       </div>
+      <CollectionInformation collection={detail.collection} editing={editing} />
       {detail.index_stale && (
         <Alert
           type="warning"

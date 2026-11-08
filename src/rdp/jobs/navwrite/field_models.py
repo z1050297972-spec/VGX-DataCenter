@@ -7,6 +7,7 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from rdp.collection.information import CollectionInformation
 from rdp.jobs.dataset_browser.schemas import DatasetId
 
 FIELD_PREVIEW_TYPE = "nav_fields_preview"
@@ -18,7 +19,9 @@ type EditableDocument = Literal["数据集信息.json", "子任务.json", "原�
 type FieldPath = tuple[
     Annotated[str, Field(strict=True)] | Annotated[int, Field(strict=True, ge=0)], ...
 ]
-type FieldValue = str | tuple[str, ...] | Annotated[int, Field(strict=True, gt=0)]
+type FieldValue = (
+    str | tuple[str, ...] | Annotated[int, Field(strict=True, gt=0)] | CollectionInformation | None
+)
 
 
 class FieldValueModel(BaseModel):
@@ -34,7 +37,7 @@ class FieldEdit(FieldValueModel):
         document: 三份基础 JSON 之一；数据来源属于信息顶层字段。
         expected_sha256: 表单读取的原字节摘要，防止预览覆盖填表期间的改动。
         path: 字段路径，最多三层；不接受文件系统路径。
-        value: 新文本、字符串数组或正整数 FPS；文本空值表示清空，不表示删除键。
+        value: 采集信息对象或 null、新文本、字符串数组或正整数 FPS；文本空值表示清空，不表示删除键。
     """
 
     document: EditableDocument
@@ -77,7 +80,7 @@ class EditableField(FieldValueModel):
     Attributes:
         path: 与提交参数一致的 JSON 定位路径。
         label: 中文标签，包含编号或任务身份。
-        value: 当前文本、多选值或正整数 FPS；缺省结构化字段显示为空。
+        value: 当前采集信息对象或 null、文本、多选值或正整数 FPS；缺省结构化字段显示为空。
         multiple: 是否使用字符串多选输入。
     """
 

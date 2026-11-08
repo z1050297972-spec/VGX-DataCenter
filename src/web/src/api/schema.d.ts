@@ -1255,6 +1255,7 @@ export interface paths {
          *         200，原始路径与信息原文、规范信息、推导数据块、索引链接/大小和index_stale；
          *         子任务仅提供subtasks_entry_path，未知身份入口同样可按位置查看；
          *         provenance 返回规范入口血缘文件状态；数据来源取信息文件顶层。
+         *         collection 返回采集索引和当前登记名称，未知编号保留并标 missing。
          *
          *     Raises:
          *         DatasetNotFoundError: 入口不在索引，404。
@@ -1290,13 +1291,13 @@ export interface paths {
         };
         /**
          * Get Dataset Filters
-         * @description 返回规范信息顶层的五个筛选候选及计数。
+         * @description 返回规范信息顶层的标注与采集筛选候选及计数。
          *
          *     Args:
          *         context: 全局安全检查通过的账号上下文与浏览服务。
          *
          *     Returns:
-         *         200，robot_models、fps、data_origins、scenes、tasks 候选及计数。
+         *         200，robot_models、fps、data_origins、scenes、tasks 和四个 collection_* 候选及计数。
          *         scene_vocabulary/task_vocabulary 提供编辑器用的受控编码与中文名。
          *         型号未标注使用 unlabeled，FPS 未标注使用 unknown；零计数的未标注项仍保留。
          *
@@ -4035,8 +4036,75 @@ export interface components {
             /** Value */
             value: string;
         };
+        CollectionIdentifier: number;
+        /**
+         * CollectionInformation
+         * @description 导航层只保存采集状态与编号，不把可变名称复制成另一份事实。
+         *
+         *     Attributes:
+         *         status: planned、collecting 或 done，必填。
+         *         method_id: 采集方式永久正整数编号，None 表示未填。
+         *         purpose_id: 用途永久正整数编号，None 表示未填。
+         *         robot_ids: 0 至 16 个机器人编号，去重保序。
+         */
+        CollectionInformation: {
+            method_id: components["schemas"]["CollectionIdentifier"] | null;
+            purpose_id: components["schemas"]["CollectionIdentifier"] | null;
+            /** Robot Ids */
+            robot_ids: components["schemas"]["CollectionIdentifier"][];
+            status: components["schemas"]["CollectionStatus"];
+        };
+        /**
+         * CollectionMethod
+         * @description 采集方式当前来源；未知编号没有可推断来源。
+         */
+        CollectionMethod: {
+            /** Data Origin */
+            data_origin: string | null;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "retired" | "missing";
+        };
         /** @enum {string} */
         CollectionOrigin: "真机采集" | "UMI 采集" | "ego 采集" | "仿真生成";
+        /**
+         * CollectionRobot
+         * @description 采集机器人当前名称与启停状态，保留不存在的永久编号。
+         */
+        CollectionRobot: {
+            /** Name */
+            name: string | null;
+            /** Robot Id */
+            robot_id: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "retired" | "missing";
+        };
+        /** @enum {string} */
+        CollectionStatus: "planned" | "collecting" | "done";
+        /**
+         * CollectionTerm
+         * @description 当前词表身份；编号未知时 name 为 null、status 为 missing。
+         */
+        CollectionTerm: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "retired" | "missing";
+        };
         /**
          * ConfirmCreationRequest
          * @description 用户确认保存的预览，不能夹带替换参数或计划。
@@ -4239,6 +4307,17 @@ export interface components {
          */
         DataOrigin: "real" | "umi" | "ego" | "simulation" | "open_source" | "unknown";
         /**
+         * DatasetCollection
+         * @description 采集索引和当前登记名称的联合投影，robots 保留原编号顺序。
+         */
+        DatasetCollection: {
+            method: components["schemas"]["CollectionMethod"] | null;
+            purpose: components["schemas"]["CollectionTerm"] | null;
+            /** Robots */
+            robots: components["schemas"]["CollectionRobot"][];
+            status: components["schemas"]["CollectionStatus"];
+        };
+        /**
          * DatasetDetailResponse
          * @description 入口详情保留原文和规范信息，子任务正文只由独立接口提供。
          */
@@ -4247,6 +4326,8 @@ export interface components {
             canonical_entry_path: string | null;
             /** @description 14项业务展示以此规范副本为准；缺失/重复规范入口为null，不将格式副本冒充规范副本 */
             canonical_information: components["schemas"]["NavigationDocument"] | null;
+            /** @description 采集索引中的编号及数据库当前名称；无有效采集信息为 null */
+            collection?: components["schemas"]["DatasetCollection"] | null;
             dataset_size: components["schemas"]["DatasetSize"];
             /** Diagnostics */
             diagnostics: components["schemas"]["Diagnostic"][];
@@ -4294,6 +4375,14 @@ export interface components {
          *     型号等候选按值排序；分类候选按词表顺序、词表外原值排序，未标注固定最后；零计数词表项保留。
          */
         DatasetFilterOptions: {
+            /** Collection Methods */
+            collection_methods: components["schemas"]["FilterOption"][];
+            /** Collection Purposes */
+            collection_purposes: components["schemas"]["FilterOption"][];
+            /** Collection Robots */
+            collection_robots: components["schemas"]["FilterOption"][];
+            /** Collection Statuses */
+            collection_statuses: components["schemas"]["FilterOption"][];
             /** Data Origins */
             data_origins: components["schemas"]["FilterOption"][];
             /**
@@ -4910,7 +4999,7 @@ export interface components {
          *     Attributes:
          *         path: 与提交参数一致的 JSON 定位路径。
          *         label: 中文标签，包含编号或任务身份。
-         *         value: 当前文本、多选值或正整数 FPS；缺省结构化字段显示为空。
+         *         value: 当前采集信息对象或 null、文本、多选值或正整数 FPS；缺省结构化字段显示为空。
          *         multiple: 是否使用字符串多选输入。
          */
         EditableField: {
@@ -5045,7 +5134,7 @@ export interface components {
          *         document: 三份基础 JSON 之一；数据来源属于信息顶层字段。
          *         expected_sha256: 表单读取的原字节摘要，防止预览覆盖填表期间的改动。
          *         path: 字段路径，最多三层；不接受文件系统路径。
-         *         value: 新文本、字符串数组或正整数 FPS；文本空值表示清空，不表示删除键。
+         *         value: 采集信息对象或 null、新文本、字符串数组或正整数 FPS；文本空值表示清空，不表示删除键。
          */
         FieldEdit: {
             document: components["schemas"]["EditableDocument"];
@@ -5070,7 +5159,7 @@ export interface components {
         };
         "FieldPath-Input": (string | number)[];
         "FieldPath-Output": (string | number)[];
-        FieldValue: string | string[] | number;
+        FieldValue: string | string[] | number | components["schemas"]["CollectionInformation"] | null;
         /**
          * FileItem
          * @description 直接目录项；大小为字节，修改时刻为UTC，不把软链接当可直接预览的文件。
@@ -9948,6 +10037,10 @@ export interface operations {
                 fps?: number | "unknown" | null;
                 /** @description 场景原编码；unlabeled 表示未标注 */
                 scene?: string | null;
+                collection_status?: components["schemas"]["CollectionStatus"] | "unlabeled" | null;
+                collection_method?: string | null;
+                collection_purpose?: string | null;
+                collection_robot?: string | null;
                 /** @description 重复 tasks 参数；全部任务取交集；unlabeled 必须单独使用 */
                 tasks?: string[];
                 data_origin?: components["schemas"]["DataOrigin"] | null;
@@ -11545,6 +11638,10 @@ export interface operations {
                 fps?: number | "unknown" | null;
                 /** @description 场景原编码；unlabeled 表示未标注 */
                 scene?: string | null;
+                collection_status?: components["schemas"]["CollectionStatus"] | "unlabeled" | null;
+                collection_method?: string | null;
+                collection_purpose?: string | null;
+                collection_robot?: string | null;
                 /** @description 重复 tasks 参数；全部任务取交集；unlabeled 必须单独使用 */
                 tasks?: string[];
                 data_origin?: components["schemas"]["DataOrigin"] | null;

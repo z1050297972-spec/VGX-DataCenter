@@ -37,6 +37,10 @@ export function useDatasetBrowser(filters: DatasetQuery) {
     robot_model: filters.robot_model,
     data_origin: filters.data_origin,
     scene: filters.scene,
+    collection_status: filters.collection_status,
+    collection_method: filters.collection_method,
+    collection_purpose: filters.collection_purpose,
+    collection_robot: filters.collection_robot,
     tasks: filters.tasks,
     fps: filters.fps,
     // 不传 entry_path：目录选择只筛列表。树若按目录收窄，另一个视图和上级目录的数量会变成 0，无法再走回去。

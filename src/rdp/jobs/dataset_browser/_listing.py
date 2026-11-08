@@ -2,6 +2,7 @@
 
 from pathlib import PurePosixPath
 
+from rdp.collection.information import CollectionInformation
 from rdp.infra.db.validation import invalid_field
 from rdp.jobs.dataset_browser import _classification, _index
 from rdp.jobs.dataset_browser.errors import DatasetQueryError
@@ -90,8 +91,29 @@ def items(index: _index.Index) -> tuple[DatasetListItem, ...]:
     )
 
 
-def matches(item: DatasetListItem, filters: DatasetFilters) -> bool:
+def matches(
+    item: DatasetListItem, filters: DatasetFilters, collection: CollectionInformation | None = None
+) -> bool:
     """不同维度取交集，五个字段仅匹配规范信息索引。"""
+    values = (
+        (filters.collection_status, (collection.status,) if collection else ()),
+        (
+            filters.collection_method,
+            (str(collection.method_id),) if collection and collection.method_id is not None else (),
+        ),
+        (
+            filters.collection_purpose,
+            (str(collection.purpose_id),)
+            if collection and collection.purpose_id is not None
+            else (),
+        ),
+        (filters.collection_robot, tuple(map(str, collection.robot_ids)) if collection else ()),
+    )
+    if any(
+        selected is not None and selected not in (available or (UNLABELED,))
+        for selected, available in values
+    ):
+        return False
     fps = None if filters.fps == "unknown" else filters.fps
     model = None if filters.robot_model == UNLABELED else filters.robot_model
     return (

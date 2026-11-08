@@ -17,6 +17,7 @@ from rdp.infra.diagnostics import DefectError
 from rdp.infra.timeutil import ensure_utc
 from rdp.jobs.dataset_browser import (
     _classification,
+    _collection,
     _documents,
     _index,
     _listing,
@@ -140,7 +141,11 @@ class DatasetQueries:
         with session_scope(self.engine, read_only=True) as session:
             request.authorize(session)
             index = _index.load(session)
-            items = tuple(item for item in _listing.items(index) if _listing.matches(item, filters))
+            items = tuple(
+                item
+                for item in _listing.items(index)
+                if _listing.matches(item, filters, index.collections.get(item.dataset_id or ""))
+            )
             rows = tuple(
                 entry
                 for item in items
@@ -190,7 +195,11 @@ class DatasetQueries:
         with session_scope(self.engine, read_only=True) as session:
             request.authorize(session)
             index = _index.load(session)
-            rows = tuple(item for item in _listing.items(index) if _listing.matches(item, query))
+            rows = tuple(
+                item
+                for item in _listing.items(index)
+                if _listing.matches(item, query, index.collections.get(item.dataset_id or ""))
+            )
         return DatasetListResponse(
             items=rows[query.offset : query.offset + query.limit],
             total=len(rows),
@@ -200,7 +209,7 @@ class DatasetQueries:
         )
 
     def filter_options(self, request: QueryAccess) -> DatasetFilterOptions:
-        """返回三个布局共用的五个筛选候选及计数。
+        """返回三个布局共用的标注和采集筛选候选及计数。
 
         Args:
             request: 当前账号的会话、唯一UTC时刻和请求来源。
@@ -208,6 +217,7 @@ class DatasetQueries:
         Returns:
             全索引的型号、FPS、来源、场景、任务选项和计数，未标注或未知项即使为零也保留。
             FPS用正整数十进制文本传候选，型号保持大小写；来源按索引稳定编码计数。
+            采集状态使用固定编码，方式、用途和机器人使用编号文本，名称取当前登记表；unlabeled 最后。
 
         Raises:
             AuthenticationError: 身份失效，不能提供索引统计。
@@ -227,7 +237,9 @@ class DatasetQueries:
         with session_scope(self.engine, read_only=True) as session:
             request.authorize(session)
             index = _index.load(session)
+            collection_options = _collection.options(session, index)
         return DatasetFilterOptions(
+            **collection_options,
             robot_models=_classification.options(
                 tuple((row.robot_model,) if row.robot_model else () for row in index.datasets), ()
             ),
@@ -301,6 +313,7 @@ class DatasetQueries:
             原文保留未知字段和空白，解析失败仍可查看文本，缺失/非普通文件带五段诊断。
             规范副本不可用时不静默换用格式副本；子任务仅返回请求定位，不含正文。
             provenance 返回规范入口血缘文件状态，缺文件与坏文件分态表达。
+            collection 返回采集索引和数据库当前名称，未知编号 name=None、status=missing。
             links与大小来自索引。用第01张L12指纹比较全部入口；差异、不可验证或本次原文
             摘要不等于观察指纹均标index_stale=True，不以mtime判断，不更新索引。
 
@@ -328,6 +341,7 @@ class DatasetQueries:
             request.authorize(session)
             index = _index.load(session)
             row = _documents.selected(index, entry_path)
+            collection = _collection.detail(session, index.collections.get(row.dataset_id or ""))
             links = _documents.links(session, row.path)
             item = next(
                 item
@@ -362,6 +376,7 @@ class DatasetQueries:
             )
         )
         return DatasetDetailResponse(
+            collection=collection,
             provenance=_documents.provenance(self.nav_root, canonical_row),
             entry=_listing.entry(row),
             entries=item.entries,
