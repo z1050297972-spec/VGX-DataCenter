@@ -78,6 +78,9 @@ def target(value: object) -> None:
         "job",
         "dataset_index",
         "navigation_write",
+        "robot",
+        "collection_method",
+        "collection_purpose",
     }:
         raise invalid("target")
     name(value.name)
@@ -167,6 +170,7 @@ def operation_shape(value: OperationEvent, checked: OperationDetails) -> None:
         return
     if (value.operation in NAVIGATION_OPERATIONS) != (value.target.kind == "navigation_write"):
         raise invalid("target")
+    _collection_target(value)
     creating = value.operation in {OperationType.CREATE_ACCOUNT, OperationType.CREATE_FIRST_ADMIN}
     if creating and checked.before.model_dump(exclude_none=True):
         raise invalid("before")
@@ -177,6 +181,30 @@ def operation_shape(value: OperationEvent, checked: OperationDetails) -> None:
     if (value.operation is OperationType.SET_RETENTION) != (value.target.kind == "audit_settings"):
         raise invalid("target")
     if value.result is OperationResult.SUCCESS and value.target.object_id is None:
+        raise invalid("target")
+
+
+def _collection_target(value: OperationEvent) -> None:
+    """机器人及词表操作必须使用各自对象类型，防止编号空间混淆。"""
+    robot_operations = {
+        OperationType.CREATE_ROBOT,
+        OperationType.UPDATE_ROBOT,
+        OperationType.RETIRE_ROBOT,
+        OperationType.RESTORE_ROBOT,
+        OperationType.DELETE_ROBOT,
+    }
+    term_operations = {
+        OperationType.CREATE_COLLECTION_TERM,
+        OperationType.UPDATE_COLLECTION_TERM,
+        OperationType.RETIRE_COLLECTION_TERM,
+        OperationType.RESTORE_COLLECTION_TERM,
+        OperationType.DELETE_COLLECTION_TERM,
+    }
+    if (value.operation in robot_operations) != (value.target.kind == "robot"):
+        raise invalid("target")
+    if (value.operation in term_operations) != (
+        value.target.kind in {"collection_method", "collection_purpose"}
+    ):
         raise invalid("target")
 
 

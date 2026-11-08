@@ -119,6 +119,9 @@ layers = [
     # M0 第 8 张：作业提交/取消写操作日志，并在同事务重验账号身份、查历史账号存在性。
     # jobs 可依赖 accounts/audit；账号和日志不得反向依赖 jobs，避免请求上下文循环。
     "rdp.jobs",
+    # M3：机器人与采集词表登记（数据库对象）。数据集的采集信息校验和索引要引用它，所以在 jobs 之下；
+    # 它记创建人和操作日志，所以在 accounts、audit 之上。
+    "rdp.collection",
     "rdp.accounts",
     "rdp.audit",
     "rdp.infra",
@@ -135,6 +138,8 @@ source_modules = [
     "rdp.accounts",
     # M0 第 7 张：日志可由运维和未来 worker 调用，不依赖 Web 框架。
     "rdp.audit",
+    # M3：机器人与采集词表登记同属领域层。
+    "rdp.collection",
 ]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 

@@ -26,6 +26,16 @@ from rdp.infra.diagnostics import DiagnosticCategory
 class OperationType(StrEnum):
     """稳定的操作码；新增操作用新增枚举值，不改历史值（第 8 张可增加作业操作）。"""
 
+    CREATE_ROBOT = "create_robot"
+    UPDATE_ROBOT = "update_robot"
+    RETIRE_ROBOT = "retire_robot"
+    RESTORE_ROBOT = "restore_robot"
+    DELETE_ROBOT = "delete_robot"
+    CREATE_COLLECTION_TERM = "create_collection_term"
+    UPDATE_COLLECTION_TERM = "update_collection_term"
+    RETIRE_COLLECTION_TERM = "retire_collection_term"
+    RESTORE_COLLECTION_TERM = "restore_collection_term"
+    DELETE_COLLECTION_TERM = "delete_collection_term"
     CREATE_ACCOUNT = "create_account"
     SET_ROLE = "set_role"
     DISABLE_ACCOUNT = "disable_account"
@@ -148,6 +158,16 @@ ACCOUNT_DETAIL_FIELDS = frozenset(
     {"login_name", "display_name", "role", "status", "must_change_password"}
 )
 OPERATION_DETAIL_FIELDS: dict[OperationType, frozenset[str]] = {
+    OperationType.CREATE_ROBOT: frozenset(),
+    OperationType.UPDATE_ROBOT: frozenset(),
+    OperationType.RETIRE_ROBOT: frozenset(),
+    OperationType.RESTORE_ROBOT: frozenset(),
+    OperationType.DELETE_ROBOT: frozenset(),
+    OperationType.CREATE_COLLECTION_TERM: frozenset(),
+    OperationType.UPDATE_COLLECTION_TERM: frozenset(),
+    OperationType.RETIRE_COLLECTION_TERM: frozenset(),
+    OperationType.RESTORE_COLLECTION_TERM: frozenset(),
+    OperationType.DELETE_COLLECTION_TERM: frozenset(),
     OperationType.CREATE_ACCOUNT: ACCOUNT_DETAIL_FIELDS,
     OperationType.CREATE_FIRST_ADMIN: ACCOUNT_DETAIL_FIELDS,
     OperationType.DELETE_ACCOUNT: ACCOUNT_DETAIL_FIELDS,
@@ -221,13 +241,22 @@ class ObjectRef:
     """操作对象的独立快照，不建立会随账号删除而消失的外键。
 
     Attributes:
-        kind: account、audit_settings、job、dataset_index 或 navigation_write；旧值含义不变。
+        kind: account、audit_settings、job、dataset_index、navigation_write、robot、collection_method 或 collection_purpose；旧值含义不变。
             navigation_write（M1-07）的 object_id 是写入作业编号，也是变更记录编号。
-        object_id: account/job 为 1 至 2^63-1 的十进制文本；失败新建尚未分配编号为 None；设置固定 retention；数据集索引固定 all。
+        object_id: account/job/robot/collection_method/collection_purpose 为 1 至 2^63-1 的十进制文本；失败新建尚未分配编号为 None；设置固定 retention；数据集索引固定 all。
         name: 已确认显示名或固定“日志保留期”，1-64 码点；job 为“显示名 #编号”，最多 61 码点；失败新建account固定“新账号”，job尚无编号固定“新作业”；dataset_index固定“数据集索引”，不抄输入；navigation_write 为“写导航层 #编号”，系统自动写入可加“平台自动：”前缀。
     """
 
-    kind: Literal["account", "audit_settings", "job", "dataset_index", "navigation_write"]
+    kind: Literal[
+        "account",
+        "audit_settings",
+        "job",
+        "dataset_index",
+        "navigation_write",
+        "robot",
+        "collection_method",
+        "collection_purpose",
+    ]
     object_id: str | None
     name: str
 

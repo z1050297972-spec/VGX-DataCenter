@@ -48,6 +48,11 @@ const CreateDatasetPage = lazyRouteComponent(
   () => import("./datasets/CreationPages"),
   "CreateDatasetPage",
 );
+const RobotsPage = lazyRouteComponent(() => import("./collection/RobotsPage"), "RobotsPage");
+const VocabularyPage = lazyRouteComponent(
+  () => import("./collection/VocabularyPage"),
+  "VocabularyPage",
+);
 const StorageRootsPage = lazyRouteComponent(() => import("./storage/Pages"), "StorageRootsPage");
 const NavigationRecoveryPage = lazyRouteComponent(
   () => import("./navigation/Pages"),
@@ -188,6 +193,19 @@ export function createAppRouter(options: AppRouterOptions) {
     validateSearch: validateDatasetSearch,
     component: DatasetsPage,
   });
+  const robots = createRoute({
+    getParentRoute: () => root,
+    path: "/robots",
+    component: RobotsPage,
+  });
+  const vocabulary = createRoute({
+    getParentRoute: () => root,
+    path: "/collection-vocabulary",
+    validateSearch: (search: Record<string, unknown>): { tab: "methods" | "purposes" } => ({
+      tab: search.tab === "purposes" ? "purposes" : "methods",
+    }),
+    component: VocabularyPage,
+  });
   const createLink = createRoute({
     getParentRoute: () => root,
     path: "/datasets/links/new",
@@ -215,6 +233,8 @@ export function createAppRouter(options: AppRouterOptions) {
       scheduling,
       storageRoots,
       datasets,
+      robots,
+      vocabulary,
       createLink,
       createDataset,
       navigationRecovery,
