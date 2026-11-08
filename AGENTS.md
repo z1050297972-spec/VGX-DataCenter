@@ -41,7 +41,7 @@
      - 权宜做法，以及它在什么条件下可以去掉
      - 每个测试验证的是哪条契约行为
 6. **检查链。**
-   - `make check` 是唯一的检查入口。Codex 交付前要把它跑到全绿。
+   - `make check` 是唯一的全量检查入口。开发过程中只跑 `make check-changed WEB_CHANGED="<相对 src/web 的改动文件>"`（静态检查全跑，后端 testmon、前端 vitest related 只跑受影响的测试）；**交付前只跑一次** `make check` 到全绿，不要反复跑全量。
    - 提交时经过 `.githooks/pre-commit`，不加 `--no-verify`。
    - 豁免注释只能针对单条规则，并且要写明理由。
 7. **先用现成的；新增依赖必须经负责人批准。**
