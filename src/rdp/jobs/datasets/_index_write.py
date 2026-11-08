@@ -6,7 +6,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from rdp.infra.diagnostics import DefectError
-from rdp.jobs.datasets import _collection_index
+from rdp.jobs.datasets import _collection_index, _lineage_index
 from rdp.jobs.datasets.models import (
     DatasetRow,
     DatasetScanRow,
@@ -153,6 +153,7 @@ def _dataset(session: Session, item: DatasetObservation, scan_id: int) -> int:
         session.merge(values)
         session.flush()
         collection_findings = _collection_index.replace(session, item.dataset_id, selected)
+        _lineage_index.replace(session, item.dataset_id, selected)
         new_paths = [str(entry.location.path) for entry in item.entries]
         session.execute(
             delete(EntryRow).where(

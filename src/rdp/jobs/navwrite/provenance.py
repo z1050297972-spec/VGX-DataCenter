@@ -1,7 +1,7 @@
 """`来源.json` 的格式与读写（领域层，M1-07，ADR 0008）。
 
 第 2 版只存身份、采集任务和血缘；兼容读取第 1 版并忽略其中的数据来源字段。
-只在按任务入口存在，按格式入口不放副本。血缘记录只追加；没有文件表示来历未知。
+只在按任务入口存在，按格式入口不放副本。自动血缘只追加，人工补录可整条删除；没有文件表示来历未知。
 本模块负责内存里的模型和纯函数；写盘走 NavWritePlan 的 WriteFileStep，不另开写路径。
 """
 
@@ -43,7 +43,7 @@ class ActorStamp(BaseModel):
 
 
 class LineageRecord(BaseModel):
-    """一条血缘记录；写入后不再修改，只能追加新的。
+    """一条血缘记录；写入后不再修改，M3 仅允许整条删除人工补录。
 
     Attributes:
         model_config: 冻结，拒绝未知字段。
@@ -90,7 +90,7 @@ class ProvenanceDocument(BaseModel):
         schema_version: 固定 2；第 1 版读取时先丢弃来源字段再转换。
         dataset_id: 永久编号，必须与入口里其他三份 JSON 一致。
         dataset_name: 数据集名，等于按任务入口的目录名。
-        collection_task_id: 所属采集任务的编号文本，没有为 None（采集任务编号形式由 M2 定）。
+        collection_task_id: 兼容旧采集任务编号，缺键为 None；M3 不用于关联，编辑原文时保持原样。
         lineage: 血缘记录，按 record_id 升序，空元组表示"来历未知"。
     """
 
@@ -98,7 +98,7 @@ class ProvenanceDocument(BaseModel):
     schema_version: Literal[2] = 2
     dataset_id: str = Field(min_length=1)
     dataset_name: str = Field(min_length=1)
-    collection_task_id: str | None
+    collection_task_id: str | None = None
     lineage: tuple[LineageRecord, ...]
 
 

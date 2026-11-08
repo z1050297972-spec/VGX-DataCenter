@@ -317,6 +317,29 @@ class DatasetCollection(BrowserValue):
     robots: tuple[CollectionRobot, ...]
 
 
+class LineageDownstream(BrowserValue):
+    """血缘中的关联数据集；名称和按任务路径取索引，查不到时为 null。"""
+
+    record_id: int
+    dataset_id: str
+    name: str | None
+    entry_path: str | None
+    note: str | None
+
+
+class LineageUpstream(LineageDownstream):
+    """当前数据集一条记录的一个输入，人工补录记录可删除。"""
+
+    removable: bool
+
+
+class DatasetLineage(BrowserValue):
+    """来源索引的双向关联，两个视图共享，空数组表示无有效关系。"""
+
+    upstream: tuple[LineageUpstream, ...]
+    downstream: tuple[LineageDownstream, ...]
+
+
 class DatasetDetailResponse(BrowserValue):
     """入口详情保留原文和规范信息，子任务正文只由独立接口提供。"""
 
@@ -342,6 +365,9 @@ class DatasetDetailResponse(BrowserValue):
     diagnostics: tuple[Diagnostic, ...]
     collection: DatasetCollection | None = Field(
         default=None, description="采集索引中的编号及数据库当前名称；无有效采集信息为 null"
+    )
+    lineage: DatasetLineage = Field(
+        description="来源文件的索引投影；上游按记录输入展开，下游从其他记录反查"
     )
     provenance: DatasetProvenance | None = Field(
         default=None, description="本次只读规范入口血缘文件的状态；无唯一规范入口时不可用"

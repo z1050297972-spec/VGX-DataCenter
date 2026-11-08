@@ -175,6 +175,23 @@ class Source:
 
 
 @dataclass(frozen=True)
+class LineageInput:
+    """一条来源记录展开出的一个输入，不依赖工具或数据块模型。
+
+    Attributes:
+        record_id: 文件内正整数记录编号。
+        dataset_id: 输入的永久编号；可在索引中不存在。
+        note: 原记录说明，未填为 None。
+        removable: 记录人为人工补录时为 True。
+    """
+
+    record_id: int
+    dataset_id: str
+    note: str | None
+    removable: bool
+
+
+@dataclass(frozen=True)
 class EntrySnapshot:
     """一个入口的有限读取快照，与 JSON 未知字段一同交给面板及索引。
 
@@ -193,6 +210,8 @@ class EntrySnapshot:
             provenance_present 并存，后者仍只表示目录项有无。默认 ABSENT，只加不改。
         data_origin: 信息顶层中文来源映射的筛选编码；缺失或非法为 unknown。
         collection: 有效采集信息；缺失或格式非法为 None。
+        lineage: 有效且身份匹配的来源记录按输入展开，保留顺序；无有效来源为空。
+        provenance_sha256: 来源文件原字节摘要；不存在或无法读取为 None，用于投影与指纹配对。
         scene: 顶层 scene 的场景集合，兼容旧字符串；去空格、去空项、去重保序，不可用为空元组
             （M1.5-03）。不校验是否在词表内，词表外的值照样保留。
         tasks: 顶层 tasks 数组里的非空文本项，去重并保持原顺序；缺失或不是数组为空元组。
@@ -216,3 +235,5 @@ class EntrySnapshot:
     robot_model: str | None = None
     fps: int | None = None
     collection: CollectionInformation | None = None
+    lineage: tuple[LineageInput, ...] = ()
+    provenance_sha256: str | None = None

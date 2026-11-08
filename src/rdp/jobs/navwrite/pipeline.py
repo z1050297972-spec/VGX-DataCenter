@@ -122,7 +122,8 @@ def write_plan_locked(
         dependencies: 写入依赖。
         preview: 预览作业保存的结果，其 plan 就是要执行的计划，不重新计算。
         actor: 提交人身份快照，写进变更记录。
-        prepare_locked: 自动作业在锁内过滤过期计划的回调；None 保持人工确认计划不变。
+        prepare_locked: 锁内准备回调；自动作业过滤过期计划，人工血缘仅补写作业审计元数据。
+            None 保持确认计划不变，不允许在回调中重算人工关系。
 
     Returns:
         LockedWrite。计划无步骤时 noop 为 True，仍完成预览状态核对，不落日志。
@@ -269,7 +270,7 @@ def run_write_plan(
         context: 当前人工或平台自动写入作业的执行上下文。
         dependencies: 写入依赖。
         preview_job_id: 人工预览的正整数编号；自动作业传已读取的 NavPreview，不要求人工确认。
-        prepare_locked: 自动计划的锁内过滤回调；None 时保持人工预览冲突即失败的行为。
+        prepare_locked: 自动计划过滤或人工血缘审计元数据补齐回调；不改变人工预览冲突即失败的行为。
 
     Returns:
         ApplyResult。committed：已写入，仅为仍存在的数据集提交统计，删除编号记入 sizing_skipped_dataset_ids；noop：核对通过但计划无步骤，操作日志照记。

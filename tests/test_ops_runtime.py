@@ -34,7 +34,7 @@ def test_assembly_order(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     try:
         assert observed
         assert runtime.logging.stderr is False
-        assert len(runtime.registry.definitions()) == 20
+        assert len(runtime.registry.definitions()) == 21
         assert len(runtime.scheduling.schedules.definitions()) == 3
         assert all(path.is_dir() for _, path in runtime.paths.job_logs)
         assert runtime.version == "0.1.0 (aaaaaaa)"

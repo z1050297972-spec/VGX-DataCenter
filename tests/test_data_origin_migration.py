@@ -37,6 +37,7 @@ def test_migration_preserves_populated_index_and_expands_origins(
             "v0018*",
             "v0019*",
             "v0020*",
+            "v0021*",
         ),
     )
     with monkeypatch.context() as patch:
@@ -67,7 +68,7 @@ def test_migration_preserves_populated_index_and_expands_origins(
                     str(Path(__file__).parents[1] / "src/rdp/infra/db/migration.py"),
                 )
                 result = migrate(paths, now=NOW)
-                assert result.changed and result.current_revision == "0020_dataset_collection"
+                assert result.changed and result.current_revision == "0021_dataset_lineage"
                 with session_scope(engine, read_only=True) as session:
                     after = {
                         table: session.execute(

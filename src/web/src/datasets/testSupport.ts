@@ -193,6 +193,7 @@ export const filters: DatasetFilters = {
   ],
 };
 export const detail: DatasetDetail = {
+  lineage: { upstream: [], downstream: [] },
   collection: null,
   provenance: { state: "absent" },
   entry: taskEntry,

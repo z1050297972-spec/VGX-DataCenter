@@ -1,6 +1,6 @@
 # 登记转换关系（人工血缘）
 
-Status: ready-for-agent
+Status: done
 
 分级：直做。按"只做关键测试"。写导航层，要做副本演练。
 
@@ -40,3 +40,5 @@ Blocked by: 03（顺序上排在 04 之后，和 04 不改同一处时可并行�
 
 - 2026-11-08 开票（执行线）。
 - 2026-11-08 与 M4 会话（datasets-d5）对齐：记录格式改用现有 `LineageRecord`；投影按所有记录的 `inputs[].dataset_id`。
+- 2026-11-08 前后端交回（后端 gpt-6-astra high、前端 medium），执行线 make api-types 后前端续接换成生成类型。make check 全绿：后端 2811 passed、Vitest 405 passed、0 skipped。权限：成员可预览，确认走通用 `nav_write_apply`，需要管理员（和"删除场景/任务的值"一致；工单原写"同字段编辑"，执行线接受这个差异，手册照实写）。
+- 2026-11-08 **副本演练**（`~/.cache/rdp-drill/m3-05/drill.sh` → `run.log`）：给 R1_lite_table_withdrawing_lerobot（dataset-29）登记"由 R1_lite_table_withdrawing_mcap（dataset-35）转换"：只改它的 `来源.json`，追加 1 条人工补录记录，其余键值和旧记录不变；两边详情分别显示上游、下游；删除这条记录后逐字节还原；输入含自己 422。/mnt/datasets 清单不变，两块盘写入扇区 5776/62904 前后不变，worker.log ERROR 0。

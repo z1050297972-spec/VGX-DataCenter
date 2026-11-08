@@ -253,7 +253,7 @@ def production_registry(
     Returns:
         新 JobRegistry：示例、维护、数据集扫描与统计，以及 nav_write_apply、
         两个创建预览、nav_data_origin_preview、nav_repoint_preview 和
-        nav_fields_preview、自动写入 nav_size_sync，以及 resume 的 download；扫描与预览为 restart，
+        nav_fields_preview、nav_lineage_preview、自动写入 nav_size_sync，以及 resume 的 download；扫描与预览为 restart，
         执行能力由入口显式注入。
         三个示例为 interrupt，两个清除为 restart；只有 example_gpu 需要 GPU，各类默认并发 1。
 
@@ -284,6 +284,7 @@ def production_registry(
     from rdp.jobs.navwrite.create_jobs import build_creation_definitions
     from rdp.jobs.navwrite.field_jobs import build_field_edit_definition
     from rdp.jobs.navwrite.jobs import build_navwrite_definitions
+    from rdp.jobs.navwrite.lineage_jobs import build_lineage_definition
     from rdp.jobs.navwrite.repoint_jobs import build_repoint_definition
     from rdp.jobs.navwrite.size_sync import build_size_sync_definition
     from rdp.jobs.resource_examples import (
@@ -391,6 +392,7 @@ def production_registry(
     registry.register(build_repoint_definition(nav_write_dependencies))
     registry.register(build_field_edit_definition(nav_write_dependencies))
     registry.register(build_classification_remove_definition(nav_write_dependencies))
+    registry.register(build_lineage_definition(nav_write_dependencies))
     registry.register(build_size_sync_definition(nav_write_dependencies))
     return registry
 
