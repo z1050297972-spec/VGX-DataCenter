@@ -1,5 +1,5 @@
 # 直接调用项目环境，避免 PATH 上的 Python/ruff 和 uv 缓存写入影响检查。
-.PHONY: check fmt api-types check-api-types web-tools
+.PHONY: check check-web-changed fmt api-types check-api-types web-tools
 .DEFAULT_GOAL := check
 
 # package.json 的 scripts 只供本地开发；检查命令只在这里维护，避免两处漂移。
@@ -44,6 +44,21 @@ check:
 	cd src/web && node_modules/.bin/stylelint "src/**/*.css"
 	@echo "[12/12] Vitest"
 	cd src/web && node_modules/.bin/vitest run
+
+# 提交时的分层检查（2026-11-08 负责人同意）：只改了前端时用这个，不跑后端。
+# WEB_CHANGED 是相对 src/web 的改动文件；为空或含配置文件时退回全量 Vitest。
+# 合并提交和其他改动仍由钩子跑完整 make check。
+check-web-changed: web-tools
+	@echo "[web 1/5] tsc"
+	$(WEB_BIN)/tsc --project src/web/tsconfig.json --noEmit
+	@echo "[web 2/5] ESLint"
+	cd src/web && node_modules/.bin/eslint . --max-warnings 0
+	@echo "[web 3/5] Prettier"
+	cd src/web && node_modules/.bin/prettier --check .
+	@echo "[web 4/5] stylelint"
+	cd src/web && node_modules/.bin/stylelint "src/**/*.css"
+	@echo "[web 5/5] Vitest（只跑受改动影响的测试）"
+	cd src/web && if [ -n "$(WEB_CHANGED)" ]; then node_modules/.bin/vitest related --run $(WEB_CHANGED); else node_modules/.bin/vitest run; fi
 
 fmt:
 	.venv/bin/ruff format .
