@@ -1,6 +1,6 @@
 # 工具登记与工具库页面
 
-Status: in-progress
+Status: done
 
 分级：直做（负责人 2026-11-08："可以拜托你按照顺序帮忙完成M4吗"，此前"其他按照推荐来"；骨架和合并由执行线按建议过，记进 Comments）。按"只做关键测试"。不写导航层。
 
@@ -88,3 +88,5 @@ Blocked by: 无（和第 02 张并行，文件不重叠）
   7. 违规试验：只改了 import-linter 的分层登记，下一轮修复后做"jobs→tools 允许、tools→jobs 被拒"两条。
   8. 真实路径：探针副本里用真实登记包和 `/mnt/datasets/工具` 跑 `load_tool_registry`：mcap2lerobot 状态"可用"，配置 sha256 `f4809e72e497`；工具程序 atime 前后不变。
 - 2026-11-08 修复轮 r1：调整分层；单元 `rdp-m4-01-r1`，续接同一会话。
+- 2026-11-08 06:09 修复轮 r1 交回：`rdp.tools` 单独一层，位于 `rdp.jobs` 之下。违规试验（探针副本）：`rdp.jobs` 导入 `rdp.tools` 放行，`rdp.tools` 导入 `rdp.jobs` 被 import-linter 拦下（"入口层经领域层向下依赖基础层 BROKEN"），还原后全绿。
+- 2026-11-08 实现提交 `cad5f7e`（钩子全绿 2758 / 379）。按负责人授权合并进 main：`4f7d93f`。合并时与 M3 的 `rdp.collection` 分层冲突，合成同层独立兄弟 `"rdp.collection | rdp.tools"`；生成的接口类型按合并结果重新生成，与自动合并一致。合并钩子全绿（2777 / 387）。工作目录和分支已删除。
