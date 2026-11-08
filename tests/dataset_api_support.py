@@ -24,7 +24,7 @@ from rdp.api.datasets import configure_datasets
 from rdp.api.jobs import configure_jobs
 from rdp.audit.types import OPS_AUDIT_CONTEXT
 from rdp.jobs.dataset_browser.service import DatasetBrowserService
-from rdp.jobs.registry import production_registry
+from rdp.jobs.registry import JobRegistry, production_registry
 
 ENTRY = "按任务/libero_10"
 FORMAT_ENTRY = "按格式/lerobot/3.0/libero_10"
@@ -34,6 +34,8 @@ FORMAT_ENTRY = "按格式/lerobot/3.0/libero_10"
 def browser_case(
     root: Path,
     nav: FakeNavigation,
+    *,
+    registry: JobRegistry | None = None,
 ) -> Generator[ApiCase]:
     """以真实公开扫描接口准备索引和浏览服务，不访问真实数据盘。"""
     with dataset_case(root, nav) as scan:
@@ -49,7 +51,7 @@ def browser_case(
         clock = Clock()
         app = create_app(None, database=scan.engine, clock=clock)
         app.state.account_service = accounts
-        configured_registry = production_registry()
+        configured_registry = production_registry() if registry is None else registry
         configure_jobs(
             app, scan.paths, configured_registry, scheduling=catalog_fixture(configured_registry)
         )

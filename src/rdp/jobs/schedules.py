@@ -23,6 +23,7 @@ from rdp.infra.diagnostics import (
 from rdp.infra.timeutil import ensure_utc
 from rdp.jobs import _storage
 from rdp.jobs._parameters import validate as validate_parameters
+from rdp.jobs.conversion.cleanup import CLEANUP_NAME, CLEANUP_TYPE
 from rdp.jobs.datasets.catalog import SIZING_NAME, SIZING_TYPE
 from rdp.jobs.errors import JobInputError
 from rdp.jobs.policy import SCHEDULE_CATCH_UP_AFTER_S, SCHEDULE_LIMIT, SCHEDULE_LOOKAHEAD_DAYS
@@ -96,13 +97,13 @@ class ScheduleRegistry:
 
 
 def production_schedules(jobs: JobRegistry) -> ScheduleRegistry:
-    """登记每天 03:00 的报错清除、两种日志联合清除和数据集大小统计。
+    """登记每天03:00的报错、日志、大小统计及已装配的转换暂存清理。
 
     Args:
         jobs: 包含两个清除类型及dataset_sizing的生产类型登记表。
 
     Returns:
-        三条规则：两个清除类型参数为空；统计数据集大小的dataset_id为None，表示全量。
+        三条基础规则；存在转换清理类型时增加空参数的每日暂存清理。统计dataset_id为None表示全量。
         三类都按RESTART恢复；统计类型与手动入口共用永久键dataset_sizing。
         每条规则包含调度页展示的用途说明，前端无需按规则名字推导。
 
@@ -115,8 +116,21 @@ def production_schedules(jobs: JobRegistry) -> ScheduleRegistry:
     Time Semantics:
         默认本地 03:00；第一次启动从未提交时按 K2 补交，不在构造中读取时间。
     """
+    conversion = (
+        (
+            ScheduledJob(
+                CLEANUP_NAME,
+                CLEANUP_TYPE,
+                {},
+                description="删除结束满七天的失败、取消或中断转换暂存",
+            ),
+        )
+        if jobs.lookup(CLEANUP_TYPE) is not None
+        else ()
+    )
     return ScheduleRegistry(
         (
+            *conversion,
             ScheduledJob(
                 PURGE_ERRORS_NAME,
                 PURGE_ERRORS_TYPE,

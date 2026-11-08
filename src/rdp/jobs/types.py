@@ -79,6 +79,23 @@ class ProgressPart(BaseModel):
         return self
 
 
+class ConversionResult(BaseModel):
+    """转换收尾的产物事实；由meta/info.json取得，不从终端进度推算。
+
+    Attributes:
+        total_episodes: 产物episode数，非负整数。
+        total_frames: 产物帧数，非负整数。
+        codebase_version: 产物格式版本，非空。
+        output_path: 本作业暂存产物绝对位置。
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    total_episodes: int = Field(strict=True, ge=0)
+    total_frames: int = Field(strict=True, ge=0)
+    codebase_version: str = Field(min_length=1)
+    output_path: str = Field(min_length=1)
+
+
 class JobProgress(BaseModel):
     """执行线程最近一次完整上报，所有计数为严格非负整数，不从诊断样例反推。
 
@@ -94,6 +111,7 @@ class JobProgress(BaseModel):
         failed_items: 作业累计失败条目数，非负且不大于 total_items。
         total_items: 作业累计已处理条目数，非负；示例每步为一个条目。
         parts: 按工具显示顺序排列的分项，最多16项；旧记录或无分项时为空元组。
+        conversion: 转换收尾结果；其他作业或尚未收尾为None。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
@@ -107,6 +125,10 @@ class JobProgress(BaseModel):
     failed_items: int = Field(strict=True, ge=0)
     total_items: int = Field(strict=True, ge=0)
     parts: tuple[ProgressPart, ...] = Field(default=(), max_length=16)
+    # 非转换作业保持既有JSON形状；仅收尾成功后序列化新增结果。
+    conversion: ConversionResult | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def _validate_relations(self) -> Self:

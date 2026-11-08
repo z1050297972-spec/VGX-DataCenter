@@ -14,6 +14,7 @@ import { RepointEditor } from "./Repoint";
 import { FileViewerEntry } from "./FileViewerEntry";
 import { DatasetInformation } from "./Information";
 import { DatasetLinks } from "./Entries";
+import { ConversionEntry } from "./Conversion";
 import { CreateLinkEntry } from "./CreationEntries";
 import { useDatasetDetail } from "./queries";
 import { formatDateTime } from "../time";
@@ -100,6 +101,7 @@ function DetailSession(props: {
             </Button>
             <CreateLinkEntry datasetId={props.detail.entry.dataset_id} />
             <RepointEditor detail={props.detail} />
+            <ConversionEntry detail={props.detail} />
           </Flex>
         </Flex>
         <DetailContent

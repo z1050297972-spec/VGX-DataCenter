@@ -66,10 +66,13 @@ def deployment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Deployment:
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
+    tools = root / "tools"
+    tools.mkdir()
     config = home / "config.toml"
     config.write_text(
         'state_dir = "~/state"\nnav_root = "~/nav"\nstorage_roots = []\n'
         f'[web]\nhost = "127.0.0.1"\nport = {port}\n[jobs]\ngpus = []\n'
+        f'[tools]\nregistry_dir = "{tools}"\nlibrary_root = "{root / "library"}"\n'
     )
     environment = {
         "HOME": str(home),

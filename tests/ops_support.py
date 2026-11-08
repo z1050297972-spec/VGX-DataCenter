@@ -22,7 +22,12 @@ def runtime_inputs(root: Path, *, migrated: bool = True) -> RuntimeInputs:
     home = root / "home"
     home.mkdir(parents=True)
     config = root / "config.toml"
-    config.write_text('state_dir = "~/state"\nnav_root = "~/nav"\n[jobs]\ngpus = []\n')
+    tools = root / "tools"
+    tools.mkdir()
+    config.write_text(
+        'state_dir = "~/state"\nnav_root = "~/nav"\n[jobs]\ngpus = []\n'
+        + f"[tools]\nregistry_dir = {json.dumps(str(tools))}\nlibrary_root = {json.dumps(str(root / 'library'))}\n"
+    )
     dist = root / "src/web/dist"
     dist.mkdir(parents=True)
     (dist / "index.html").write_text("<html>平台</html>")

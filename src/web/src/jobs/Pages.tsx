@@ -272,9 +272,7 @@ function JobProgressView({ job, timing }: { job: Job; timing: JobTiming }): Reac
             percent={progress.total === 0 ? 0 : Math.round((100 * progress.done) / progress.total)}
           />
         ))}
-      {progress?.parts.map((part) => (
-        <ProgressPartView key={part.name} part={part} />
-      ))}
+      <ConversionProgress progress={progress} />
       <Flex gap="large" wrap>
         {progress && (
           <div>
@@ -295,6 +293,24 @@ function JobProgressView({ job, timing }: { job: Job; timing: JobTiming }): Reac
         )}
       </Flex>
     </div>
+  );
+}
+
+// 逐特征进度与收尾产物一起展示；未知分项保持计数，结果只来自服务端快照。
+function ConversionProgress({ progress }: { progress: Job["progress"] }): ReactElement {
+  return (
+    <>
+      {progress?.parts.map((part) => (
+        <ProgressPartView key={part.name} part={part} />
+      ))}
+      {progress?.conversion && (
+        <div>
+          产物：{progress.conversion.total_episodes} episodes · {progress.conversion.total_frames}{" "}
+          帧 · {progress.conversion.codebase_version}
+          <div>{progress.conversion.output_path}</div>
+        </div>
+      )}
+    </>
   );
 }
 
