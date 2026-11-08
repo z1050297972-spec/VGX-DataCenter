@@ -77,3 +77,14 @@ Blocked by: 无（和第 02 张并行，文件不重叠）
 
 - 2026-11-08 开票（执行线）。
 - 2026-11-08 05:1x 派工（直做，一次交付）：worktree `robot-data-platform.wt/m4-01-tool-registry`，分支 `t/m4-01-tool-registry`；systemd 单元 `rdp-m4-01`；模型 `gpt-6-astra` high，90 分钟上限；会话 `01a1bb11-9d41-74c0-944b-565981d1ec4b`；提示和日志在 `~/.cache/rdp-dispatch/m4-01/`。第 01、02 张并行。
+- 2026-11-08 05:56 派工交回（约 43 分钟，退出码 0）：Codex 自报 `make check` 全绿（2758 / 379），0 skipped。
+- 2026-11-08 评审（执行线）：
+  1. 重跑：`make check-changed` 全绿（45 s）；本票后端测试 7 passed。
+  2. 文件归属：`src/`、`tests/`、生成的接口类型，加工单允许的 `pyproject.toml` import-linter 段。Codex 为了让 Vite 缓存可写，临时把工作目录的 `src/web/node_modules` 软链接换成一层子链接，已恢复；主仓的 node_modules 未改。
+  3. 契约：直做票。
+  4. 变异抽查（`~/.cache/rdp-drill/m4-01-probe/mutation_probe.py` → `mutation_probe-B-done.txt`）：6 处全部抓住（不核对 sha256、程序缺失算可用、允许 --force、不要求 {output}、名字和目录名不一致、坏清单拖垮全部）。
+  5. 运行日志：无旧项目路径、无安装和联网命令、无 /mnt 命令。
+  6. 评审：清单模型、登记读取（O_NOATIME、文件身份缓存、读取前后核对身份、路径不越界）、接口、页面（只用 antd 和全局 CSS 变量）逐一读过。**阻塞 1 条**：import-linter 把 `rdp.tools` 写成 `rdp.jobs` 的独立兄弟，第 03 张的转换作业将无法导入工具登记。
+  7. 违规试验：只改了 import-linter 的分层登记，下一轮修复后做"jobs→tools 允许、tools→jobs 被拒"两条。
+  8. 真实路径：探针副本里用真实登记包和 `/mnt/datasets/工具` 跑 `load_tool_registry`：mcap2lerobot 状态"可用"，配置 sha256 `f4809e72e497`；工具程序 atime 前后不变。
+- 2026-11-08 修复轮 r1：调整分层；单元 `rdp-m4-01-r1`，续接同一会话。
