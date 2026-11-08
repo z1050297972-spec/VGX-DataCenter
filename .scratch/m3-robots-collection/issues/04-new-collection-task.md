@@ -37,3 +37,4 @@ Blocked by: 03
 ## Comments
 
 - 2026-11-08 开票（执行线）。放宽"不创建空数据集"由执行线按负责人授权决定，理由：采集任务要能先建后采。
+- 2026-11-08 M4 会话（datasets-d5）：M4 入库复用"新增数据集"的写入流程新建转换产物（不写 `collection`、必有链接）。本张改 `DatasetPreviewParameters`（`link` 可空、加 `collection`）或创建流程函数签名后，合并时通知 datasets-d5。
