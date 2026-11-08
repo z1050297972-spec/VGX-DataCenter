@@ -76,3 +76,7 @@ Blocked by: 03
 ## Comments
 
 - 2026-11-08 开票（执行线）。
+- 2026-11-08 08:2x 派工（直做）：worktree `robot-data-platform.wt/m4-04-ingest-check`，分支 `t/m4-04-ingest-check`；单元 `rdp-m4-04`；`gpt-6-astra` high，90 分钟；会话 `01a1bbbf-7823-7002-b6cc-57d6011259d9`；日志 `~/.cache/rdp-dispatch/m4-04/`。
+- 2026-11-08 09:20 第一轮交检查点（约 58 分钟）：四层检查（`check.py`、`check_models.py`、`_check_child.py`、`_check_data.py`、`_check_video.py`）和 7 个用例完成，后端 2844 passed；前端测试因共享 node_modules 只读（Vite 写不了 `.vite-temp`）没跑完。执行线核对：视频按 `(高, 宽) == shape[:2]` 比较，顺序正确；用真实产物量过，ffprobe 时长与帧数 ÷ fps 偏差 0.0 s，"有偏差但不超过一帧算警告"不会在真实数据上误触发。
+- parquet 样本：仓库 `.gitignore` 的 `*.parquet` 让 `lerobot-v3/` 的 parquet 没进仓库，按"数据不进仓库"保持；测试在 tmp 里生成，`meta.json` 由本票改成实际情况。
+- 2026-11-08 09:2x 执行线把工作目录的 `src/web/node_modules` 换成一层真实目录（子链接指向共享依赖），续接同一会话做完剩余范围（单元 `rdp-m4-04-c1`，90 分钟）。
