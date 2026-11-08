@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,17 @@ from conversion_workflow_support import conversion_case
 from creation_support import run_queued
 from nav_manifest import FakeNavigation
 from tool_registry_support import isolated_tool_cache as isolated_tool_cache
+
+
+def _occupy_names(fake_nav: FakeNavigation, *names: str) -> None:
+    """在临时导航层复制有效入口，让名称冲突来自文件系统实际状态。"""
+    for index, name in enumerate(names, start=100):
+        destination = fake_nav.nav_root / "按任务" / name
+        shutil.copytree(fake_nav.nav_root / "按任务/EgoProDemo", destination, symlinks=True)
+        for document in destination.glob("*.json"):
+            payload = json.loads(document.read_text())
+            payload.update(dataset_id=f"dataset-{index}", dataset_name=name)
+            document.write_text(json.dumps(payload, ensure_ascii=False))
 
 
 def test_warning_check_is_persisted_and_waits_for_confirmation(
@@ -117,21 +129,56 @@ def test_pass_automatically_ingests_with_conversion_lineage(
         assert lineage["ingest_check"] == {"result": "通过", "warning_count": 0}
 
 
-def test_default_name_collision_waits_for_confirmation(
-    tmp_path: Path, fake_nav: FakeNavigation
+@pytest.mark.parametrize("collision", ["name", "location"])
+def test_default_collision_automatically_ingests_with_job_suffix(
+    tmp_path: Path, fake_nav: FakeNavigation, collision: str
 ) -> None:
-    """验收4：默认名占用时仅提供带编号的人工建议，不自动提交入库。"""
+    """M4-06验收1：基础名字或位置占用但加编号后空闲，检查通过后自动入库。"""
     from rdp.jobs.conversion.ingest_models import CHECK_TYPE
 
     with conversion_case(tmp_path, fake_nav) as (api, deps, stage):
-        import shutil
+        if collision == "name":
+            _occupy_names(fake_nav, "EgoProDemo_lerobot")
+            expected_name = "EgoProDemo_lerobot_60"
+        else:
+            (deps.rescan.roots[0].path / "转换/EgoProDemo_lerobot").mkdir(parents=True)
+            expected_name = "EgoProDemo_lerobot"
+        check = deps.service.submit_system(
+            CHECK_TYPE, {"conversion_job_id": 60, "automatic": True}, now=api.clock()
+        )
+        result = run_queued(api, deps, str(check.job_id))
+        assert result.progress is not None and result.progress.ingest_check is not None
+        assert result.progress.ingest_check.report.result == "通过"
+        jobs = api.client.get("/api/jobs").json()["items"]
+        applies = [job for job in jobs if job["type_name"] == "conversion_ingest_apply"]
+        assert len(applies) == 1
+        applied = run_queued(api, deps, applies[0]["job_id"])
+        assert applied.summary is not None and not applied.summary.aborted
+        target = deps.rescan.roots[0].path / "转换/EgoProDemo_lerobot_60"
+        assert target.is_dir() and not stage.exists()
+        entry = fake_nav.nav_root / "按任务" / expected_name
+        assert (entry / "原始数据").readlink() == target
+        datasets = api.client.get("/api/datasets")
+        assert datasets.status_code == 200, datasets.text
+        assert expected_name in [item["name"] for item in datasets.json()["items"]]
+        staging = api.client.get("/api/conversions/staging")
+        assert staging.status_code == 200, staging.text
+        assert staging.json()["items"][0]["status"] == "已入库"
 
-        destination = fake_nav.nav_root / "按任务/EgoProDemo_lerobot"
-        shutil.copytree(fake_nav.nav_root / "按任务/EgoProDemo", destination, symlinks=True)
-        for document in destination.glob("*.json"):
-            payload = json.loads(document.read_text())
-            payload.update(dataset_id="dataset-100", dataset_name="EgoProDemo_lerobot")
-            document.write_text(json.dumps(payload, ensure_ascii=False))
+
+@pytest.mark.parametrize("collision", ["name", "location"])
+def test_suffixed_default_collision_waits_for_confirmation(
+    tmp_path: Path, fake_nav: FakeNavigation, collision: str
+) -> None:
+    """M4-06验收2：加编号后名字或位置仍占用，保留暂存并等待人工确认。"""
+    from rdp.jobs.conversion.ingest_models import CHECK_TYPE
+
+    with conversion_case(tmp_path, fake_nav) as (api, deps, stage):
+        if collision == "name":
+            _occupy_names(fake_nav, "EgoProDemo_lerobot", "EgoProDemo_lerobot_60")
+        else:
+            for name in ("EgoProDemo_lerobot", "EgoProDemo_lerobot_60"):
+                (deps.rescan.roots[0].path / "转换" / name).mkdir(parents=True)
         check = deps.service.submit_system(
             CHECK_TYPE, {"conversion_job_id": 60, "automatic": True}, now=api.clock()
         )
@@ -139,9 +186,9 @@ def test_default_name_collision_waits_for_confirmation(
         assert result.progress is not None and result.progress.ingest_check is not None
         assert result.progress.ingest_check.report.result == "通过"
         assert not result.progress.ingest_check.automatic_ready
-        preview = api.client.get(f"/api/jobs/{check.job_id}/conversion-ingest-preview")
-        assert preview.status_code == 200
-        assert preview.json()["parameters"]["dataset_name"] == "EgoProDemo_lerobot_60"
+        staging = api.client.get("/api/conversions/staging")
+        assert staging.status_code == 200, staging.text
+        assert staging.json()["items"][0]["status"] == "待确认"
         assert stage.is_dir()
         assert not any(
             job["type_name"] == "conversion_ingest_apply"
