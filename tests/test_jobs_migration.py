@@ -37,7 +37,7 @@ def test_active_declarations() -> None:
         assert row.metadata is metadata
         assert row.__table__ is metadata.tables[row.__tablename__]
     config = migration_config()
-    assert ScriptDirectory.from_config(config).get_current_head() == "0020_dataset_collection"
+    assert ScriptDirectory.from_config(config).get_current_head() == "0021_dataset_lineage"
     directory = config.get_main_option("script_location")
     assert directory is not None
     assert {item.revision for item in ScriptDirectory.from_config(config).walk_revisions()} == {
@@ -61,6 +61,7 @@ def test_active_declarations() -> None:
         "0018_information_filters",
         "0019_collection_registry",
         "0020_dataset_collection",
+        "0021_dataset_lineage",
     }
 
 
@@ -70,7 +71,7 @@ def test_schema_v4(tmp_path: Path) -> None:
     paths = state_paths(PlatformConfig(state_dir=tmp_path / "state"), ())
     initialize_state(paths)
     result = migrate(paths, now=datetime(2026, 10, 26, tzinfo=UTC))
-    assert result.current_revision == "0020_dataset_collection"
+    assert result.current_revision == "0021_dataset_lineage"
     engine = create_database_engine(paths.database)
     try:
         with engine.connect() as connection:

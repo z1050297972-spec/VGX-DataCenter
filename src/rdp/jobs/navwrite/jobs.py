@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue
 from rdp.accounts.types import Role
 from rdp.infra.diagnostics import DefectError
 from rdp.jobs.execution import ExecutionContext
+from rdp.jobs.navwrite import _lineage_apply
 from rdp.jobs.navwrite.errors import nav_input_error
 from rdp.jobs.navwrite.models import NavPreview, NavWritePlan, PlanReport
 from rdp.jobs.navwrite.pipeline import NavWriteDependencies, run_write_plan
@@ -133,6 +134,7 @@ def execute_apply(dependencies: NavWriteDependencies | None, context: ExecutionC
 
     Side Effects:
         同 run_write_plan；提交人身份从作业记录读取，写入变更记录和操作日志。
+        人工血缘追加在落恢复日志前补齐实际写作业编号、提交人和 UTC 时刻。
 
     Time Semantics:
         同 run_write_plan。恢复方式为标记中断：worker 中断后由 recover_navigation_writes 退回，
@@ -142,7 +144,12 @@ def execute_apply(dependencies: NavWriteDependencies | None, context: ExecutionC
         raise DefectError()
     if context.mode is not ExecutionMode.FRESH:
         raise DefectError()
-    run_write_plan(context, dependencies, context.parameters.preview_job_id)
+    run_write_plan(
+        context,
+        dependencies,
+        context.parameters.preview_job_id,
+        prepare_locked=partial(_lineage_apply.prepare, dependencies.rescan.engine, context),
+    )
 
 
 def build_navwrite_definitions(

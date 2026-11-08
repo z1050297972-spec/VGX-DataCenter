@@ -3154,6 +3154,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/navigation/lineage/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Lineage
+         * @description 提交转换来源登记或人工记录删除的只读预览。
+         *
+         *     Args:
+         *         context: 已认证账号、唯一请求时刻及作业服务。
+         *         datasets: 当前应用的数据集索引与只读导航配置。
+         *         body: 目标编号及 add/remove 参数；输入 1 至 8 个、说明至多 500 字符。
+         *
+         *     Returns:
+         *         HTTP 201，queued 的 nav_lineage_preview 作业，不表示导航已改动。
+         *
+         *     Raises:
+         *         JobInputError: 参数非法、输入不存在或删除目标非人工补录，422。
+         *         DatasetNotFoundError: 产物数据集未入索引，404。
+         *         InputError: 规范入口或来源文件不可用，400。
+         *         AuthenticationError: 未登录或会话失效，401。
+         *         AuthorizationError: 写请求不同源，403。
+         *         PasswordChangeRequiredError: 账号必须改密，403。
+         *         ConflictError: 读取时文件变化或提交竞争，409。
+         *         ExternalError: 文件读取或数据库提交失败，502。
+         *
+         *     Side Effects:
+         *         只读索引和导航文件；通过检查才新增预览作业及提交日志，不访问数据盘。
+         *
+         *     Time Semantics:
+         *         文件读取不持数据库事务；worker 重新核对并记录指纹，立即返回不轮询。
+         */
+        post: operations["preview_lineage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/navigation/previews/{job_id}": {
         parameters: {
             query?: never;
@@ -4346,6 +4390,8 @@ export interface components {
             indexed_at: string;
             /** @description 当前入口原文，布局C查看所选文件时使用 */
             information: components["schemas"]["NavigationDocument"];
+            /** @description 来源文件的索引投影；上游按记录输入展开，下游从其他记录反查 */
+            lineage: components["schemas"]["DatasetLineage"];
             /**
              * Links
              * @description 索引快照，不与本次原文混称同一时刻
@@ -4442,6 +4488,16 @@ export interface components {
             number: number;
             /** Value Markdown */
             value_markdown: string;
+        };
+        /**
+         * DatasetLineage
+         * @description 来源索引的双向关联，两个视图共享，空数组表示无有效关系。
+         */
+        DatasetLineage: {
+            /** Downstream */
+            downstream: components["schemas"]["LineageDownstream"][];
+            /** Upstream */
+            upstream: components["schemas"]["LineageUpstream"][];
         };
         /**
          * DatasetLink
@@ -5663,6 +5719,69 @@ export interface components {
             layout: "A" | "B" | "C";
             /** Updated At */
             updated_at: string | null;
+        };
+        /**
+         * LineageDownstream
+         * @description 血缘中的关联数据集；名称和按任务路径取索引，查不到时为 null。
+         */
+        LineageDownstream: {
+            /** Dataset Id */
+            dataset_id: string;
+            /** Entry Path */
+            entry_path: string | null;
+            /** Name */
+            name: string | null;
+            /** Note */
+            note: string | null;
+            /** Record Id */
+            record_id: number;
+        };
+        /**
+         * LineageParameters
+         * @description 登记或删除一整条人工血缘记录。
+         *
+         *     Attributes:
+         *         dataset_id: 产物数据集永久编号。
+         *         action: add 追加，remove 按记录编号删除。
+         *         input_dataset_ids: add 必须提供 1 至 8 个不重复且不含自身的编号。
+         *         note: add 的说明，0 至 500 字符；空字符串写成 null。
+         *         record_id: remove 必填的正整数编号；不允许布尔值。
+         */
+        LineageParameters: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "add" | "remove";
+            /** Dataset Id */
+            dataset_id: string;
+            /**
+             * Input Dataset Ids
+             * @default []
+             */
+            input_dataset_ids: string[];
+            /** Note */
+            note?: string | null;
+            /** Record Id */
+            record_id?: number | null;
+        };
+        /**
+         * LineageUpstream
+         * @description 当前数据集一条记录的一个输入，人工补录记录可删除。
+         */
+        LineageUpstream: {
+            /** Dataset Id */
+            dataset_id: string;
+            /** Entry Path */
+            entry_path: string | null;
+            /** Name */
+            name: string | null;
+            /** Note */
+            note: string | null;
+            /** Record Id */
+            record_id: number;
+            /** Removable */
+            removable: boolean;
         };
         /**
          * LinkAddition
@@ -16091,6 +16210,120 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    preview_lineage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LineageParameters"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             201: {

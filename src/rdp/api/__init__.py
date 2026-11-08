@@ -39,6 +39,7 @@ from rdp.api.file_viewer import router as file_viewer_router
 from rdp.api.health import HealthResponse, get_health
 from rdp.api.jobs import router as jobs_router
 from rdp.api.jobs import worker_router
+from rdp.api.lineage import router as lineage_router
 from rdp.api.monitoring import ResourceSampler
 from rdp.api.monitoring import router as monitoring_router
 from rdp.api.navigation import router as navigation_router
@@ -147,6 +148,7 @@ def _install_job_and_monitoring_routes(app: FastAPI) -> None:
     """一次登记作业、下载凭据和监控入口；只装配路由，不执行采样。"""
     app.include_router(jobs_router)
     app.include_router(classification_router)
+    app.include_router(lineage_router)
     app.include_router(download_ingest_router)
     app.include_router(download_tokens_router)
     app.include_router(monitoring_router)

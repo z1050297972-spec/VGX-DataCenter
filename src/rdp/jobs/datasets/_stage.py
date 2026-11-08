@@ -78,5 +78,6 @@ def _matches(entries: tuple[EntrySnapshot, ...], fingerprint: DatasetFingerprint
             doc.sha256 == observed.get(str(entry.location.path), {}).get(doc.name)
             for doc in entry.documents
         )
+        and entry.provenance_sha256 == observed.get(str(entry.location.path), {}).get("来源.json")
         for entry in entries
     )

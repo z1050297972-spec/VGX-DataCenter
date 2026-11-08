@@ -1181,6 +1181,10 @@
             "$ref": "#/components/schemas/NavigationDocument",
             "description": "当前入口原文，布局C查看所选文件时使用"
           },
+          "lineage": {
+            "$ref": "#/components/schemas/DatasetLineage",
+            "description": "来源文件的索引投影；上游按记录输入展开，下游从其他记录反查"
+          },
           "links": {
             "description": "索引快照，不与本次原文混称同一时刻",
             "items": {
@@ -1238,7 +1242,8 @@
           "index_stale",
           "indexed_at",
           "observed_at",
-          "diagnostics"
+          "diagnostics",
+          "lineage"
         ],
         "title": "DatasetDetailResponse",
         "type": "object"
@@ -1399,6 +1404,32 @@
           "value_markdown"
         ],
         "title": "DatasetInformationField",
+        "type": "object"
+      },
+      "DatasetLineage": {
+        "additionalProperties": false,
+        "description": "来源索引的双向关联，两个视图共享，空数组表示无有效关系。",
+        "properties": {
+          "downstream": {
+            "items": {
+              "$ref": "#/components/schemas/LineageDownstream"
+            },
+            "title": "Downstream",
+            "type": "array"
+          },
+          "upstream": {
+            "items": {
+              "$ref": "#/components/schemas/LineageUpstream"
+            },
+            "title": "Upstream",
+            "type": "array"
+          }
+        },
+        "required": [
+          "upstream",
+          "downstream"
+        ],
+        "title": "DatasetLineage",
         "type": "object"
       },
       "DatasetLink": {
@@ -4019,6 +4050,186 @@
           "updated_at"
         ],
         "title": "LayoutResponse",
+        "type": "object"
+      },
+      "LineageDownstream": {
+        "additionalProperties": false,
+        "description": "血缘中的关联数据集；名称和按任务路径取索引，查不到时为 null。",
+        "properties": {
+          "dataset_id": {
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "entry_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Path"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "record_id",
+          "dataset_id",
+          "name",
+          "entry_path",
+          "note"
+        ],
+        "title": "LineageDownstream",
+        "type": "object"
+      },
+      "LineageParameters": {
+        "additionalProperties": false,
+        "description": "登记或删除一整条人工血缘记录。\n\nAttributes:\n    dataset_id: 产物数据集永久编号。\n    action: add 追加，remove 按记录编号删除。\n    input_dataset_ids: add 必须提供 1 至 8 个不重复且不含自身的编号。\n    note: add 的说明，0 至 500 字符；空字符串写成 null。\n    record_id: remove 必填的正整数编号；不允许布尔值。",
+        "properties": {
+          "action": {
+            "enum": [
+              "add",
+              "remove"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "dataset_id": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^/\\\\\\s\\x00]+$",
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "input_dataset_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^/\\\\\\s\\x00]+$",
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Input Dataset Ids",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "record_id": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Id"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "action"
+        ],
+        "title": "LineageParameters",
+        "type": "object"
+      },
+      "LineageUpstream": {
+        "additionalProperties": false,
+        "description": "当前数据集一条记录的一个输入，人工补录记录可删除。",
+        "properties": {
+          "dataset_id": {
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "entry_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Path"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "integer"
+          },
+          "removable": {
+            "title": "Removable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "record_id",
+          "dataset_id",
+          "name",
+          "entry_path",
+          "note",
+          "removable"
+        ],
+        "title": "LineageUpstream",
         "type": "object"
       },
       "LinkAddition": {
@@ -19121,6 +19332,143 @@
         "summary": "Confirm Field Edits",
         "tags": [
           "datasets"
+        ]
+      }
+    },
+    "/api/navigation/lineage/preview": {
+      "post": {
+        "description": "提交转换来源登记或人工记录删除的只读预览。\n\nArgs:\n    context: 已认证账号、唯一请求时刻及作业服务。\n    datasets: 当前应用的数据集索引与只读导航配置。\n    body: 目标编号及 add/remove 参数；输入 1 至 8 个、说明至多 500 字符。\n\nReturns:\n    HTTP 201，queued 的 nav_lineage_preview 作业，不表示导航已改动。\n\nRaises:\n    JobInputError: 参数非法、输入不存在或删除目标非人工补录，422。\n    DatasetNotFoundError: 产物数据集未入索引，404。\n    InputError: 规范入口或来源文件不可用，400。\n    AuthenticationError: 未登录或会话失效，401。\n    AuthorizationError: 写请求不同源，403。\n    PasswordChangeRequiredError: 账号必须改密，403。\n    ConflictError: 读取时文件变化或提交竞争，409。\n    ExternalError: 文件读取或数据库提交失败，502。\n\nSide Effects:\n    只读索引和导航文件；通过检查才新增预览作业及提交日志，不访问数据盘。\n\nTime Semantics:\n    文件读取不持数据库事务；worker 重新核对并记录指纹，立即返回不轮询。",
+        "operationId": "preview_lineage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LineageParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Preview Lineage",
+        "tags": [
+          "navigation"
         ]
       }
     },

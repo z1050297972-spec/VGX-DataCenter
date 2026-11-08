@@ -20,6 +20,7 @@ from rdp.jobs.dataset_browser import (
     _collection,
     _documents,
     _index,
+    _lineage,
     _listing,
     _panel,
     _preferences,
@@ -314,6 +315,7 @@ class DatasetQueries:
             规范副本不可用时不静默换用格式副本；子任务仅返回请求定位，不含正文。
             provenance 返回规范入口血缘文件状态，缺文件与坏文件分态表达。
             collection 返回采集索引和数据库当前名称，未知编号 name=None、status=missing。
+            lineage 返回所有记录的上下游索引投影，未知数据集名称和规范入口为 None。
             links与大小来自索引。用第01张L12指纹比较全部入口；差异、不可验证或本次原文
             摘要不等于观察指纹均标index_stale=True，不以mtime判断，不更新索引。
 
@@ -343,6 +345,7 @@ class DatasetQueries:
             row = _documents.selected(index, entry_path)
             collection = _collection.detail(session, index.collections.get(row.dataset_id or ""))
             links = _documents.links(session, row.path)
+            lineage = _lineage.detail(session, row.dataset_id)
             item = next(
                 item
                 for item in _listing.items(index)
@@ -377,6 +380,7 @@ class DatasetQueries:
         )
         return DatasetDetailResponse(
             collection=collection,
+            lineage=lineage,
             provenance=_documents.provenance(self.nav_root, canonical_row),
             entry=_listing.entry(row),
             entries=item.entries,

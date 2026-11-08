@@ -22,6 +22,7 @@ from rdp.jobs.datasets.types import (
     EntrySnapshot,
     JsonDocument,
     JsonObject,
+    LineageInput,
     Link,
     NavigationCatalog,
     ProvenanceState,
@@ -128,6 +129,7 @@ def read_entry(
         第4项原文保留但不解析，recorded_size_bytes 固定为 None。
         scene/tasks/robot_model 只投影信息文件顶层，不解析 Markdown；空值按未标注，自定义文本保留。
         collection 缺键或 null 为无采集信息；格式非法局部降级并产生 COLLECTION_INVALID 提示。
+        lineage 展开所有有效来源记录的 inputs.dataset_id，并保留来源摘要供扫描配对指纹。
 
     Raises:
         InputError: location 越界、目录项数量超过 MAX_ENTRY_MEMBERS 或调用参数非法。
@@ -196,6 +198,23 @@ def read_entry(
         *classification(documents[1]),
         fps,
         collection,
+        tuple(
+            LineageInput(
+                record.record_id,
+                source["dataset_id"],
+                record.note,
+                record.recorded_by.kind == "人工补录",
+            )
+            for record in provenance.document.lineage
+            for source in record.inputs
+            if source.get("dataset_id")
+        )
+        if provenance is not None
+        and provenance.document is not None
+        and (provenance.document.dataset_id, provenance.document.dataset_name)
+        == (identity, location.dataset_name)
+        else (),
+        provenance.sha256 if provenance else None,
     )
 
 
