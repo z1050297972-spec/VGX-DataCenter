@@ -1,0 +1,8 @@
+2026-11-08 06:4x 执行线：在 bwrap 只读绑定下直接读数据盘上的真实 MCAP 做一次转换（不经平台作业）。
+输入：/mnt/dataset2/R1_lite_table_withdrawing_mcap/20261011_table_withdrawing/RBB60624A002_20261011151323389_RAW/RBB60624A002_20261011151323389_RAW.mcap（dataset-35，854,818,066 字节）
+命令：bwrap --ro-bind / / --dev-bind /dev /dev --proc /proc --tmpfs /tmp --bind ~/.cache/rdp-m4-sample/staging3 ~/.cache/rdp-m4-sample/staging3 --unshare-net --die-with-parent -- /mnt/datasets/工具/mcap2lerobot/target/release/mcap2lerobot convert -c ~/.cache/rdp-m4-sample/r1lite.toml -o ~/.cache/rdp-m4-sample/staging3/out --format v3.0 -y <输入>
+（stderr 接 200x50 伪终端，stdout 管道）
+结果：退出码 0，伪终端 996 段输出，产物 total_frames 1647。
+sda 写入扇区 5776 → 5776；sdb 62904 → 62904（结束后 sync 并等 5 秒再读）。
+MCAP atime 2026-10-11 22:47:35.487979042 -0600 → 不变；工具程序 atime 2026-10-22 21:46:15.894866177 -0600 → 不变。
+对照（2026-11-08 04:56，系统盘临时文件）：普通 cat 读取会把 atime 更新为当前时间；经 bwrap --ro-bind 读取不更新。

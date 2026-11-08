@@ -23,3 +23,6 @@ Blocked by: 04；ADR 0008 的修订还要等 M3 的 `t/m3-plan` 合并进 main�
 ## Comments
 
 - 2026-11-08 开票（执行线）。
+- 2026-11-08 06:4x 第 1 项的"直接读数据盘"部分提前做完（不依赖平台代码）：bwrap 只读绑定下直接读 dataset-35 的一个真实 MCAP 转换成功（1647 帧）；两块数据盘写入扇区不变（sda 5776、sdb 62904），MCAP 和工具程序的 atime 都不变。证据 `../assets/05-drill-docs/real-disk-run.txt`。
+- 2026-11-08 第 2、3 项已做：ADR 0004 修订（`9125f4c`）、ADR 0008 M4 修订节（`6abfa7a`，接在 M3 节之后）、术语表（`199f09a`）。
+- 演练环境：平台要求可写存储根是 ext4/NFS 挂载点。执行线用 `udisksctl loop-setup` + `mount` 把 `~/.cache/rdp-drill/m4/` 下的 ext4 镜像挂成测试根（无需 sudo，2026-11-08 05:12 用 64 MB 镜像试过：挂在 `/run/media/shawn/<卷标>`，当前用户可写；卸载后 loop 设备自动释放）。不写数据盘。
