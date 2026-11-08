@@ -583,6 +583,7 @@ export function AccountMenu(): ReactElement {
               采集词表
             </Link>
             <Link to="/storage-roots">存储根</Link>
+            <Link to="/tools">工具库</Link>
             {identity.data.role === "administrator" && <Link to="/accounts">账号管理</Link>}
             {identity.data.role === "administrator" && (
               <>

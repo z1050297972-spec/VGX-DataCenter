@@ -19,7 +19,8 @@ from rdp.api.datasets import configure_datasets
 from rdp.api.jobs import configure_jobs
 from rdp.api.shutdown import drain_error_reports
 from rdp.api.storage import configure_storage
-from rdp.infra.config import StorageConfig, WebConfig
+from rdp.api.tools import configure_tools
+from rdp.infra.config import StorageConfig, ToolsConfig, WebConfig
 from rdp.infra.state import StatePaths
 from rdp.infra.storage import MountInspector
 from rdp.jobs.dataset_browser.service import DatasetBrowserService
@@ -51,6 +52,7 @@ class WebRuntime:
         version: 启动时读取的版本文字，1-128 个码点，无控制字符。
         storage_options: 原文件查看器每次只读操作的秒级总预算，沿用存储配置。
         nav_root: 显式绝对导航根；生产CLI必传，None仅兼容不使用数据集接口的独立装配。
+        tools: 工具库与登记包位置，默认沿用平台安装布局；仅请求时读取。
     """
 
     dist: Path
@@ -64,6 +66,7 @@ class WebRuntime:
     version: str
     nav_root: Path | None = None
     storage_options: StorageConfig = StorageConfig()
+    tools: ToolsConfig = ToolsConfig()
 
 
 class UvicornOptions(TypedDict):
@@ -129,7 +132,8 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
 
     Side Effects:
         create_app(dist, database=engine, clock=clock, platform_version=version) 内登记版本，
-        返回后 configure_jobs(..., scheduling=...)、configure_storage(..., inspector=...)，
+        返回后 configure_jobs(..., scheduling=...)、configure_storage(..., inspector=...)、
+        configure_tools(..., settings=runtime.tools)，
         导航根非空时configure_datasets，再单进程调用 runner，不二次 configure_version。
         启动时不访问存储根内容；M1.5查看器请求独立带超时只读。失败在本边界写一次诊断；数据库版本不匹配明确提示 rdp migrate。
         runner 结束/异常后调用 drain_error_reports；仅返回 True 才 dispose engine。
@@ -152,6 +156,7 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
         )
         configure_jobs(app, runtime.paths, runtime.registry, scheduling=runtime.scheduling)
         configure_storage(app, inspector=runtime.inspector)
+        configure_tools(app, settings=runtime.tools)
         if runtime.nav_root is not None:
             configure_datasets(
                 app,

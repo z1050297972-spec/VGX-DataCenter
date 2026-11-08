@@ -1,0 +1,20 @@
+/* 工具登记页面只补布局和只读配置排版，颜色、间距、字体沿用全局变量。 */
+.tools-page {
+  display: grid;
+  gap: var(--rdp-space-5);
+}
+
+.tools-details {
+  width: 100%;
+}
+
+.tools-code {
+  overflow: auto;
+  font-family: var(--rdp-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tools-loading {
+  padding: var(--rdp-space-6);
+}

@@ -6022,6 +6022,386 @@
         "title": "TokenState",
         "type": "object"
       },
+      "ToolCommands": {
+        "additionalProperties": false,
+        "description": "不经过 shell 的参数模板，不包含程序路径本身。\n\nAttributes:\n    verify: 预检参数元组，须含 config 和 inputs 占位符。\n    convert: 转换参数元组，config、output、format、inputs 各出现一次，禁用 --force。",
+        "properties": {
+          "convert": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Convert",
+            "type": "array"
+          },
+          "verify": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Verify",
+            "type": "array"
+          }
+        },
+        "required": [
+          "verify",
+          "convert"
+        ],
+        "title": "ToolCommands",
+        "type": "object"
+      },
+      "ToolConfiguration": {
+        "additionalProperties": false,
+        "description": "登记包内一份型号配置的读取快照。\n\nAttributes:\n    robot_model: 数据集使用的型号字符串。\n    filename: 相对登记包的配置路径。\n    content: 完整 UTF-8 配置文本，保留换行。\n    sha256: 配置原始字节的完整 SHA-256，64 位小写十六进制。",
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "robot_model": {
+            "title": "Robot Model",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "robot_model",
+          "filename",
+          "content",
+          "sha256"
+        ],
+        "title": "ToolConfiguration",
+        "type": "object"
+      },
+      "ToolDetailResponse": {
+        "additionalProperties": false,
+        "description": "列表摘要之外的登记详情，不读取工具源码或工具目录的配置。\n\nAttributes:\n    configurations: 每个型号的文件名、配置全文与完整 SHA-256；清单无效时为空。\n    command: 两条命令模板；清单无效时为 None。\n    source_commit: 登记时的提交说明；未填写或清单无效时为 None。\n    source_note: 登记时源码状态说明；未填写或清单无效时为 None。",
+        "properties": {
+          "command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolCommands"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "configurations": {
+            "items": {
+              "$ref": "#/components/schemas/ToolConfiguration"
+            },
+            "title": "Configurations",
+            "type": "array"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "input_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Format"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needs_gpu": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needs Gpu"
+          },
+          "output_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Format"
+          },
+          "output_versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Output Versions",
+            "type": "array"
+          },
+          "program_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Program Path"
+          },
+          "robot_models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Robot Models",
+            "type": "array"
+          },
+          "sha256_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256 Prefix"
+          },
+          "source_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Commit"
+          },
+          "source_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Note"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ToolStatus"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "summary",
+          "input_format",
+          "output_format",
+          "output_versions",
+          "robot_models",
+          "needs_gpu",
+          "status",
+          "diagnostics",
+          "program_path",
+          "sha256_prefix",
+          "configurations",
+          "command",
+          "source_commit",
+          "source_note"
+        ],
+        "title": "ToolDetailResponse",
+        "type": "object"
+      },
+      "ToolListResponse": {
+        "additionalProperties": false,
+        "description": "当前工具登记列表。\n\nAttributes:\n    items: 按工具名排序，空登记目录返回空元组，不过滤无效清单。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ToolSummaryResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ToolListResponse",
+        "type": "object"
+      },
+      "ToolStatus": {
+        "enum": [
+          "可用",
+          "程序找不到",
+          "指纹不符",
+          "清单无效"
+        ],
+        "type": "string"
+      },
+      "ToolSummaryResponse": {
+        "additionalProperties": false,
+        "description": "工具列表中的一条状态。\n\nAttributes:\n    name: 登记包目录名。\n    version: 程序版本；清单无效时为 None。\n    summary: 工具用途；清单无效时为 None。\n    input_format: 输入格式；清单无效时为 None。\n    output_format: 输出格式；清单无效时为 None。\n    output_versions: 按清单顺序的输出版本；清单无效时为空。\n    robot_models: 按清单顺序的适用型号字符串；清单无效时为空。\n    needs_gpu: 是否必须分配 GPU；清单无效时为 None。\n    status: 四种工具状态之一。\n    diagnostics: 统一五段诊断，可用时为空。\n    program_path: 已核对边界的程序绝对路径；清单无效时为 None。\n    sha256_prefix: 登记的程序 SHA-256 前 12 位；清单无效时为 None。",
+        "properties": {
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "input_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Format"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needs_gpu": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needs Gpu"
+          },
+          "output_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Format"
+          },
+          "output_versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Output Versions",
+            "type": "array"
+          },
+          "program_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Program Path"
+          },
+          "robot_models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Robot Models",
+            "type": "array"
+          },
+          "sha256_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256 Prefix"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ToolStatus"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "summary",
+          "input_format",
+          "output_format",
+          "output_versions",
+          "robot_models",
+          "needs_gpu",
+          "status",
+          "diagnostics",
+          "program_path",
+          "sha256_prefix"
+        ],
+        "title": "ToolSummaryResponse",
+        "type": "object"
+      },
       "TreeSize": {
         "additionalProperties": false,
         "description": "按入口求和的树大小；部分未知时不把已知小计冒充总量。",
@@ -19880,6 +20260,271 @@
         "summary": "List Storage Roots",
         "tags": [
           "storage"
+        ]
+      }
+    },
+    "/api/tools": {
+      "get": {
+        "description": "向登录成员返回全部工具的登记摘要和状态。\n\nArgs:\n    registry: 认证后读取的工具快照，包含清单无效的条目。\n\nReturns:\n    按工具名排序的列表，含程序路径、登记指纹前 12 位及五段诊断。\n\nRaises:\n    ExternalError: 登记根目录不可读取，经统一边界返回 502。\n\nSide Effects:\n    无；依赖只读登记包和工具程序，不执行命令或写操作日志。\n\nTime Semantics:\n    返回本次请求快照；文件身份未变时复用进程内指纹，不缓存清单。",
+        "operationId": "list_tools",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "List Tools",
+        "tags": [
+          "tools"
+        ]
+      }
+    },
+    "/api/tools/{name}": {
+      "get": {
+        "description": "返回指定登记工具的配置全文及命令模板。\n\nArgs:\n    name: 登记包目录名，只在快照中匹配，不拼接为文件路径。\n    registry: 认证后读取的快照，配置全文和配置哈希来自同一份字节。\n\nReturns:\n    摘要、配置快照、命令模板和源码说明；清单无效时详情字段为空并保留诊断。\n\nRaises:\n    _ToolNotFoundError: name 不存在，映射为 404，诊断包含请求的工具名。\n    ExternalError: 登记根目录读取失败，统一返回 502。\n\nSide Effects:\n    无；不读取源码仓库，不执行 --version，不修改工具或配置。\n\nTime Semantics:\n    详情沿用本次请求的登记快照；不自动重试，不解释源码提交时间。",
+        "operationId": "get_tool",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Tool",
+        "tags": [
+          "tools"
         ]
       }
     },

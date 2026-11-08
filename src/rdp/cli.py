@@ -112,6 +112,7 @@ def run_web(runtime: ServiceRuntime, *, inputs: RuntimeInputs, runner: UvicornRu
         runtime.version,
         nav_root=runtime.loaded.config.nav_root,
         storage_options=runtime.loaded.config.storage,
+        tools=runtime.loaded.config.tools,
     )
     return start_web(web_runtime, runner=runner)
 

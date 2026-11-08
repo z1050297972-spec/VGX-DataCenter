@@ -18,6 +18,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from rdp.infra.ids import JOB_TYPE_KEY_PATTERN
+from rdp.infra.version import deployment_layout
 
 logger = logging.getLogger(__name__)
 
@@ -197,6 +198,30 @@ class JobsConfig(BaseModel):
         return value
 
 
+def _default_tool_registry() -> Path:
+    """沿用前端产物的源码部署布局定位登记包，不依赖启动时的工作目录。"""
+    return deployment_layout(Path(__file__).parents[1] / "__init__.py").root / "tools"
+
+
+class ToolsConfig(BaseModel):
+    """工具登记位置（M4-01），只校验路径，不读取工具库。
+
+    Attributes:
+        library_root: 工具库绝对路径，默认导航层下的工具目录；不含 NUL 或 ..。
+        registry_dir: 登记包绝对根目录，默认平台安装目录下 tools/；不含 NUL 或 ..。
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
+    library_root: Path = DEFAULT_NAV_ROOT / "工具"
+    registry_dir: Path = Field(default_factory=_default_tool_registry)
+
+    @field_validator("library_root", "registry_dir")
+    @classmethod
+    def _absolute_location(cls, value: Path) -> Path:
+        """复用配置路径契约；不解析工具库软链接或要求路径当前存在。"""
+        return PlatformConfig.validate_state_dir(value)
+
+
 class PlatformConfig(BaseModel):
     """不可变的最终生效配置；嵌套模型也不可变，未知字段全部拒绝。
 
@@ -206,6 +231,7 @@ class PlatformConfig(BaseModel):
             文件中允许绝对路径或 ~/ 前缀（也允许单独 ~），后者用注入 home 展开；
             不接受相对路径、~其他用户或环境变量展开，不解析软链接、不要求已存在。
         jobs: JobsConfig，默认两张卡、没有并发覆盖；允许 gpus/concurrency/aria2c_path。
+        tools: 工具库和登记包位置，默认 ToolsConfig()；旧配置省略此节时不访问工具库。
         nav_root: 导航层绝对 Path，默认 DEFAULT_NAV_ROOT；文件输入的 home 展开规则同 state_dir。
         storage_roots: 按配置顺序的不可变登记元组，默认空；名字唯一，路径不得相等或互相包含。
             路径只按分量做词法比较，不访问软链接；运维须登记真实挂载点路径。
@@ -222,6 +248,7 @@ class PlatformConfig(BaseModel):
     log: LogConfig = Field(default_factory=LogConfig)
     errors: ErrorRetentionConfig = Field(default_factory=ErrorRetentionConfig)
     jobs: JobsConfig = Field(default_factory=JobsConfig)
+    tools: ToolsConfig = Field(default_factory=ToolsConfig)
     nav_root: Path = DEFAULT_NAV_ROOT
     storage_roots: tuple[StorageRootConfig, ...] = ()
     storage: StorageConfig = Field(default_factory=StorageConfig)
