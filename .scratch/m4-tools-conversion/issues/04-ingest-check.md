@@ -14,6 +14,11 @@ Blocked by: 03
 - `rdp.jobs.navwrite.provenance` 的 `LineageRecord`（不改模型）。
 - 真实产物的元数据样本：`tests/fixtures/mcap2lerobot/lerobot-v3/`（没有 videos，见 `meta.json`）。
 
+- M3 已全部合并（main `edd9e5a`，M3 会话 datasets-45 2026-11-08 通知）：
+  - `rdp.jobs.navwrite.create_models.DatasetPreviewParameters` 新增 `collection: CollectionInformation | None = None`，`link` 改成 `FirstLink | None = None`。转换产物照旧传 `link`、不传 `collection`（默认 None），写出的 `数据集信息.json` 就不会有 `collection` 键。
+  - 血缘上下游投影（迁移 0021、详情响应的 `lineage: {upstream, downstream}`）已按所有记录的 `inputs[].dataset_id` 做，本票写的 worker 记录会自动出现，不用改投影和详情页。
+  - 迁移已到 0021；本票如需迁移从 0022 起。
+
 ## 契约
 
 ### 入库检查（worker 作业，恢复方式 restart）
