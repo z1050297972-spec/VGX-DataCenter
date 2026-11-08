@@ -337,7 +337,7 @@ class SourceRow(Base):
         checked_at: UTC路径检查时刻；unchecked为空。
         robot_type: meta/info.json型号标签；unknown/null/读不到/非LeRobot归None。
         fps: meta中的有限正数，单位帧/秒；未知为None。
-        fps_rounded: 按非负数半入规则四舍五入的整数，未知为None，只用于原文件参考和回填。
+        fps_rounded: 按非负数半入规则四舍五入的整数，未知为None，只用于原文件参考。
         codebase_version: meta中的非空版本原文；未知为None。
         meta_checked_at: UTC meta读取检查时刻；尚未检查为空。
     """

@@ -280,7 +280,6 @@ def production_registry(
     from rdp.jobs.downloads.staging import ScanParameters, StagingScanner
     from rdp.jobs.example import CountParameters, execute_count
     from rdp.jobs.maintenance import PurgeParameters, execute_purge_errors, execute_purge_logs
-    from rdp.jobs.navwrite.backfill import build_backfill_definition
     from rdp.jobs.navwrite.classification_remove import build_classification_remove_definition
     from rdp.jobs.navwrite.create_jobs import build_creation_definitions
     from rdp.jobs.navwrite.field_jobs import build_field_edit_definition
@@ -391,7 +390,6 @@ def production_registry(
         registry.register(definition)
     registry.register(build_repoint_definition(nav_write_dependencies))
     registry.register(build_field_edit_definition(nav_write_dependencies))
-    registry.register(build_backfill_definition(nav_write_dependencies))
     registry.register(build_classification_remove_definition(nav_write_dependencies))
     registry.register(build_size_sync_definition(nav_write_dependencies))
     return registry

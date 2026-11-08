@@ -3,9 +3,26 @@ import { describe, it, expect } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { mountPage } from "../scheduling/pageTestSupport";
 import { completedJob } from "../jobs/testSupport";
+import { account } from "../accounts/testSupport";
 import { datasetFetch, taskEntry, formatEntry } from "./testSupport";
 
 describe("数据集布局 A", () => {
+  // 契约：一次性回填移除后，管理员工具栏也不再提供回填入口，其他管理操作保留。
+  it("管理员工具栏不再提供回填数据集信息", async () => {
+    const fallback = datasetFetch();
+    const page = mountPage("/datasets", (request) =>
+      new URL(request.url).pathname === "/api/auth/me"
+        ? Promise.resolve(Response.json(account))
+        : fallback(request),
+    );
+    try {
+      expect(await screen.findByText("共 2 个数据集")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "管理场景/任务" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "回填数据集信息" })).toBeNull();
+    } finally {
+      page.close();
+    }
+  });
   // 契约：登录成员通过菜单进入，看到两棵树的入口及按永久编号去重的列表数量。
   it("菜单进入数据集页面，显示两棵树和列表数量", async () => {
     const page = mountPage("/", datasetFetch());

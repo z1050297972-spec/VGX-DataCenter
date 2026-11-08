@@ -25,8 +25,23 @@ from rdp.jobs.models import JobRow
 from rdp.jobs.registry import production_registry
 
 
+def test_removed_backfill_cannot_be_submitted(tmp_path: Path) -> None:
+    """验证回填专用接口已移除，通用提交拒绝旧类型且不创建作业。"""
+    with job_api_case(tmp_path) as case:
+        assert case.login().status_code == 200
+        response = case.client.post("/api/navigation/backfill/preview", json={})
+        assert response.status_code == 404, response.text
+        response = case.client.post(
+            "/api/jobs",
+            json={"type_name": "nav_information_backfill_preview", "parameters": {}},
+        )
+        assert response.status_code == 422, response.text
+        with session_scope(case.engine, read_only=True) as session:
+            assert session.scalar(select(func.count()).select_from(JobRow)) == 0
+
+
 def test_production_submission_roles_and_member_write_rejection(tmp_path: Path) -> None:
-    """验证22个生产类型的角色及集合精确匹配，成员不能经通用接口提交写入作业或留下记录。"""
+    """验证20个生产类型的角色及集合精确匹配，成员不能经通用接口提交写入作业或留下记录。"""
     # 期望来自工单D2及已交付的归类表，不能从类型属性推导，否则降权变异会一起改变期望。
     expected_roles = {
         "dataset_rescan": Role.MEMBER,
@@ -44,7 +59,6 @@ def test_production_submission_roles_and_member_write_rejection(tmp_path: Path) 
         "nav_create_dataset_preview": Role.MEMBER,
         "nav_create_link_preview": Role.MEMBER,
         "nav_fields_preview": Role.MEMBER,
-        "nav_information_backfill_preview": Role.ADMINISTRATOR,
         "nav_size_sync": Role.ADMINISTRATOR,
         "nav_repoint_preview": Role.MEMBER,
         "nav_write_apply": Role.ADMINISTRATOR,

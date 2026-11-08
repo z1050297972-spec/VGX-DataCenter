@@ -42,7 +42,7 @@ export function DatasetSizeSummary(props: Props): ReactElement {
             每天一次：本地时间凌晨 03:00 统计全部数据集。如果那时平台没在运行（例如关机或 worker
             没启动），下次启动时补统计一次，当天只补这一次。
           </li>
-          <li>写导航层之后：只重新统计这次写入涉及的数据集（例如回填、编辑字段之后）。</li>
+          <li>写导航层之后：只重新统计这次写入涉及的数据集（例如编辑字段之后）。</li>
           <li>手动：点“统计大小”立即统计。</li>
         </ul>
       </Typography.Paragraph>
