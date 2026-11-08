@@ -31,7 +31,7 @@ import {
   validateOperationSearch,
   validateLoginSearch,
 } from "./search";
-import { formatDateTime } from "../time";
+import { formatDateTime, withLocalOffset } from "../time";
 
 const operationRoute = getRouteApi("/audit/operations");
 const loginRoute = getRouteApi("/audit/logins");
@@ -256,6 +256,8 @@ function Filters(props: {
             ([key, value]) => key !== "cursor" && value !== "" && value !== undefined,
           ),
         );
+        for (const key of ["start", "end"])
+          if (typeof raw[key] === "string") raw[key] = withLocalOffset(raw[key]);
         try {
           props.onApply(raw);
           setInvalid(false);
@@ -267,12 +269,12 @@ function Filters(props: {
       <Row gutter={[16, 0]}>
         <Col xs={24} md={12} lg={6}>
           <Form.Item name="start" label="开始时间（含）">
-            <Input placeholder="带偏移的 ISO 时间" />
+            <Input placeholder="如 2026-11-08 或 2026-11-08 09:30" />
           </Form.Item>
         </Col>
         <Col xs={24} md={12} lg={6}>
           <Form.Item name="end" label="结束时间（不含）">
-            <Input placeholder="带偏移的 ISO 时间" />
+            <Input placeholder="如 2026-11-08 或 2026-11-08 09:30" />
           </Form.Item>
         </Col>
         <Col xs={24} md={12} lg={6}>

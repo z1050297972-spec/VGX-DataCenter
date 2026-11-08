@@ -39,3 +39,30 @@ export function formatDateTime(value: string, timeZone?: string): string {
     return INVALID_TIME_TEXT;
   }
 }
+
+/**
+ * 把表单里手填的宽松时间补成带偏移的 ISO 8601，交给路由严格校验。
+ * @param value - 用户输入；可只写日期、用空格代替 T、省略秒或时区。
+ * @returns 省略的时分秒补 0、省略的时区补浏览器本地偏移；不认识的格式原样返回，由 search 校验拒绝。
+ * @throws 无。
+ * @sideEffects 无。
+ * @timeSemantics 无时区的输入按浏览器本地墙钟解释，偏移取该时刻本身（跨夏令时也正确）。
+ */
+export function withLocalOffset(value: string): string {
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(\.\d{1,6})?)?)?(Z|[+-]\d{2}:\d{2})?$/.exec(
+      value.trim(),
+    );
+  if (!match) return value;
+  const [, y = "", mo = "", d = "", h = "00", mi = "00", sec = "00", frac = "", zone] = match;
+  const local = `${y}-${mo}-${d}T${h}:${mi}:${sec}`;
+  return local + frac + (zone ?? localOffset(local));
+}
+
+// 按该墙钟时刻本身取浏览器偏移；无时区 ISO 文本在 JS 中按本地时间解析。
+function localOffset(local: string): string {
+  const minutes = -new Date(local).getTimezoneOffset();
+  const abs = Math.abs(minutes);
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return (minutes < 0 ? "-" : "+") + pad(Math.floor(abs / 60)) + ":" + pad(abs % 60);
+}
