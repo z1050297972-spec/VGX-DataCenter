@@ -176,6 +176,44 @@ it("验收5：total为null只显示已处理量，不显示百分比或剩余时
   }
 });
 
+it("M4验收6：详情总进度下显示每项帧数和进度条，无分项时保持原样", async () => {
+  const progress = job.progress;
+  if (!progress) throw new Error("测试样本缺进度");
+  const parts = [
+    { name: "head_left", done: 42, total: 100, unit: "帧" },
+    { name: "state", done: 60, total: 100, unit: "帧" },
+  ];
+  for (const includeParts of [true, false]) {
+    const record: Job = {
+      ...completedJob,
+      progress: { ...progress, parts: includeParts ? parts : [] },
+    };
+    const view = mountPage(
+      `/jobs/${job.job_id}`,
+      detailFetch(() => record),
+    );
+    try {
+      await screen.findByText("阶段 2/4 · 处理");
+      if (includeParts) {
+        expect(screen.getByText("head_left")).toBeTruthy();
+        expect(screen.getByText("42/100 帧")).toBeTruthy();
+        expect(screen.getByText("60/100 帧")).toBeTruthy();
+        expect(
+          screen.getByRole("progressbar", { name: "head_left进度" }).getAttribute("aria-valuenow"),
+        ).toBe("42");
+        expect(
+          screen.getByRole("progressbar", { name: "state进度" }).getAttribute("aria-valuenow"),
+        ).toBe("60");
+      } else {
+        expect(screen.queryByText("head_left")).toBeNull();
+        expect(screen.getAllByRole("progressbar")).toHaveLength(1);
+      }
+    } finally {
+      view.close();
+    }
+  }
+});
+
 it("验收5：最近10秒样本计算速度，少于两份/无时间差/无进展不显示；阶段切换或重跑清空样本", () => {
   const first = { receivedAtMs: 1000, job };
   const later: Job = {

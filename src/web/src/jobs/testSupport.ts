@@ -22,6 +22,7 @@ export const job: Job = {
     total_items: 2,
     failed_items: 0,
     warning_count: 0,
+    parts: [],
   },
   progress_at: "2026-10-26T12:00:02Z",
   elapsed_s: 2,

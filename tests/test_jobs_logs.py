@@ -158,6 +158,7 @@ def test_summary_matches_record(tmp_path: Path) -> None:
                 "total_items": 2,
                 "failed_items": 1,
                 "warning_count": 3,
+                "parts": [],
             },
             "total_items": 2,
             "failed_items": 1,
@@ -644,7 +645,11 @@ def test_diagnostic_and_interruption_segments(tmp_path: Path) -> None:
             if "interruption=" in line
         ]
         data = [json.loads(line) for line in lines]
-        assert data[0] == {"progress": PROGRESS, "mode": "resume", "reason": "按当前登记续跑"}
+        assert data[0] == {
+            "progress": PROGRESS | {"parts": []},
+            "mode": "resume",
+            "reason": "按当前登记续跑",
+        }
         assert data[1] == {"progress": None, "mode": "interrupt", "reason": "恢复次数已达3次"}
         assert "尚未上报" in content and "中断" in content
         with pytest.raises(DefectError):
@@ -760,7 +765,10 @@ def _recovery_segment_before_commit(root: Path, mode: str) -> None:
                 content = target.read_text()
                 assert " interruption=" in content
                 interruption = json.loads(content.split("interruption=", 1)[1].splitlines()[0])
-                assert interruption["progress"] == PROGRESS and interruption["mode"] == mode
+                assert (
+                    interruption["progress"] == PROGRESS | {"parts": []}
+                    and interruption["mode"] == mode
+                )
                 observed.append(statement)
 
         event.listen(dependencies.engine, "before_cursor_execute", before_write)
@@ -828,7 +836,7 @@ def test_recovery_cancel_committed_before_resume(tmp_path: Path) -> None:
         ]
         assert [item["mode"] for item in segments] == ["resume", "cancel"]
         assert segments[1]["reason"] == "恢复期间收到取消请求"
-        assert segments[1]["progress"] == PROGRESS
+        assert segments[1]["progress"] == PROGRESS | {"parts": []}
         assert next(
             index for index, line in enumerate(lines) if "恢复期间收到取消请求" in line
         ) < next(index for index, line in enumerate(lines) if "summary=" in line)

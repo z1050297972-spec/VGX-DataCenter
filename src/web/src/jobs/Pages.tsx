@@ -272,6 +272,9 @@ function JobProgressView({ job, timing }: { job: Job; timing: JobTiming }): Reac
             percent={progress.total === 0 ? 0 : Math.round((100 * progress.done) / progress.total)}
           />
         ))}
+      {progress?.parts.map((part) => (
+        <ProgressPartView key={part.name} part={part} />
+      ))}
       <Flex gap="large" wrap>
         {progress && (
           <div>
@@ -291,6 +294,29 @@ function JobProgressView({ job, timing }: { job: Job; timing: JobTiming }): Reac
           <div>剩余时间 {timing.remainingSeconds.toFixed(1)} 秒</div>
         )}
       </Flex>
+    </div>
+  );
+}
+
+// 分项使用接口生成类型；未知总数保留计数文字，不推算百分比。
+function ProgressPartView({
+  part,
+}: {
+  part: NonNullable<Job["progress"]>["parts"][number];
+}): ReactElement {
+  return (
+    <div>
+      <Flex justify="space-between" gap="small" wrap>
+        <Typography.Text>{part.name}</Typography.Text>
+        <Typography.Text>
+          {part.done}/{part.total ?? "未知"} {part.unit}
+        </Typography.Text>
+      </Flex>
+      <Progress
+        aria-label={`${part.name}进度`}
+        percent={part.total ? Math.round((100 * part.done) / part.total) : 0}
+        showInfo={part.total !== null}
+      />
     </div>
   );
 }

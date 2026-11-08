@@ -52,6 +52,33 @@ class ExecutionMode(StrEnum):
     RESTART = "restart"
 
 
+class ProgressPart(BaseModel):
+    """工具一个特征的独立完成计数（M4-02），不参与作业条目成败计算。
+
+    Attributes:
+        model_config: 不可变且禁止额外字段，不回显非法值。
+        name: 分项名，1-40 码点且非空白。
+        done: 已完成数，严格非负整数，单位见 unit。
+        total: 总数，不小于 done；未知为 None。
+        unit: 非空白计数单位。
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
+    name: str = Field(strict=True, min_length=1, max_length=40)
+    done: int = Field(strict=True, ge=0)
+    total: int | None = Field(strict=True, ge=0)
+    unit: str = Field(strict=True, min_length=1)
+
+    @model_validator(mode="after")
+    def _validate_relations(self) -> Self:
+        """分项沿用总进度的计数关系，拒绝无显示意义的空白文本。"""
+        if not self.name.strip() or not self.unit.strip():
+            raise ValueError("分项名称和单位不能只有空白")
+        if self.total is not None and self.done > self.total:
+            raise ValueError("分项已完成数不能超过总数")
+        return self
+
+
 class JobProgress(BaseModel):
     """执行线程最近一次完整上报，所有计数为严格非负整数，不从诊断样例反推。
 
@@ -66,6 +93,7 @@ class JobProgress(BaseModel):
         warning_count: 作业累计警告条数，非负；和失败条目数独立。
         failed_items: 作业累计失败条目数，非负且不大于 total_items。
         total_items: 作业累计已处理条目数，非负；示例每步为一个条目。
+        parts: 按工具显示顺序排列的分项，最多16项；旧记录或无分项时为空元组。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
@@ -78,6 +106,7 @@ class JobProgress(BaseModel):
     warning_count: int = Field(strict=True, ge=0)
     failed_items: int = Field(strict=True, ge=0)
     total_items: int = Field(strict=True, ge=0)
+    parts: tuple[ProgressPart, ...] = Field(default=(), max_length=16)
 
     @model_validator(mode="after")
     def _validate_relations(self) -> Self:

@@ -3307,7 +3307,7 @@
       },
       "JobProgress": {
         "additionalProperties": false,
-        "description": "执行线程最近一次完整上报，所有计数为严格非负整数，不从诊断样例反推。\n\nAttributes:\n    model_config: 不可变且禁止额外字段；不回显非法输入。\n    stage_index: 当前阶段序号，1 起，不超过 stage_count。\n    stage_count: 总阶段数，正整数。\n    stage_name: 非空阶段名称，至多 JOB_TEXT_MAX_CHARS 码点。\n    done: 当前阶段实际完成数，单位见 unit，非负；阶段切换允许归零。\n    total: 当前阶段总数，不小于 done；未知为 None，不编造百分比。\n    unit: 非空计数单位，至多 JOB_TEXT_MAX_CHARS 码点。\n    warning_count: 作业累计警告条数，非负；和失败条目数独立。\n    failed_items: 作业累计失败条目数，非负且不大于 total_items。\n    total_items: 作业累计已处理条目数，非负；示例每步为一个条目。",
+        "description": "执行线程最近一次完整上报，所有计数为严格非负整数，不从诊断样例反推。\n\nAttributes:\n    model_config: 不可变且禁止额外字段；不回显非法输入。\n    stage_index: 当前阶段序号，1 起，不超过 stage_count。\n    stage_count: 总阶段数，正整数。\n    stage_name: 非空阶段名称，至多 JOB_TEXT_MAX_CHARS 码点。\n    done: 当前阶段实际完成数，单位见 unit，非负；阶段切换允许归零。\n    total: 当前阶段总数，不小于 done；未知为 None，不编造百分比。\n    unit: 非空计数单位，至多 JOB_TEXT_MAX_CHARS 码点。\n    warning_count: 作业累计警告条数，非负；和失败条目数独立。\n    failed_items: 作业累计失败条目数，非负且不大于 total_items。\n    total_items: 作业累计已处理条目数，非负；示例每步为一个条目。\n    parts: 按工具显示顺序排列的分项，最多16项；旧记录或无分项时为空元组。",
         "properties": {
           "done": {
             "minimum": 0.0,
@@ -3318,6 +3318,15 @@
             "minimum": 0.0,
             "title": "Failed Items",
             "type": "integer"
+          },
+          "parts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProgressPart"
+            },
+            "maxItems": 16,
+            "title": "Parts",
+            "type": "array"
           },
           "stage_count": {
             "minimum": 1.0,
@@ -4863,6 +4872,48 @@
           "error_id"
         ],
         "title": "ProblemResponse",
+        "type": "object"
+      },
+      "ProgressPart": {
+        "additionalProperties": false,
+        "description": "工具一个特征的独立完成计数（M4-02），不参与作业条目成败计算。\n\nAttributes:\n    model_config: 不可变且禁止额外字段，不回显非法值。\n    name: 分项名，1-40 码点且非空白。\n    done: 已完成数，严格非负整数，单位见 unit。\n    total: 总数，不小于 done；未知为 None。\n    unit: 非空白计数单位。",
+        "properties": {
+          "done": {
+            "minimum": 0.0,
+            "title": "Done",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          },
+          "unit": {
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "done",
+          "total",
+          "unit"
+        ],
+        "title": "ProgressPart",
         "type": "object"
       },
       "ProvenanceState": {
