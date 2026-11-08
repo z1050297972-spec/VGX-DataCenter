@@ -19,11 +19,11 @@ Blocked by: 01、02（都合并进 main 后开工）
 
 - 每个登记的工具一个类型：键 `convert_<工具名去掉非字母数字>`（mcap2lerobot → `convert_mcap2lerobot`），显示名"转换：<工具名>"。登记表启动时按工具登记生成；`requires_gpu` 取清单 `runtime.needs_gpu`；恢复方式 `interrupt`；成员可提交；存储需求照现有类型的声明方式（读输入所在的根，写可写存储根）。
 - **参数**：`dataset_id`；`source_ids`（1–200 个，都属于这个数据集，格式都是 mcap）；`robot_model`（必须是清单 `models` 的键，表单默认取数据集的 `robot_model`）；`output_format`（清单 `output_versions` 之一，默认第一个）。
-- **四个阶段**（`stage_count = 4`，阶段名固定）：
+- **五个阶段**（`stage_count = 5`，阶段名固定）：
   1. **核对工具**：清单有效、指纹相符（第 01 张），否则失败，不运行任何东西。
   2. **核对输入**：用 `verify` 命令（清单模板）在沙箱里跑一次，普通管道捕获输出（verify 只写 stdout）；退出码非 0 就失败，诊断带上 verify 输出的最后 30 行；不进入转换。
-  3. **转换**：`convert` 命令在沙箱里用 `run_terminal_process` 跑，解析器按清单 `runtime.progress` 取；可写目录只有本作业的暂存目录。
-  4. **收尾**：读产物 `meta/info.json`，作业结果里记 episode 数、帧数、格式版本、产物位置；写一份 `转换回执.json`（工具名、版本、程序 sha256、配置文件名和 sha256、命令参数、输入数据块和路径、起止时间 UTC、退出码），供第 04 张写血缘。
+  3–4. **扫描、转换**：`convert` 命令在沙箱里用 `run_terminal_process` 跑，解析器按清单 `runtime.progress` 取，`create_terminal_parser(..., stage_count=5, first_stage=3)`（第 02 张修复轮加的参数），工具自己的扫描和转换分别是第 3、4 阶段；可写目录只有本作业的暂存目录。
+  5. **收尾**：读产物 `meta/info.json`，作业结果里记 episode 数、帧数、格式版本、产物位置；写一份 `转换回执.json`（工具名、版本、程序 sha256、配置文件名和 sha256、命令参数、输入数据块和路径、起止时间 UTC、退出码），供第 04 张写血缘。
 - **暂存目录**：`<可写存储根>/暂存/转换/<作业编号>/`，工具输出目录是其中的 `out/`（作业开始时目录不存在，所以不用 `--force`）。重新提交就是新作业、新目录。
 - **命令填充**：`{config}` = 登记包里该型号配置文件的绝对路径；`{inputs}` = 各数据块的绝对路径（目录或文件，按 source_ids 顺序）；`{output}` = 暂存目录下的 `out`；`{format}` = output_format。程序绝对路径同第 01 张。超时上限写成具名常量（12 小时）。
 - **取消和中断**：取消时进程组回收，暂存目录保留；worker 重启后作业标"中断"，由人重新提交。
@@ -54,7 +54,7 @@ Blocked by: 01、02（都合并进 main 后开工）
 
 测试里用一个假工具（tmp 下的假工具库 + 假登记包，假程序是一个 Python 脚本，按参数模拟 verify/convert，convert 时往伪终端写和真实样本同格式的进度行并生成一个小的 `meta/info.json`），沙箱在测试里可以注入为"不加沙箱"，生产装配必须用 bwrap。
 
-1. 成功路径：四个阶段依次推进；最后的 parts 帧数正确；暂存目录 `暂存/转换/<作业编号>/out/meta/info.json` 存在；`转换回执.json` 字段齐全。
+1. 成功路径：五个阶段依次推进；最后的 parts 帧数正确；暂存目录 `暂存/转换/<作业编号>/out/meta/info.json` 存在；`转换回执.json` 字段齐全。
 2. 指纹不符：第 1 阶段失败，假程序一次都没被调用。
 3. verify 退出码 1：作业失败，诊断里有 verify 的输出，convert 没有运行。
 4. 参数：`source_ids` 不属于该数据集、格式不是 mcap、`robot_model` 不在清单里，各一个 422。
