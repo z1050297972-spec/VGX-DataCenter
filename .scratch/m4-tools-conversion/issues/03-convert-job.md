@@ -68,3 +68,4 @@ Blocked by: 01、02（都合并进 main 后开工）
 
 - 2026-11-08 开票（执行线）。
 - 2026-11-08 06:2x 派工（直做）：worktree `robot-data-platform.wt/m4-03-convert-job`，分支 `t/m4-03-convert-job`；单元 `rdp-m4-03`；`gpt-6-astra` high，90 分钟；会话 `01a1bb53-d60e-7fc0-aea0-64a42f5d6ae5`；日志 `~/.cache/rdp-dispatch/m4-03/`。
+- 2026-11-08 07:53 第一轮跑满 90 分钟超时（退出码 124，停在最后一次 make check），续接同一会话继续（单元 `rdp-m4-03-c1`，50 分钟）。
