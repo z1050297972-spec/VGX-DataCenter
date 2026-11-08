@@ -2,13 +2,14 @@ import "./monitoring.css";
 // 网络与资源页只读取监控快照；镜像探测与存储根检查由 worker 负责。
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Alert, Breadcrumb, Button, Card, Typography } from "antd";
-import { useEffect, useRef, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useAccountClient } from "../accounts/runtime";
 import { boundedRequest } from "../api/_request";
 import type { HealthClient } from "../api/client";
 import type { components } from "../api/schema";
 import { toFailureView } from "../api/problems";
 import { DiagnosticCard } from "../DiagnosticCard";
+import { formatDateTime } from "../time";
 
 // 与后端采样间隔一致；历史保存在 Web 进程内而不是浏览器数据库。
 const REFRESH_INTERVAL_MS = 2_000;
@@ -48,9 +49,11 @@ function mirrorLabel(status: Snapshot["mirror"]["status"]): string {
   return "镜像状态未知";
 }
 
-function MirrorCheckButton(): ReactElement {
+// 手动请求镜像检查；以点击时的 checked_at 为基准，worker 写回新时间后显示结论。
+function MirrorCheckButton({ mirror }: { mirror: Snapshot["mirror"] }): ReactElement {
   const client = useAccountClient();
   const active = useRef<AbortController | null>(null);
+  const [baseline, setBaseline] = useState<string | null | undefined>(undefined);
   useEffect(() => () => active.current?.abort(), []);
   const mutation = useMutation({
     mutationFn: async () => {
@@ -64,17 +67,24 @@ function MirrorCheckButton(): ReactElement {
     },
     retry: false,
   });
+  const done = mutation.isSuccess && mirror.checked_at !== null && mirror.checked_at !== baseline;
   return (
     <div>
       <Button
-        loading={mutation.isPending}
+        loading={mutation.isPending || (mutation.isSuccess && !done)}
         onClick={() => {
+          setBaseline(mirror.checked_at);
           mutation.mutate();
         }}
       >
         立即检查
       </Button>
-      {mutation.isSuccess && <p>镜像检查已请求，等待 worker 执行</p>}
+      {mutation.isSuccess && !done && <p>镜像检查已请求，等待 worker 执行</p>}
+      {done && mirror.checked_at !== null && (
+        <p>
+          检查完成（{formatDateTime(mirror.checked_at)}）：{mirrorLabel(mirror.status)}
+        </p>
+      )}
       {mutation.isError && <DiagnosticCard failure={toFailureView(mutation.error)} />}
     </div>
   );
@@ -185,8 +195,8 @@ export function MonitoringPage(): ReactElement {
       <div className="monitoring-grid">
         <Card title="镜像状态" className="monitoring-card">
           <p>{mirrorText}</p>
-          <p>检查时间：{mirror.checked_at ?? "尚未检查"}</p>
-          <MirrorCheckButton />
+          <p>检查时间：{mirror.checked_at ? formatDateTime(mirror.checked_at) : "尚未检查"}</p>
+          <MirrorCheckButton mirror={mirror} />
         </Card>
 
         <Card title="VPN 与代理" className="monitoring-card">

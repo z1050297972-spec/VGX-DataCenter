@@ -7,13 +7,14 @@ import { createHealthClient, type FetchImplementation } from "../api/client";
 import { MonitoringPage } from "./Pages";
 
 it("展示镜像、VPN、网速折线和资源占用", async () => {
+  let checkedAt = "2026-11-01T00:00:00Z";
   const transport = vi.fn<FetchImplementation>((request) => {
-    if (request.method === "POST")
+    if (request.method === "POST") {
+      setTimeout(() => (checkedAt = "2026-11-01T00:05:00Z"), 50);
       return Promise.resolve(Response.json({ accepted: true }, { status: 202 }));
+    }
     if (request.url.endsWith("/mirror"))
-      return Promise.resolve(
-        Response.json({ status: "ineffective", checked_at: "2026-11-01T00:00:00Z" }),
-      );
+      return Promise.resolve(Response.json({ status: "ineffective", checked_at: checkedAt }));
     if (request.url.endsWith("/vpn"))
       return Promise.resolve(
         Response.json({
@@ -70,7 +71,10 @@ it("展示镜像、VPN、网速折线和资源占用", async () => {
   expect(screen.getByLabelText("网速折线").querySelectorAll("polyline").length).toBeGreaterThan(0);
   expect(screen.getByText(/proxy:8080/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "立即检查" }));
+  // 契约：worker 写回新检查时间前显示等待，写回后改为显示结论，不会一直停在等待。
   expect(await screen.findByText("镜像检查已请求，等待 worker 执行")).toBeTruthy();
+  expect(await screen.findByText(/检查完成（.*）：镜像不生效/, {}, { timeout: 5000 })).toBeTruthy();
+  expect(screen.queryByText("镜像检查已请求，等待 worker 执行")).toBeNull();
   expect(
     transport.mock.calls.some(
       ([request]) =>
