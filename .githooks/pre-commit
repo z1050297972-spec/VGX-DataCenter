@@ -25,32 +25,29 @@ if [[ "$has_staged_files" == true && "$only_planning" == true ]]; then
     exit 0
 fi
 
-# 分层检查（2026-11-08）：合并提交一律全量；只动 src/web/src 时只查前端并只跑受影响的测试；
-# 其余情况（后端、脚本、依赖、生成的 API 类型、前端配置）仍跑全量。
+# 分层检查（2026-11-08）：合并提交一律全量；非规划改动只涉及 src/rdp、tests 下的 .py 和 src/web/src 时，
+# 跑 make check-changed（静态检查全跑，测试只跑受影响的）；其余改动 testmon 追踪不到，仍跑全量。
 merging=false
 [[ -e "$(git rev-parse --git-path MERGE_HEAD)" ]] && merging=true
-web_only=$has_staged_files
+scoped=$has_staged_files
 web_changed=()
 while IFS= read -r -d '' staged_path; do
     case "$staged_path" in
         .scratch/*|docs/*|GLOSSARY.md|AGENTS.md|CLAUDE.md) ;;
-        src/web/src/api/*) web_only=false ;;
+        src/rdp/*.py|tests/*.py) ;;
         src/web/src/*)
             # vitest related 只接受现存文件；删除的文件靠 tsc 发现悬空引用。
-            [[ -e "$staged_path" ]] && web_changed+=("${staged_path#src/web/}") ;;
-        *) web_only=false ;;
+            if [[ -e "$staged_path" ]]; then
+                [[ "$staged_path" =~ ^[A-Za-z0-9_./-]+$ ]] || scoped=false
+                web_changed+=("${staged_path#src/web/}")
+            fi ;;
+        *) scoped=false ;;
     esac
 done < "$staged_file_list"
 
-if [[ "$merging" == false && "$web_only" == true ]]; then
-    for path in "${web_changed[@]}"; do
-        [[ "$path" =~ ^[A-Za-z0-9_./-]+$ ]] || { web_only=false; break; }
-    done
-fi
-
-if [[ "$merging" == false && "$web_only" == true ]]; then
-    echo "只改了前端源码：跑前端检查和受影响的测试，后端和全量留到合并。"
-    if ! make check-web-changed WEB_CHANGED="${web_changed[*]}"; then
+if [[ "$merging" == false && "$scoped" == true ]]; then
+    echo "分层检查：静态检查全跑，测试只跑受改动影响的；全量留到合并提交。"
+    if ! make check-changed WEB_CHANGED="${web_changed[*]}"; then
         echo "检查失败，请修好后重新提交。" >&2
         exit 1
     fi

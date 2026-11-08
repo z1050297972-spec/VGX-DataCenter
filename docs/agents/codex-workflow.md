@@ -114,7 +114,7 @@ M0 第 1 张票开票时还没有 `pyproject.toml` 和 `make check`，第 4、5 
 
 不采信 Codex 的自述，依次做：
 
-1. **重跑**：在工作目录里只重跑本票相关的检查（前端 `make check-web-changed WEB_CHANGED="<相对 src/web 的文件>"`，后端 ruff、basedpyright 加本票相关的 pytest 文件），记下用时。全量 `make check` 不在评审时重跑，由合并提交的钩子跑一次（2026-11-08 负责人同意分层检查）。
+1. **重跑**：在工作目录里只重跑本票相关的检查（`make check-changed WEB_CHANGED="<相对 src/web 的改动文件>"`），记下用时。全量 `make check` 不在评审时重跑，由合并提交的钩子跑一次（2026-11-08 负责人同意分层检查）。
 2. **文件归属**（规则 3）：
    - 工作目录：`git status --porcelain --untracked-files=all` 的每一行，都在 `src/`、`tests/` 下，或者是工单写明允许改的受保护文件。
    - 主仓库目录：里面允许有还没提交的规划改动，但规划文件以外不能有改动。`git -C <主仓库目录> status --porcelain -- src tests` 必须为空。再用下面这条把范围放到所有非规划文件，受保护文件也在内，输出同样必须为空：
@@ -222,7 +222,7 @@ timeout 90m codex exec resume \
 
 所有提交都由 Claude 做，都经过钩子 `.githooks/pre-commit`，不加 `--no-verify`，也不用 `-c core.hooksPath=…` 之类的办法绕开钩子。
 
-- 钩子先看暂存了哪些文件：只动了规划文件（`.scratch/`、`docs/`、`GLOSSARY.md`、`AGENTS.md`、`CLAUDE.md`）时，打印一行"仅暂存规划文件，跳过 make check。"后放行；动了其他文件时分层处理（2026-11-08 负责人同意）：合并提交一律跑全量 `make check`；除规划文件外只动了 `src/web/src/`（不含生成的 `src/web/src/api/`）时，跑 `make check-web-changed`，即前端 lint、类型检查加上 `vitest related` 只跑受影响的测试；其余情况跑全量 `make check`（M0 第 1 张工单 D2）。所以主会话提交规划文件不需要 `.venv`。
+- 钩子先看暂存了哪些文件：只动了规划文件（`.scratch/`、`docs/`、`GLOSSARY.md`、`AGENTS.md`、`CLAUDE.md`）时，打印一行"仅暂存规划文件，跳过 make check。"后放行；动了其他文件时分层处理（2026-11-08 负责人同意）：合并提交一律跑全量 `make check`；除规划文件外只动了 `src/rdp/`、`tests/` 下的 `.py` 和 `src/web/src/` 时，跑 `make check-changed`：静态检查全跑，后端用 `pytest --testmon`、前端用 `vitest related` 只跑受影响的测试；其余情况（脚本、配置、依赖、非 `.py` 文件，testmon 追踪不到）跑全量 `make check`（M0 第 1 张工单 D2）。所以主会话提交规划文件不需要 `.venv`。
 - `core.hooksPath` 设在共用的 `.git/config` 里，值是相对路径 `.githooks`。没有 `.githooks/` 的分支（例如 `prototype/*`）提交时不跑钩子，这是预期的。
 
 | 时间点 | 提交说明开头 | 内容 | 谁、在哪 |

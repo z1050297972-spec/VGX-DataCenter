@@ -1,5 +1,5 @@
 # 直接调用项目环境，避免 PATH 上的 Python/ruff 和 uv 缓存写入影响检查。
-.PHONY: check check-web-changed fmt api-types check-api-types web-tools
+.PHONY: check check-changed fmt api-types check-api-types web-tools
 .DEFAULT_GOAL := check
 
 # package.json 的 scripts 只供本地开发；检查命令只在这里维护，避免两处漂移。
@@ -45,20 +45,29 @@ check:
 	@echo "[12/12] Vitest"
 	cd src/web && node_modules/.bin/vitest run
 
-# 提交时的分层检查（2026-11-08 负责人同意）：只改了前端时用这个，不跑后端。
-# WEB_CHANGED 是相对 src/web 的改动文件；为空或含配置文件时退回全量 Vitest。
-# 合并提交和其他改动仍由钩子跑完整 make check。
-check-web-changed: web-tools
-	@echo "[web 1/5] tsc"
+# 提交时的分层检查（2026-11-08 负责人同意）：静态检查全跑，测试只跑受改动影响的部分。
+# 后端用 pytest-testmon 按上次记录的依赖挑测试（数据在 .testmondata，每个工作目录一份，首次等于全量）；
+# 前端用 vitest related，WEB_CHANGED 是相对 src/web 的改动文件，为空时不跑前端测试。
+# 合并提交和 testmon 追踪不到的改动（脚本、配置、依赖、非 .py 文件）仍由钩子跑完整 make check。
+check-changed: web-tools
+	@echo "[changed 1/6] ruff、basedpyright、import-linter、契约检查"
+	.venv/bin/ruff format --check .
+	.venv/bin/ruff check .
+	.venv/bin/basedpyright
+	.venv/bin/lint-imports --no-cache --no-logo
+	.venv/bin/python scripts/check_contracts.py src/rdp scripts
+	@echo "[changed 2/6] pytest（testmon 只跑受影响的测试）"
+	.venv/bin/pytest --testmon -n auto --maxprocesses=8
+	@echo "[changed 3/6] OpenAPI 过期检查"
+	@$(MAKE) --no-print-directory check-api-types
+	@echo "[changed 4/6] tsc"
 	$(WEB_BIN)/tsc --project src/web/tsconfig.json --noEmit
-	@echo "[web 2/5] ESLint"
+	@echo "[changed 5/6] ESLint、Prettier、stylelint"
 	cd src/web && node_modules/.bin/eslint . --max-warnings 0
-	@echo "[web 3/5] Prettier"
 	cd src/web && node_modules/.bin/prettier --check .
-	@echo "[web 4/5] stylelint"
 	cd src/web && node_modules/.bin/stylelint "src/**/*.css"
-	@echo "[web 5/5] Vitest（只跑受改动影响的测试）"
-	cd src/web && if [ -n "$(WEB_CHANGED)" ]; then node_modules/.bin/vitest related --run $(WEB_CHANGED); else node_modules/.bin/vitest run; fi
+	@echo "[changed 6/6] Vitest（只跑受改动影响的测试）"
+	cd src/web && if [ -n "$(WEB_CHANGED)" ]; then node_modules/.bin/vitest related --run $(WEB_CHANGED); else echo "没改前端源码，跳过"; fi
 
 fmt:
 	.venv/bin/ruff format .
