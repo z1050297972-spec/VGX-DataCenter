@@ -55,16 +55,16 @@ class CreationDetails(CreationDetailValue):
     Attributes:
         canonical_entry_path: 按任务入口的导航相对路径。
         format_entry_paths: 实际重生成的全部按格式入口路径，按路径排序；含未勾选的已有入口。
-        selected_format_entry_paths: 用户本次勾选并加入链接的入口路径；可为空。
+        selected_format_entry_paths: 用户本次勾选的入口路径；有目标时加入链接，可为空。
         file_paths: 所有 WriteFileStep 的路径，按执行顺序；不含文件全文。
         directory_paths: 所有 MakeDirStep 的路径，按父目录到子目录顺序；可为空。
         links: 所有 SetLinkStep 的位置和目标，按执行顺序；no-op 时为空。
         sources_added: 规范副本新增的数据块，至多一条；覆盖已有数据块时为空。
         dataset_roots_added: 要追加的绝对根路径，至多一条；已覆盖时为空。
-        resolved_format: 本条目标的格式稳定键；noop 不重新读元信息，为 None。
+        resolved_format: 本条目标的格式稳定键；noop 或无链接时为 None。
         resolved_version: 本条目标的版本，无 meta/info.json 时为 None。
         metadata_source: meta_info 表示使用文件；selected_format 表示缺文件后用用户选择；
-            not_checked 仅用于 noop，不强迫无变化请求补选格式。
+            not_checked 用于 noop 或无链接，不强迫无变化请求补选格式。
         noop: L2 已有同目标且已登记时为 True，所有写入步骤及差异清单为空。
     """
 

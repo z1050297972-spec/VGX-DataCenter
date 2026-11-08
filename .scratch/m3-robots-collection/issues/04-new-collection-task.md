@@ -1,6 +1,6 @@
 # 新建采集任务
 
-Status: ready-for-agent
+Status: done
 
 分级：直做。按"只做关键测试"。写导航层，要做副本演练。
 
@@ -38,3 +38,5 @@ Blocked by: 03
 
 - 2026-11-08 开票（执行线）。放宽"不创建空数据集"由执行线按负责人授权决定，理由：采集任务要能先建后采。
 - 2026-11-08 M4 会话（datasets-d5）：M4 入库复用"新增数据集"的写入流程新建转换产物（不写 `collection`、必有链接）。本张改 `DatasetPreviewParameters`（`link` 可空、加 `collection`）或创建流程函数签名后，合并时通知 datasets-d5。
+- 2026-11-08 前后端交回（后端 gpt-6-astra high、前端 medium），执行线 make api-types 后前端续接换成生成类型。make check 全绿：后端 2814 passed、Vitest 403 passed、0 skipped。不带链接时 `format_entries` 仍允许（生成空的按格式副本），后续建链已验证。
+- 2026-11-08 **副本演练**（`~/.cache/rdp-drill/m3-04/drill.sh` → `run.log`）：新建"M3演练_计划采集"（计划中、主从臂遥操作、训练、无链接），预览、确认 completed；只新增 4 份 JSON，已有文件改动 0；`collection` 和第 2 项写入，来源按采集方式带出为真机采集，`links`/`sources` 为空；按"计划中"筛到 1 个，一致性面板没有它的发现，详情返回名称；之后建链（20261009 → R1 mcap 的一个日期目录）成功。/mnt/datasets 清单不变，两块盘写入扇区 5776/62904 前后不变，worker.log ERROR 0。

@@ -14,6 +14,7 @@ from rdp.jobs.datasets.rescan import RescanDependencies
 from rdp.jobs.datasets.types import EntryLocation, View
 from rdp.jobs.navwrite import _create_plan as plans
 from rdp.jobs.navwrite import _create_read as reads
+from rdp.jobs.navwrite._field_collection import prepare_value
 from rdp.jobs.navwrite._field_diff import differences
 from rdp.jobs.navwrite.allocation import allocate_dataset_id
 from rdp.jobs.navwrite.create_models import DatasetPreviewParameters, LinkPreviewParameters
@@ -145,11 +146,12 @@ def build_dataset_preview(
     *,
     checkpoint: Callable[[], None],
 ) -> PreviewBuild:
-    """构造新增数据集全套入口及第一条链接的预览计划。
+    """构造新增数据集全套入口及可选第一条链接的预览计划。
 
     Args:
         dependencies: worker 扫描依赖，具有只读本地目标检查能力；不允许客户端覆盖导航根。
-        parameters: 数据集名、必填来源、第一条链接、可选information及格式位置；不含dataset_id。
+        parameters: 数据集名、必填来源、可选第一条链接、information、collection及格式位置；
+            无链接仅适用于填写第 2 项地址的计划中采集任务，不含dataset_id。
         set_by: 从预览作业提交人生成的人工标注印记，包含账号编号、名字及注入的 UTC 时刻；
             调用方保留的提交人上下文；不再将印记写入来源文件，操作归属由日志追溯。
         checkpoint: 取消/停止检查点，遍历导航入口及每个读块之间调用。
@@ -166,11 +168,14 @@ def build_dataset_preview(
         按格式入口调用 generate_format_entry，不复制来源.json；链接与新数据块适用 L1/L3。
         report.creation给出全套路径、来源数据块、根追加和预计编号对应入口；编号不是提前占用。
         information相对空骨架的差异从计划后像生成，含格式副本，复用有界字段预览。
+        collection 非空时写入信息顶层；来源为未知时按采集方式带出。
+        无链接时不访问计划地址，links/sources/dataset_roots 为空，不生成 SetLinkStep。
 
     Raises:
         InputError: 名称非法或按任务下同名对象存在（含断链）、第一链接不满足 L1/L3、
             格式选择重复/版本层不符、格式目的被占、来源不在 DATA_ORIGINS、编号扫描有坏入口，
             或元信息缺失未选格式、损坏及读取预算超限；无元信息时固定 version=None。
+            采集编号不存在或选中停用项也拒绝。
         ExternalError: 本地根离线/超时、挂载身份不符或导航读取失败。
         ConflictError: 构造期间目的或最大编号发生变化，不能组合不一致的预览。
         JobCancelledError: 用户取消预览，返回前的检查点终止构造。
@@ -204,13 +209,28 @@ def build_dataset_preview(
     canonical = plans.new_snapshot(location, identifier, parameters.information)
     information = plans.payload(canonical, 1)
     information["data_origin"] = parameters.data_origin
+    if parameters.collection is not None:
+        # 新建没有历史引用；必须先校验，再写入 collection，避免误放行停用编号。
+        prepare_value(
+            dependencies.engine,
+            information,
+            parameters.collection,
+            explicit_origin=False,
+            rule="NAV_CREATE",
+        )
+        information["collection"] = parameters.collection.model_dump(mode="json")
     selected = plans.format_locations(parameters.dataset_name, parameters.format_entries)
-    target = reads.target(dependencies, parameters.link, checkpoint)
+    target = (
+        reads.target(dependencies, parameters.link, checkpoint)
+        if parameters.link is not None
+        else None
+    )
     planning = plans.Planning(dependencies.nav_root, canonical)
     planning.ensure_directory(location.path)
     manifest = plans.payload(canonical, 0)
-    planning.link(location, parameters.link, target, manifest)
-    planning.extend_manifest(manifest, target)
+    if parameters.link is not None and target is not None:
+        planning.link(location, parameters.link, target, manifest)
+        planning.extend_manifest(manifest, target)
     first = dump_navigation_json(regenerate_derived_fields(manifest, location))
     canonical = plans.with_documents(
         canonical,
@@ -239,7 +259,7 @@ def build_dataset_preview(
         state=state,
     )
     report = planning.report(plan, target, selected, formats)
-    if parameters.information is not None:
+    if parameters.information is not None or parameters.collection is not None:
         # 新入口尚无前像；以原有空骨架展示用户填写的差异，后像直接复用执行计划。
         blank = plans.new_snapshot(location, identifier)
         baseline = dump_navigation_json(plans.payload(blank, 1))

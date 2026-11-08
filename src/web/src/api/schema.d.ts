@@ -1117,13 +1117,14 @@ export interface paths {
          *
          *     Args:
          *         context: 当前成员/管理员的会话及服务端审计来源。
-         *         body: dataset_name、data_origin、link 和 format_entries；来源必填，编号不允许传入。
+         *         body: dataset_name、data_origin、link、information、collection 和 format_entries；
+         *             来源必填，编号不允许传入。link 默认 null，仅计划中采集任务且第 2 项地址非空时允许。
          *
          *     Returns:
          *         201，nav_create_dataset_preview 的 M0 queued 记录；编号只在成功预览中展示。
          *
          *     Raises:
-         *         JobInputError: 名称/来源/格式选择不合法、超预算或类型未登记，422。
+         *         JobInputError: 名称/来源/格式/采集信息不合法、缺少必需链接或地址、超预算或类型未登记，422。
          *         AuthenticationError: 当前会话在写事务内失效，401。
          *         AuthorizationError: Origin 检查失败，403。
          *         PasswordChangeRequiredError: 当前账号必须改密，403。
@@ -4182,16 +4183,16 @@ export interface components {
          *     Attributes:
          *         canonical_entry_path: 按任务入口的导航相对路径。
          *         format_entry_paths: 实际重生成的全部按格式入口路径，按路径排序；含未勾选的已有入口。
-         *         selected_format_entry_paths: 用户本次勾选并加入链接的入口路径；可为空。
+         *         selected_format_entry_paths: 用户本次勾选的入口路径；有目标时加入链接，可为空。
          *         file_paths: 所有 WriteFileStep 的路径，按执行顺序；不含文件全文。
          *         directory_paths: 所有 MakeDirStep 的路径，按父目录到子目录顺序；可为空。
          *         links: 所有 SetLinkStep 的位置和目标，按执行顺序；no-op 时为空。
          *         sources_added: 规范副本新增的数据块，至多一条；覆盖已有数据块时为空。
          *         dataset_roots_added: 要追加的绝对根路径，至多一条；已覆盖时为空。
-         *         resolved_format: 本条目标的格式稳定键；noop 不重新读元信息，为 None。
+         *         resolved_format: 本条目标的格式稳定键；noop 或无链接时为 None。
          *         resolved_version: 本条目标的版本，无 meta/info.json 时为 None。
          *         metadata_source: meta_info 表示使用文件；selected_format 表示缺文件后用用户选择；
-         *             not_checked 仅用于 noop，不强迫无变化请求补选格式。
+         *             not_checked 用于 noop 或无链接，不强迫无变化请求补选格式。
          *         noop: L2 已有同目标且已登记时为 True，所有写入步骤及差异清单为空。
          */
         CreationDetails: {
@@ -4581,10 +4582,12 @@ export interface components {
          *         information: 可选文字与分类；None保持原有空骨架，不推测正文。
          *         dataset_name: 安全单层数据集名；不能与按任务下任何已有对象重名，包括断链。
          *         data_origin: DATA_ORIGINS 中的必填中文值。
-         *         link: 新数据集的第一条链接；至少有这一条，不创建空数据集。
-         *         format_entries: 零到多个去重格式位置，按登记表推导目录；每个放入第一条链接。
+         *         link: 第一条链接，默认 None；仅计划中的采集任务可省略，此时第 2 项地址必填。
+         *         collection: 采集信息，默认 None；编号存在性和启停状态由 worker 复用字段编辑规则校验。
+         *         format_entries: 零到多个去重格式位置；有链接时加入第一条链接，否则生成空格式入口。
          */
         DatasetPreviewParameters: {
+            collection?: components["schemas"]["CollectionInformation"] | null;
             /** Data Origin */
             data_origin: string;
             /** Dataset Name */
@@ -4595,7 +4598,7 @@ export interface components {
              */
             format_entries: components["schemas"]["FormatEntrySelection"][];
             information?: components["schemas"]["DatasetInformation"] | null;
-            link: components["schemas"]["FirstLink"];
+            link?: components["schemas"]["FirstLink"] | null;
         };
         /**
          * DatasetProvenance

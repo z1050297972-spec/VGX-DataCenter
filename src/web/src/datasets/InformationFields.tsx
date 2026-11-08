@@ -25,6 +25,7 @@ const ITEMS = [
 ] as const;
 const EMPTY: DatasetInformationInput = { fields: [], robot_model: "", scene: [], tasks: [] };
 interface Props {
+  /** 采集模式要求第2项地址非空，其余项仍可选。 */ addressRequired?: boolean;
   /** 未填写时为 undefined 或 null；编号只包含可编辑项。 */
   value?: DatasetInformationInput | null;
   /** 请求在途或写入被挡住时禁用。 */
@@ -51,9 +52,17 @@ export function InformationFields(props: Props): ReactElement {
     );
   }
   return (
-    <Card title="14 项数据集信息（可选）" role="region" aria-label="14 项数据集信息（可选）">
+    <Card
+      title={props.addressRequired ? "14 项数据集信息（地址必填）" : "14 项数据集信息（可选）"}
+      role="region"
+      aria-label="14 项数据集信息（可选）"
+    >
       <div className="creation-fields">
-        <p>全部可选，空着的以后可以在编辑器中补充。</p>
+        <p>
+          {props.addressRequired
+            ? "第 2 项地址必填，填写计划存放采集数据的目录；其他项可稍后补充。"
+            : "全部可选，空着的以后可以在编辑器中补充。"}
+        </p>
         {vocabulary.error && <DiagnosticCard failure={toFailureView(vocabulary.error)} />}
         {ITEMS.map(([number, name]) => {
           const label = `第 ${String(number)} 项：${name}`;
@@ -87,6 +96,7 @@ export function InformationFields(props: Props): ReactElement {
                 />
               ))}
               <FieldInput
+                required={props.addressRequired && number === 2}
                 field={{
                   path: ["fields", number, "value_markdown"],
                   label,

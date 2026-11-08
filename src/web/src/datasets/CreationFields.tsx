@@ -6,6 +6,8 @@ import type { CreationOptions, LinkPreviewInput } from "../api/datasetCreation";
 
 /** 链接字段的受控属性。 */
 export interface LinkFieldsProps {
+  /** 仅计划中的采集任务可留空；任一链接字段填入后仍需完整链接。 */
+  optional?: boolean;
   /** 生成模型的单条链接，不包含操作者或存储配置。 */
   value: LinkPreviewInput["link"];
   /** 服务端格式登记。 */
@@ -31,7 +33,10 @@ export function LinkFields(props: LinkFieldsProps): ReactElement {
           链接名
           <Input
             aria-label="链接名"
-            required
+            required={
+              !props.optional ||
+              !!(props.value.name || props.value.target_path || props.value.fallback_format)
+            }
             value={props.value.name}
             onChange={(event) => {
               props.onChange({ ...props.value, name: event.target.value });
@@ -42,7 +47,10 @@ export function LinkFields(props: LinkFieldsProps): ReactElement {
           目标路径
           <Input
             aria-label="目标路径"
-            required
+            required={
+              !props.optional ||
+              !!(props.value.name || props.value.target_path || props.value.fallback_format)
+            }
             pattern="/.*"
             value={props.value.target_path}
             onChange={(event) => {
@@ -70,6 +78,7 @@ export function LinkFields(props: LinkFieldsProps): ReactElement {
             }}
           />
         </label>
+        {props.optional && <p>计划中可不填第一条链接；采集到数据后再通过“建链”添加。</p>}
         <p className="creation-note">
           没有 meta/info.json 时请选格式；存在元信息时以文件为准。链接不会修改目标数据。
         </p>

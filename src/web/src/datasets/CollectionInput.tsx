@@ -14,7 +14,10 @@ interface Props {
   /** 当前草稿；null 表示无采集信息。 */ value: CollectionValue | null;
   /** 编辑页基线，用于保留原来引用的停用项。 */ original: CollectionValue | null;
   /** 请求提交中或基线过期。 */ disabled: boolean;
-  /** 将完整 collection 交回字段草稿。 */ onChange: (value: CollectionValue | null) => void;
+  /** 将完整 collection 交回草稿；选择方式时同时提供来源，供新建表单原子更新。 */ onChange: (
+    value: CollectionValue | null,
+    origin?: string,
+  ) => void;
   /** 选择方式时把对应来源交回会话，是否补齐由会话判断。 */ onOrigin?: (origin: string) => void;
 }
 // M3-03 约束：单个数据集最多使用 16 台机器人。
@@ -144,8 +147,8 @@ function MethodReference(props: ReferencesProps): ReactElement {
           singleId(value.method_id),
         )}
         onChange={(id: number | undefined) => {
-          props.onChange({ ...value, method_id: id ?? null });
           const method = vocabulary.data?.methods.find((item) => item.id === id);
+          props.onChange({ ...value, method_id: id ?? null }, method?.data_origin);
           if (method) props.onOrigin?.(method.data_origin);
         }}
       />

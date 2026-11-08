@@ -9,7 +9,7 @@ import type { SceneArrays } from "./sceneTypes";
 
 /** 建链预览输入；目标、名称及格式规则由服务器单一定义。 */
 export type LinkPreviewInput = components["schemas"]["LinkPreviewParameters"];
-/** 新增数据集预览输入，含可选初始信息；后端已生成第09张契约。 */
+/** 新增数据集预览输入，采集信息与可空首链接沿用生成契约。 */
 export type DatasetPreviewInput = SceneArrays<components["schemas"]["DatasetPreviewParameters"]>;
 /** 新建数据集信息沿用生成类型，编号范围和去重由后端校验。 */
 export type DatasetInformationInput = SceneArrays<components["schemas"]["DatasetInformation"]>;
@@ -67,7 +67,7 @@ export function submitLinkPreview(_input: AccountCall<LinkPreviewInput>): Promis
 
 /**
  * 提交新数据集全套入口的只读预览。
- * @param _input - 必填数据集名、来源和第一链接，使用生成的 DatasetPreviewInput。
+ * @param _input - 数据集名、来源、采集信息及链接；计划中可不带链接。
  * @returns POST /api/datasets/creation-previews 的 queued 预览作业，尚未占用数据集编号。
  * @throws Error 输入、来源或服务端拒绝，以及网络/取消失败，均经统一诊断。
  * @sideEffects 一次 POST，不在浏览器内创建入口或推测下一个编号。

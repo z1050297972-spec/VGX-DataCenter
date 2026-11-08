@@ -150,13 +150,14 @@ def submit_dataset_preview(context: CreationContext, body: DatasetPreviewParamet
 
     Args:
         context: 当前成员/管理员的会话及服务端审计来源。
-        body: dataset_name、data_origin、link 和 format_entries；来源必填，编号不允许传入。
+        body: dataset_name、data_origin、link、information、collection 和 format_entries；
+            来源必填，编号不允许传入。link 默认 null，仅计划中采集任务且第 2 项地址非空时允许。
 
     Returns:
         201，nav_create_dataset_preview 的 M0 queued 记录；编号只在成功预览中展示。
 
     Raises:
-        JobInputError: 名称/来源/格式选择不合法、超预算或类型未登记，422。
+        JobInputError: 名称/来源/格式/采集信息不合法、缺少必需链接或地址、超预算或类型未登记，422。
         AuthenticationError: 当前会话在写事务内失效，401。
         AuthorizationError: Origin 检查失败，403。
         PasswordChangeRequiredError: 当前账号必须改密，403。

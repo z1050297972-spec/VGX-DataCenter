@@ -8,6 +8,7 @@ from typing import Annotated, Self, cast
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from rdp.collection.information import CollectionInformation
 from rdp.jobs.dataset_browser.schemas import DatasetId
 from rdp.jobs.datasets.catalog import FORMAT_DIRECTORIES, PROVENANCE_DOCUMENT, REQUIRED_DOCUMENTS
 from rdp.jobs.navwrite._field_rules import normalize_classification
@@ -259,11 +260,41 @@ class DatasetPreviewParameters(CreationParameters):
         information: 可选文字与分类；None保持原有空骨架，不推测正文。
         dataset_name: 安全单层数据集名；不能与按任务下任何已有对象重名，包括断链。
         data_origin: DATA_ORIGINS 中的必填中文值。
-        link: 新数据集的第一条链接；至少有这一条，不创建空数据集。
-        format_entries: 零到多个去重格式位置，按登记表推导目录；每个放入第一条链接。
+        link: 第一条链接，默认 None；仅计划中的采集任务可省略，此时第 2 项地址必填。
+        collection: 采集信息，默认 None；编号存在性和启停状态由 worker 复用字段编辑规则校验。
+        format_entries: 零到多个去重格式位置；有链接时加入第一条链接，否则生成空格式入口。
     """
 
     dataset_name: EntryName
     data_origin: Annotated[str, Field(strict=True), AfterValidator(validate_data_origin)]
-    link: FirstLink
+    link: FirstLink | None = None
     information: DatasetInformation | None = None
+    collection: CollectionInformation | None = None
+
+    @model_validator(mode="after")
+    def validate_optional_link(self) -> Self:
+        """仅允许地址已填写的计划中采集任务省略第一条链接。
+
+        Args:
+            无。
+
+        Returns:
+            当前参数对象，地址正文保留原文。
+
+        Raises:
+            ValueError: 缺链接且没有计划中的采集信息，或第 2 项地址缺失、去空白后为空。
+
+        Side Effects:
+            无；地址只作文字校验，不检查或创建目标目录。
+
+        Time Semantics:
+            提交与 worker 参数解析时同步校验，不读时钟。
+        """
+        if self.link is not None:
+            return self
+        if self.collection is None or self.collection.status != "planned":
+            raise ValueError("只有计划中的采集任务可以不提供第一条链接")
+        fields = self.information.fields if self.information is not None else ()
+        if not any(item.number == 2 and item.value_markdown.strip() for item in fields):
+            raise ValueError("无链接的采集任务必须填写第 2 项地址")
+        return self

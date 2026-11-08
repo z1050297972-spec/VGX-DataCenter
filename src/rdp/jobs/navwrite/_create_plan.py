@@ -204,8 +204,8 @@ class Planning:
         canonical: EntrySnapshot,
         existing: tuple[tuple[EntrySnapshot, dict[str, bytes]], ...],
         selected: tuple[EntryLocation, ...],
-        link: FirstLink,
-        target: Target,
+        link: FirstLink | None,
+        target: Target | None,
     ) -> tuple[str, ...]:
         """全部副本重生成；只在勾选入口增加本条链接，来源文件不复制。"""
         known = {str(item.location.path): (item, raw) for item, raw in existing}
@@ -224,7 +224,7 @@ class Planning:
                 current, raw = replace(canonical, location=location), {}
                 manifest = payload(canonical, 0)
                 manifest["links"] = []
-            if path in selected_paths:
+            if path in selected_paths and link is not None and target is not None:
                 self.link(location, link, target, manifest)
             files = tuple(
                 dump_navigation_json(manifest)
@@ -251,7 +251,7 @@ class Planning:
     def report(
         self,
         plan: NavWritePlan,
-        target: Target,
+        target: Target | None,
         selected: tuple[EntryLocation, ...],
         formats: tuple[str, ...],
         *,
@@ -276,14 +276,18 @@ class Planning:
             links=links,
             sources_added=tuple(self.sources),
             dataset_roots_added=tuple(self.roots),
-            resolved_format=target.format,
-            resolved_version=target.version,
-            metadata_source=target.metadata,
+            resolved_format=target.format if target else None,
+            resolved_version=target.version if target else None,
+            metadata_source=target.metadata if target else "not_checked",
             noop=noop,
         )
         checks = (
             CheckNote(
-                name="目标与元信息", scope=CheckScope.FULL, detail="仅检查本条目标；不递归质检数据"
+                name="目标与元信息",
+                scope=CheckScope.FULL,
+                detail="仅检查本条目标；不递归质检数据"
+                if target
+                else "未提供链接；不检查计划地址或数据目标",
             ),
             CheckNote(
                 name="索引与大小",

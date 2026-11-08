@@ -1,6 +1,7 @@
 import "./creation.css";
 // M1-08 创建表单组件；负责受控输入与交互，不读文件、不自行生成计划。
 import { Button, Card, Input, Select } from "antd";
+import { CollectionInput } from "./CollectionInput";
 import { InformationFields } from "./InformationFields";
 import { LinkFields } from "./CreationFields";
 import type { ReactElement } from "react";
@@ -133,6 +134,8 @@ export function CreateLinkForm(props: CreateLinkFormProps): ReactElement {
 
 /** 新增数据集受控表单。 */
 export interface CreateDatasetFormProps {
+  /** URL 指定采集任务模式，地址必填并显示采集控件。 */
+  collectionMode?: boolean;
   /** 数据集名、来源、第一链接和所选格式位置。 */
   value: DatasetPreviewInput;
   /** 数据来源和格式唯一登记候选。 */
@@ -148,7 +151,7 @@ export interface CreateDatasetFormProps {
 }
 
 /**
- * 填写新数据集名称、必填来源、第一条链接及可选的14项信息。
+ * 填写新数据集信息；采集模式要求地址，计划中可省略第一条链接。
  * @param props - 服务端字段类型的受控值、候选与预览回调。
  * @returns 新数据集表单；零到多个格式选择，编号由预览提供，页面不能指定。
  * @throws 无；必填/名称错误显示可修正反馈，服务端拒绝由父页面展示诊断。
@@ -156,13 +159,22 @@ export interface CreateDatasetFormProps {
  * @timeSemantics pending 禁用按钮；不缓存未提交表单到浏览器存储。
  */
 export function CreateDatasetForm(props: CreateDatasetFormProps): ReactElement {
+  const link = props.value.link ?? { name: "", target_path: "", fallback_format: null };
+  const optionalLink = props.value.collection?.status === "planned";
+  const emptyLink = isEmptyLink(link);
+  const validAddress = hasRequiredAddress(props);
   return (
     <form
       className="creation-form"
       onSubmit={(event) => {
         event.preventDefault();
         // 保留原生下拉框的必选语义，不能通过键盘提交空来源。
-        if (props.value.data_origin) props.onPreview(props.value);
+        if (
+          props.value.data_origin &&
+          validAddress &&
+          ((optionalLink && emptyLink) || (link.name && link.target_path))
+        )
+          props.onPreview({ ...props.value, link: optionalLink && emptyLink ? null : link });
       }}
     >
       <Card title="01 基本信息">
@@ -196,8 +208,10 @@ export function CreateDatasetForm(props: CreateDatasetFormProps): ReactElement {
           </label>
         </fieldset>
       </Card>
+      {props.collectionMode && <NewCollectionFields {...props} />}
       <LinkFields
-        value={props.value.link}
+        optional={optionalLink}
+        value={link}
         options={props.options}
         disabled={props.pending}
         onChange={(link) => {
@@ -214,6 +228,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps): ReactElement {
         }}
       />
       <InformationFields
+        addressRequired={props.collectionMode}
         value={props.value.information}
         disabled={props.pending}
         onChange={(information) => {
@@ -224,7 +239,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps): ReactElement {
         type="primary"
         htmlType="submit"
         aria-label="生成预览"
-        disabled={props.pending || !props.value.data_origin}
+        disabled={props.pending || !props.value.data_origin || !validAddress}
         loading={props.pending}
       >
         生成预览
@@ -303,4 +318,40 @@ export function FormatEntryPicker(props: FormatEntryPickerProps): ReactElement {
       </fieldset>
     </Card>
   );
+}
+
+// 采集模式要求地址，空白不算计划目录。
+function hasRequiredAddress(props: CreateDatasetFormProps): boolean {
+  if (!props.collectionMode) return true;
+  return !!props.value.information?.fields
+    .find((field) => field.number === 2)
+    ?.value_markdown.trim();
+}
+// 将采集方式和带出的来源合并为一次更新，避免受控表单旧值覆盖新值。
+function NewCollectionFields(props: CreateDatasetFormProps): ReactElement {
+  return (
+    <Card title="采集信息">
+      <CollectionInput
+        value={props.value.collection ?? null}
+        original={null}
+        disabled={props.pending}
+        onChange={(collection, origin) => {
+          // 方式与带出的来源必须一次更新，避免同一事件的旧表单覆盖刚选的方式。
+          props.onChange({
+            ...props.value,
+            collection,
+            data_origin:
+              origin && (!props.value.data_origin || props.value.data_origin === "未知")
+                ? origin
+                : props.value.data_origin,
+          });
+        }}
+      />
+    </Card>
+  );
+}
+
+// 任一链接字段已填写就不能丢弃整条链接，半填情况仍交必填校验。
+function isEmptyLink(link: LinkPreviewInput["link"]): boolean {
+  return !link.name && !link.target_path && !link.fallback_format;
 }
