@@ -1,0 +1,38 @@
+# 工具登记清单：mcap2lerobot（M4，ADR 0008 修订）
+# 工具本体在工具库 /mnt/datasets/工具/mcap2lerobot，负责人要求一点不改；平台只读、只在 bwrap 里执行。
+# 本清单是平台侧的事实来源；字段含义以 rdp.tools 的清单模型 docstring 为准。
+schema_version = 1
+
+[tool]
+name = "mcap2lerobot"                       # 命名规则 <输入>2<输出>[-<变体>]，和登记包目录名一致
+version = "0.1.0"                           # 程序 --version 输出
+summary = "把机器人录制的 MCAP 转成 LeRobot 数据集"
+directory = "mcap2lerobot"                  # 相对工具库根（平台配置，默认 /mnt/datasets/工具）
+# 下面两项只作说明，不参与运行判断；版本以 program.sha256 为准。
+source_commit = "4027d15"
+source_note = "登记时（2026-11-08）工具仓库 configs/r1lite.toml 有 3 行未提交改动、docs/ 未纳入版本管理；按负责人要求不改工具，平台用本登记包里的配置副本。"
+
+[program]
+path = "target/release/mcap2lerobot"        # 相对工具目录；平台不构建
+size = 10330720
+sha256 = "f09daa6af5d485e8a41c254e8a10347da4a4b59f8b0c3acb6f3a84669077e6ab"
+
+[io]
+input_format = "mcap"
+output_format = "lerobot"
+output_versions = ["v3.0", "v2.1"]          # 由 {format} 选择，默认第一个
+
+[models]
+# 键是数据集 robot_model 字符串（不建型号表），值是本登记包里的配置文件。
+"Galaxea R1 Lite" = "configs/r1lite.toml"
+
+[runtime]
+needs_gpu = true                            # r1lite.toml 用 hevc_nvenc；没卡就等，不改用 CPU
+progress = "mcap2lerobot-pty"               # 进度来源：伪终端里的 indicatif 进度条
+external_programs = ["ffmpeg"]              # 工具运行时调用的系统程序
+
+[command]
+# 参数列表，不经过 shell。{inputs} 展开成多个参数；输出目录每个作业新建，所以不用 --force。
+# -y：非终端时不加会报错（这里 stderr 是伪终端，仍然显式加上）。
+verify = ["verify", "-c", "{config}", "{inputs}"]
+convert = ["convert", "-c", "{config}", "-o", "{output}", "--format", "{format}", "-y", "{inputs}"]
