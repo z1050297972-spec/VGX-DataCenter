@@ -79,7 +79,7 @@ def build(
     facts: JsonObject,
     checkpoint: Callable[[], None],
 ) -> PreviewBuild:
-    """只组装已检查事实的创建计划；默认名碰撞时加转换编号供人工选择。"""
+    """组装已检查事实的创建计划；以追加转换编号后的最终默认值判断占用。"""
     metadata = cast(JsonObject, facts["metadata"])
     version = str(metadata["codebase_version"]).removeprefix("v")
     name = parameters.dataset_name or value.input_name.removesuffix("_mcap") + "_lerobot"
@@ -87,6 +87,9 @@ def build(
     occupied = entry.exists() or entry.is_symlink()
     if occupied and parameters.dataset_name is None:
         name += f"_{value.record.job_id}"
+        # M4-06：基础名冲突已由编号消解，只有最终名字仍冲突才阻止自动入库。
+        entry = deps.rescan.nav_root / "按任务" / name
+        occupied = entry.exists() or entry.is_symlink()
     target = parameters.target_subdir or f"转换/{name}"
     parts = _target_parts(target)
     if parts[0] == "暂存":
@@ -106,10 +109,13 @@ def build(
     if probe["target_exists"]:
         if parameters.target_subdir is not None:
             raise nav_input_error("CONVERSION_INGEST", "正式位置已被占用")
-        occupied = True
-        normalized = normalized.model_copy(
-            update={"target_subdir": target + f"_{value.record.job_id}"}
+        target += f"_{value.record.job_id}"
+        normalized = normalized.model_copy(update={"target_subdir": target})
+        # 存放位置同样只按最终值判占用；仍通过有超时的隔离子进程读取存储根。
+        probe = access(
+            "probe", value.root, f"暂存/转换/{value.record.job_id}/out", target, deps.paths.root
         )
+        occupied = occupied or bool(probe["target_exists"])
     result = _creation(deps, normalized, value, facts, checkpoint)
     return replace(result, parameters={**result.parameters, "default_occupied": occupied})
 
