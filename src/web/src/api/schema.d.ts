@@ -2184,6 +2184,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs/convert/{tool_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Conversion Job
+         * @description 提交工具转换作业，Web仅校验登记选项和数据块索引。
+         *
+         *     Args:
+         *         context: 已认证身份、请求时刻和审计上下文。
+         *         tool_name: 工具列表返回的登记包名称。
+         *         body: 数据集、1至200个数据块、型号及可选输出版本。
+         *
+         *     Returns:
+         *         新排队作业，默认输出版本已由工具清单补齐。
+         *
+         *     Raises:
+         *         JobInputError: 工具未登记、型号/版本无效或数据块归属/格式不符，422。
+         *         AuthenticationError: 当前会话失效，401。
+         *         ConflictError: 数据库写锁竞争，409。
+         *         ExternalError: 数据库不可用，502。
+         *
+         *     Side Effects:
+         *         经JobService同事务写作业和操作日志；不访问输入存储根或执行工具。
+         *
+         *     Time Semantics:
+         *         使用请求UTC时刻，不等待worker或GPU，不重试提交。
+         */
+        post: operations["submit_conversion_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs/download": {
         parameters: {
             query?: never;
@@ -4056,6 +4096,46 @@ export interface components {
             preview_job_id: string;
         };
         /**
+         * ConversionParameters
+         * @description 用户选择的转换输入；输出版本由工具专属模型补默认值。
+         *
+         *     Attributes:
+         *         dataset_id: 已索引的数据集永久编号，非空。
+         *         source_ids: 按命令顺序排列的1至200个不同数据块编号。
+         *         robot_model: 工具清单中的型号配置键，非空。
+         *         output_format: 输出版本；None由工具模型替换成清单首项。
+         */
+        ConversionParameters: {
+            /** Dataset Id */
+            dataset_id: string;
+            /** Output Format */
+            output_format?: string | null;
+            /** Robot Model */
+            robot_model: string;
+            /** Source Ids */
+            source_ids: string[];
+        };
+        /**
+         * ConversionResult
+         * @description 转换收尾的产物事实；由meta/info.json取得，不从终端进度推算。
+         *
+         *     Attributes:
+         *         total_episodes: 产物episode数，非负整数。
+         *         total_frames: 产物帧数，非负整数。
+         *         codebase_version: 产物格式版本，非空。
+         *         output_path: 本作业暂存产物绝对位置。
+         */
+        ConversionResult: {
+            /** Codebase Version */
+            codebase_version: string;
+            /** Output Path */
+            output_path: string;
+            /** Total Episodes */
+            total_episodes: number;
+            /** Total Frames */
+            total_frames: number;
+        };
+        /**
          * CountParameters
          * @description 示例作业参数，序号从 1 开始，所有整数拒绝 bool。
          *
@@ -5407,8 +5487,10 @@ export interface components {
          *         failed_items: 作业累计失败条目数，非负且不大于 total_items。
          *         total_items: 作业累计已处理条目数，非负；示例每步为一个条目。
          *         parts: 按工具显示顺序排列的分项，最多16项；旧记录或无分项时为空元组。
+         *         conversion: 转换收尾结果；其他作业或尚未收尾为None。
          */
         JobProgress: {
+            conversion?: components["schemas"]["ConversionResult"] | null;
             /** Done */
             done: number;
             /** Failed Items */
@@ -13172,6 +13254,122 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SubmitJobPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    submit_conversion_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversionParameters"];
             };
         };
         responses: {

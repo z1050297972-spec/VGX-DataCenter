@@ -41,11 +41,15 @@ from rdp.jobs.policy import (
     OUTPUT_JOIN_TIMEOUT_S,
     PROCESS_POLL_INTERVAL_S,
     PROCESS_REAP_TIMEOUT_S,
+    PROCESS_STDERR_TAIL_LINES,
     PROCESS_TERM_GRACE_S,
 )
 from rdp.jobs.progress import ProgressReporter
 from rdp.jobs.terminal.types import TerminalParser
 from rdp.jobs.types import JobClock
+
+# M4-03：verify只写stdout，诊断要求保留最后30行，仍受已有字节上限约束。
+VERIFY_STDOUT_TAIL_LINES = 30
 
 
 @dataclass(frozen=True)
@@ -57,12 +61,14 @@ class ToolCommand:
         argv: 非空参数元组；argv[0] 为绝对可执行文件路径，所有项无 NUL、无秘密。
         cwd: 显式绝对工作目录；测试仅 tmp_path，不从请求直接接收。
         timeout_s: 有限正秒数，整个执行的单调期限；不能为 None，无隐式无限等待。
+        failure_stdout: verify只写stdout时为True，诊断改留stdout最后30行；默认保留stderr规则。
     """
 
     tool_name: str
     argv: tuple[str, ...]
     cwd: Path
     timeout_s: float
+    failure_stdout: bool = False
 
 
 def run_external_process(
@@ -91,6 +97,7 @@ def run_external_process(
         ExternalError: 启动失败、非零退出、信号结束、超过 timeout_s、输出读取/日志写入或清理失败。
             诊断包含工具名、argv、退出码或信号、stderr 最后 PROCESS_STDERR_TAIL_LINES 行、
             最后进度、后果和下一步；stderr摘要另限PROCESS_STDERR_TAIL_MAX_BYTES，截断须标记。
+            command.failure_stdout为True时改用stdout最后30行，同样受字节上限约束。
             SIGKILL后PROCESS_REAP_TIMEOUT_S仍收不回（例如D状态），或读线程join超时也抛ExternalError，
             不伪造退出码；诊断注明资源未回收，即使已有取消也报告此清理失败，执行器仍按数据库取消态决定结局。
         DefectError: 参数、依赖或时钟非法；未通过校验不启动任何进程。
@@ -403,7 +410,13 @@ class _ProcessRun:
                 TerminalReader(binary, self.command.tool_name, self.log, self.reporter, self.parser)
                 if name == "stderr" and self.parser is not None
                 else OutputReader(
-                    binary, f"{name} {self.command.tool_name}│", self.log, self.clock.clock
+                    binary,
+                    f"{name} {self.command.tool_name}│",
+                    self.log,
+                    self.clock.clock,
+                    VERIFY_STDOUT_TAIL_LINES
+                    if name == "stdout" and self.command.failure_stdout
+                    else PROCESS_STDERR_TAIL_LINES,
                 )
             )
             context = copy_context()
@@ -506,9 +519,11 @@ class _ProcessRun:
             raise failure from error
 
     def _failure(self, actual: str) -> ExternalError:
-        """诊断只保留有界stderr尾和当前进度，完整流留在文件。"""
+        """诊断只保留命令声明的有界输出尾和当前进度，完整流留在文件。"""
         code = None if self.process is None else self.process.returncode
-        tail = self.readers[-1].tail_text() if len(self.readers) == 2 else "（无stderr）"
+        stream = "stdout" if self.command.failure_stdout else "stderr"
+        index = 0 if self.command.failure_stdout else -1
+        tail = self.readers[index].tail_text() if len(self.readers) == 2 else f"（无{stream}）"
         progress = self.reporter.snapshot().progress
         return ExternalError(
             (
@@ -520,7 +535,7 @@ class _ProcessRun:
                     objects=(
                         DiagnosticObject(key="command", value=repr(self.command.argv)),
                         DiagnosticObject(key="returncode", value=str(code)),
-                        DiagnosticObject(key="stderr_tail", value=tail),
+                        DiagnosticObject(key=f"{stream}_tail", value=tail),
                         DiagnosticObject(
                             key="progress",
                             value="尚未上报" if progress is None else progress.model_dump_json(),

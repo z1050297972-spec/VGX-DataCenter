@@ -528,6 +528,83 @@
         "title": "ConfirmCreationRequest",
         "type": "object"
       },
+      "ConversionParameters": {
+        "additionalProperties": false,
+        "description": "用户选择的转换输入；输出版本由工具专属模型补默认值。\n\nAttributes:\n    dataset_id: 已索引的数据集永久编号，非空。\n    source_ids: 按命令顺序排列的1至200个不同数据块编号。\n    robot_model: 工具清单中的型号配置键，非空。\n    output_format: 输出版本；None由工具模型替换成清单首项。",
+        "properties": {
+          "dataset_id": {
+            "minLength": 1,
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "output_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Format"
+          },
+          "robot_model": {
+            "minLength": 1,
+            "title": "Robot Model",
+            "type": "string"
+          },
+          "source_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Source Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "source_ids",
+          "robot_model"
+        ],
+        "title": "ConversionParameters",
+        "type": "object"
+      },
+      "ConversionResult": {
+        "additionalProperties": false,
+        "description": "转换收尾的产物事实；由meta/info.json取得，不从终端进度推算。\n\nAttributes:\n    total_episodes: 产物episode数，非负整数。\n    total_frames: 产物帧数，非负整数。\n    codebase_version: 产物格式版本，非空。\n    output_path: 本作业暂存产物绝对位置。",
+        "properties": {
+          "codebase_version": {
+            "minLength": 1,
+            "title": "Codebase Version",
+            "type": "string"
+          },
+          "output_path": {
+            "minLength": 1,
+            "title": "Output Path",
+            "type": "string"
+          },
+          "total_episodes": {
+            "minimum": 0.0,
+            "title": "Total Episodes",
+            "type": "integer"
+          },
+          "total_frames": {
+            "minimum": 0.0,
+            "title": "Total Frames",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_episodes",
+          "total_frames",
+          "codebase_version",
+          "output_path"
+        ],
+        "title": "ConversionResult",
+        "type": "object"
+      },
       "CountParameters": {
         "additionalProperties": false,
         "description": "示例作业参数，序号从 1 开始，所有整数拒绝 bool。\n\nAttributes:\n    model_config: 冻结、禁止多余字段、不回显拒绝值。\n    steps: 总步数，COUNT_MIN_STEPS 至 COUNT_MAX_STEPS，必填。\n    interval_ms: 每步间隔，COUNT_MIN_INTERVAL_MS 至 COUNT_MAX_INTERVAL_MS 毫秒，必填。\n    failed_steps: 失败步序号元组，默认空，去重前先拒绝重复；每项 1 至 steps，至多 COUNT_MAX_STEPS 项。\n    warning_steps: 警告步序号元组，默认空，同一失败步也可产生警告；范围/重复规则同上。\n    abort_at_step: 在该步处理前整体中止，1 至 steps；默认 None 不整体中止。",
@@ -3316,8 +3393,18 @@
       },
       "JobProgress": {
         "additionalProperties": false,
-        "description": "执行线程最近一次完整上报，所有计数为严格非负整数，不从诊断样例反推。\n\nAttributes:\n    model_config: 不可变且禁止额外字段；不回显非法输入。\n    stage_index: 当前阶段序号，1 起，不超过 stage_count。\n    stage_count: 总阶段数，正整数。\n    stage_name: 非空阶段名称，至多 JOB_TEXT_MAX_CHARS 码点。\n    done: 当前阶段实际完成数，单位见 unit，非负；阶段切换允许归零。\n    total: 当前阶段总数，不小于 done；未知为 None，不编造百分比。\n    unit: 非空计数单位，至多 JOB_TEXT_MAX_CHARS 码点。\n    warning_count: 作业累计警告条数，非负；和失败条目数独立。\n    failed_items: 作业累计失败条目数，非负且不大于 total_items。\n    total_items: 作业累计已处理条目数，非负；示例每步为一个条目。\n    parts: 按工具显示顺序排列的分项，最多16项；旧记录或无分项时为空元组。",
+        "description": "执行线程最近一次完整上报，所有计数为严格非负整数，不从诊断样例反推。\n\nAttributes:\n    model_config: 不可变且禁止额外字段；不回显非法输入。\n    stage_index: 当前阶段序号，1 起，不超过 stage_count。\n    stage_count: 总阶段数，正整数。\n    stage_name: 非空阶段名称，至多 JOB_TEXT_MAX_CHARS 码点。\n    done: 当前阶段实际完成数，单位见 unit，非负；阶段切换允许归零。\n    total: 当前阶段总数，不小于 done；未知为 None，不编造百分比。\n    unit: 非空计数单位，至多 JOB_TEXT_MAX_CHARS 码点。\n    warning_count: 作业累计警告条数，非负；和失败条目数独立。\n    failed_items: 作业累计失败条目数，非负且不大于 total_items。\n    total_items: 作业累计已处理条目数，非负；示例每步为一个条目。\n    parts: 按工具显示顺序排列的分项，最多16项；旧记录或无分项时为空元组。\n    conversion: 转换收尾结果；其他作业或尚未收尾为None。",
         "properties": {
+          "conversion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversionResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "done": {
             "minimum": 0.0,
             "title": "Done",
@@ -15289,6 +15376,154 @@
           }
         ],
         "summary": "Submit Job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/convert/{tool_name}": {
+      "post": {
+        "description": "提交工具转换作业，Web仅校验登记选项和数据块索引。\n\nArgs:\n    context: 已认证身份、请求时刻和审计上下文。\n    tool_name: 工具列表返回的登记包名称。\n    body: 数据集、1至200个数据块、型号及可选输出版本。\n\nReturns:\n    新排队作业，默认输出版本已由工具清单补齐。\n\nRaises:\n    JobInputError: 工具未登记、型号/版本无效或数据块归属/格式不符，422。\n    AuthenticationError: 当前会话失效，401。\n    ConflictError: 数据库写锁竞争，409。\n    ExternalError: 数据库不可用，502。\n\nSide Effects:\n    经JobService同事务写作业和操作日志；不访问输入存储根或执行工具。\n\nTime Semantics:\n    使用请求UTC时刻，不等待worker或GPU，不重试提交。",
+        "operationId": "submit_conversion_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tool_name",
+            "required": true,
+            "schema": {
+              "title": "Tool Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversionParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Submit Conversion Job",
         "tags": [
           "jobs"
         ]

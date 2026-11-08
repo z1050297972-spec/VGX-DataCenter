@@ -40,6 +40,8 @@ from rdp.infra.storage import (
 )
 from rdp.infra.version import DeploymentLayout, read_platform_version
 from rdp.jobs._clock import ClockReader
+from rdp.jobs.conversion.job import ConversionDependencies
+from rdp.jobs.conversion.registration import register_conversion_jobs
 from rdp.jobs.datasets.rescan import RescanDependencies
 from rdp.jobs.downloads._context import current as download_context
 from rdp.jobs.downloads.adapters import (
@@ -190,10 +192,14 @@ def prepare_service(
         )
         if rescan is None:
             # Web 不注入存储根访问、进程或散列能力。
-            registry = production_registry(rescan, navigation)
+            registry = _with_conversions(
+                production_registry(rescan, navigation), config, engine, None
+            )
         else:
             download = _download_dependencies(config, rescan, engine, paths)
-            registry = production_registry(rescan, navigation, download)
+            registry = _with_conversions(
+                production_registry(rescan, navigation, download), config, engine, rescan.storage
+            )
 
         try:
             registry.validate_storage_roots(roots=config.storage_roots)
@@ -217,6 +223,24 @@ def prepare_service(
     except BaseException:
         engine.dispose()
         raise
+
+
+def _with_conversions(
+    registry: JobRegistry,
+    config: PlatformConfig,
+    engine: Engine,
+    storage: StorageAccessChecker | None,
+) -> JobRegistry:
+    """两个入口读同一登记包，只有worker绑定真实转换执行依赖。"""
+    register_conversion_jobs(
+        registry,
+        config.tools,
+        config.storage_roots,
+        ConversionDependencies(engine, config.tools, config.storage_roots, storage=storage)
+        if storage is not None
+        else None,
+    )
+    return registry
 
 
 def _download_dependencies(

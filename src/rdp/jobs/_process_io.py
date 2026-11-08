@@ -18,9 +18,12 @@ from rdp.jobs.types import JobClock
 class StreamCapture:
     """线程读出与选择器读出共用的有界分行、转义和尾部缓存；写入能力由调用者提供。"""
 
-    def __init__(self, prefix: str, write: Callable[[str], None]) -> None:
+    def __init__(
+        self, prefix: str, write: Callable[[str], None], tail_lines: int = PROCESS_STDERR_TAIL_LINES
+    ) -> None:
         """建立单流的有界缓冲，不打开日志或读取进程。"""
         self.prefix, self.write = prefix, write
+        self.tail_lines = tail_lines
         self.chunk_size = min(
             PROCESS_OUTPUT_CHUNK_BYTES,
             (JOB_LOG_TAIL_MAX_BYTES - len(prefix.encode()) - len("[续行]".encode())) // 4,
@@ -59,18 +62,16 @@ class StreamCapture:
         encoded = escaped.encode()
         self.tail.append(encoded)
         self.tail_bytes += len(encoded)
-        while (
-            len(self.tail) > PROCESS_STDERR_TAIL_LINES
-            or self.tail_bytes > PROCESS_STDERR_TAIL_MAX_BYTES
-        ):
+        while len(self.tail) > self.tail_lines or self.tail_bytes > PROCESS_STDERR_TAIL_MAX_BYTES:
             self.tail_bytes -= len(self.tail.popleft())
             self.truncated = True
 
     def tail_text(self) -> str:
         """返回有界诊断尾部；纯空白用固定说明，完整原始输出仍保留在日志文件。"""
         text = b"\n".join(self.tail)
+        label = "stdout" if self.prefix.startswith("stdout ") else "stderr"
         marker = (
-            "[stderr尾部已截断]\n".encode()
+            f"[{label}尾部已截断]\n".encode()
             if self.truncated or len(text) > PROCESS_STDERR_TAIL_MAX_BYTES
             else b""
         )
@@ -78,18 +79,27 @@ class StreamCapture:
         rendered = (
             marker.decode() + text[-budget:].decode("utf-8", errors="ignore")
             if text
-            else "（无stderr）"
+            else f"（无{label}）"
         )
-        return rendered if rendered.strip() else "（stderr仅含空白）"
+        return rendered if rendered.strip() else f"（{label}仅含空白）"
 
 
 class OutputReader:
     """一个流对应一个daemon线程；故障交主执行线程收口，不在读线程记ERROR。"""
 
-    def __init__(self, stream: BinaryIO, prefix: str, log: JobLog, clock: JobClock) -> None:
+    def __init__(
+        self,
+        stream: BinaryIO,
+        prefix: str,
+        log: JobLog,
+        clock: JobClock,
+        tail_lines: int = PROCESS_STDERR_TAIL_LINES,
+    ) -> None:
         """绑定一个输出流与前缀，建立有限stderr尾缓存，不启动线程。"""
         self.stream = stream
-        self.capture = StreamCapture(prefix, lambda line: log.write_line(line, now=clock.now()))
+        self.capture = StreamCapture(
+            prefix, lambda line: log.write_line(line, now=clock.now()), tail_lines
+        )
         self.error: Exception | None = None
 
     def run(self) -> None:
