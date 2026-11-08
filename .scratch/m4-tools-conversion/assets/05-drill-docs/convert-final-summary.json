@@ -1,0 +1,64 @@
+{
+ "job_id": "6",
+ "state": "completed",
+ "outcome": "succeeded",
+ "started_at": "2026-11-08T16:20:08.691100Z",
+ "ended_at": "2026-11-08T16:57:35.107037Z",
+ "elapsed_s": 2246,
+ "gpu_index": 0,
+ "tool_exit_code": 0,
+ "progress": {
+  "stage_index": 5,
+  "stage_count": 5,
+  "stage_name": "收尾",
+  "done": 83508,
+  "total": 83508,
+  "unit": "帧",
+  "warning_count": 0,
+  "failed_items": 0,
+  "total_items": 142,
+  "parts": [
+   {
+    "name": "head_left",
+    "done": 83508,
+    "total": 83508,
+    "unit": "帧"
+   },
+   {
+    "name": "wrist_left",
+    "done": 83508,
+    "total": 83508,
+    "unit": "帧"
+   },
+   {
+    "name": "wrist_right",
+    "done": 83508,
+    "total": 83508,
+    "unit": "帧"
+   },
+   {
+    "name": "state",
+    "done": 83508,
+    "total": 83508,
+    "unit": "帧"
+   },
+   {
+    "name": "action",
+    "done": 83508,
+    "total": 83508,
+    "unit": "帧"
+   }
+  ],
+  "conversion": {
+   "total_episodes": 142,
+   "total_frames": 83508,
+   "codebase_version": "v3.0",
+   "output_path": "/run/media/shawn/rdpm4drill/暂存/转换/6/out"
+  }
+ },
+ "artifacts": [
+  "/run/media/shawn/rdpm4drill/暂存/转换/6",
+  "/run/media/shawn/rdpm4drill/暂存/转换/6/out",
+  "/run/media/shawn/rdpm4drill/暂存/转换/6/转换回执.json"
+ ]
+}
