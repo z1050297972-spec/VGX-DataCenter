@@ -1,6 +1,6 @@
 # 入库检查与入库
 
-Status: in-progress
+Status: done
 
 分级：直做（负责人 2026-11-08 授权按顺序完成 M4；骨架和合并由执行线按建议过）。按"只做关键测试"。写导航层，要做副本演练。
 
@@ -92,3 +92,6 @@ Blocked by: 03
 - 2026-11-08 修复轮 r1（单元 `rdp-m4-04-r1`）：补上面 3 个漏网变异的测试。
 - 2026-11-08 10:3x **副本演练（验收 8，执行线）**：用探针副本里本票的代码，对第 03 张演练产出的真实产物（作业 6，dataset-35 一整天，5.64 GB）"检查并入库"：四层全部"通过"；默认名 `R1_lite_table_withdrawing_lerobot` 已被 dataset-29 占用，按规则用 `R1_lite_table_withdrawing_lerobot_6`；导航层副本只多出按任务入口和 `按格式/lerobot/3.0` 入口；产物从 `暂存/转换/6/out` 改名到测试根的 `转换/R1_lite_table_withdrawing_lerobot_6`；`来源.json` 血缘为 `转换/完整/worker`，输入 dataset-35 的数据块、工具指纹、配置全文都在；`data_origin` 沿用"真机采集"；没有 `collection` 键；详情接口上下游双向显示（M3 第 05 张投影）。两块数据盘写入扇区不变，`/mnt/datasets` 清单逐字节相同，worker 无 ERROR。证据 `../assets/05-drill-docs/`。
 - **演练发现（阻塞，修复轮 r2）**：新数据集顶层 `robot_model`、`fps` 为空（第 5 项只填了 info.json 的 `robot_type` = `galaxea_r1lite`），按型号筛选找不到它、转换按钮也匹配不上型号。工单只写了沿用 `data_origin`，是执行线漏写；转换产物与输入是同一次采集，应沿用输入的 `robot_model`、`scene`、`tasks`，`fps` 取产物 info.json。
+- 2026-11-08 10:39 r1 交回：三个用例补齐；执行线重跑变异脚本，原先漏网的 3 处都抓住（`mutation_probe-r1-done.txt`）。
+- 2026-11-08 10:51 r2 交回：转换产物顶层沿用输入的 `robot_model`、`scene`、`tasks`，`fps` 取产物 info.json；`DatasetInformation` 加可选 `fps`（None 不写键，M1/M2/M3 现有调用方不变，事先批准的只增不改扩展）。复核：两个新变异（型号不沿用、fps 不写）都抓住（`mutation_probe-r2-done.txt`）；新建流程相关测试 236 passed。
+- 2026-11-08 实现提交 `8d6a0c6`（钩子全量全绿 2851 / 412）。按负责人授权合并进 main：`d583214`，自动合并无冲突，生成的接口类型按合并结果重新生成；合并钩子全量全绿（2851 / 412）。工作目录和分支已删除（工作目录里那层 node_modules 子链接随之删除，共享依赖不受影响）。
