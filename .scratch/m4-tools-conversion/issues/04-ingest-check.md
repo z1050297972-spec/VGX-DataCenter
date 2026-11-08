@@ -80,3 +80,15 @@ Blocked by: 03
 - 2026-11-08 09:20 第一轮交检查点（约 58 分钟）：四层检查（`check.py`、`check_models.py`、`_check_child.py`、`_check_data.py`、`_check_video.py`）和 7 个用例完成，后端 2844 passed；前端测试因共享 node_modules 只读（Vite 写不了 `.vite-temp`）没跑完。执行线核对：视频按 `(高, 宽) == shape[:2]` 比较，顺序正确；用真实产物量过，ffprobe 时长与帧数 ÷ fps 偏差 0.0 s，"有偏差但不超过一帧算警告"不会在真实数据上误触发。
 - parquet 样本：仓库 `.gitignore` 的 `*.parquet` 让 `lerobot-v3/` 的 parquet 没进仓库，按"数据不进仓库"保持；测试在 tmp 里生成，`meta.json` 由本票改成实际情况。
 - 2026-11-08 09:2x 执行线把工作目录的 `src/web/node_modules` 换成一层真实目录（子链接指向共享依赖），续接同一会话做完剩余范围（单元 `rdp-m4-04-c1`，90 分钟）。
+- 2026-11-08 10:18 续接轮交回（退出码 0）：Codex 自报 `make check` 全绿（2849 / 412），0 skipped。
+- 2026-11-08 评审（执行线）：
+  1. 重跑：`make check-changed` 全绿（49 s）；另不经 testmon 完整跑转换相关测试 27 passed、入库相关 80 passed、`tests/jobs/`（含 M2 下载入库）98 passed——下载入库被抽成共用代码后行为不变。
+  2. 文件归属：只有 `src/`、`tests/`、生成的接口类型，和获准修改的 `tests/fixtures/mcap2lerobot/meta.json`；主仓库目录无非规划改动。
+  3. 契约：直做票。
+  4. 变异抽查（`~/.cache/rdp-drill/m4-04-probe/mutation_probe.py` → `mutation_probe-c1-done.txt`）：11 处抓住 8 处；**漏网 3 处**："有警告也自动入库"（验收 3，阻塞）、"不比对视频分辨率"、"不比对格式版本"。
+  5. 运行日志（两轮）：无旧项目路径、无安装和联网命令、无 /mnt 命令。
+  6. 评审：后续作业在前驱终态的同一事务里提交（不漏不重）；改名入库复用 M2 的持久移动记录和回滚；血缘记录字段与 M3 商定一致。遗留：通用执行器认识了转换流水线的类型名（`_followups.py`），以后宜改成作业类型登记上的"完成后"回调。
+  7. 违规试验：检查链未改，不做。
+- 2026-11-08 修复轮 r1（单元 `rdp-m4-04-r1`）：补上面 3 个漏网变异的测试。
+- 2026-11-08 10:3x **副本演练（验收 8，执行线）**：用探针副本里本票的代码，对第 03 张演练产出的真实产物（作业 6，dataset-35 一整天，5.64 GB）"检查并入库"：四层全部"通过"；默认名 `R1_lite_table_withdrawing_lerobot` 已被 dataset-29 占用，按规则用 `R1_lite_table_withdrawing_lerobot_6`；导航层副本只多出按任务入口和 `按格式/lerobot/3.0` 入口；产物从 `暂存/转换/6/out` 改名到测试根的 `转换/R1_lite_table_withdrawing_lerobot_6`；`来源.json` 血缘为 `转换/完整/worker`，输入 dataset-35 的数据块、工具指纹、配置全文都在；`data_origin` 沿用"真机采集"；没有 `collection` 键；详情接口上下游双向显示（M3 第 05 张投影）。两块数据盘写入扇区不变，`/mnt/datasets` 清单逐字节相同，worker 无 ERROR。证据 `../assets/05-drill-docs/`。
+- **演练发现（阻塞，修复轮 r2）**：新数据集顶层 `robot_model`、`fps` 为空（第 5 项只填了 info.json 的 `robot_type` = `galaxea_r1lite`），按型号筛选找不到它、转换按钮也匹配不上型号。工单只写了沿用 `data_origin`，是执行线漏写；转换产物与输入是同一次采集，应沿用输入的 `robot_model`、`scene`、`tasks`，`fps` 取产物 info.json。

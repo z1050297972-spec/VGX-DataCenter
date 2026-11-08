@@ -1,0 +1,69 @@
+入口 nav/按任务/R1_lite_table_withdrawing_lerobot_6 ['原始数据', '原始路径.json', '子任务.json', '数据集信息.json', '来源.json']
+dataset_id dataset-36 data_origin 真机采集 robot_model None fps None collection键 False
+  第1项 R1_lite_table_withdrawing_lerobot_6
+  第2项 /run/media/shawn/rdpm4drill/转换/R1_lite_table_withdrawing_lerobot_6
+  第3项 
+  第4项 5.64 GB（5,637,057,364 B；LeRobot 只计 parquet、mp4 和 meta，其他格式计全部文件；统计于 2026-11-08）
+  第5项 galaxea_r1lite
+  第6项 
+  第7项 v3.0
+  第8项 30
+  第9项 observation.images.head_left: 1536 x 1920 x 3 observation.images.wrist_left: 720 x 1280 x 3 observation.images.wrist_rig
+  第10项 14
+  第11项 14
+  第12项 
+  第13项 142 episodes / 83508 frames
+  第14项 mcap2lerobot 转换自 R1_lite_table_withdrawing_mcap，转换作业 6，2026-11-08
+{
+ "record_id": 1,
+ "kind": "转换",
+ "status": "完整",
+ "note": null,
+ "inputs": [
+  {
+   "dataset_id": "dataset-35",
+   "source_id": "src_04a13d43b1b0"
+  }
+ ],
+ "outputs": [
+  {
+   "source_id": "src_b2cd08d984ee",
+   "format": "lerobot",
+   "codebase_version": "v3.0"
+  }
+ ],
+ "tool": {
+  "name": "mcap2lerobot",
+  "version": "0.1.0",
+  "commit": "4027d15",
+  "binary_sha256": "f09daa6af5d485e8a41c254e8a10347da4a4b59f8b0c3acb6f3a84669077e6ab"
+ },
+ "config": {
+  "path": "configs/r1lite.toml",
+  "sha256": "f4809e72e497d397c467463e2d6c86d77144ac4393d29696b7105b29d7a5c38d",
+  "text": "<3031 字>"
+ },
+ "robot_profile": null,
+ "parameters": {
+  "dataset_id": "dataset-35",
+  "source_ids": "[\"src_04a13d43b1b0\"]",
+  "robot_model": "Galaxea R1 Lite",
+  "output_format": "v3.0"
+ },
+ "job_id": 6,
+ "started_at": "2026-11-08T16:20:08Z",
+ "finished_at": "2026-11-08T16:57:35Z",
+ "ingest_check": {
+  "result": "通过",
+  "warning_count": 0
+ },
+ "recorded_by": {
+  "kind": "worker",
+  "account_id": null,
+  "account_name": null,
+  "at": "2026-11-08T17:29:35Z"
+ }
+}
+详情接口（GET /api/datasets/detail?entry_path=…）：
+按任务/R1_lite_table_withdrawing_lerobot_6 lineage {"upstream": [{"record_id": 1, "dataset_id": "dataset-35", "name": "R1_lite_table_withdrawing_mcap", "entry_path": "按任务/R1_lite_table_withdrawing_mcap", "note": null, "removable": false}], "downstream": []}
+按任务/R1_lite_table_withdrawing_mcap lineage {"upstream": [], "downstream": [{"record_id": 1, "dataset_id": "dataset-36", "name": "R1_lite_table_withdrawing_lerobot_6", "entry_path": "按任务/R1_lite_table_withdrawing_lerobot_6", "note": null}]}
