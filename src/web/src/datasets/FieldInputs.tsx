@@ -9,6 +9,7 @@ import type { FieldChange } from "./fieldEditingState";
 type Field = EditablePage["fields"][number];
 type Value = FieldChange["value"];
 interface InputProps {
+  /** 新建采集任务的地址必填；其他编辑场景保持可选。 */ required?: boolean;
   /** 服务端白名单投影中的字段。 */ field: Field;
   /** 当前局部草稿值，未改时为原值。 */ value: Value;
   /** 服务端分类词表；未加载时分类控件不可改。 */ vocabulary?: DatasetFilters;
@@ -58,6 +59,7 @@ export function FieldInput(props: InputProps): ReactElement {
         />
       ) : (
         <Input.TextArea
+          required={props.required}
           aria-label={field.label}
           value={text(value)}
           disabled={disabled}

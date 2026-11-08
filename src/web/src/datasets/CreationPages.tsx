@@ -1,5 +1,5 @@
 // M1-08 两种创建页面，复用数据集外壳、账号 Provider、Query 与第 07 张恢复失败提示。
-// 参数表单留内存，URL 只定位 dataset_id/preview_job_id；进度在原页卡片显示，完整结果使用已有作业页。
+// 参数表单留内存，URL 只保存模式和 dataset_id/preview_job_id；进度在原页卡片显示，完整结果使用已有作业页。
 import { getRouteApi } from "@tanstack/react-router";
 import { Alert, Button } from "antd";
 import { CreationScreen } from "./CreationScreen";
@@ -37,7 +37,7 @@ export function CreateLinkPage(): ReactElement {
  * 在 /datasets/new 填写新数据集、来源、第一链接并预览全套入口。
  * @returns CreateDatasetForm → 预计编号与全套预览 → 明确确认 → 原页作业卡片；成功后可到两棵树查看。
  * @throws 无；坏 URL 显示可修正提示；缺元信息未选格式及编号冲突经统一诊断要求重新预览。
- * @sideEffects useCreationFlow 提交只读预览及确认，类型化 search 只保存预览编号；恢复失败沿用全局提示及 /navigation/recovery，提交按钮禁用并说明原因。
+ * @sideEffects useCreationFlow 提交只读预览及确认，类型化 search 保存模式和预览编号；恢复失败沿用全局提示及 /navigation/recovery，提交按钮禁用并说明原因。
  * @timeSemantics 来源印记时刻由服务器提供，页面只显示本地时间；请求预算、缓存和终态停轮询沿用现有 jobs 常量。
  */
 export function CreateDatasetPage(): ReactElement {
@@ -58,5 +58,7 @@ export function CreateDatasetPage(): ReactElement {
         </Button>
       </section>
     );
-  return <CreationScreen operation="create_dataset" search={search} />;
+  return (
+    <CreationScreen key={search.mode ?? "dataset"} operation="create_dataset" search={search} />
+  );
 }

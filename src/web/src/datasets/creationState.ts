@@ -28,6 +28,8 @@ import type { RequestFailureView } from "../api/problems";
 
 /** 可分享定位只保存编号，目标路径和未提交表单只在内存中。 */
 export interface CreationSearch {
+  /** 采集任务模式；省略时沿用普通新增。 */
+  mode?: "collection";
   /** 可选现有数据集永久编号，只用于建链表单预选；不是任意导航路径。 */
   dataset_id?: string;
   /** 可选成功预览编号文本；刷新后读取保存结果，禁止 Number 转换。 */
@@ -46,14 +48,16 @@ export interface CreationSearch {
  */
 export function validateCreationSearch(_input: Record<string, unknown>): CreationSearch {
   const dataset = _input.dataset_id;
+  const mode = _input.mode;
   const preview = _input.preview_job_id;
   if (
-    (dataset !== undefined &&
-      (typeof dataset !== "string" || dataset.length > 256 || !/^[^/\\\s\x00]+$/.test(dataset))) ||
-    (preview !== undefined && !decimalId(preview))
+    !validDatasetId(dataset) ||
+    (preview !== undefined && !decimalId(preview)) ||
+    (mode !== undefined && mode !== "collection")
   )
     return { invalidCreationSearch: true };
   return {
+    mode: mode === "collection" ? mode : undefined,
     dataset_id: typeof dataset === "string" ? dataset : undefined,
     preview_job_id: typeof preview === "string" ? preview : undefined,
   };
@@ -302,4 +306,12 @@ function failureOf(errors: unknown[]): RequestFailureView | undefined {
 }
 function entryOptions(preview: CreationPreview | undefined): FormatSelection[] {
   return preview?.format_entry_options ?? [];
+}
+
+// 预选编号不接受路径或空白；独立核对以保持 URL 校验规则清晰。
+function validDatasetId(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (typeof value === "string" && value.length <= 256 && /^[^/\\\s\x00]+$/.test(value))
+  );
 }

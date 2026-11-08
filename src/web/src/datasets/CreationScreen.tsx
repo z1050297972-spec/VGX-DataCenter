@@ -29,7 +29,7 @@ export interface CreationScreenProps {
  * @param props - 当前操作与类型化 URL 定位。
  * @returns 创建流程页面，错误保留为统一诊断。
  * @throws 无；网络错误由诊断组件显示。
- * @sideEffects Query读取候选和预览，确认成功留在原页显示作业卡片，URL仅保存编号。
+ * @sideEffects Query读取候选和预览，确认成功留在原页显示作业卡片，URL保存模式与预览编号。
  * @timeSemantics 轮询、超时和取消沿用 useCreationFlow；表单参数不写持久存储。
  */
 export function CreationScreen(props: CreationScreenProps): ReactElement {
@@ -40,6 +40,7 @@ export function CreationScreen(props: CreationScreenProps): ReactElement {
     format_entries: [],
   });
   const [dataset, setDataset] = useState<DatasetPreviewInput>({
+    collection: initialCollection(props.search.mode),
     dataset_name: "",
     data_origin: "",
     link: { name: "", target_path: "", fallback_format: null },
@@ -54,11 +55,12 @@ export function CreationScreen(props: CreationScreenProps): ReactElement {
         search: {
           dataset_id: preview.operation === "create_link" ? preview.dataset_id : undefined,
           preview_job_id: preview.preview_job_id,
+          mode: props.search.mode,
         },
         replace: true,
       });
     },
-    [navigate, props.operation],
+    [navigate, props.operation, props.search.mode],
   );
   const flow = useCreationFlow({
     operation: props.operation,
@@ -74,7 +76,10 @@ export function CreationScreen(props: CreationScreenProps): ReactElement {
     flow.edit();
     void navigate({
       to: props.operation === "create_link" ? "/datasets/links/new" : "/datasets/new",
-      search: { dataset_id: props.operation === "create_link" ? baseLink.dataset_id : undefined },
+      search: {
+        mode: props.search.mode,
+        dataset_id: props.operation === "create_link" ? baseLink.dataset_id : undefined,
+      },
       replace: true,
     });
   }
@@ -93,7 +98,7 @@ export function CreationScreen(props: CreationScreenProps): ReactElement {
           ]}
         />
         <Typography.Title level={2} className="app-page-title">
-          {props.operation === "create_link" ? "建链" : "新增数据集"}
+          {creationTitle(props.operation, props.search.mode)}
         </Typography.Title>
       </header>
       <FlowFeedback flow={flow} onEdit={clearPreview} />
@@ -101,6 +106,7 @@ export function CreationScreen(props: CreationScreenProps): ReactElement {
         flow={flow}
         operation={props.operation}
         link={link}
+        collectionMode={props.search.mode === "collection"}
         dataset={dataset}
         list={browser.list.data}
         offset={offset}
@@ -179,6 +185,7 @@ interface BodyProps {
   flow: CreationFlow;
   operation: CreationPreview["operation"];
   link: LinkPreviewInput;
+  collectionMode: boolean;
   dataset: DatasetPreviewInput;
   list: DatasetList | undefined;
   offset: number;
@@ -218,6 +225,7 @@ function CreationBody(props: BodyProps): ReactElement {
     );
   return (
     <CreateDatasetForm
+      collectionMode={props.collectionMode}
       value={props.dataset}
       options={flow.options}
       entryOptions={flow.formatEntryOptions}
@@ -283,4 +291,19 @@ function QueueConfirmation({
       }}
     />
   );
+}
+
+// 模式只决定初始草稿；恢复时采用服务端预览保存的参数。
+function initialCollection(mode: CreationSearch["mode"]): DatasetPreviewInput["collection"] {
+  return mode === "collection"
+    ? { status: "planned", method_id: null, purpose_id: null, robot_ids: [] }
+    : null;
+}
+// 标题区分采集模式，底层作业仍沿用新增数据集。
+function creationTitle(
+  operation: CreationPreview["operation"],
+  mode: CreationSearch["mode"],
+): string {
+  if (operation === "create_link") return "建链";
+  return mode === "collection" ? "新建采集任务" : "新增数据集";
 }

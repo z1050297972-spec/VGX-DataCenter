@@ -1,6 +1,6 @@
 // 轻量创建入口；不导入创建页面，使详情页与主入口保持按路由拆包。
 import type { ReactElement } from "react";
-import { Button } from "antd";
+import { Button, Space } from "antd";
 import { useNavigate } from "@tanstack/react-router";
 
 /** 数据集详情中的建链入口属性。 */
@@ -41,14 +41,23 @@ export function CreateLinkEntry(props: CreateLinkEntryProps): ReactElement {
 export function CreateDatasetEntry(): ReactElement {
   const navigate = useNavigate();
   return (
-    <Button
-      type="primary"
-      aria-label="新增数据集"
-      onClick={() => {
-        void navigate({ to: "/datasets/new", search: {} });
-      }}
-    >
-      新增数据集
-    </Button>
+    <Space>
+      <Button
+        type="primary"
+        aria-label="新增数据集"
+        onClick={() => {
+          void navigate({ to: "/datasets/new", search: {} });
+        }}
+      >
+        新增数据集
+      </Button>
+      <Button
+        onClick={() => {
+          void navigate({ to: "/datasets/new", search: { mode: "collection" } });
+        }}
+      >
+        新建采集任务
+      </Button>
+    </Space>
   );
 }
