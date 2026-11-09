@@ -19,7 +19,7 @@ import type { ToolDetail, ToolSummary } from "../api/tools";
 import { toFailureView } from "../api/problems";
 import { DiagnosticCard, DiagnosticEntries } from "../DiagnosticCard";
 import { useTool, useTools } from "./queries";
-import type { LeRobotEnvironment } from "../api/cleaningTemp";
+import type { LeRobotEnvironment } from "../api/tools";
 import "./tools.css";
 
 /**

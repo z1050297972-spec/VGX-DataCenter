@@ -6,7 +6,7 @@ import { job } from "../jobs/testSupport";
 import { account } from "../accounts/testSupport";
 import { datasetFetch, detail, taskEntry } from "./testSupport";
 import type { DatasetDetail } from "../api/datasets";
-import type { ToolList } from "../api/cleaningTemp";
+import type { ToolList } from "../api/tools";
 import { cleaningTools } from "../cleaning/testSupport";
 
 it("只列有清洗规则的型号，提交预览参数后跳到作业详情", async () => {
