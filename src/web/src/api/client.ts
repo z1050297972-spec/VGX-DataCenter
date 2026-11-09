@@ -1,13 +1,15 @@
-// Web 请求边界（ADR 0001、0002）；只使用生成的接口类型和 openapi-fetch，不承载页面状态。
+// Web 请求边界（ADR 0001、0002）；使用 openapi-fetch，不承载页面状态。
+// 预览使用生成路径；第 03 张转换与环境扩展暂由 cleaningTemp 补足，生成后恢复 paths。
 import type { Client, ClientOptions } from "openapi-fetch";
 import createClient from "openapi-fetch";
 import { createProblemFetch } from "./problems";
-import type { components, paths } from "./schema";
+import type { components } from "./schema";
+import type { CleaningPaths } from "./cleaningTemp";
 
 /** 健康响应只引用生成类型，禁止另写重复的接口结构。 */
 export type HealthResponse = components["schemas"]["HealthResponse"];
-/** 客户端方法和路径由 OpenAPI 约束。 */
-export type HealthClient = Client<paths>;
+/** 客户端方法沿用 OpenAPI，未生成的清洗路径集中在 cleaningTemp。 */
+export type HealthClient = Client<CleaningPaths>;
 /** 注入边界沿用 openapi-fetch 的 Request 输入契约，测试不用替换全局 fetch。 */
 export type FetchImplementation = NonNullable<ClientOptions["fetch"]>;
 
@@ -35,7 +37,7 @@ export const defaultFetch: FetchImplementation = (...args) => {
  * @timeSemantics 同步创建；请求的取消和超时由调用方的 AbortSignal 控制。
  */
 export function createHealthClient(fetchImpl: FetchImplementation = defaultFetch): HealthClient {
-  return createClient<paths>({
+  return createClient<CleaningPaths>({
     baseUrl: "",
     fetch: createProblemFetch(fetchImpl),
   });

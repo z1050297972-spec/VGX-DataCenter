@@ -1,13 +1,15 @@
-// M4-03验收7：真实详情页、转换表单和提交请求，只替换HTTP传输。
+// M4.5-04：真实详情页只列有清洗规则的型号，提交预览后导航作业详情。
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { mountPage } from "../scheduling/pageTestSupport";
 import { job } from "../jobs/testSupport";
+import { account } from "../accounts/testSupport";
 import { datasetFetch, detail, taskEntry } from "./testSupport";
 import type { DatasetDetail } from "../api/datasets";
-import type { ToolList } from "../api/tools";
+import type { ToolList } from "../api/cleaningTemp";
+import { cleaningTools } from "../cleaning/testSupport";
 
-it("mcap且型号匹配时可转换，默认型号、格式和全部mcap数据块及用户空间参数提交后跳到作业详情", async () => {
+it("只列有清洗规则的型号，提交预览参数后跳到作业详情", async () => {
   const requests: Request[] = [];
   const fallback = datasetFetch(requests);
   const information = {
@@ -35,6 +37,7 @@ it("mcap且型号匹配时可转换，默认型号、格式和全部mcap数据�
     })),
   };
   const tools: ToolList = {
+    lerobot_environment: cleaningTools.lerobot_environment,
     items: [
       {
         name: "mcap2lerobot",
@@ -43,8 +46,8 @@ it("mcap且型号匹配时可转换，默认型号、格式和全部mcap数据�
         input_format: "mcap",
         output_format: "lerobot",
         output_versions: ["v3.0", "v2.1"],
-        cleaning_models: [],
-        robot_models: ["Galaxea R1 Lite"],
+        robot_models: ["Galaxea R1 Lite", "没有规则的型号"],
+        cleaning_models: ["Galaxea R1 Lite"],
         needs_gpu: true,
         status: "可用",
         diagnostics: [],
@@ -57,9 +60,10 @@ it("mcap且型号匹配时可转换，默认型号、格式和全部mcap数据�
     `/datasets?selected=${encodeURIComponent(taskEntry.entry_path)}`,
     (request) => {
       const path = new URL(request.url).pathname;
+      if (path === "/api/auth/me") return Promise.resolve(Response.json(account));
       if (path === "/api/tools") return Promise.resolve(Response.json(tools));
       if (path === "/api/datasets/detail") return Promise.resolve(Response.json(conversionDetail));
-      if (path === "/api/jobs/convert/mcap2lerobot") {
+      if (path === "/api/jobs/cleaning-preview/mcap2lerobot") {
         requests.push(request.clone());
         return Promise.resolve(Response.json(job, { status: 201 }));
       }
@@ -67,37 +71,34 @@ it("mcap且型号匹配时可转换，默认型号、格式和全部mcap数据�
     },
   );
   try {
-    const button = await screen.findByRole("button", { name: "转换" });
+    const button = await screen.findByRole("button", { name: "清洗预览" });
     await waitFor(() => {
       expect(button.hasAttribute("disabled")).toBe(false);
     });
     fireEvent.click(button);
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("转换数据集")).toBeTruthy();
+    expect(within(dialog).getByText("清洗预览")).toBeTruthy();
     expect(within(dialog).getByText("Galaxea R1 Lite")).toBeTruthy();
-    expect(within(dialog).getByText("v3.0")).toBeTruthy();
+    expect(within(dialog).queryByText("输出格式")).toBeNull();
+    expect(within(dialog).queryByText("百分比（%）")).toBeNull();
+    fireEvent.mouseDown(within(dialog).getByLabelText("型号配置"));
+    expect(await screen.findByRole("option", { name: "Galaxea R1 Lite" })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: "没有规则的型号" })).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: "Galaxea R1 Lite" }));
     expect(within(dialog).getByText("工具状态：可用")).toBeTruthy();
     expect(within(dialog).getByLabelText("recording-a")).toHaveProperty("checked", true);
     expect(within(dialog).getByLabelText("recording-b")).toHaveProperty("checked", true);
-    // M4-07：空间预检参数必须随真实表单请求发送，不能丢失用户设置的小数偏置。
-    expect(within(dialog).getByLabelText("百分比（%）")).toHaveProperty("value", "25");
-    expect(within(dialog).getByLabelText("偏置（GiB）")).toHaveProperty("value", "1");
-    fireEvent.change(within(dialog).getByLabelText("百分比（%）"), { target: { value: "200" } });
-    fireEvent.change(within(dialog).getByLabelText("偏置（GiB）"), { target: { value: "2.5" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "提交转换" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "提交清洗预览" }));
     await waitFor(() => {
       expect(page.router.state.location.pathname).toBe(`/jobs/${job.job_id}`);
     });
     const submission = requests.find(
-      (request) => new URL(request.url).pathname === "/api/jobs/convert/mcap2lerobot",
+      (request) => new URL(request.url).pathname === "/api/jobs/cleaning-preview/mcap2lerobot",
     );
     expect(await submission?.json()).toEqual({
       dataset_id: "dataset-14",
       source_ids: ["recording-a", "recording-b"],
       robot_model: "Galaxea R1 Lite",
-      output_format: "v3.0",
-      space_ratio_percent: 200,
-      space_reserve_gib: 2.5,
     });
   } finally {
     page.close();

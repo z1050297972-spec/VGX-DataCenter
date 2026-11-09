@@ -208,12 +208,20 @@ class ToolsConfig(BaseModel):
 
     Attributes:
         library_root: 工具库绝对路径，默认导航层下的工具目录；不含 NUL 或 ..。
+        lerobot_python: 可选 LeRobot 解释器绝对路径；None 表示未配置。
         registry_dir: 登记包绝对根目录，默认平台安装目录下 tools/；不含 NUL 或 ..。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
     library_root: Path = DEFAULT_NAV_ROOT / "工具"
     registry_dir: Path = Field(default_factory=_default_tool_registry)
+    lerobot_python: Path | None = None
+
+    @field_validator("lerobot_python")
+    @classmethod
+    def _lerobot_location(cls, value: Path | None) -> Path | None:
+        """解释器来自部署配置，不接受相对路径，不在配置加载时执行。"""
+        return None if value is None else PlatformConfig.validate_state_dir(value)
 
     @field_validator("library_root", "registry_dir")
     @classmethod

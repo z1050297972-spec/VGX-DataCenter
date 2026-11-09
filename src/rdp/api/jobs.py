@@ -45,7 +45,6 @@ from rdp.infra.diagnostics import (
 from rdp.infra.ids import MAX_SQLITE_INTEGER
 from rdp.infra.state import StatePaths
 from rdp.jobs.cleaning.parameters import CleaningPreviewParameters, cleaning_preview_type_name
-from rdp.jobs.conversion.parameters import ConversionParameters, conversion_type_name
 from rdp.jobs.downloads.adjustments import SqlAdjustmentChannel
 from rdp.jobs.downloads.cleanup import DeleteParameters
 from rdp.jobs.downloads.job import DownloadAdjustment, DownloadParameters, DownloadStatus
@@ -303,47 +302,6 @@ def submit_cleaning_preview_job(
         context,
         context.service.submit(
             _request(context), cleaning_preview_type_name(tool_name), body.model_dump(mode="json")
-        ),
-    )
-
-
-@router.post(
-    "/convert/{tool_name}",
-    response_model=JobResponse,
-    status_code=201,
-    operation_id="submit_conversion_job",
-)
-def submit_conversion_job(
-    context: JobContext, tool_name: str, body: ConversionParameters
-) -> JobResponse:
-    """提交工具转换作业，Web仅校验登记选项和数据块索引。
-
-    Args:
-        context: 已认证身份、请求时刻和审计上下文。
-        tool_name: 工具列表返回的登记包名称。
-        body: 数据集、1至200个数据块、型号及可选输出版本。
-
-    Returns:
-        新排队作业，默认输出版本已由工具清单补齐。
-
-    Raises:
-        JobInputError: 工具未登记、型号/版本无效或数据块归属/格式不符，422。
-        AuthenticationError: 当前会话失效，401。
-        ConflictError: 数据库写锁竞争，409。
-        ExternalError: 数据库不可用，502。
-
-    Side Effects:
-        经JobService同事务写作业和操作日志；不访问输入存储根或执行工具。
-
-    Time Semantics:
-        使用请求UTC时刻，不等待worker或GPU，不重试提交。
-    """
-    return _response(
-        context,
-        context.service.submit(
-            _request(context),
-            conversion_type_name(tool_name),
-            body.model_dump(mode="json", exclude_none=True),
         ),
     )
 

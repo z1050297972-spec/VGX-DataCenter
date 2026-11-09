@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import cast
 
@@ -62,6 +63,21 @@ def conversion(deps: NavWriteDependencies, identifier: int) -> Conversion:
     return Conversion(record, root, name, entry)
 
 
+def output_name(value: Conversion) -> str:
+    """结果路径只能是本作业 out 或 cleaned；旧记录缺摘要时兼容 out。"""
+    progress = value.record.progress
+    result = progress.conversion if progress is not None else None
+    stage = value.root.path / "暂存/转换" / str(value.record.job_id)
+    if result is None:
+        if value.record.parameters.get("cleaning_preview_job_id") is not None:
+            raise nav_input_error("CONVERSION_INGEST", "转换缺少产物结果")
+        return "out"
+    path = Path(result.output_path)
+    if path not in (stage / "out", stage / "cleaned"):
+        raise nav_input_error("CONVERSION_INGEST", "产物路径越出本作业暂存目录")
+    return path.name
+
+
 def inspect(value: Conversion) -> JsonObject:
     """检查并写入报告；未成功或非零退出码的转换不继续读取 out。"""
     record = value.record
@@ -82,7 +98,9 @@ def inspect(value: Conversion) -> JsonObject:
     )
     try:
         with TemporaryDirectory(prefix="rdp-conversion-check-") as scratch:
-            stdout, stderr, code = run_bounded((*command, scratch))
+            stdout, stderr, code = run_bounded(
+                (*command, scratch, output_name(value) if valid else "out")
+            )
     except (OSError, subprocess.TimeoutExpired) as error:
         raise nav_external_error("CONVERSION_CHECK", "检查或回收进程超时") from error
     if code:

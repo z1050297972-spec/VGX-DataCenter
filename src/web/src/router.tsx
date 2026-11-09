@@ -58,6 +58,10 @@ const VocabularyPage = lazyRouteComponent(
   "VocabularyPage",
 );
 const StorageRootsPage = lazyRouteComponent(() => import("./storage/Pages"), "StorageRootsPage");
+const CleaningReportPage = lazyRouteComponent(
+  () => import("./cleaning/Pages"),
+  "CleaningReportPage",
+);
 const ToolsPage = lazyRouteComponent(() => import("./tools/Pages"), "ToolsPage");
 const NavigationRecoveryPage = lazyRouteComponent(
   () => import("./navigation/Pages"),
@@ -189,6 +193,17 @@ export function createAppRouter(options: AppRouterOptions) {
     },
     component: JobDetailPage,
   });
+  const cleaningReport = createRoute({
+    getParentRoute: () => root,
+    path: "/cleaning/$jobId",
+    beforeLoad: ({ params }) => {
+      if (!/^[1-9][0-9]*$/u.test(params.jobId)) notFound({ throw: true });
+    },
+    validateSearch: (search: Record<string, unknown>): { onlyIssues: boolean } => ({
+      onlyIssues: search.onlyIssues === true,
+    }),
+    component: CleaningReportPage,
+  });
   const scheduling = createRoute({
     getParentRoute: () => root,
     path: "/scheduling",
@@ -253,6 +268,7 @@ export function createAppRouter(options: AppRouterOptions) {
       conversions,
       monitoring,
       jobDetail,
+      cleaningReport,
       scheduling,
       storageRoots,
       tools,

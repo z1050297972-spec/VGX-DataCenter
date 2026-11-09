@@ -5,7 +5,7 @@
 
 import re
 from pathlib import Path
-from typing import Self
+from typing import Annotated, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select
@@ -42,20 +42,40 @@ class InputSelection(BaseModel):
         return self
 
 
-class ConversionParameters(InputSelection):
+class EpisodeSelection(BaseModel):
+    """预览段的稳定身份；两个编号均为从零起的整数。"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
+    file_index: int = Field(strict=True, ge=0)
+    segment_index: int = Field(strict=True, ge=0)
+
+
+class ConversionOptions(BaseModel):
+    """从预览发起转换的最终选择；空剔除列表表示全部保留，不重新套默认。"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
+    output_format: str | None = None
+    # M4-07 实测产物/输入约为 0.13，默认25%配1 GiB余量；剔除时再按两份产物预估。
+    space_ratio_percent: int = Field(default=25, strict=True, ge=0, le=1000)
+    space_reserve_gib: float = Field(default=1, ge=0, le=1024)
+    excluded_files: list[Annotated[int, Field(strict=True, ge=0)]] = Field(default_factory=list)
+    excluded_episodes: list[EpisodeSelection] = Field(default_factory=list)
+
+
+class ConversionParameters(InputSelection, ConversionOptions):
     """转换参数；输入规则复用 InputSelection，输出版本由工具模型补默认值。
 
     Attributes:
+        cleaning_preview_job_id: 成功预览编号；None 仅用于读取历史记录，执行时拒绝。
+        excluded_files: 最终剔除的 file_index 列表，空列表全部保留。
+        excluded_episodes: 最终剔除段的稳定预览身份，空列表全部保留。
         output_format: 输出版本；None 由工具模型替换成清单首项。
         space_ratio_percent: 空间估算百分比，整数 0 至 1000，默认 25。
         space_reserve_gib: 空间预留偏置，0 至 1024 GiB，默认 1。
     """
 
-    output_format: str | None = None
-    # M4-07 实测产物/输入约 0.13，默认 25% 约为两倍。
-    space_ratio_percent: int = Field(default=25, strict=True, ge=0, le=1000)
-    # M4-07 沿用 M2 的 1 GiB 默认余量。
-    space_reserve_gib: float = Field(default=1, ge=0, le=1024)
+    # 历史作业没有预览编号仍可读；执行器拒绝这种参数启动新转换。
+    cleaning_preview_job_id: int | None = Field(default=None, strict=True, gt=0)
 
 
 def tool_parameters(manifest: ToolManifest) -> type[ConversionParameters]:

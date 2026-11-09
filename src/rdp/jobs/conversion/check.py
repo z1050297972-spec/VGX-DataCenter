@@ -18,7 +18,7 @@ def check_output(output: Path, expected_version: str) -> CheckReport:
     """只读检查 LeRobot 结构、计数、视频与抽样内容，返回同一份四层结论。
 
     Args:
-        output: worker 已定位的绝对暂存 out 目录；目录内不允许软链接越界。
+        output: worker 已定位的绝对暂存产物目录（out 或 cleaned）；目录内不允许软链接越界。
         expected_version: 转换参数里的 v3.0 或 v2.1，必须与 info.json 一致。
 
     Returns:
