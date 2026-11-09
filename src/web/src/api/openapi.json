@@ -566,6 +566,376 @@
         "title": "ClassificationRemoveParameters",
         "type": "object"
       },
+      "CleaningCheckRules": {
+        "additionalProperties": false,
+        "description": "报告生成时生效的质量检查规则，不依赖前端维护默认数值。\n\nAttributes:\n    static_feature: 静止检查使用的向量特征名。\n    long_static_s: 连续静止最短时长，单位秒。\n    jump_feature: 跳变检查使用的向量特征名。\n    frozen_s: 相机冻结最短时长，单位秒。\n    sample_interval_s: 亮度抽样间隔，单位秒。\n    dark_below: 黑屏亮度阈值，0 至 255，严格小于时命中。\n    bright_above: 过曝亮度阈值，0 至 255，严格大于时命中。\n    sources: 按清洗规则原顺序的来源阈值，可为空。\n    severe_checks: 默认剔除 episode 的严重检查规则码，顺序由检查模块定义。",
+        "properties": {
+          "bright_above": {
+            "title": "Bright Above",
+            "type": "number"
+          },
+          "dark_below": {
+            "title": "Dark Below",
+            "type": "number"
+          },
+          "frozen_s": {
+            "title": "Frozen S",
+            "type": "number"
+          },
+          "jump_feature": {
+            "title": "Jump Feature",
+            "type": "string"
+          },
+          "long_static_s": {
+            "title": "Long Static S",
+            "type": "number"
+          },
+          "sample_interval_s": {
+            "title": "Sample Interval S",
+            "type": "number"
+          },
+          "severe_checks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Severe Checks",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/CleaningSourceRules"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "static_feature": {
+            "title": "Static Feature",
+            "type": "string"
+          }
+        },
+        "required": [
+          "static_feature",
+          "long_static_s",
+          "jump_feature",
+          "frozen_s",
+          "sample_interval_s",
+          "dark_below",
+          "bright_above",
+          "sources",
+          "severe_checks"
+        ],
+        "title": "CleaningCheckRules",
+        "type": "object"
+      },
+      "CleaningPreviewParameters": {
+        "additionalProperties": false,
+        "description": "清洗选择，型号还须通过工具专属模型的 cleaning 登记校验。",
+        "properties": {
+          "dataset_id": {
+            "minLength": 1,
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "robot_model": {
+            "minLength": 1,
+            "title": "Robot Model",
+            "type": "string"
+          },
+          "source_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Source Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "source_ids",
+          "robot_model"
+        ],
+        "title": "CleaningPreviewParameters",
+        "type": "object"
+      },
+      "CleaningPreviewResponse": {
+        "additionalProperties": false,
+        "description": "预览身份和报告；作业编号沿用 API 十进制字符串，created_at 为 UTC。",
+        "properties": {
+          "binary_sha256": {
+            "title": "Binary Sha256",
+            "type": "string"
+          },
+          "config_sha256": {
+            "title": "Config Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dataset_id": {
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "job_id": {
+            "maxLength": 19,
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/components/schemas/CleaningReport"
+          },
+          "robot_model": {
+            "title": "Robot Model",
+            "type": "string"
+          },
+          "rules_sha256": {
+            "title": "Rules Sha256",
+            "type": "string"
+          },
+          "tool_name": {
+            "title": "Tool Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "dataset_id",
+          "tool_name",
+          "robot_model",
+          "binary_sha256",
+          "config_sha256",
+          "rules_sha256",
+          "created_at",
+          "report"
+        ],
+        "title": "CleaningPreviewResponse",
+        "type": "object"
+      },
+      "CleaningReport": {
+        "additionalProperties": false,
+        "description": "版本一报告；Pydantic 的 JSON 方法用于存库，规则指纹取文件原始字节。",
+        "properties": {
+          "episodes": {
+            "items": {
+              "$ref": "#/components/schemas/EpisodeReport"
+            },
+            "title": "Episodes",
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileReport"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "fps": {
+            "title": "Fps",
+            "type": "integer"
+          },
+          "reference_topic": {
+            "title": "Reference Topic",
+            "type": "string"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/CleaningRuleSnapshot"
+          },
+          "rules_sha256": {
+            "title": "Rules Sha256",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/CleaningSummary"
+          },
+          "tool_config_sha256": {
+            "title": "Tool Config Sha256",
+            "type": "string"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool_config_sha256",
+          "rules_sha256",
+          "fps",
+          "reference_topic",
+          "rules",
+          "files",
+          "episodes",
+          "summary"
+        ],
+        "title": "CleaningReport",
+        "type": "object"
+      },
+      "CleaningRuleSnapshot": {
+        "additionalProperties": false,
+        "description": "完整规则说明快照；fps 和 reference_topic 只保留在报告顶层。",
+        "properties": {
+          "checks": {
+            "$ref": "#/components/schemas/CleaningCheckRules"
+          },
+          "sync": {
+            "$ref": "#/components/schemas/CleaningSyncRules"
+          }
+        },
+        "required": [
+          "sync",
+          "checks"
+        ],
+        "title": "CleaningRuleSnapshot",
+        "type": "object"
+      },
+      "CleaningSourceRules": {
+        "additionalProperties": false,
+        "description": "单个来源话题的规则快照；未配置的阈值和限位显式保存为 null。\n\nAttributes:\n    topic: 清洗规则中的来源话题名。\n    static_threshold: 静止阈值，单位与来源数值一致；None 表示不检查。\n    jump_threshold: 跳变阈值，单位与来源数值一致；None 表示不检查。\n    limits: 按维度排列的下限、上限对，单位与来源数值一致；None 表示未配置。",
+        "properties": {
+          "jump_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Threshold"
+          },
+          "limits": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limits"
+          },
+          "static_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Static Threshold"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic",
+          "static_threshold",
+          "jump_threshold",
+          "limits"
+        ],
+        "title": "CleaningSourceRules",
+        "type": "object"
+      },
+      "CleaningSummary": {
+        "additionalProperties": false,
+        "description": "整份报告的计数；kept_frames 是时间对齐保留数，尚未扣除数值问题段。",
+        "properties": {
+          "episodes": {
+            "title": "Episodes",
+            "type": "integer"
+          },
+          "excluded_episodes": {
+            "title": "Excluded Episodes",
+            "type": "integer"
+          },
+          "excluded_files": {
+            "title": "Excluded Files",
+            "type": "integer"
+          },
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "kept_frames": {
+            "title": "Kept Frames",
+            "type": "integer"
+          },
+          "reference_frames": {
+            "title": "Reference Frames",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "files",
+          "excluded_files",
+          "episodes",
+          "excluded_episodes",
+          "reference_frames",
+          "kept_frames"
+        ],
+        "title": "CleaningSummary",
+        "type": "object"
+      },
+      "CleaningSyncRules": {
+        "additionalProperties": false,
+        "description": "报告生成时生效的对齐规则；毫秒值仅用于展示，不改变纳秒对齐计算。\n\nAttributes:\n    default_tolerance_ms: 工具配置的默认话题容差，单位毫秒。\n    max_frame_gap: 最大相邻基准帧间隔，相对于标准帧间隔的倍数。\n    max_frame_gap_ms: max_frame_gap 按报告顶层 fps 换算的毫秒值。\n    min_episode_frames: 最短保留段的基准帧数，非负整数。",
+        "properties": {
+          "default_tolerance_ms": {
+            "title": "Default Tolerance Ms",
+            "type": "number"
+          },
+          "max_frame_gap": {
+            "title": "Max Frame Gap",
+            "type": "number"
+          },
+          "max_frame_gap_ms": {
+            "title": "Max Frame Gap Ms",
+            "type": "number"
+          },
+          "min_episode_frames": {
+            "title": "Min Episode Frames",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "default_tolerance_ms",
+          "max_frame_gap",
+          "max_frame_gap_ms",
+          "min_episode_frames"
+        ],
+        "title": "CleaningSyncRules",
+        "type": "object"
+      },
       "CollectionIdentifier": {
         "maximum": 9.223372036854776e+18,
         "minimum": 1.0,
@@ -898,7 +1268,7 @@
       },
       "ConversionParameters": {
         "additionalProperties": false,
-        "description": "用户选择的转换输入；输出版本由工具专属模型补默认值。\n\nAttributes:\n    dataset_id: 已索引的数据集永久编号，非空。\n    source_ids: 按命令顺序排列的1至200个不同数据块编号。\n    robot_model: 工具清单中的型号配置键，非空。\n    output_format: 输出版本；None由工具模型替换成清单首项。\n    space_ratio_percent: 空间估算百分比，整数0至1000，默认25。\n    space_reserve_gib: 空间预留偏置，0至1024 GiB，默认1。",
+        "description": "转换参数；输入规则复用 InputSelection，输出版本由工具模型补默认值。\n\nAttributes:\n    output_format: 输出版本；None 由工具模型替换成清单首项。\n    space_ratio_percent: 空间估算百分比，整数 0 至 1000，默认 25。\n    space_reserve_gib: 空间预留偏置，0 至 1024 GiB，默认 1。",
         "properties": {
           "dataset_id": {
             "minLength": 1,
@@ -3102,6 +3472,110 @@
         "title": "EntrySummary",
         "type": "object"
       },
+      "EpisodeIssue": {
+        "additionalProperties": false,
+        "description": "数值或画面检查；严重问题默认剔除 episode，提示只供人工判断。",
+        "properties": {
+          "check": {
+            "title": "Check",
+            "type": "string"
+          },
+          "details": {
+            "$ref": "#/components/schemas/IssueDetails"
+          },
+          "diagnostic": {
+            "$ref": "#/components/schemas/Diagnostic"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "severe",
+              "hint"
+            ],
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "check",
+          "severity",
+          "message",
+          "details",
+          "diagnostic"
+        ],
+        "title": "EpisodeIssue",
+        "type": "object"
+      },
+      "EpisodeReport": {
+        "additionalProperties": false,
+        "description": "保留段身份不随剔除文件改变；基准帧范围左闭右开，下标从零起。",
+        "properties": {
+          "default_action": {
+            "enum": [
+              "keep",
+              "exclude"
+            ],
+            "title": "Default Action",
+            "type": "string"
+          },
+          "duration_s": {
+            "title": "Duration S",
+            "type": "number"
+          },
+          "end_frame": {
+            "title": "End Frame",
+            "type": "integer"
+          },
+          "file_index": {
+            "title": "File Index",
+            "type": "integer"
+          },
+          "frame_count": {
+            "title": "Frame Count",
+            "type": "integer"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/EpisodeIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "segment_index": {
+            "title": "Segment Index",
+            "type": "integer"
+          },
+          "stamp_span_s": {
+            "title": "Stamp Span S",
+            "type": "number"
+          },
+          "start_frame": {
+            "title": "Start Frame",
+            "type": "integer"
+          },
+          "start_time_s": {
+            "title": "Start Time S",
+            "type": "number"
+          }
+        },
+        "required": [
+          "file_index",
+          "segment_index",
+          "start_frame",
+          "end_frame",
+          "frame_count",
+          "duration_s",
+          "stamp_span_s",
+          "start_time_s",
+          "issues",
+          "default_action"
+        ],
+        "title": "EpisodeReport",
+        "type": "object"
+      },
       "ErrorRecord": {
         "additionalProperties": false,
         "description": "脱离 Session 的不可变报错快照，同时作为查询接口响应模型。\n\nAttributes:\n    error_id: 编号，无单位、必填不可空、无默认；request 为小写 uuid4 hex，job 为\n        1-9223372036854775807 的规范十进制字符串；不是 ProblemResponse.error_id 的放宽。\n    occurred_at: 发生时刻，aware datetime、精度微秒，必填不可空、无默认；模型规范化为 UTC，\n        JSON 按 UTC ISO 8601 输出；列存储仍必须用六位微秒的 UTCDateTime。\n    category: DiagnosticCategory 四种之一，无单位、不可空、无默认；请求缺陷固定 defect。\n    summary: 安全摘要，1-512 个 Unicode 字符，至少含非空白字符，不含换行；必填不可空、无默认。\n    report: 安全异常链及 traceback，1-262144 个 Unicode 字符；必填不可空、无默认；\n        直接使用 format_exception_report 输出，保留其截断标记，不再添加诊断或上下文。\n    source_kind: request/job，无单位、必填不可空、无默认；编号直接由 error_id 表示。",
@@ -3349,6 +3823,114 @@
           "has_more"
         ],
         "title": "FilePage",
+        "type": "object"
+      },
+      "FileReport": {
+        "additionalProperties": false,
+        "description": "展开顺序中的一个文件；元数据无法读取时大小、mtime_ns 为 None。",
+        "properties": {
+          "bad_frames": {
+            "title": "Bad Frames",
+            "type": "integer"
+          },
+          "default_excluded": {
+            "title": "Default Excluded",
+            "type": "boolean"
+          },
+          "fatal_issues": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "title": "Fatal Issues",
+            "type": "array"
+          },
+          "file_index": {
+            "title": "File Index",
+            "type": "integer"
+          },
+          "gaps": {
+            "title": "Gaps",
+            "type": "integer"
+          },
+          "kept_frames": {
+            "title": "Kept Frames",
+            "type": "integer"
+          },
+          "mtime_ns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mtime Ns"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "reference_frames": {
+            "title": "Reference Frames",
+            "type": "integer"
+          },
+          "short_frames": {
+            "title": "Short Frames",
+            "type": "integer"
+          },
+          "short_segments": {
+            "title": "Short Segments",
+            "type": "integer"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/TopicAlignment"
+            },
+            "title": "Topics",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "file_index",
+          "source_id",
+          "path",
+          "size_bytes",
+          "mtime_ns",
+          "fatal_issues",
+          "warnings",
+          "reference_frames",
+          "kept_frames",
+          "bad_frames",
+          "gaps",
+          "short_segments",
+          "short_frames",
+          "topics",
+          "default_excluded"
+        ],
+        "title": "FileReport",
         "type": "object"
       },
       "FilterOption": {
@@ -3916,6 +4498,62 @@
           "send_bytes_per_s"
         ],
         "title": "InterfaceRate",
+        "type": "object"
+      },
+      "IssueDetails": {
+        "additionalProperties": false,
+        "description": "检查明细；count 为完整次数，ranges 为前十个区间，时间均相对段首。",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "feature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature"
+          },
+          "first_time_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Time S"
+          },
+          "ranges": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            },
+            "title": "Ranges",
+            "type": "array"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "IssueDetails",
         "type": "object"
       },
       "JobListResponse": {
@@ -7562,6 +8200,26 @@
         "title": "SubmitJobPayload",
         "type": "object"
       },
+      "TimeRange": {
+        "additionalProperties": false,
+        "description": "相对 episode 第一条基准 stamp 的区间，单位秒，两个端点均包含。",
+        "properties": {
+          "end_s": {
+            "title": "End S",
+            "type": "number"
+          },
+          "start_s": {
+            "title": "Start S",
+            "type": "number"
+          }
+        },
+        "required": [
+          "start_s",
+          "end_s"
+        ],
+        "title": "TimeRange",
+        "type": "object"
+      },
       "TokenInput": {
         "additionalProperties": false,
         "description": "密钥仅存在于请求内存，不进入作业参数或模型 repr。",
@@ -7653,6 +8311,13 @@
         "additionalProperties": false,
         "description": "列表摘要之外的登记详情，不读取工具源码或工具目录的配置。\n\nAttributes:\n    configurations: 每个型号的文件名、配置全文与完整 SHA-256；清单无效时为空。\n    command: 两条命令模板；清单无效时为 None。\n    source_commit: 登记时的提交说明；未填写或清单无效时为 None。\n    source_note: 登记时源码状态说明；未填写或清单无效时为 None。",
         "properties": {
+          "cleaning_models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cleaning Models",
+            "type": "array"
+          },
           "command": {
             "anyOf": [
               {
@@ -7806,6 +8471,7 @@
           "output_format",
           "output_versions",
           "robot_models",
+          "cleaning_models",
           "needs_gpu",
           "status",
           "diagnostics",
@@ -7848,8 +8514,15 @@
       },
       "ToolSummaryResponse": {
         "additionalProperties": false,
-        "description": "工具列表中的一条状态。\n\nAttributes:\n    name: 登记包目录名。\n    version: 程序版本；清单无效时为 None。\n    summary: 工具用途；清单无效时为 None。\n    input_format: 输入格式；清单无效时为 None。\n    output_format: 输出格式；清单无效时为 None。\n    output_versions: 按清单顺序的输出版本；清单无效时为空。\n    robot_models: 按清单顺序的适用型号字符串；清单无效时为空。\n    needs_gpu: 是否必须分配 GPU；清单无效时为 None。\n    status: 四种工具状态之一。\n    diagnostics: 统一五段诊断，可用时为空。\n    program_path: 已核对边界的程序绝对路径；清单无效时为 None。\n    sha256_prefix: 登记的程序 SHA-256 前 12 位；清单无效时为 None。",
+        "description": "工具列表中的一条状态。\n\nAttributes:\n    name: 登记包目录名。\n    version: 程序版本；清单无效时为 None。\n    summary: 工具用途；清单无效时为 None。\n    input_format: 输入格式；清单无效时为 None。\n    output_format: 输出格式；清单无效时为 None。\n    output_versions: 按清单顺序的输出版本；清单无效时为空。\n    robot_models: 按清单顺序的适用型号字符串；清单无效时为空。\n    cleaning_models: 按清单顺序的有清洗规则型号；清单无效时为空。\n    needs_gpu: 是否必须分配 GPU；清单无效时为 None。\n    status: 四种工具状态之一。\n    diagnostics: 统一五段诊断，可用时为空。\n    program_path: 已核对边界的程序绝对路径；清单无效时为 None。\n    sha256_prefix: 登记的程序 SHA-256 前 12 位；清单无效时为 None。",
         "properties": {
+          "cleaning_models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cleaning Models",
+            "type": "array"
+          },
           "diagnostics": {
             "items": {
               "$ref": "#/components/schemas/Diagnostic"
@@ -7964,6 +8637,7 @@
           "output_format",
           "output_versions",
           "robot_models",
+          "cleaning_models",
           "needs_gpu",
           "status",
           "diagnostics",
@@ -7971,6 +8645,86 @@
           "sha256_prefix"
         ],
         "title": "ToolSummaryResponse",
+        "type": "object"
+      },
+      "TopicAlignment": {
+        "additionalProperties": false,
+        "description": "全文件基准帧上的对齐统计；空话题的时间差为 None，不伪造为零。",
+        "properties": {
+          "bad_frames": {
+            "title": "Bad Frames",
+            "type": "integer"
+          },
+          "image_check": {
+            "enum": [
+              "not_applicable",
+              "sampled",
+              "unchecked_h264"
+            ],
+            "title": "Image Check",
+            "type": "string"
+          },
+          "image_check_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Check Note"
+          },
+          "max_abs_dt_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Abs Dt Ms"
+          },
+          "mean_abs_dt_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Abs Dt Ms"
+          },
+          "missing_optional": {
+            "title": "Missing Optional",
+            "type": "boolean"
+          },
+          "reused_frames": {
+            "title": "Reused Frames",
+            "type": "integer"
+          },
+          "tolerance_ms": {
+            "title": "Tolerance Ms",
+            "type": "number"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic",
+          "tolerance_ms",
+          "mean_abs_dt_ms",
+          "max_abs_dt_ms",
+          "reused_frames",
+          "bad_frames",
+          "missing_optional",
+          "image_check"
+        ],
+        "title": "TopicAlignment",
         "type": "object"
       },
       "TreeSize": {
@@ -10637,6 +11391,146 @@
         "summary": "Change Own Password",
         "tags": [
           "账号与会话"
+        ]
+      }
+    },
+    "/api/cleaning-previews/{job_id}": {
+      "get": {
+        "description": "向任意登录账号返回指定作业的成功清洗报告。\n\nArgs:\n    job_id: 1 至 2^63-1 的规范十进制作业编号。\n    account: 已认证且无需强制改密的请求身份。\n    session: 响应发送前关闭的只读数据库事务。\n\nReturns:\n    身份、三个完整 SHA-256、UTC 生成时刻及版本一报告。\n\nRaises:\n    JobNotFoundError: 作业不存在、未成功完成或不是预览作业，返回 404。\n    AuthenticationError: 未登录或会话无效，返回 401。\n    DefectError: 存库报告版本或结构无法识别，返回 500。\n    ExternalError: 数据库不可读取，返回 502。\n\nSide Effects:\n    无（只读报告表，不重算清洗结果）。\n\nTime Semantics:\n    当前事务快照，不等待运行中的预览完成。",
+        "operationId": "get_cleaning_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "maxLength": 19,
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CleaningPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Cleaning Preview",
+        "tags": [
+          "cleaning-previews"
         ]
       }
     },
@@ -17236,6 +18130,154 @@
           }
         ],
         "summary": "Submit Job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/cleaning-preview/{tool_name}": {
+      "post": {
+        "description": "提交管理员清洗预览，参数与索引在 Web 校验。\n\nArgs:\n    context: 已认证请求身份、UTC 时刻和审计上下文。\n    tool_name: 工具列表中的登记名称。\n    body: 数据集编号、1 至 200 个不重复数据块编号和已登记清洗规则的型号。\n\nReturns:\n    新排队作业，HTTP 201，参数不包含输出格式或空间选项。\n\nRaises:\n    AuthorizationError: 当前账号不是管理员，返回 403。\n    JobInputError: 工具、型号、输入归属或格式无效，返回 422。\n    AuthenticationError: 会话无效，返回 401。\n    ConflictError: 数据库写锁竞争，返回 409。\n    ExternalError: 数据库不可用，返回 502。\n\nSide Effects:\n    作业和提交审计同事务保存；不读取输入文件或写入存储根。\n\nTime Semantics:\n    使用请求 UTC 时刻，不等待后台读取，不自动重试 POST。",
+        "operationId": "submit_cleaning_preview_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tool_name",
+            "required": true,
+            "schema": {
+              "title": "Tool Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleaningPreviewParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Submit Cleaning Preview Job",
         "tags": [
           "jobs"
         ]

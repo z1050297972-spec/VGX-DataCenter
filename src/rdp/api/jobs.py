@@ -44,6 +44,7 @@ from rdp.infra.diagnostics import (
 )
 from rdp.infra.ids import MAX_SQLITE_INTEGER
 from rdp.infra.state import StatePaths
+from rdp.jobs.cleaning.parameters import CleaningPreviewParameters, cleaning_preview_type_name
 from rdp.jobs.conversion.parameters import ConversionParameters, conversion_type_name
 from rdp.jobs.downloads.adjustments import SqlAdjustmentChannel
 from rdp.jobs.downloads.cleanup import DeleteParameters
@@ -263,6 +264,46 @@ def submit_job(context: SubmissionContext, body: SubmitJobPayload) -> JobRespons
     """
     return _response(
         context, context.service.submit(_request(context), body.type_name, dict(body.parameters))
+    )
+
+
+@router.post(
+    "/cleaning-preview/{tool_name}",
+    response_model=JobResponse,
+    status_code=201,
+    operation_id="submit_cleaning_preview_job",
+)
+def submit_cleaning_preview_job(
+    context: JobContext, tool_name: str, body: CleaningPreviewParameters
+) -> JobResponse:
+    """提交管理员清洗预览，参数与索引在 Web 校验。
+
+    Args:
+        context: 已认证请求身份、UTC 时刻和审计上下文。
+        tool_name: 工具列表中的登记名称。
+        body: 数据集编号、1 至 200 个不重复数据块编号和已登记清洗规则的型号。
+
+    Returns:
+        新排队作业，HTTP 201，参数不包含输出格式或空间选项。
+
+    Raises:
+        AuthorizationError: 当前账号不是管理员，返回 403。
+        JobInputError: 工具、型号、输入归属或格式无效，返回 422。
+        AuthenticationError: 会话无效，返回 401。
+        ConflictError: 数据库写锁竞争，返回 409。
+        ExternalError: 数据库不可用，返回 502。
+
+    Side Effects:
+        作业和提交审计同事务保存；不读取输入文件或写入存储根。
+
+    Time Semantics:
+        使用请求 UTC 时刻，不等待后台读取，不自动重试 POST。
+    """
+    return _response(
+        context,
+        context.service.submit(
+            _request(context), cleaning_preview_type_name(tool_name), body.model_dump(mode="json")
+        ),
     )
 
 

@@ -26,6 +26,7 @@ from rdp.api.account_auth import install_account_security
 from rdp.api.accounts import router as accounts_router
 from rdp.api.audit import router as audit_router
 from rdp.api.classification import router as classification_router
+from rdp.api.cleaning_previews import router as cleaning_previews_router
 from rdp.api.collection import router as collection_router
 from rdp.api.conversion_ingest import router as conversion_ingest_router
 from rdp.api.conversion_ingest import staging_router as conversion_staging_router
@@ -150,6 +151,7 @@ def _unknown_api() -> Response:
 def _install_job_and_monitoring_routes(app: FastAPI) -> None:
     """登记作业、工具、说明档与监控入口；只装配路由，不执行读取或采样。"""
     app.include_router(jobs_router)
+    app.include_router(cleaning_previews_router)
     app.include_router(classification_router)
     app.include_router(lineage_router)
     app.include_router(download_ingest_router)
