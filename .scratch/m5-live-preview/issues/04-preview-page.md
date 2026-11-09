@@ -62,3 +62,5 @@ Status: in-progress
   - RobotProfile 相机加两项事实（可选）：`stereo_eye`（`"left"`/`"right"`）和 `stereo_partner`（另一目的相机名）；R1 Lite 的 head_left、head_right 填上，`version` 与第 08 张一致写 2。
   - 预览布局默认跳过 `stereo_eye = "right"` 的相机，R1 Lite 默认 3 个 Image 面板（head_left、wrist_left、wrist_right）。验收 2 相应改为 3 个 Image 面板，且没有 head_right。
 - 2026-11-09 负责人确认看本机真实数据定单位（0014 补充）。**范围补充（评审修复轮一起做）**：`profiles/r1lite.toml` 的手臂和躯干关节组 `unit = "rad"`，夹爪组 `unit = "0-100"`（注释写明哪端张开未核对）；布局的轴标签按单位写，不再写"单位未确认"。
+- 2026-11-09 05:18 第一轮交回（约 46 分钟，Codex 全量检查后端 2871、前端 418），运行日志 45 条命令无违规。评审：安装命令先整包预检（只允许普通文件和目录，拒绝绝对路径和 `..`），再用 `filter="data"` 解到临时目录后改名，可靠。**阻塞问题（打回）**：执行线用真包和离线原型实测，`/lichtblick/` 的 CSP 让 Lichtblick 整页空白——内嵌脚本被 `script-src` 拦、消息解码要 `unsafe-eval`、`connect-src 'self' ws:` 拦了内部 `blob:`/`data:` 请求使 Plot 不画（证据：原型 `shots/m5-csp.png`、`csp-a/b/c/none.png`）。放行内嵌脚本哈希、`unsafe-eval`、`connect-src` 加 `blob: data:` 后画面和曲线都正常，外网照样拦。
+- 2026-11-09 05:2x 第一轮提交 `b9e79f0`；把 main（第 08 张）合进分支 `ac98468`（生成文件自动合并，重新生成无差异，后端 2874、前端 418）。05:31 修复轮派工（续接同一会话，单元 `rdp-m5-04-fix`）：CSP 阻塞问题 + D10 默认 3 路 + 关节单位。
