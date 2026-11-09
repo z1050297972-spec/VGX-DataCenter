@@ -1,0 +1,10 @@
+/* 清洗报告仅补充布局与被剔除文件的底色，问题标签和诊断保持原有醒目程度。 */
+.cleaning-page {
+  display: grid;
+  gap: var(--rdp-space-5);
+}
+
+.cleaning-excluded-file {
+  background: var(--rdp-subtle);
+  color: var(--rdp-muted);
+}

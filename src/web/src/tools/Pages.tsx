@@ -15,10 +15,11 @@ import {
   Tag,
   Typography,
 } from "antd";
-import type { ToolDetail, ToolSummary } from "../api/tools";
+import type { ToolDetail } from "../api/tools";
 import { toFailureView } from "../api/problems";
 import { DiagnosticCard, DiagnosticEntries } from "../DiagnosticCard";
 import { useTool, useTools } from "./queries";
+import type { ToolSummary, LeRobotEnvironment } from "../api/cleaningTemp";
 import "./tools.css";
 
 /**
@@ -51,6 +52,7 @@ export function ToolsPage(): ReactElement {
         </Flex>
       </header>
       {query.error && <DiagnosticCard failure={toFailureView(query.error)} />}
+      {query.data && <EnvironmentStatus environment={query.data.lerobot_environment} />}
       <Card>
         <Table<ToolSummary>
           rowKey="name"
@@ -86,6 +88,10 @@ export function ToolsPage(): ReactElement {
                 `${displayText(tool.input_format)} → ${displayText(tool.output_format)}`,
             },
             { title: "适用型号", render: (_, tool) => tool.robot_models.join("、") || "—" },
+            {
+              title: "有清洗规则的型号",
+              render: (_, tool) => tool.cleaning_models.join("、") || "无",
+            },
             { title: "需要 GPU", render: (_, tool) => gpuLabel(tool.needs_gpu) },
             { title: "状态", render: (_, tool) => <ToolStatus tool={tool} /> },
           ]}
@@ -222,4 +228,48 @@ function ToolFacts({ tool }: { tool: ToolDetail }): ReactElement {
 // 清单无效时没有可信字段，统一用占位符表达未知，不把空值显示为实际版本。
 function displayText(value: string | null): string {
   return value ?? "—";
+}
+
+// LeRobot 状态来自服务端探测，页面不把版本相同当作指纹相同。
+function EnvironmentStatus({ environment }: { environment: LeRobotEnvironment }): ReactElement {
+  const labels = {
+    unconfigured: "未配置",
+    available: "可用",
+    mismatch: "不符",
+    error: "检查失败",
+  } as const;
+  return (
+    <Card title="LeRobot 环境">
+      <Descriptions
+        items={[
+          {
+            key: "status",
+            label: "状态",
+            children: (
+              <Tag color={environment.status === "available" ? "green" : "orange"}>
+                {labels[environment.status]}
+              </Tag>
+            ),
+          },
+          { key: "expected-version", label: "期望版本", children: environment.expected_version },
+          {
+            key: "actual-version",
+            label: "实际版本",
+            children: environment.actual_version ?? "未知",
+          },
+          {
+            key: "expected-fingerprint",
+            label: "期望指纹",
+            children: environment.expected_fingerprint,
+          },
+          {
+            key: "actual-fingerprint",
+            label: "实际指纹",
+            children: environment.actual_fingerprint ?? "未知",
+          },
+        ]}
+      />
+      {environment.message && <Typography.Paragraph>{environment.message}</Typography.Paragraph>}
+    </Card>
+  );
 }

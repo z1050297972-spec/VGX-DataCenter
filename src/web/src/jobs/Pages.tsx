@@ -12,12 +12,13 @@ import {
   Flex,
   Row,
   Select,
+  Steps,
   Table,
   Tag,
   Typography,
   Progress,
 } from "antd";
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { createLink, getRouteApi, Link } from "@tanstack/react-router";
 import type { Job, JobSearch } from "../api/jobs";
 import { toFailureView } from "../api/problems";
 import { DiagnosticCard, JobDiagnosticCard } from "../DiagnosticCard";
@@ -25,6 +26,7 @@ import { useJobs, useJob, useJobLog, useCancelJob, useResubmitJob } from "./quer
 import type { JobTiming } from "./progress";
 import { jobStatusLabel, useJobTiming, isJobTerminal } from "./progress";
 
+const CleaningReportButton = createLink(Button);
 const jobsRoute = getRouteApi("/jobs");
 
 /**
@@ -120,6 +122,7 @@ export function JobDetailPage(): ReactElement {
           <IngestDownload job={job} />
         </>
       )}
+      <CleaningLinks job={job} />
       {canIngestConversion(job) && <IngestConversion jobId={job.job_id} />}
       <Card title="作业日志">
         <JobLogPanel job={job} />
@@ -365,5 +368,47 @@ function submitterLabel(job: Job): string {
     actor.name +
     (actor.name === "系统" ? `（账号 #${actor.account_id}）` : "") +
     (actor.deleted ? "（已删除）" : "")
+  );
+}
+
+// M4.5：预览报告所有登录用户可读；成功含带警告成功，不为失败作业伪造报告入口。
+function CleaningLinks({ job }: { job: Job }): ReactElement | null {
+  const outcome = job.summary?.outcome;
+  if (
+    job.type_name.startsWith("cleaning_preview_") &&
+    (outcome === "succeeded" || outcome === "succeeded_with_warnings")
+  ) {
+    return (
+      <Card>
+        <CleaningReportButton
+          type="primary"
+          to="/cleaning/$jobId"
+          params={{ jobId: job.job_id }}
+          search={{ onlyIssues: false }}
+        >
+          查看清洗报告
+        </CleaningReportButton>
+      </Card>
+    );
+  }
+  if (!job.type_name.startsWith("convert_")) return null;
+  const previewId = job.parameters.cleaning_preview_job_id;
+  return (
+    <Card title="转换阶段">
+      <Steps
+        size="small"
+        current={job.progress ? job.progress.stage_index - 1 : -1}
+        items={["核对工具", "核对输入", "扫描", "转换", "剔除", "收尾"].map((title) => ({ title }))}
+      />
+      {typeof previewId === "number" && Number.isSafeInteger(previewId) && previewId > 0 && (
+        <Link
+          to="/cleaning/$jobId"
+          params={{ jobId: String(previewId) }}
+          search={{ onlyIssues: false }}
+        >
+          清洗报告 #{previewId}
+        </Link>
+      )}
+    </Card>
   );
 }

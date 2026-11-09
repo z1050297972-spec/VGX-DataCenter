@@ -1,11 +1,13 @@
 // M4-01 验收 5：真实页面和路由只替换 HTTP 传输，验证不可用工具的可见状态和诊断。
 import { fireEvent, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
-import type { components } from "../api/schema";
+import type { ToolList, LeRobotEnvironment } from "../api/cleaningTemp";
+import { cleaningTools } from "../cleaning/testSupport";
 import { mountPage, pageFetch } from "../scheduling/pageTestSupport";
 
 it("工具库中的指纹不符显示红色状态，展开后显示五段诊断", async () => {
-  const tools: components["schemas"]["ToolListResponse"] = {
+  const tools: ToolList = {
+    lerobot_environment: cleaningTools.lerobot_environment,
     items: [
       {
         name: "mcap2lerobot",
@@ -15,6 +17,7 @@ it("工具库中的指纹不符显示红色状态，展开后显示五段诊断"
         output_format: "lerobot",
         output_versions: ["v3.0", "v2.1"],
         robot_models: ["Galaxea R1 Lite"],
+        cleaning_models: ["Galaxea R1 Lite"],
         needs_gpu: true,
         status: "指纹不符",
         program_path: "/tmp/tools/mcap2lerobot",
@@ -56,6 +59,42 @@ it("工具库中的指纹不符显示红色状态，展开后显示五段诊断"
       screen.getByText(/实际：sha256 0123456789ab，16 字节；期望：sha256 f09daa6af5d4/),
     ).toBeTruthy();
     expect(screen.getByText(/后果：不能用于转换/)).toBeTruthy();
+  } finally {
+    page.close();
+  }
+});
+
+// 环境三种业务状态及探测失败均按服务端结果显示，不在前端比较版本或指纹。
+it.each<{ status: LeRobotEnvironment["status"]; label: string }>([
+  { status: "unconfigured", label: "未配置" },
+  { status: "available", label: "可用" },
+  { status: "mismatch", label: "不符" },
+  { status: "error", label: "检查失败" },
+])("工具库显示 LeRobot 环境 $label 和实际值", async ({ status, label }) => {
+  const fallback = pageFetch();
+  const page = mountPage("/tools", (request) =>
+    new URL(request.url).pathname === "/api/tools"
+      ? Promise.resolve(
+          Response.json({
+            ...cleaningTools,
+            lerobot_environment: {
+              ...cleaningTools.lerobot_environment,
+              status,
+              actual_version: "0.6.1",
+              actual_fingerprint: "actual-hash",
+            },
+          }),
+        )
+      : fallback(request),
+  );
+  try {
+    expect(await screen.findByText("LeRobot 环境")).toBeTruthy();
+    expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    expect(screen.getByText("0.6.1")).toBeTruthy();
+    expect(screen.getByText("actual-hash")).toBeTruthy();
+    expect(
+      screen.getAllByRole("columnheader", { name: "有清洗规则的型号" }).length,
+    ).toBeGreaterThan(0);
   } finally {
     page.close();
   }
