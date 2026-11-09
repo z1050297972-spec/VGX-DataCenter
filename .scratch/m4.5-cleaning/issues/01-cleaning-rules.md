@@ -1,6 +1,6 @@
 # 清洗规则：对齐切段的 Python 重写与数值检查
 
-Status: not-started
+Status: done（2026-11-09 06:5x 评审通过，合进集成分支 t/m4.5-cleaning）
 
 分级：领域决策票（新的领域规则）。负责人 2026-11-09 设 /goal 预授权本 M 的骨架关卡，由执行线审；合并 main 仍要负责人说。依赖：无。决定见 `../decisions.md`。
 
@@ -117,3 +117,11 @@ R1 Lite 的初值见 `../decisions.md` 第 5 条：手臂关节（state 和 acti
 3. 最后一次 `make check` 全绿、0 skipped。
 
 ## Comments
+
+- 2026-11-09 05:3x 派工 Codex（gpt-6-astra high，单元 rdp-m45-01，日志 `~/.cache/rdp-dispatch/m4.5-01/`），约 60 分钟交付：`src/rdp/jobs/cleaning/`（`report.py` 入口、`models.py` 报告模型、`_config/_io/_sync/_h264/_media/_records/_scan/_checks/_report`）、`tools/mcap2lerobot/cleaning/r1lite.toml`、5 个测试文件 24 个关键测试。
+- 评审打回 1 处（阻塞）：单文件上限 200 万条消息 / 256 MiB 只够约 24 分钟的 R1 Lite 文件，长文件会被误判致命。resume 后改为 1000 万条 / 1 GiB（约 2 小时），超限诊断提示可拆分录制。
+- 实现者说明的有意差异（评审接受）：目录软链接跳过并警告（Rust 会跟随）；一遍扫描解码全部向量消息，比工具只解码被用到的消息更严格；资源上限超出明确拒绝；JPEG 亮度只抽样解码。
+- 变异抽查 3 处全部被抓：同距取晚（nearest）、整段静止不算严重、关键帧前消息不排除。
+- 执行线在真实样本副本（M5 的 52 秒 R1 Lite，系统盘）上重跑：2.45 秒、峰值内存 45 MB；基准 1651、保留 1647、坏帧 4、5 个 episode（0..451、452..849、850..1207、1208..1508、1509..1651）。与执行线在 bwrap 里跑的工具 `verify -v`（`~/.cache/rdp-drill/m4.5-spike/verify.txt`）逐项一致：各话题容差、|Δt| 平均和最大、复用次数、坏帧数，以及每段起止帧。第 05 张的正式对照照此再做一次并存证。
+- 检查：`make check` 第一次后端 1 个失败（`tests/test_jobs_schedules.py::test_unique_race`，与本票无关的并发竞争测试，单独重跑 3 次都通过，负载 2.8），重跑全绿：后端 2893、前端 414，0 skipped。
+

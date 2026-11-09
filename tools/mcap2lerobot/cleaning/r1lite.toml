@@ -1,0 +1,52 @@
+# M4.5 决定 5：手臂单位弧度，夹爪为 0–100；初值只用于预览，不改变工具对齐参数。
+schema_version = 1
+
+[static]
+feature = "observation.state"
+long_static_s = 3.0
+
+[jump]
+feature = "action"
+
+[image]
+frozen_s = 1.0
+sample_interval_s = 1.0
+dark_below = 10.0
+bright_above = 245.0
+
+[[source]]
+topic = "/hdas/feedback_arm_left"
+static_threshold = 0.001
+jump_threshold = 0.5
+
+[[source]]
+topic = "/hdas/feedback_arm_right"
+static_threshold = 0.001
+jump_threshold = 0.5
+
+[[source]]
+topic = "/motion_target/target_joint_state_arm_left"
+static_threshold = 0.001
+jump_threshold = 0.5
+
+[[source]]
+topic = "/motion_target/target_joint_state_arm_right"
+static_threshold = 0.001
+jump_threshold = 0.5
+
+# 夹爪开合本来很快，不查跳变；当前没有确认的关节限位，不写 limits。
+[[source]]
+topic = "/hdas/feedback_gripper_left"
+static_threshold = 0.1
+
+[[source]]
+topic = "/hdas/feedback_gripper_right"
+static_threshold = 0.1
+
+[[source]]
+topic = "/motion_target/target_position_gripper_left"
+static_threshold = 0.1
+
+[[source]]
+topic = "/motion_target/target_position_gripper_right"
+static_threshold = 0.1
