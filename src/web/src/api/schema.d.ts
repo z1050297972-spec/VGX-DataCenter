@@ -4470,6 +4470,8 @@ export interface components {
          *         source_ids: 按命令顺序排列的1至200个不同数据块编号。
          *         robot_model: 工具清单中的型号配置键，非空。
          *         output_format: 输出版本；None由工具模型替换成清单首项。
+         *         space_ratio_percent: 空间估算百分比，整数0至1000，默认25。
+         *         space_reserve_gib: 空间预留偏置，0至1024 GiB，默认1。
          */
         ConversionParameters: {
             /** Dataset Id */
@@ -4480,6 +4482,16 @@ export interface components {
             robot_model: string;
             /** Source Ids */
             source_ids: string[];
+            /**
+             * Space Ratio Percent
+             * @default 25
+             */
+            space_ratio_percent: number;
+            /**
+             * Space Reserve Gib
+             * @default 1
+             */
+            space_reserve_gib: number;
         };
         /**
          * ConversionResult
@@ -5281,6 +5293,8 @@ export interface components {
          *         max_overall_download_limit_bytes_per_s: 总速率，0 不限或 1024 至 10 GiB/s。
          *         max_tries: 最大尝试次数，1-20，默认 5。
          *         retry_wait_s: 重试间隔，0-600 秒，默认 10 秒。
+         *         space_ratio_percent: 待下载量的空间估算百分比，整数0至1000，默认100。
+         *         space_reserve_gib: 空间预留偏置，0至1024 GiB，默认1。
          */
         DownloadParameters: {
             /**
@@ -5342,6 +5356,16 @@ export interface components {
             retry_wait_s: number;
             /** Revision */
             revision: string;
+            /**
+             * Space Ratio Percent
+             * @default 100
+             */
+            space_ratio_percent: number;
+            /**
+             * Space Reserve Gib
+             * @default 1
+             */
+            space_reserve_gib: number;
             /**
              * Split
              * @default 4

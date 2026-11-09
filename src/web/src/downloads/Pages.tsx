@@ -45,6 +45,8 @@ interface Values {
   max_overall_download_limit_bytes_per_s: number;
   max_tries: number;
   retry_wait_s: number;
+  space_ratio_percent: number;
+  space_reserve_gib: number;
 }
 const defaults: Values = {
   repo_type: "dataset",
@@ -63,6 +65,9 @@ const defaults: Values = {
   max_overall_download_limit_bytes_per_s: 0,
   max_tries: 5,
   retry_wait_s: 10,
+  // M4-07：下载默认预留完整待下载量，再加 1 GiB 偏置。
+  space_ratio_percent: 100,
+  space_reserve_gib: 1,
 };
 
 // glob 模式按行录入，空行不成为匹配规则；空数组保持服务端全部语义。
@@ -90,6 +95,8 @@ function payload(values: Values): DownloadInput {
     max_overall_download_limit_bytes_per_s: values.max_overall_download_limit_bytes_per_s,
     max_tries: values.max_tries,
     retry_wait_s: values.retry_wait_s,
+    space_ratio_percent: values.space_ratio_percent,
+    space_reserve_gib: values.space_reserve_gib,
   };
 }
 
@@ -388,6 +395,8 @@ const SERVER_FIELD_NAMES = new Map<string, keyof Values>([
   ["max_overall_download_limit_bytes_per_s", "max_overall_download_limit_bytes_per_s"],
   ["max_tries", "max_tries"],
   ["retry_wait_s", "retry_wait_s"],
+  ["space_ratio_percent", "space_ratio_percent"],
+  ["space_reserve_gib", "space_reserve_gib"],
 ]);
 type ServerField = { name: keyof Values; errors: string[] };
 function serverFields(failure: RequestFailureView): ServerField[] {
@@ -409,7 +418,30 @@ function AdvancedFields(): ReactElement {
   return (
     <section>
       <Typography.Text>除并发和总限速外，修改须取消后重新提交；续传不受影响。</Typography.Text>
+      {/* M4-07：空间估算由 worker 执行，表单仅校验参数范围。 */}
+      <Typography.Paragraph>
+        空间检查：预览和开始下载时各查一次，按「所需空间 = 待下载大小 × 百分比 +
+        偏置」计算；可用空间小于所需空间就不下载。默认 100%、1 GiB。
+      </Typography.Paragraph>
       <Row gutter={16}>
+        <Col xs={24} md={12}>
+          <Form.Item
+            name="space_ratio_percent"
+            label="百分比（%）"
+            rules={[{ required: true, type: "integer", min: 0, max: 1000 }]}
+          >
+            <InputNumber min={0} max={1000} precision={0} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12}>
+          <Form.Item
+            name="space_reserve_gib"
+            label="偏置（GiB）"
+            rules={[{ required: true, type: "number", min: 0, max: 1024 }]}
+          >
+            <InputNumber min={0} max={1024} />
+          </Form.Item>
+        </Col>
         <Col xs={24} md={12}>
           <Form.Item
             name="max_concurrent_downloads"

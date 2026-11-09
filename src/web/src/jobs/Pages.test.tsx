@@ -992,3 +992,24 @@ it("下载详情展示速度与计数，并提交并发和限速后等待实际�
     view.close();
   }
 });
+
+// M4-07：已完成但失败的转换不能提供入库入口，避免把半成品送入检查。
+it("失败的转换作业详情不显示检查并入库", async () => {
+  if (!completedJob.summary) throw new Error("测试样本缺摘要");
+  const failed: Job = {
+    ...completedJob,
+    type_name: "convert_mcap2lerobot",
+    display_name: "失败的转换",
+    summary: { ...completedJob.summary, outcome: "failed", aborted: true },
+  };
+  const view = mountPage(
+    `/jobs/${job.job_id}`,
+    detailFetch(() => failed),
+  );
+  try {
+    expect(await screen.findByRole("heading", { name: /失败的转换/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "检查并入库" })).toBeNull();
+  } finally {
+    view.close();
+  }
+});

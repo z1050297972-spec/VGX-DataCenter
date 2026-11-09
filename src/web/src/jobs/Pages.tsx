@@ -120,9 +120,7 @@ export function JobDetailPage(): ReactElement {
           <IngestDownload job={job} />
         </>
       )}
-      {job.type_name.startsWith("convert_") && isJobTerminal(job) && (
-        <IngestConversion jobId={job.job_id} />
-      )}
+      {canIngestConversion(job) && <IngestConversion jobId={job.job_id} />}
       <Card title="作业日志">
         <JobLogPanel job={job} />
       </Card>
@@ -207,6 +205,15 @@ function JobListContent({ search }: { search: JobSearch }): ReactElement {
         </Button>
       )}
     </>
+  );
+}
+
+// M4-07：终态也包含失败和取消，只有成功产物才能检查入库。
+function canIngestConversion(job: Job): boolean {
+  const outcome = job.summary?.outcome;
+  return (
+    job.type_name.startsWith("convert_") &&
+    (outcome === "succeeded" || outcome === "succeeded_with_warnings")
   );
 }
 

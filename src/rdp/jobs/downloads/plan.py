@@ -68,6 +68,8 @@ class DownloadRequest:
         exclude_video: 是否排除全部视频，默认 False。
         exclude_cameras: 不要的视频相机键，默认空元组。
         target_subdir: 模型在所选存储根内的安全相对路径；None 使用默认路径，数据集必须为 None。
+        space_ratio_percent: 待下载量的空间估算百分比，整数0至1000，默认100。
+        space_reserve_gib: 空间预留偏置，0至1024 GiB，默认1。
     """
 
     repo_type: RepoType
@@ -79,6 +81,8 @@ class DownloadRequest:
     exclude_video: bool = False
     exclude_cameras: tuple[str, ...] = ()
     target_subdir: str | None = None
+    space_ratio_percent: int = 100
+    space_reserve_gib: float = 1
 
 
 @dataclass(frozen=True)
@@ -1054,7 +1058,7 @@ def _capacity_snapshot(
     return outcome[0]
 
 
-def _raise_insufficient_space(root: str, capacity: Capacity) -> NoReturn:
+def _raise_insufficient_space(request: DownloadRequest, capacity: Capacity) -> NoReturn:
     """报告目标根所需字节、余量及可用字节。"""
     raise ExternalError(
         (
@@ -1063,10 +1067,14 @@ def _raise_insufficient_space(root: str, capacity: Capacity) -> NoReturn:
                 category=DiagnosticCategory.EXTERNAL,
                 stage="下载计划",
                 source="平台",
-                objects=(DiagnosticObject(key="storage_root", value=root),),
+                objects=(DiagnosticObject(key="storage_root", value=request.storage_root),),
                 rule="download.insufficient_space",
-                actual=f"待下载 {capacity.remaining_bytes} 字节，预留 {capacity.reserve_bytes} 字节，可用 {capacity.available_bytes} 字节",
-                expected="可用空间不少于待下载量与预留量之和",
+                actual=(
+                    f"待下载 {capacity.remaining_bytes} 字节，百分比 {request.space_ratio_percent}%，"
+                    f"偏置 {request.space_reserve_gib:g} GiB，预留 {capacity.reserve_bytes} 字节，"
+                    f"可用 {capacity.available_bytes} 字节"
+                ),
+                expected="可用空间不少于待下载量按百分比向上取整后的估算与偏置之和",
                 consequence="未生成下载计划",
                 next_step="释放空间或选择其他可写存储根",
             ),
@@ -1097,7 +1105,7 @@ def build_plan(request: DownloadRequest, dependencies: PlanDependencies) -> Down
     """生成固定版本的下载清单、预览和容量预检。
 
     Args:
-        request: 用户选择及已登记目标存储根名称。
+        request: 用户选择、已登记目标存储根名称、0至1000的整数空间百分比和0至1024 GiB偏置。
         dependencies: 平台配置、worker 存储检查器、无代理 HTTP 传输、
             同步退避函数（参数单位秒）及取消或停止检查。
 
@@ -1107,7 +1115,7 @@ def build_plan(request: DownloadRequest, dependencies: PlanDependencies) -> Down
     Raises:
         InputError: 仓库、版本、筛选或目标根输入不合法，或数据集填写 target_subdir。
         ExternalError: 镜像失效、仓库不可用、目标非可写或离线、空间不足或只读检查失败；
-            空间不足诊断包含存储根、待下载字节数、余量和可用字节数。
+            空间不足诊断包含存储根、待下载字节数、百分比、偏置、余量和可用字节数。
         DefectError: 注入的检查器或配置不一致。
         Exception: checkpoint 的取消或停止异常原样传播。
 
@@ -1150,7 +1158,10 @@ def build_plan(request: DownloadRequest, dependencies: PlanDependencies) -> Down
         model_weights_path(root, request, revision)
     available, complete = _capacity_snapshot(root, stage, selected, dependencies)
     total = sum(item.size_bytes for item in selected)
-    capacity = Capacity(total, complete, total - complete, available, SPACE_RESERVE_BYTES)
-    if available < capacity.remaining_bytes + capacity.reserve_bytes:
-        _raise_insufficient_space(root.name, capacity)
+    # M4-07：只改变既有预览和开跑检查的公式；字节容量为整数，偏置不足1字节向上取整。
+    reserve_bytes = math.ceil(request.space_reserve_gib * SPACE_RESERVE_BYTES)
+    capacity = Capacity(total, complete, total - complete, available, reserve_bytes)
+    estimated_bytes = (capacity.remaining_bytes * request.space_ratio_percent + 99) // 100
+    if available < estimated_bytes + capacity.reserve_bytes:
+        _raise_insufficient_space(request, capacity)
     return DownloadPlan(request, revision, selected, preview, stage, capacity)

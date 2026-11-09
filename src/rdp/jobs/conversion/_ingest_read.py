@@ -13,7 +13,7 @@ from rdp.infra.diagnostics import DefectError
 from rdp.jobs.conversion._process import run_bounded
 from rdp.jobs.datasets.models import DatasetRow
 from rdp.jobs.datasets.types import JsonObject
-from rdp.jobs.navwrite.errors import nav_external_error, nav_input_error
+from rdp.jobs.navwrite.errors import Advice, nav_external_error, nav_input_error
 from rdp.jobs.navwrite.pipeline import NavWriteDependencies
 from rdp.jobs.outcome import JobOutcome
 from rdp.jobs.records import find_job
@@ -49,7 +49,14 @@ def conversion(deps: NavWriteDependencies, identifier: int) -> Conversion:
         name, entry = dataset.name, dataset.canonical_entry_path
     root = next((item for item in deps.rescan.roots if item.writable), None)
     if root is None:
-        raise nav_input_error("CONVERSION_INGEST", "没有已登记的可写存储根")
+        raise nav_external_error(
+            "CONVERSION_INGEST",
+            "没有已登记的可写存储根",
+            advice=Advice(
+                "未开始转换入库",
+                "管理员在配置文件登记可写存储根（NAS 平台区）后重新提交",
+            ),
+        )
     if deps.rescan.storage is None:
         raise DefectError()
     return Conversion(record, root, name, entry)

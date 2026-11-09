@@ -35,6 +35,8 @@ export default defineConfig({
     },
   },
   test: {
+    // 机器高负载时长界面流程测试偶发超过默认 5 秒，遗留事项第 8 条。
+    testTimeout: 15000,
     environment: "jsdom",
     // 沿用 A2 已验证的线程池；0012 已授权本地通信，不需要修改 asyncio 或 socket。
     pool: "threads",

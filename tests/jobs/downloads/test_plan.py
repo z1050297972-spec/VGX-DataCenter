@@ -15,6 +15,7 @@ from rdp.infra.config import PlatformConfig, StorageConfig, StorageRootConfig
 from rdp.infra.diagnostics import ExternalError, InputError
 from rdp.infra.storage import MountInspector, StorageAccessChecker
 from rdp.jobs.downloads import plan
+from rdp.jobs.downloads.job import DownloadParameters, request_from_parameters
 from rdp.jobs.downloads.plan import (
     CREDENTIAL_FILENAME,
     DatasetPreview,
@@ -953,6 +954,27 @@ def test_exclude_pattern_with_trailing_slash_matches_directory() -> None:
         "metadata/info.json",
         "data/a",
     )
+
+
+def test_capacity_uses_requested_percentage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """M4-07验收5：200%时待下载10字节超过可用19字节的一半，预览计划拒绝。"""
+    _, dependencies, _ = _plan_inputs(tmp_path)
+    parameters = DownloadParameters(
+        repo_type="model",
+        repo_id="org/repo",
+        revision="main",
+        storage_root="disk",
+        space_ratio_percent=200,
+        space_reserve_gib=0,
+    )
+    _mock_free(monkeypatch, 19)
+    with pytest.raises(ExternalError) as error:
+        build_plan(request_from_parameters(parameters), dependencies)
+    diagnostic = error.value.diagnostics[0]
+    assert diagnostic.rule == "download.insufficient_space"
+    assert "200%" in diagnostic.actual and "偏置 0 GiB" in diagnostic.actual
 
 
 def test_capacity_reserve_and_equality_boundary(

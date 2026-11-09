@@ -4,9 +4,12 @@
 """
 
 import json
+import math
+import shutil
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
+from threading import Event
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import Engine
@@ -18,12 +21,14 @@ from rdp.infra.diagnostics import (
     Diagnostic,
     DiagnosticCategory,
     DiagnosticLevel,
+    DiagnosticObject,
     ExternalError,
     InputError,
 )
 from rdp.infra.storage import StorageAccessChecker
 from rdp.infra.timeutil import ensure_utc
 from rdp.jobs.conversion.parameters import ConversionParameters, selected_inputs, tool_parameters
+from rdp.jobs.datasets.size import measure_size
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.processes import ToolCommand, run_terminal_process
 from rdp.jobs.registry import StorageUse
@@ -98,17 +103,21 @@ class ConversionExecutor:
         Raises:
             DefectError: 缺少worker依赖或参数类型不正确。
             InputError: 工具不可用、参数失效、输入或输出越出登记根。
-            ExternalError: 无可写根、子进程失败或超时，或产物/回执读写失败。
+            ExternalError: 无可写根、输入大小统计失败、空间不足、子进程失败或超时，
+                或产物/回执读写失败；空间不足诊断包含输入、估算产物、预留和可用字节。
             JobCancelledError: 取消后进程组已回收，暂存目录保留。
             WorkerStoppingError: worker停止，交框架在重启时标记中断。
 
         Side Effects:
             只在首个登记可写根新建暂存/转换/作业编号，沙箱只允许写该目录。
             输出out和转换回执.json；失败、取消或中断保留已有产物，不写导航层。
+            空间预检只读输入元数据和可写根容量；不足时不建暂存目录、不启动工具。
 
         Time Semantics:
             五阶段依次推进；verify和convert各至多12小时，TERM宽限10秒并有界回收。
             起止时间由作业时钟规范化为UTC，阶段间检查取消，不重试转换。
+            第2阶段在线检查后预检空间；容量访问和遍历停滞受storage的秒级预算约束，
+            等待可取消；容量只反映当前观察，不保证转换途中一直够用。
         """
         if self.dependencies is None or not isinstance(context.parameters, ConversionParameters):
             raise DefectError()
@@ -213,7 +222,7 @@ def _checked_tool(name: str, settings: ToolsConfig) -> RegisteredTool:
 def _prepare_paths(
     context: ExecutionContext, deps: ConversionDependencies, parameters: ConversionParameters
 ) -> tuple[tuple[Path, ...], Path]:
-    """执行前重读索引并约束输入与新暂存路径，按选中根的StorageUse执行有界在线检查。"""
+    """重读选中输入并约束路径，在线与空间预检通过后才新建暂存目录。"""
     with session_scope(deps.engine, read_only=True) as session:
         inputs = selected_inputs(session, parameters)
     # 根据本次输入声明存储需求，未选中的离线根不能阻挡转换。
@@ -233,7 +242,13 @@ def _prepare_paths(
         selected_roots.add(root.name)
     writable = next((root for root in deps.roots if root.writable), None)
     if writable is None:
-        raise ExternalError((_diagnostic("没有登记可写存储根", DiagnosticCategory.EXTERNAL),))
+        raise ExternalError(
+            (
+                _diagnostic("没有登记可写存储根", DiagnosticCategory.EXTERNAL).model_copy(
+                    update={"next_step": "管理员在配置文件登记可写存储根（NAS 平台区）后重新提交"}
+                ),
+            )
+        )
     uses = tuple(
         StorageUse(root.name, write=root.name == writable.name)
         for root in deps.roots
@@ -242,8 +257,87 @@ def _prepare_paths(
     check_storage_before_job(
         uses, checker=deps.storage, checkpoint=context.reporter.check_cancelled
     )
+    # M4-07：先确认在线再读元数据和容量；预检通过前不能建暂存或运行verify。
+    _check_space(context, deps.storage, writable, inputs, parameters)
     stage = _new_staging(writable.path, context.job_id)
     return inputs, stage
+
+
+def _check_space(
+    context: ExecutionContext,
+    checker: StorageAccessChecker | None,
+    writable: StorageRootConfig,
+    inputs: tuple[Path, ...],
+    parameters: ConversionParameters,
+) -> None:
+    """只累计本次选中数据块，容量不足以统一外部失败阻止后续写入。"""
+    if checker is None:
+        raise DefectError()
+    try:
+        input_bytes = sum(measure_size(path, checker, context) for path in inputs)
+    except OSError as error:
+        raise ExternalError(
+            (_diagnostic(f"转换输入大小统计失败：{error}", DiagnosticCategory.EXTERNAL),)
+        ) from error
+    # 整数百分比向上取整避免大字节数经浮点乘法损失精度；偏置按完整字节预留。
+    estimated_bytes = (input_bytes * parameters.space_ratio_percent + 99) // 100
+    reserve_bytes = math.ceil(parameters.space_reserve_gib * 1024**3)
+    available_bytes = _available_bytes(writable, checker, context)
+    if available_bytes < estimated_bytes + reserve_bytes:
+        actual = "，".join(
+            f"{name} {value} 字节（{value / 1024**3:.2f} GiB）"
+            for name, value in (
+                ("输入", input_bytes),
+                ("估算产物", estimated_bytes),
+                ("预留", reserve_bytes),
+                ("可用", available_bytes),
+            )
+        )
+        actual += (
+            f"，百分比 {parameters.space_ratio_percent}%，偏置 {parameters.space_reserve_gib:g} GiB"
+        )
+        raise ExternalError(
+            (
+                Diagnostic(
+                    level=DiagnosticLevel.ERROR,
+                    category=DiagnosticCategory.EXTERNAL,
+                    stage="核对输入",
+                    source="平台",
+                    objects=(DiagnosticObject(key="storage_root", value=writable.name),),
+                    rule="conversion.insufficient_space",
+                    actual=actual,
+                    expected="可用空间不少于估算产物与预留之和",
+                    consequence="未开始转换，未建暂存目录",
+                    next_step="释放可写根空间后重新提交",
+                ),
+            )
+        )
+
+
+def _available_bytes(
+    root: StorageRootConfig, checker: StorageAccessChecker, context: ExecutionContext
+) -> int:
+    """参照M2容量快照复用worker的有界检查，取消或超时后不发布迟到容量。"""
+    abandoned = Event()
+    outcome: list[int] = []
+
+    def access(path: Path) -> None:
+        checker.access(path)
+        if abandoned.is_set():
+            return
+        available = shutil.disk_usage(path).free
+        if not abandoned.is_set():
+            outcome.append(available)
+
+    try:
+        check_storage_before_job(
+            (StorageUse(root.name, write=True),),
+            checker=replace(checker, access=access),
+            checkpoint=context.reporter.check_cancelled,
+        )
+    finally:
+        abandoned.set()
+    return outcome[0]
 
 
 def _finish(context: ExecutionContext, stage: Path, receipt: dict[str, object]) -> None:

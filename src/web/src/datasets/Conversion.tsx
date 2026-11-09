@@ -1,6 +1,16 @@
 // 转换入口和表单（M4-03）；只选择登记工具与数据块，后台执行和GPU等待由作业系统负责。
 import { useState, type ReactElement } from "react";
-import { Alert, Button, Checkbox, Drawer, Form, Select, Space, Typography } from "antd";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Drawer,
+  Form,
+  InputNumber,
+  Select,
+  Space,
+  Typography,
+} from "antd";
 import type { DatasetDetail } from "../api/datasets";
 import type { ToolSummary } from "../api/tools";
 import {
@@ -98,6 +108,9 @@ function ConversionForm({
       form={form}
       layout="vertical"
       initialValues={{
+        // M4-07：转换按输入大小的 25% 加 1 GiB 预留，允许用户按产物调整。
+        space_ratio_percent: 25,
+        space_reserve_gib: 1,
         robot_model: model,
         output_format: initial.output_versions[0],
         source_ids: sources.map((source) => source.source_id),
@@ -161,6 +174,26 @@ function ConversionForm({
             ))}
           </Space>
         </Checkbox.Group>
+      </Form.Item>
+      {/* M4-07：范围与后端参数契约一致，偏置允许小数 GiB。 */}
+      <Typography.Paragraph>
+        空间检查：开始转换时，系统按「所需空间 = 选中数据块总大小 × 百分比 +
+        偏置」估算；可写存储根的可用空间小于所需空间就不开始转换，作业失败并写明各项数值。默认
+        25%（2026-11 实测产物约为输入的 13%）、1 GiB。
+      </Typography.Paragraph>
+      <Form.Item
+        label="百分比（%）"
+        name="space_ratio_percent"
+        rules={[{ required: true, type: "integer", min: 0, max: 1000 }]}
+      >
+        <InputNumber min={0} max={1000} precision={0} />
+      </Form.Item>
+      <Form.Item
+        label="偏置（GiB）"
+        name="space_reserve_gib"
+        rules={[{ required: true, type: "number", min: 0, max: 1024 }]}
+      >
+        <InputNumber min={0} max={1024} />
       </Form.Item>
       {submit.error && <DiagnosticCard failure={toFailureView(submit.error)} />}
       <Button
