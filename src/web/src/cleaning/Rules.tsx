@@ -1,6 +1,7 @@
 // 报告规则说明只展示生成时的规则快照；不读取工具当前配置，不在前端维护默认阈值或严重检查列表。
 import type { ReactElement } from "react";
 import { Descriptions, Table, Tag, Typography } from "antd";
+import { formatNumber } from "./formatNumber";
 import type { CleaningReport, CleaningSourceRules } from "../api/cleaning";
 
 interface Props {
@@ -26,13 +27,18 @@ export function ReportRules(props: Props): ReactElement {
         items={[
           { key: "reference", label: "基准话题", children: report.reference_topic },
           { key: "fps", label: "帧率", children: <>{report.fps} 帧/秒</> },
-          { key: "tolerance", label: "默认容差", children: <>{sync.default_tolerance_ms} 毫秒</> },
+          {
+            key: "tolerance",
+            label: "默认容差",
+            children: formatNumber(sync.default_tolerance_ms, "milliseconds"),
+          },
           {
             key: "gap",
             label: "断点（相邻基准帧间隔超过）",
             children: (
               <>
-                {sync.max_frame_gap} 倍 / {sync.max_frame_gap_ms} 毫秒
+                {formatNumber(sync.max_frame_gap)} 倍 /{" "}
+                {formatNumber(sync.max_frame_gap_ms, "milliseconds")}
               </>
             ),
           },
@@ -49,13 +55,29 @@ export function ReportRules(props: Props): ReactElement {
           {
             key: "static-duration",
             label: "连续静止最短时长",
-            children: <>{checks.long_static_s} 秒</>,
+            children: formatNumber(checks.long_static_s, "seconds"),
           },
           { key: "jump-feature", label: "跳变检查特征", children: checks.jump_feature },
-          { key: "frozen", label: "相机冻结最短时长", children: <>{checks.frozen_s} 秒</> },
-          { key: "sample", label: "亮度抽样间隔", children: <>{checks.sample_interval_s} 秒</> },
-          { key: "dark", label: "黑屏阈值", children: <>平均亮度 &lt; {checks.dark_below}</> },
-          { key: "bright", label: "过曝阈值", children: <>平均亮度 &gt; {checks.bright_above}</> },
+          {
+            key: "frozen",
+            label: "相机冻结最短时长",
+            children: formatNumber(checks.frozen_s, "seconds"),
+          },
+          {
+            key: "sample",
+            label: "亮度抽样间隔",
+            children: formatNumber(checks.sample_interval_s, "seconds"),
+          },
+          {
+            key: "dark",
+            label: "黑屏阈值",
+            children: <>平均亮度 &lt; {formatNumber(checks.dark_below)}</>,
+          },
+          {
+            key: "bright",
+            label: "过曝阈值",
+            children: <>平均亮度 &gt; {formatNumber(checks.bright_above)}</>,
+          },
           {
             key: "severe",
             label: "严重检查（默认剔除）",
@@ -86,15 +108,23 @@ export function ReportRules(props: Props): ReactElement {
         locale={{ emptyText: "没有配置来源阈值" }}
         columns={[
           { title: "来源话题", dataIndex: "topic" },
-          { title: "静止阈值", render: (_, source) => source.static_threshold ?? "不检查" },
-          { title: "跳变阈值", render: (_, source) => source.jump_threshold ?? "不检查" },
+          {
+            title: "静止阈值",
+            render: (_, source) =>
+              source.static_threshold === null ? "不检查" : formatNumber(source.static_threshold),
+          },
+          {
+            title: "跳变阈值",
+            render: (_, source) =>
+              source.jump_threshold === null ? "不检查" : formatNumber(source.jump_threshold),
+          },
           {
             title: "逐维限位（下限，上限）",
             render: (_, source) =>
               source.limits
                 ?.map(
                   ([lower, upper], index) =>
-                    `第 ${String(index + 1)} 维：[${String(lower)}, ${String(upper)}]`,
+                    `第 ${String(index + 1)} 维：[${formatNumber(lower)}, ${formatNumber(upper)}]`,
                 )
                 .join("；") || "未配置",
           },
