@@ -17,10 +17,12 @@ from sqlalchemy import Engine
 from rdp.api import create_app
 from rdp.api.datasets import configure_datasets
 from rdp.api.jobs import configure_jobs
+from rdp.api.robot_profiles import configure_robot_profiles
 from rdp.api.shutdown import drain_error_reports
 from rdp.api.storage import configure_storage
 from rdp.api.tools import configure_tools
 from rdp.infra.config import StorageConfig, ToolsConfig, WebConfig
+from rdp.infra.diagnostics import ExternalError, InputError, render_diagnostic
 from rdp.infra.state import StatePaths
 from rdp.infra.storage import MountInspector
 from rdp.jobs.dataset_browser.service import DatasetBrowserService
@@ -134,6 +136,7 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
         create_app(dist, database=engine, clock=clock, platform_version=version) 内登记版本，
         返回后 configure_jobs(..., scheduling=...)、configure_storage(..., inspector=...)、
         configure_tools(..., settings=runtime.tools)，
+        configure_robot_profiles 只读部署目录 profiles 并校验，失败则不启动监听，
         导航根非空时configure_datasets，再单进程调用 runner，不二次 configure_version。
         启动时不访问存储根内容；M1.5查看器请求独立带超时只读。失败在本边界写一次诊断；数据库版本不匹配明确提示 rdp migrate。
         runner 结束/异常后调用 drain_error_reports；仅返回 True 才 dispose engine。
@@ -157,6 +160,7 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
         configure_jobs(app, runtime.paths, runtime.registry, scheduling=runtime.scheduling)
         configure_storage(app, inspector=runtime.inspector)
         configure_tools(app, settings=runtime.tools)
+        configure_robot_profiles(app)
         if runtime.nav_root is not None:
             configure_datasets(
                 app,
@@ -181,6 +185,11 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
             timeout_graceful_shutdown=WEB_REQUEST_STOP_TIMEOUT_S,
         )
         code = 0
+    except (InputError, ExternalError) as error:
+        # 启动边界统一报告完整诊断，尤其不能把坏说明档误报成前端缺失或只打印异常类别。
+        for diagnostic in error.diagnostics:
+            logger.error("%s", render_diagnostic(diagnostic))
+        code = 1
     except FileNotFoundError:
         logger.error("前端构建产物缺失，请先构建")
         code = 1

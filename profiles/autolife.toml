@@ -1,0 +1,68 @@
+# RobotProfile：AutoLife，ADR 0007、M5-01；事实来源为环境事实 0007。
+# 未知值一律省略，不能用占位字符串或“无目标”代替未知事实。
+profile = "autolife"
+version = 1
+model = "AutoLife"
+# robot_type_labels 待补测，见规划票 18。
+
+[ros]
+distro = "jazzy"
+rmw = "rmw_cyclonedds_cpp"
+domain_id = 0
+discovery = "cyclonedds_loopback_only"
+qos_subscribe = "RELIABLE"
+readiness = [
+  { check = "run_on_robot", reason = "CycloneDDS 只绑回环，平台节点必须跑在机器人本机上（0007）" },
+]
+
+[[joint_group]]
+name = "left_arm"
+joint_count = 7
+# 关节名、顺序与单位待补测，见规划票 18；不能按数值外观猜角度制。
+observation = { topic = "/topic_arm_whole_body_and_gripper_current_joints_status_0_310", message_type = "std_msgs/msg/String", extract = "json:left_arm_joint_state.position", rate_hz = 99.98, stamp = "receive", stamp_trusted = false }
+# 目标取法和频率待补测，见规划票 18；String 没有 header，依 ADR 0007 用接收时刻。
+target = { topic = "/topic_arm_whole_body_target_joints_position_0_310", message_type = "std_msgs/msg/String", stamp = "receive", stamp_trusted = false, may_be_silent = true }
+
+[[joint_group]]
+name = "right_arm"
+joint_count = 7
+# 关节名、顺序与单位待补测，见规划票 18；不能按数值外观猜角度制。
+observation = { topic = "/topic_arm_whole_body_and_gripper_current_joints_status_0_310", message_type = "std_msgs/msg/String", extract = "json:right_arm_joint_state.position", rate_hz = 99.98, stamp = "receive", stamp_trusted = false }
+# 目标取法和频率待补测，见规划票 18；String 没有 header，依 ADR 0007 用接收时刻。
+target = { topic = "/topic_arm_whole_body_target_joints_position_0_310", message_type = "std_msgs/msg/String", stamp = "receive", stamp_trusted = false, may_be_silent = true }
+
+[[joint_group]]
+name = "left_gripper"
+joint_count = 1
+# 关节名、顺序与单位待补测，见规划票 18；不能按数值外观猜角度制。
+observation = { topic = "/topic_arm_whole_body_and_gripper_current_joints_status_0_310", message_type = "std_msgs/msg/String", extract = "json:left_gripper_state.position", rate_hz = 99.98, stamp = "receive", stamp_trusted = false }
+# 夹爪目标来源待补测，见规划票 18；省略 target，不宣称无目标。
+
+[[joint_group]]
+name = "right_gripper"
+joint_count = 1
+# 关节名、顺序与单位待补测，见规划票 18；不能按数值外观猜角度制。
+observation = { topic = "/topic_arm_whole_body_and_gripper_current_joints_status_0_310", message_type = "std_msgs/msg/String", extract = "json:right_gripper_state.position", rate_hz = 99.98, stamp = "receive", stamp_trusted = false }
+# 夹爪目标来源待补测，见规划票 18；省略 target，不宣称无目标。
+
+[[joint_group]]
+name = "leg_waist"
+joint_count = 4
+# 关节名、顺序与单位待补测，见规划票 18；不能按数值外观猜角度制。
+observation = { topic = "/topic_arm_whole_body_and_gripper_current_joints_status_0_310", message_type = "std_msgs/msg/String", extract = "json:leg_waist_joint_state.position", rate_hz = 99.98, stamp = "receive", stamp_trusted = false }
+# 目标取法和频率待补测，见规划票 18；String 没有 header，依 ADR 0007 用接收时刻。
+target = { topic = "/topic_arm_whole_body_target_joints_position_0_310", message_type = "std_msgs/msg/String", stamp = "receive", stamp_trusted = false, may_be_silent = true }
+
+[[joint_group]]
+name = "neck"
+joint_count = 3
+# 关节名、顺序与单位待补测，见规划票 18；不能按数值外观猜角度制。
+observation = { topic = "/topic_arm_whole_body_and_gripper_current_joints_status_0_310", message_type = "std_msgs/msg/String", extract = "json:neck_joint_state.position", rate_hz = 99.98, stamp = "receive", stamp_trusted = false }
+# 目标取法和频率待补测，见规划票 18；String 没有 header，依 ADR 0007 用接收时刻。
+target = { topic = "/topic_arm_whole_body_target_joints_position_0_310", message_type = "std_msgs/msg/String", stamp = "receive", stamp_trusted = false, may_be_silent = true }
+
+[[camera]]
+name = "head"
+encoding = "bgr8"
+# 没有 ROS 图像话题；具体 SHM 来源、分辨率、帧率、时间戳、触发方式待补测，见规划票 18。
+# 0007 已确认多个缓冲区，不能把草样的 head 擅自对应到其中一个。

@@ -46,6 +46,7 @@ from rdp.api.monitoring import ResourceSampler
 from rdp.api.monitoring import router as monitoring_router
 from rdp.api.navigation import router as navigation_router
 from rdp.api.navigation_writes import router as navigation_writes_router
+from rdp.api.robot_profiles import router as robot_profiles_router
 from rdp.api.storage import router as storage_router
 from rdp.api.tools import router as tools_router
 from rdp.api.version import configure_version
@@ -147,7 +148,7 @@ def _unknown_api() -> Response:
 
 
 def _install_job_and_monitoring_routes(app: FastAPI) -> None:
-    """一次登记作业、下载凭据和监控入口；只装配路由，不执行采样。"""
+    """登记作业、工具、说明档与监控入口；只装配路由，不执行读取或采样。"""
     app.include_router(jobs_router)
     app.include_router(classification_router)
     app.include_router(lineage_router)
@@ -157,6 +158,7 @@ def _install_job_and_monitoring_routes(app: FastAPI) -> None:
     app.include_router(download_tokens_router)
     app.include_router(monitoring_router)
     app.include_router(tools_router)
+    app.include_router(robot_profiles_router)
 
 
 def create_app(
@@ -211,6 +213,7 @@ def create_app(
         M1 第03张登记 /api/datasets 路由及展示类型；服务由 configure_datasets 显式装配，
         离线导出不读取导航，详情请求的导航只读边界由数据集服务负责。
         M4 工具列表和详情由 configure_tools 装配登记路径；工厂不读取工具文件。
+        M5 说明档路由只注册 schema；生产启动调用 configure_robot_profiles 一次加载文件。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
