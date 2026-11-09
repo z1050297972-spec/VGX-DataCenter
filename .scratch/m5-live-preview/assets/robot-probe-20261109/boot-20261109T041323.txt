@@ -1,0 +1,41 @@
+
+===== 时间 =====
+2026-11-09T19:13:24+08:00
+ 19:13:24 up  8:58, 15 users,  load average: 12.19, 12.04, 11.87
+
+===== 厂商进程的启动时间（etimes 秒） =====
+    PID                  STARTED ELAPSED CMD
+  54165 Mon Nov  9 10:43:50 2026   30573 /opt/ros/humble/bin/fast-discovery-server -i 0 -l 0.0.0.0 -p 11811
+  55139 Mon Nov  9 10:43:56 2026   30567 /home/nvidia/galaxea/sdk/teleoperation_ros2/lib/teleoperation_ros2/homogeneous_controller_node --ro
+  55168 Mon Nov  9 10:43:56 2026   30567 /home/nvidia/galaxea/sdk/signal_camera/lib/signal_camera/signal_camera_node --ros-args -r __node:=s
+  55172 Mon Nov  9 10:43:56 2026   30567 /home/nvidia/galaxea/sdk/HDAS/lib/HDAS/HDAS --ros-args -r __node:=HDAS --params-file /tmp/launch_pa
+  55412 Mon Nov  9 10:43:58 2026   30565 /home/nvidia/galaxea/sdk/realsense2_camera/lib/realsense2_camera/realsense2_camera_node --ros-args 
+  55416 Mon Nov  9 10:43:58 2026   30565 /home/nvidia/galaxea/sdk/realsense2_camera/lib/realsense2_camera/realsense2_camera_node --ros-args 
+  55569 Mon Nov  9 10:43:59 2026   30564 /usr/bin/python3 /home/nvidia/galaxea/sdk/data_collection/lib/data_collection/data_collection_node 
+  55735 Mon Nov  9 10:44:00 2026   30563 /usr/bin/python3 -m uvicorn ehi_gateway.main:app --host 0.0.0.0 --port 8000 --log-level info
+  56168 Mon Nov  9 10:44:02 2026   30561 /home/nvidia/galaxea/sdk/moca_adapter/lib/moca_adapter/moca_main_node --ros-args -r __node:=moca_ad
+  56572 Mon Nov  9 10:44:09 2026   30554 /home/nvidia/galaxea/sdk/rds_ros/lib/rds_ros/rds_ros_monitor_node --ros-args -r __node:=rds_ros_mon
+
+===== 最近 15 分钟内启动的进程 =====
+    PID ELAPSED CMD
+1091223       0 cut -c1-140
+1091224       0 head -30
+
+===== tmux 会话创建时间 =====
+ehi_gateway created=Mon Nov  9 10:43:50 2026 windows=1
+hdas created=Mon Nov  9 10:43:52 2026 windows=2
+mobiman created=Mon Nov  9 10:43:51 2026 windows=1
+r1lite_teleop created=Mon Nov  9 10:43:50 2026 windows=1
+ros_discovery created=Mon Nov  9 10:43:48 2026 windows=1
+system created=Mon Nov  9 10:43:49 2026 windows=1
+tools created=Mon Nov  9 10:43:48 2026 windows=3
+
+===== boot.sh =====
+-rwxrwxr-x 1 nvidia nvidia 148 Aug 10 18:15 /home/nvidia/boot.sh
+#!/bin/bash
+
+cd /home/nvidia/galaxea/sdk/startup_config/share/startup_config/script
+./robot_startup.sh boot ../sessions.d/ATCStandard/R1LITEBody.d/
+
+===== robot_startup.sh 里对已有会话的处理 =====
+17:  tmux kill-server

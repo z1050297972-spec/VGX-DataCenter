@@ -1,0 +1,79 @@
+
+===== 时间与网口 =====
+2026-11-09T19:12:26+08:00
+ 19:12:26 up  8:57, 15 users,  load average: 12.04, 11.99, 11.84
+eth0             UP             192.168.2.150/24 fe80::4ebb:47ff:fee4:ed82/64 
+eth1             DOWN           
+wlan0            UP             192.168.0.229/24 fd00:3::b993:ddc6:fcb9:9dc0/64 fd00:3::ff9e:9f5c:351c:20c4/64 fe80::44e7:c25f:db17:6941/64 
+
+===== 在跑的 ROS 相关进程：各自用哪种发现配置 =====
+54159 | python3 /opt/ros/humble/bin/../tools/fastdds/fastdds.py discovery -i 0 -l 0.0.0.0 -p 11811 | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+54165 | /opt/ros/humble/bin/fast-discovery-server -i 0 -l 0.0.0.0 -p 11811  | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55065 | /usr/bin/python3 /opt/ros/humble/bin/ros2 launch teleoperation_ros2 r1litet_homogeneous_te | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55136 | /usr/bin/python3 /opt/ros/humble/bin/ros2 launch signal_camera signal_camera_head.py  | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55137 | /usr/bin/python3 /opt/ros/humble/bin/ros2 launch HDAS r1lite.py  | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55139 | /home/nvidia/galaxea/sdk/teleoperation_ros2/lib/teleoperation_ros2/homogeneous_controller_ | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55168 | /home/nvidia/galaxea/sdk/signal_camera/lib/signal_camera/signal_camera_node --ros-args -r  | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55172 | /home/nvidia/galaxea/sdk/HDAS/lib/HDAS/HDAS --ros-args -r __node:=HDAS --params-file /tmp/ | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55374 | /usr/bin/python3 /opt/ros/humble/bin/ros2 launch realsense2_camera rs_multi_camera_launch. | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55412 | /home/nvidia/galaxea/sdk/realsense2_camera/lib/realsense2_camera/realsense2_camera_node -- | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55416 | /home/nvidia/galaxea/sdk/realsense2_camera/lib/realsense2_camera/realsense2_camera_node -- | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55419 | /opt/ros/humble/lib/tf2_ros/static_transform_publisher 0 0 0 0 0 0 camera_wrist_left_link  | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55490 | /usr/bin/python3 /opt/ros/humble/bin/ros2 launch data_collection data_collection_launch.py | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55569 | /usr/bin/python3 /home/nvidia/galaxea/sdk/data_collection/lib/data_collection/data_collect | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+55735 | /usr/bin/python3 -m uvicorn ehi_gateway.main:app --host 0.0.0.0 --port 8000 --log-level in | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+56015 | /usr/bin/python3 /opt/ros/humble/bin/ros2 launch moca_adapter moca_launch.py  | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+56168 | /home/nvidia/galaxea/sdk/moca_adapter/lib/moca_adapter/moca_main_node --ros-args -r __node | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+56170 | /opt/ros/humble/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robo | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+56555 | /usr/bin/python3 /opt/ros/humble/bin/ros2 launch rds_ros monitor.py  | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+56572 | /home/nvidia/galaxea/sdk/rds_ros/lib/rds_ros/rds_ros_monitor_node --ros-args -r __node:=rd | FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml ROS_LOCALHOST_ONLY=0 
+
+===== 按发现配置分组计数 =====
+     22 
+     20 FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml 
+
+===== tmux 会话与窗口名 =====
+ehi_gateway:0 ehi_gateway
+hdas:0 HDAS
+hdas:1 signal_camera|realsense
+mobiman:0 moca
+r1lite_teleop:0 r1lite_teleop
+ros_discovery:0 ros2_discovery
+system:0 system_manager|system_monitor
+tools:0 data_collection
+tools:1 problem_diagnosis
+tools:2 thread_monitor
+
+===== 复制 data_collection_node 的环境 =====
+环境取自 pid=55569
+
+===== A 节点原样环境（发现服务器 10.42.0.238）：节点 =====
+
+===== A 节点原样环境（发现服务器 10.42.0.238）：话题个数与头部、关节话题 =====
+话题数 2
+
+===== B 副本改成本机 127.0.0.1（看谁在登记处报到了）：节点 =====
+/HDAS
+/data_collection_node
+/ehi_gateway_node
+/hdas/camera_wrist_left
+/hdas/camera_wrist_right
+/homogeneous_teleoperation
+/moca_adapter
+/rds_ros_monitor
+/robot_state_publisher
+/signal_camera
+/static_transform_publisher_gjLDG4kY07v1zO7r
+
+===== B 副本改成本机 127.0.0.1（看谁在登记处报到了）：话题个数与头部、关节话题 =====
+话题数 100
+/hdas/camera_head/left_raw/image_raw_color/compressed
+/hdas/camera_head/right_raw/image_raw_color/compressed
+/hdas/feedback_arm_left
+/hdas/feedback_arm_right
+/motion_target/target_joint_state_arm_left
+/motion_target/target_joint_state_arm_right
+/motion_target/target_joint_state_torso
+/tabletop/hdas/feedback_arm_left
+/tabletop/hdas/feedback_arm_right
+结束 2026-11-09T19:13:03+08:00
