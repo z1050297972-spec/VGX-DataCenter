@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from typing import cast
 
-from rdp.jobs.conversion._ingest_read import Conversion
+from rdp.jobs.conversion._ingest_read import Conversion, output_name
 from rdp.jobs.conversion.check_models import CheckReport
 from rdp.jobs.conversion.ingest_models import ConversionIngestParameters
 from rdp.jobs.datasets.types import JsonObject
@@ -59,10 +59,13 @@ def lineage(value: Conversion, facts: JsonObject, stamp: ActorStamp) -> LineageR
         },
         robot_profile=None,
         parameters={
-            key: json.dumps(item, ensure_ascii=False)
-            if isinstance(item, (list, dict))
-            else cast(str | int | float | bool | None, item)
-            for key, item in record.parameters.items()
+            **{
+                key: json.dumps(item, ensure_ascii=False)
+                if isinstance(item, (list, dict))
+                else cast(str | int | float | bool | None, item)
+                for key, item in record.parameters.items()
+            },
+            **_cleaning_parameters(receipt),
         },
         job_id=record.job_id,
         started_at=record.started_at.strftime("%Y-%m-%dT%H:%M:%SZ") if record.started_at else None,
@@ -104,7 +107,11 @@ def build(
         }
     )
     probe = access(
-        "probe", value.root, f"暂存/转换/{value.record.job_id}/out", target, deps.paths.root
+        "probe",
+        value.root,
+        f"暂存/转换/{value.record.job_id}/{output_name(value)}",
+        target,
+        deps.paths.root,
     )
     if probe["target_exists"]:
         if parameters.target_subdir is not None:
@@ -113,7 +120,11 @@ def build(
         normalized = normalized.model_copy(update={"target_subdir": target})
         # 存放位置同样只按最终值判占用；仍通过有超时的隔离子进程读取存储根。
         probe = access(
-            "probe", value.root, f"暂存/转换/{value.record.job_id}/out", target, deps.paths.root
+            "probe",
+            value.root,
+            f"暂存/转换/{value.record.job_id}/{output_name(value)}",
+            target,
+            deps.paths.root,
         )
         occupied = occupied or bool(probe["target_exists"])
     result = _creation(deps, normalized, value, facts, checkpoint)
@@ -184,10 +195,27 @@ def _creation(
             "check": facts["report"],
             "move": {
                 "storage_root": value.root.name,
-                "stage": f"暂存/转换/{value.record.job_id}/out",
+                "stage": f"暂存/转换/{value.record.job_id}/{output_name(value)}",
                 "target": target,
                 "dev": facts["dev"],
                 "ino": facts["ino"],
             },
         },
     )
+
+
+def _cleaning_parameters(receipt: JsonObject) -> dict[str, str | int | float | bool | None]:
+    """清洗明细留在回执，血缘只写工单规定的六个标量，历史回执无此段时不补造。"""
+    cleaning = cast(JsonObject | None, receipt.get("cleaning"))
+    if cleaning is None:
+        return {}
+    excluded = cast(list[JsonObject], cleaning["excluded_episodes"])
+    files = cast(list[JsonObject], cleaning["excluded_files"])
+    return {
+        "cleaning_preview_job_id": cast(int, cleaning["cleaning_preview_job_id"]),
+        "cleaning_rules_sha256": str(cleaning["rules_sha256"]),
+        "cleaning_excluded_files": len(files),
+        "cleaning_excluded_episodes": ",".join(str(item["episode_index"]) for item in excluded),
+        "lerobot_version": cast(str | None, cleaning["lerobot_version"]),
+        "lerobot_fingerprint": cast(str | None, cleaning["lerobot_fingerprint"]),
+    }

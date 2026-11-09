@@ -38,8 +38,13 @@ def _failed(reason: str) -> CheckReport:
     )
 
 
-def _inspect(root: Path, identifier: str, version: str, valid: bool, scratch: Path) -> JsonObject:
+def _inspect(
+    root: Path, identifier: str, version: str, valid: bool, locations: tuple[Path, str]
+) -> JsonObject:
     """固定暂存目录描述符，先校验转换结果，再检查和写报告。"""
+    scratch, output_name = locations
+    if output_name not in ("out", "cleaned"):
+        raise ValueError("产物必须是本作业 out 或 cleaned")
     if not identifier.isdecimal() or int(identifier) < 1:
         raise ValueError("转换编号必须为正整数")
     # 转换可能在建立暂存之前失败；仍须落下直接不通过报告，不能继续读产物。
@@ -49,7 +54,7 @@ def _inspect(root: Path, identifier: str, version: str, valid: bool, scratch: Pa
         if not valid or receipt.get("exit_code") != 0:
             report = _failed("转换作业未成功或工具退出码不是0")
         else:
-            with _directory(fd, ("out",)) as output_fd:
+            with _directory(fd, (output_name,)) as output_fd:
                 # 检查器拒绝根软链接，chdir 到持有的真实目录可同时固定根身份。
                 os.fchdir(output_fd)
                 report = check(Path.cwd(), version, scratch)
@@ -100,7 +105,11 @@ if __name__ == "__main__":
     sys.stdout.write(
         json.dumps(
             _inspect(
-                Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4] == "1", Path(sys.argv[5])
+                Path(sys.argv[1]),
+                sys.argv[2],
+                sys.argv[3],
+                sys.argv[4] == "1",
+                (Path(sys.argv[5]), sys.argv[6]),
             )
         )
     )

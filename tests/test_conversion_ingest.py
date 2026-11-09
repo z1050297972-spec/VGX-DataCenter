@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 import pytest
 from conversion_workflow_support import conversion_case
@@ -74,8 +75,9 @@ def test_warning_check_is_persisted_and_waits_for_confirmation(
             assert (entry / "原始数据").readlink() == target
 
 
+@pytest.mark.parametrize("cleaned", [False, True])
 def test_pass_automatically_ingests_with_conversion_lineage(
-    tmp_path: Path, fake_nav: FakeNavigation
+    tmp_path: Path, fake_nav: FakeNavigation, cleaned: bool
 ) -> None:
     """验收2：自动入库保留输入分类、采用产物FPS，并写入两视图与血缘。"""
     from rdp.jobs.conversion.ingest_models import CHECK_TYPE
@@ -86,7 +88,7 @@ def test_pass_automatically_ingests_with_conversion_lineage(
         robot_model="Galaxea R1 Lite", scene=["室内", "桌面"], tasks=["收纳", "抓取"], fps=15
     )
     source_path.write_text(json.dumps(source_info, ensure_ascii=False))
-    with conversion_case(tmp_path, fake_nav) as (api, deps, stage):
+    with conversion_case(tmp_path, fake_nav, cleaned=cleaned) as (api, deps, stage):
         source_info = json.loads(source_path.read_text())
         output_info = json.loads((stage / "meta/info.json").read_text())
         # 输入帧率与产物不同，避免错误沿用输入FPS也能通过。
@@ -119,14 +121,27 @@ def test_pass_automatically_ingests_with_conversion_lineage(
             (fake_nav.nav_root / "按任务/EgoProDemo_lerobot/来源.json").read_text()
         )
         lineage = provenance["lineage"][0]
-        assert lineage["kind"] == "转换" and lineage["status"] == "完整"
-        assert lineage["recorded_by"]["kind"] == "worker"
-        assert lineage["job_id"] == 60
-        assert lineage["tool"]["binary_sha256"] == "f" * 64
-        assert lineage["config"]["text"] == "[robot]\nname = 'r1lite'\n"
-        assert lineage["outputs"][0]["source_id"]
-        assert lineage["outputs"][0]["format"] == "lerobot"
-        assert lineage["ingest_check"] == {"result": "通过", "warning_count": 0}
+        _assert_conversion_lineage(lineage)
+        if cleaned:
+            assert (stage.parent / "out/marker").read_text() == "原产物保留"
+            assert {
+                key: lineage["parameters"][key]
+                for key in (
+                    "cleaning_preview_job_id",
+                    "cleaning_rules_sha256",
+                    "cleaning_excluded_files",
+                    "cleaning_excluded_episodes",
+                    "lerobot_version",
+                    "lerobot_fingerprint",
+                )
+            } == {
+                "cleaning_preview_job_id": 59,
+                "cleaning_rules_sha256": "a" * 64,
+                "cleaning_excluded_files": 1,
+                "cleaning_excluded_episodes": "2",
+                "lerobot_version": "0.6.2",
+                "lerobot_fingerprint": "b" * 64,
+            }
 
 
 @pytest.mark.parametrize("collision", ["name", "location"])
@@ -234,9 +249,11 @@ def test_navigation_failure_restores_conversion(
 
 def test_conversion_completion_enqueues_one_check(tmp_path: Path, fake_nav: FakeNavigation) -> None:
     """验收2的触发入口：真实转换执行成功后，在终态事务中自动排队一次检查。"""
+    from conversion_cleaning_support import seed_preview
     from conversion_support import fake_converter, no_sandbox, settings, storage_checker
 
     from rdp.jobs.conversion.job import ConversionDependencies
+    from rdp.jobs.conversion.parameters import ConversionParameters
     from rdp.jobs.conversion.registration import register_conversion_jobs
 
     with conversion_case(tmp_path, fake_nav) as (api, deps, _stage):
@@ -254,15 +271,18 @@ def test_conversion_completion_enqueues_one_check(tmp_path: Path, fake_nav: Fake
         )
         registry = deps.service.registry
         register_conversion_jobs(registry, tools, deps.rescan.roots, conversion)
+        parameters = seed_preview(
+            api.engine,
+            files,
+            ConversionParameters(
+                dataset_id="dataset-35",
+                source_ids=["src_01e0bc7e9cc8"],
+                robot_model="Galaxea R1 Lite",
+                output_format="v3.0",
+            ),
+        )
         submitted = deps.service.submit_system(
-            "convert_mcap2lerobot",
-            {
-                "dataset_id": "dataset-35",
-                "source_ids": ["src_01e0bc7e9cc8"],
-                "robot_model": "Galaxea R1 Lite",
-                "output_format": "v3.0",
-            },
-            now=api.clock(),
+            "convert_mcap2lerobot", parameters.model_dump(mode="json"), now=api.clock()
         )
         result = run_queued(api, deps, str(submitted.job_id), registry=registry)
         assert result.summary is not None and not result.summary.aborted
@@ -272,3 +292,15 @@ def test_conversion_completion_enqueues_one_check(tmp_path: Path, fake_nav: Fake
         assert checks[0]["parameters"]["conversion_job_id"] == submitted.job_id
         assert checks[0]["parameters"]["automatic"] is True
         assert checks[0]["state"] == "queued"
+
+
+def _assert_conversion_lineage(lineage: dict[str, Any]) -> None:
+    """沿用 M4 原有血缘断言，不因选择 cleaned 而放宽转换来源要求。"""
+    assert lineage["kind"] == "转换" and lineage["status"] == "完整"
+    assert lineage["recorded_by"]["kind"] == "worker"
+    assert lineage["job_id"] == 60
+    assert lineage["tool"]["binary_sha256"] == "f" * 64
+    assert lineage["config"]["text"] == "[robot]\nname = 'r1lite'\n"
+    assert lineage["outputs"][0]["source_id"]
+    assert lineage["outputs"][0]["format"] == "lerobot"
+    assert lineage["ingest_check"] == {"result": "通过", "warning_count": 0}

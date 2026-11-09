@@ -24,7 +24,12 @@ CONVERSION_ID = 60
 
 @contextmanager
 def conversion_case(
-    root: Path, fake: FakeNavigation, *, warning: bool = False, input_name: str = "EgoProDemo"
+    root: Path,
+    fake: FakeNavigation,
+    *,
+    warning: bool = False,
+    input_name: str = "EgoProDemo",
+    cleaned: bool = False,
 ) -> Generator[tuple[ApiCase, NavWriteDependencies, Path]]:
     """成功转换记录配真实格式元信息及 tmp 生成的 parquet/视频。"""
     info_path = fake.nav_root / "按任务" / input_name / "数据集信息.json"
@@ -36,7 +41,11 @@ def conversion_case(
         case = DatasetCase(api.engine, deps.paths, replace(deps.rescan, roots=roots))
         enable_storage(case)
         deps = replace(deps, rescan=case.scanning)
-        stage = product(roots[0].path / "暂存/转换/60/out")
+        stage = product(roots[0].path / "暂存/转换/60" / ("cleaned" if cleaned else "out"))
+        if cleaned:
+            # 原转换产物刻意不完整；写死 out 的检查或移动会失败。
+            (stage.parent / "out").mkdir()
+            (stage.parent / "out/marker").write_text("原产物保留")
         if warning:
             info = json.loads((stage / "meta/info.json").read_text())
             info["vendor_extension"] = "future"
@@ -47,7 +56,7 @@ def conversion_case(
             "robot_model": "r1lite",
             "output_format": "v3.0",
         }
-        receipt = {
+        receipt: dict[str, object] = {
             "job_id": CONVERSION_ID,
             "tool": {
                 "name": "mcap2lerobot",
@@ -69,6 +78,24 @@ def conversion_case(
             ],
             "exit_code": 0,
         }
+        if cleaned:
+            receipt["cleaning"] = {
+                "cleaning_preview_job_id": 59,
+                "rules_sha256": "a" * 64,
+                "config_sha256": "c" * 64,
+                "excluded_files": [{"file_index": 0, "path": "a.mcap", "reason": "用户选择剔除"}],
+                "excluded_episodes": [
+                    {
+                        "file_index": 2,
+                        "segment_index": 0,
+                        "episode_index": 2,
+                        "reason": "用户选择剔除",
+                    }
+                ],
+                "lerobot_version": "0.6.2",
+                "lerobot_fingerprint": "b" * 64,
+                "command": [],
+            }
         (stage.parent / "转换回执.json").write_text(json.dumps(receipt))
         with session_scope(api.engine) as session:
             row = job_row(JobState.COMPLETED, job_id=CONVERSION_ID)
@@ -77,7 +104,18 @@ def conversion_case(
             row.outcome = "succeeded"
             row.failed_items = row.warning_count = 0
             assert row.progress is not None and row.summary is not None
-            row.progress = {**row.progress, "failed_items": 0, "warning_count": 0}
+            progress: dict[str, object] = {**row.progress, "failed_items": 0, "warning_count": 0}
+            if cleaned:
+                metadata = json.loads((stage / "meta/info.json").read_text())
+                progress["conversion"] = {
+                    "output_path": str(stage),
+                    **{
+                        key: metadata[key]
+                        for key in ("total_episodes", "total_frames", "codebase_version")
+                    },
+                }
+                row.parameters = {**parameters, "cleaning_preview_job_id": 59}
+            row.progress = progress
             row.summary = {
                 **row.summary,
                 "outcome": "succeeded",

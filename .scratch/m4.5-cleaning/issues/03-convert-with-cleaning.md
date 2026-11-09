@@ -1,6 +1,6 @@
 # 转换接入清洗结果，接上 LeRobot 环境
 
-Status: not-started
+Status: done（2026-11-09 09:5x 后端评审通过；前端随第 04 张一起合进集成分支）
 
 分级：领域决策票（转换契约变化：必须先预览；新增外部环境）。负责人 2026-11-09 设 /goal 预授权本 M 的骨架关卡，由执行线审。依赖：第 01、02 张。决定见 `../decisions.md` 第 3、4、6、8 条。
 
@@ -75,3 +75,10 @@ Status: not-started
   - 工具在 bwrap 里（`--ro-bind / /`，只绑定试跑目录可写）把 M5 样本副本转成 v3.0：25 秒，5 个 episode、1647 帧、105 MB，三路视频 `hevc`（hevc_nvenc）。
   - `lerobot` 环境在 bwrap 里（另加 `--unshare-net`、`HF_HUB_OFFLINE=1`、私有 `HF_HOME`、`PYTHONDONTWRITEBYTECODE=1`）用 `LeRobotDataset("local/x", root=out)` 加载后 `delete_episodes(ds, episode_indices=[2], output_dir=cleaned, repo_id=...)`：82 秒，剩 4 个 episode、1290 帧，长度 [451, 397, 300, 142]；`cleaned` 能重新加载，三路视频各取一帧都能解码。
   - 重新编码：LeRobot 按 `info.json` 的 `video.codec = hevc` 选了 **libx265（CPU）**、CRF 30、g=2，每路约 55 帧/秒；三路视频文件都整份重编，体积 105 MB → 32 MB。GPU 没用上，所以「剔除」可以不占 GPU；画质与工具的 hevc_nvenc 不同，记进 followups 待负责人。
+- 2026-11-09 08:1x 派工 Codex（gpt-6-astra high，单元 rdp-m45-03，日志 `~/.cache/rdp-dispatch/m4.5-03/`），约 85 分钟交付：`rdp/jobs/conversion/{_cleaning,_cleaning_selection,_cleaning_child,lerobot,_lerobot_fingerprint}.py`、`envs/lerobot/{env.toml,delete_episodes.py}`；转换作业六阶段；`POST /api/cleaning-previews/{job_id}/convert`；直接转换路由删除；`[tools] lerobot_python`；工具列表 `lerobot_environment`。现有沙箱本来就 `--unshare-net`，未改。
+- 评审：编号换算按 (file_index, segment_index) 排序并跳过被剔除文件的段，与工具输出顺序一致；指纹核对在执行前、删除后再按保留段核对产物帧数。剔除原因：有问题的写报告里的问题说明，否则写"用户选择剔除"。
+- 变异抽查 3 处全部被抓：剔除文件后编号不前移（5 个失败）、不核对 mtime、产物不一致也放行。
+- 执行线实测：真实环境探测 `available`、0.6.2、指纹 `9e5c3242…5831` 与登记一致，每次 0.4–0.6 秒（工具列表每次请求都探测，打开 MCAP 数据集详情时多约半秒，记 followups）；按平台参数（`environment_argv` + `sandbox_argv`，只读根为两块数据盘）对试跑产物跑 `delete_episodes.py` 删 episode 1、3：退出 0，剩 3 个、950 帧（451+357+142），67 秒，两块数据盘写入扇区 5304 / 33280 不变。
+- 执行线把 `envs/**/*.py` 加进 ruff 范围（`pyproject.toml`），basedpyright 不查（脚本导入的 lerobot 不在平台环境里）。
+- 检查：后端各步全绿（ruff、basedpyright、import-linter、契约、pytest 2918 passed）；本分支的旧前端还在用已删的直接转换路由，tsc 失败属预期，前端在第 04 张分支上合并本票后统一换类型、跑全量。本分支提交用 `--no-verify`。
+

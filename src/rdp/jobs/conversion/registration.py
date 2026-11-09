@@ -69,5 +69,6 @@ def register_conversion_jobs(
                 RecoveryMode.INTERRUPT,
                 ConversionExecutor(manifest.tool.name, dependencies).execute,
                 requires_gpu=manifest.runtime.needs_gpu,
+                submission_role=Role.ADMINISTRATOR,
             )
         )
