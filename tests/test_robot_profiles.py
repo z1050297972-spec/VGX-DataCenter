@@ -66,6 +66,15 @@ def test_member_reads_profiles_and_paired_joint_sources(tmp_path: Path) -> None:
             "wrist_left",
             "wrist_right",
         }
+        cameras = {camera["name"]: camera for camera in response.json()["camera"]}
+        assert (cameras["head_left"]["stereo_eye"], cameras["head_left"]["stereo_partner"]) == (
+            "left",
+            "head_right",
+        )
+        assert (cameras["head_right"]["stereo_eye"], cameras["head_right"]["stereo_partner"]) == (
+            "right",
+            "head_left",
+        )
         assert case.client.get("/api/robot-profiles/autolife").status_code == 200
 
 
@@ -98,3 +107,38 @@ def test_find_profile_by_registered_model() -> None:
     profile = find_profile_by_model(profiles, "Galaxea R1 Lite")
     assert profile is not None and profile.profile == "r1lite"
     assert find_profile_by_model(profiles, "unknown-model") is None
+
+
+@pytest.mark.parametrize(
+    ("left", "right"),
+    [
+        (
+            'stereo_eye = "left"\nstereo_partner = "missing"',
+            'stereo_eye = "right"\nstereo_partner = "left"',
+        ),
+        (
+            'stereo_eye = "left"\nstereo_partner = "right"',
+            'stereo_eye = "left"\nstereo_partner = "left"',
+        ),
+        (
+            'stereo_eye = "left"\nstereo_partner = "right"',
+            'stereo_eye = "right"\nstereo_partner = "missing"',
+        ),
+        ('stereo_eye = "left"', ""),
+        ('stereo_partner = "right"', ""),
+    ],
+    ids=["missing-partner", "same-eye", "not-reciprocal", "eye-only", "partner-only"],
+)
+def test_stereo_pair_requires_existing_opposite_reciprocal_camera(
+    tmp_path: Path, left: str, right: str
+) -> None:
+    """双目事实契约：字段成对出现，伙伴存在、目别相反且互相指回，否则拒绝加载。"""
+    source = (PROFILES / "r1lite.toml").read_text(encoding="utf-8").split("[[camera]]", 1)[0]
+    path = tmp_path / "stereo.toml"
+    path.write_text(
+        source + f'[[camera]]\nname = "left"\n{left}\n[[camera]]\nname = "right"\n{right}\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(InputError) as caught:
+        load_robot_profiles(tmp_path)
+    assert "双目" in caught.value.diagnostics[0].actual

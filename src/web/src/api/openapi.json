@@ -6021,7 +6021,7 @@
       },
       "ProfileCamera": {
         "additionalProperties": false,
-        "description": "相机事实；话题与共享内存来源不同时指定，不访问对应地址或路径。\n\nAttributes:\n    name: 相机名，非空，同一 Profile 内唯一。\n    topic: 图像话题，以 / 开头；没有 ROS 图像话题时省略。\n    source: 非 ROS 来源描述，如 shm:路径；具体来源未知时省略。\n    message_type: ROS 消息类型；非 ROS 相机不适用。\n    encoding: 原始或压缩编码；省略表示未知。\n    resolution: [宽, 高]，两个正整数，单位像素；省略表示未知。\n    rate_hz: 标称帧率，有限正数，单位 Hz；省略表示未知。\n    stamp: 时间戳来源，header 或 receive；省略表示未知。\n    stamp_trusted: 时间戳是否可信；省略表示未确认。\n    trigger: 触发方式描述；省略表示未确认，不用于对齐。",
+        "description": "相机事实；话题与共享内存来源不同时指定，不访问对应地址或路径。\n\nAttributes:\n    name: 相机名，非空，同一 Profile 内唯一。\n    topic: 图像话题，以 / 开头；没有 ROS 图像话题时省略。\n    source: 非 ROS 来源描述，如 shm:路径；具体来源未知时省略。\n    message_type: ROS 消息类型；非 ROS 相机不适用。\n    encoding: 原始或压缩编码；省略表示未知。\n    resolution: [宽, 高]，两个正整数，单位像素；省略表示未知。\n    rate_hz: 标称帧率，有限正数，单位 Hz；省略表示未知。\n    stamp: 时间戳来源，header 或 receive；省略表示未知。\n    stamp_trusted: 时间戳是否可信；省略表示未确认。\n    trigger: 触发方式描述；省略表示未确认，不用于对齐。\n    stereo_eye: 双目的 left 或 right；与 stereo_partner 同时提供，省略表示未声明双目。\n    stereo_partner: 同一 Profile 内另一目的相机名；必须目别相反且相互指回。",
         "properties": {
           "encoding": {
             "anyOf": [
@@ -6107,6 +6107,31 @@
               }
             ],
             "title": "Stamp Trusted"
+          },
+          "stereo_eye": {
+            "anyOf": [
+              {
+                "enum": [
+                  "left",
+                  "right"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stereo Eye"
+          },
+          "stereo_partner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "topic": {
             "anyOf": [

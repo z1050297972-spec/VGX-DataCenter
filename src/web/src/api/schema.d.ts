@@ -7032,6 +7032,8 @@ export interface components {
          *         stamp: 时间戳来源，header 或 receive；省略表示未知。
          *         stamp_trusted: 时间戳是否可信；省略表示未确认。
          *         trigger: 触发方式描述；省略表示未确认，不用于对齐。
+         *         stereo_eye: 双目的 left 或 right；与 stereo_partner 同时提供，省略表示未声明双目。
+         *         stereo_partner: 同一 Profile 内另一目的相机名；必须目别相反且相互指回。
          */
         ProfileCamera: {
             encoding?: components["schemas"]["ProfileText"] | null;
@@ -7045,6 +7047,9 @@ export interface components {
             stamp?: ("header" | "receive") | null;
             /** Stamp Trusted */
             stamp_trusted?: boolean | null;
+            /** Stereo Eye */
+            stereo_eye?: ("left" | "right") | null;
+            stereo_partner?: components["schemas"]["ProfileText"] | null;
             /** Topic */
             topic?: string | null;
             trigger?: components["schemas"]["ProfileText"] | null;

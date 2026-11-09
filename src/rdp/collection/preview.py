@@ -52,9 +52,9 @@ def build_preview_layout(profile: RobotProfile) -> dict[str, JsonValue]:
 
     Returns:
         可直接由 Lichtblick 1.30.0 layoutUrl 导入的裸 JSON，面板顺序为相机再关节。
-        每个相机一个 Image；只为观测及已知目标均采用 JointState.position 的组生成 Plot。
+        每个非双目右目的相机一个 Image；只为观测及已知目标均采用 JointState.position 的组生成 Plot。
         无目标或目标未知时只画观测；默认启用每组索引 0，其他索引保留为关闭。
-        未知单位写“单位未确认”；没有面板时 layout 为 null。
+        已知单位的轴标签写 position (单位)，未知单位写“单位未确认”；没有面板时 layout 为 null。
 
     Raises:
         无。
@@ -68,6 +68,9 @@ def build_preview_layout(profile: RobotProfile) -> dict[str, JsonValue]:
     """
     panels: dict[str, JsonValue] = {}
     for camera in profile.camera:
+        # M5-04 补充：右目仍保留在 Profile 供其他用途读取，默认预览只显示左目。
+        if camera.stereo_eye == "right":
+            continue
         panels[f"Image!{camera.name}"] = {
             "lichtblickPanelTitle": camera.name,
             "imageMode": {
@@ -122,7 +125,7 @@ def _plot(group: JointGroup) -> dict[str, JsonValue]:
         "isSynced": True,
         "xAxisVal": "timestamp",
         "followingViewWidth": FOLLOWING_VIEW_WIDTH_S,
-        "yAxisLabel": group.unit or "单位未确认",
+        "yAxisLabel": f"position ({group.unit})" if group.unit is not None else "单位未确认",
         "xAxisLabel": "接收时间（秒）",
     }
 

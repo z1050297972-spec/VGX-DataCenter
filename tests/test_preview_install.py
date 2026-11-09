@@ -20,7 +20,14 @@ def _archive(path: Path, *, unsafe: bool = False) -> str:
     """只造可区分安装行为的小包；固定内容不依赖发布包或系统文件。"""
     with tarfile.open(path, "w:gz") as archive:
         for name, data in (
-            ("index.html", b"<html>Lichtblick test</html>"),
+            (
+                "index.html",
+                (
+                    "<html>Lichtblick test<script>\nwindow.viewerReady = true;\n</script>"
+                    '<script>window.decoderMode = "本机 &amp; 数据";</script>'
+                    '<script src="./bundle.js">忽略外链脚本内容</script></html>'
+                ).encode(),
+            ),
             ("decoder.wasm", b"\x00asm"),
             ("bundle.js.map", b"{}"),
             ("../escape" if unsafe else "bundle.js", b"test"),
@@ -59,7 +66,7 @@ def test_install_rejects_package_without_writing(
 def test_installed_viewer_is_authenticated_and_served_with_csp(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """验收 1：安装可重入，去掉 map；登录后 HTML/WASM 可读且有离线 CSP，无 X-Frame-Options。"""
+    """验收 1/CSP 修复：安装可重入；授权内嵌脚本及解码所需能力，仍拦外网，无 X-Frame-Options。"""
     inputs = runtime_inputs(tmp_path / "deploy", migrated=False)
     package = tmp_path / "lichtblick-web.tar.gz"
     monkeypatch.setattr(lichtblick, "LICHTBLICK_SHA256", _archive(package))
@@ -85,7 +92,20 @@ def test_installed_viewer_is_authenticated_and_served_with_csp(
         assert response.status_code == 200
         assert "Lichtblick test" in response.text
         assert "x-frame-options" not in response.headers
-        assert "connect-src 'self' ws:" in response.headers["content-security-policy"]
+        directives = {
+            parts[0]: set(parts[1:])
+            for directive in response.headers["content-security-policy"].split(";")
+            if (parts := directive.split())
+        }
+        # 用 openssl 对夹具中的两段原文独立求摘要；空白、中文和 &amp; 都属于脚本文本。
+        assert directives["script-src"] == {
+            "'self'",
+            "'wasm-unsafe-eval'",
+            "'unsafe-eval'",
+            "'sha256-edqOxiurEVM1IK8WaOF/8YOPlG/2W/u8XrDH2x9kXHI='",
+            "'sha256-qJ7sSXGixwl15sf35NjZ9TTK/9BDAGMFLcX4q/FCkto='",
+        }
+        assert directives["connect-src"] == {"'self'", "ws:", "blob:", "data:"}
         response = case.client.get("/lichtblick/decoder.wasm")
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/wasm"
