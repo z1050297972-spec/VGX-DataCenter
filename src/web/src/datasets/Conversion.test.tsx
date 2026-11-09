@@ -7,7 +7,7 @@ import { datasetFetch, detail, taskEntry } from "./testSupport";
 import type { DatasetDetail } from "../api/datasets";
 import type { ToolList } from "../api/tools";
 
-it("mcap且型号匹配时可转换，默认型号、格式和全部mcap数据块提交后跳到作业详情", async () => {
+it("mcap且型号匹配时可转换，默认型号、格式和全部mcap数据块及用户空间参数提交后跳到作业详情", async () => {
   const requests: Request[] = [];
   const fallback = datasetFetch(requests);
   const information = {
@@ -78,6 +78,11 @@ it("mcap且型号匹配时可转换，默认型号、格式和全部mcap数据�
     expect(within(dialog).getByText("工具状态：可用")).toBeTruthy();
     expect(within(dialog).getByLabelText("recording-a")).toHaveProperty("checked", true);
     expect(within(dialog).getByLabelText("recording-b")).toHaveProperty("checked", true);
+    // M4-07：空间预检参数必须随真实表单请求发送，不能丢失用户设置的小数偏置。
+    expect(within(dialog).getByLabelText("百分比（%）")).toHaveProperty("value", "25");
+    expect(within(dialog).getByLabelText("偏置（GiB）")).toHaveProperty("value", "1");
+    fireEvent.change(within(dialog).getByLabelText("百分比（%）"), { target: { value: "200" } });
+    fireEvent.change(within(dialog).getByLabelText("偏置（GiB）"), { target: { value: "2.5" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "提交转换" }));
     await waitFor(() => {
       expect(page.router.state.location.pathname).toBe(`/jobs/${job.job_id}`);
@@ -90,6 +95,8 @@ it("mcap且型号匹配时可转换，默认型号、格式和全部mcap数据�
       source_ids: ["recording-a", "recording-b"],
       robot_model: "Galaxea R1 Lite",
       output_format: "v3.0",
+      space_ratio_percent: 200,
+      space_reserve_gib: 2.5,
     });
   } finally {
     page.close();

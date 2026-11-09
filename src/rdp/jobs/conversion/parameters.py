@@ -28,6 +28,8 @@ class ConversionParameters(BaseModel):
         source_ids: 按命令顺序排列的1至200个不同数据块编号。
         robot_model: 工具清单中的型号配置键，非空。
         output_format: 输出版本；None由工具模型替换成清单首项。
+        space_ratio_percent: 空间估算百分比，整数0至1000，默认25。
+        space_reserve_gib: 空间预留偏置，0至1024 GiB，默认1。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
@@ -35,6 +37,10 @@ class ConversionParameters(BaseModel):
     source_ids: list[str] = Field(min_length=1, max_length=MAX_CONVERSION_SOURCES)
     robot_model: str = Field(min_length=1)
     output_format: str | None = None
+    # M4-07实测产物/输入约0.13，默认25%约为两倍；用户可按实际编码参数调整。
+    space_ratio_percent: int = Field(default=25, strict=True, ge=0, le=1000)
+    # M4-07沿用M2的1 GiB默认余量，旧作业未保存参数时仍取此默认值。
+    space_reserve_gib: float = Field(default=1, ge=0, le=1024)
 
     @model_validator(mode="after")
     def _unique_sources(self) -> Self:

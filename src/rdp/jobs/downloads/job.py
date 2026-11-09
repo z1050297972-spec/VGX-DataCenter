@@ -78,6 +78,8 @@ class DownloadParameters(BaseModel):
         max_overall_download_limit_bytes_per_s: 总速率，0 不限或 1024 至 10 GiB/s。
         max_tries: 最大尝试次数，1-20，默认 5。
         retry_wait_s: 重试间隔，0-600 秒，默认 10 秒。
+        space_ratio_percent: 待下载量的空间估算百分比，整数0至1000，默认100。
+        space_reserve_gib: 空间预留偏置，0至1024 GiB，默认1。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
@@ -97,6 +99,9 @@ class DownloadParameters(BaseModel):
     max_overall_download_limit_bytes_per_s: DownloadLimit = 0
     max_tries: int = Field(default=5, strict=True, ge=1, le=20)
     retry_wait_s: int = Field(default=10, strict=True, ge=0, le=600)
+    # M4-07：默认100%加1 GiB保持旧作业的容量策略，用户可填写估算比例与偏置。
+    space_ratio_percent: int = Field(default=100, strict=True, ge=0, le=1000)
+    space_reserve_gib: float = Field(default=1, ge=0, le=1024)
 
 
 class DownloadAdjustment(BaseModel):
@@ -582,6 +587,8 @@ def request_from_parameters(parameters: DownloadParameters) -> DownloadRequest:
         exclude_video=parameters.exclude_video,
         exclude_cameras=parameters.exclude_cameras,
         target_subdir=parameters.target_subdir,
+        space_ratio_percent=parameters.space_ratio_percent,
+        space_reserve_gib=parameters.space_reserve_gib,
     )
 
 

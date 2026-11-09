@@ -898,7 +898,7 @@
       },
       "ConversionParameters": {
         "additionalProperties": false,
-        "description": "用户选择的转换输入；输出版本由工具专属模型补默认值。\n\nAttributes:\n    dataset_id: 已索引的数据集永久编号，非空。\n    source_ids: 按命令顺序排列的1至200个不同数据块编号。\n    robot_model: 工具清单中的型号配置键，非空。\n    output_format: 输出版本；None由工具模型替换成清单首项。",
+        "description": "用户选择的转换输入；输出版本由工具专属模型补默认值。\n\nAttributes:\n    dataset_id: 已索引的数据集永久编号，非空。\n    source_ids: 按命令顺序排列的1至200个不同数据块编号。\n    robot_model: 工具清单中的型号配置键，非空。\n    output_format: 输出版本；None由工具模型替换成清单首项。\n    space_ratio_percent: 空间估算百分比，整数0至1000，默认25。\n    space_reserve_gib: 空间预留偏置，0至1024 GiB，默认1。",
         "properties": {
           "dataset_id": {
             "minLength": 1,
@@ -929,6 +929,20 @@
             "minItems": 1,
             "title": "Source Ids",
             "type": "array"
+          },
+          "space_ratio_percent": {
+            "default": 25,
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Space Ratio Percent",
+            "type": "integer"
+          },
+          "space_reserve_gib": {
+            "default": 1,
+            "maximum": 1024.0,
+            "minimum": 0.0,
+            "title": "Space Reserve Gib",
+            "type": "number"
           }
         },
         "required": [
@@ -2719,7 +2733,7 @@
       },
       "DownloadParameters": {
         "additionalProperties": false,
-        "description": "可持久化的下载请求与 aria2 参数；凭据不属于请求，也不能通过额外字段注入。\n\nAttributes:\n    repo_type: dataset 或 model。\n    repo_id: 命名空间/仓库名。\n    revision: 非空版本，具体合法性由下载计划检查。\n    storage_root: 已登记可写存储根名称。\n    include: 包含模式，空表示全部。\n    exclude: 排除模式，优先于 include。\n    exclude_video: 排除全部视频。\n    exclude_cameras: 排除的视频相机键。\n    target_subdir: 模型目标相对路径；数据集必须为 None，由计划校验。\n    max_concurrent_downloads: 同时下载文件数，1-16，默认 4。\n    max_connection_per_server: 每服务器连接数，1-16，默认 4。\n    split: 每文件分段数，1-16，默认 4。\n    min_split_size_bytes: 最小分段大小，1 MiB-1 GiB，默认 20 MiB。\n    max_overall_download_limit_bytes_per_s: 总速率，0 不限或 1024 至 10 GiB/s。\n    max_tries: 最大尝试次数，1-20，默认 5。\n    retry_wait_s: 重试间隔，0-600 秒，默认 10 秒。",
+        "description": "可持久化的下载请求与 aria2 参数；凭据不属于请求，也不能通过额外字段注入。\n\nAttributes:\n    repo_type: dataset 或 model。\n    repo_id: 命名空间/仓库名。\n    revision: 非空版本，具体合法性由下载计划检查。\n    storage_root: 已登记可写存储根名称。\n    include: 包含模式，空表示全部。\n    exclude: 排除模式，优先于 include。\n    exclude_video: 排除全部视频。\n    exclude_cameras: 排除的视频相机键。\n    target_subdir: 模型目标相对路径；数据集必须为 None，由计划校验。\n    max_concurrent_downloads: 同时下载文件数，1-16，默认 4。\n    max_connection_per_server: 每服务器连接数，1-16，默认 4。\n    split: 每文件分段数，1-16，默认 4。\n    min_split_size_bytes: 最小分段大小，1 MiB-1 GiB，默认 20 MiB。\n    max_overall_download_limit_bytes_per_s: 总速率，0 不限或 1024 至 10 GiB/s。\n    max_tries: 最大尝试次数，1-20，默认 5。\n    retry_wait_s: 重试间隔，0-600 秒，默认 10 秒。\n    space_ratio_percent: 待下载量的空间估算百分比，整数0至1000，默认100。\n    space_reserve_gib: 空间预留偏置，0至1024 GiB，默认1。",
         "properties": {
           "exclude": {
             "default": [],
@@ -2818,6 +2832,20 @@
             "minLength": 1,
             "title": "Revision",
             "type": "string"
+          },
+          "space_ratio_percent": {
+            "default": 100,
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Space Ratio Percent",
+            "type": "integer"
+          },
+          "space_reserve_gib": {
+            "default": 1,
+            "maximum": 1024.0,
+            "minimum": 0.0,
+            "title": "Space Reserve Gib",
+            "type": "number"
           },
           "split": {
             "default": 4,
