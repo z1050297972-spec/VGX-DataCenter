@@ -44,3 +44,4 @@ Status: in-progress
 ## Comments
 
 - 2026-11-09 开票（执行线），M5 第一批，与 02 并行。
+- 2026-11-09 01:51 派工（执行线）：工作目录 `robot-data-platform.wt/m5-01-*`，Codex gpt-6-astra high，systemd 单元 `rdp-m5-01`，日志 `~/.cache/rdp-dispatch/m5-01/`。同时并行：另一张实现票和一份联网调研（Lichtblick 自托管、机器人侧组件，`~/.cache/rdp-dispatch/m5-research/`）。
