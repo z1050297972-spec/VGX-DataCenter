@@ -3587,6 +3587,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/robot-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Robot Profiles
+         * @description 向登录账号返回说明档摘要和未知事实数量。
+         *
+         *     Args:
+         *         profiles: 已认证请求取得的启动快照，按文件名排序。
+         *
+         *     Returns:
+         *         所有说明档的身份和未知项计数，保持快照顺序，允许空列表。
+         *
+         *     Raises:
+         *         DefectError: 应用未装配说明档，由依赖报告程序缺陷。
+         *
+         *     Side Effects:
+         *         无；仅读内存，不连接机器人或读取磁盘。
+         *
+         *     Time Semantics:
+         *         返回进程启动时的事实版本；不声称是机器人实时状态。
+         */
+        get: operations["list_robot_profiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/robot-profiles/{profile}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Robot Profile
+         * @description 向登录账号返回指定说明档的结构化全文。
+         *
+         *     Args:
+         *         profile: 说明档标识，只在内存中精确匹配，不解释为路径。
+         *         profiles: 当前应用启动时读取的快照。
+         *
+         *     Returns:
+         *         说明档的已知事实；未知值省略，明确无目标保留 none=true。
+         *
+         *     Raises:
+         *         _ProfileNotFoundError: 标识不在快照中，返回统一 404 诊断。
+         *         DefectError: 应用漏装配说明档，由依赖报告。
+         *
+         *     Side Effects:
+         *         无；不读文件，不执行就绪检查。
+         *
+         *     Time Semantics:
+         *         与列表共用同一启动快照；无轮询或网络等待。
+         */
+        get: operations["get_robot_profile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/robots": {
         parameters: {
             query?: never;
@@ -6078,6 +6150,59 @@ export interface components {
             /** Warning Count */
             warning_count: number;
         };
+        /**
+         * JointGroup
+         * @description 目标与观测共享名字、顺序、维数和单位的关节组。
+         *
+         *     Attributes:
+         *         name: 组名，非空，同一 Profile 内唯一。
+         *         joints: 按来源数组顺序排列的非空关节名列表；未知时省略。
+         *         joint_count: 名字未知时记录的正整数维数，与 joints 二选一。
+         *         unit: 位置值的物理单位；省略表示未知，不按数值猜测。
+         *         observation: 必填的观测来源。
+         *         target: 目标来源或明确的无目标；省略表示目标未知。
+         */
+        JointGroup: {
+            joint_count?: components["schemas"]["PositiveCount"] | null;
+            /** Joints */
+            joints?: components["schemas"]["ProfileText"][] | null;
+            name: components["schemas"]["ProfileText"];
+            observation: components["schemas"]["JointSource"];
+            /** Target */
+            target?: components["schemas"]["JointSource"] | components["schemas"]["NoTarget"] | null;
+            unit?: components["schemas"]["ProfileText"] | null;
+        };
+        /**
+         * JointSource
+         * @description 一个关节组的数据来源，省略的事实等待补测。
+         *
+         *     Attributes:
+         *         topic: ROS 话题绝对名称，以 / 开头。
+         *         message_type: 话题消息类型，非空文本；省略表示未知。
+         *         extract: 数组取法，如 JointState.position 或 json:字段路径；
+         *             也可用非空路径列表逐项提取标量，顺序等于关节顺序；省略表示未知。
+         *         rate_hz: 标称频率，有限正数，单位 Hz；不是运行时最低频率保证。
+         *         stamp: 时间戳来源，header 或 receive；省略表示未知。
+         *         stamp_trusted: 时间戳是否可信，省略表示未确认；false 不替调用方选择对齐策略。
+         *         may_be_silent: 已知在空闲时可能不发消息，默认 false，不代表存活保证。
+         */
+        JointSource: {
+            /** Extract */
+            extract?: components["schemas"]["ProfileText"] | components["schemas"]["ProfileText"][] | null;
+            /**
+             * May Be Silent
+             * @default false
+             */
+            may_be_silent: boolean;
+            message_type?: components["schemas"]["ProfileText"] | null;
+            rate_hz?: components["schemas"]["RateHz"] | null;
+            /** Stamp */
+            stamp?: ("header" | "receive") | null;
+            /** Stamp Trusted */
+            stamp_trusted?: boolean | null;
+            /** Topic */
+            topic: string;
+        };
         JsonValue: unknown;
         /**
          * LayoutRequest
@@ -6518,6 +6643,20 @@ export interface components {
             report: components["schemas"]["PlanReport"];
         };
         /**
+         * NoTarget
+         * @description 确认没有目标的组；不能用来表示目标尚未补测。
+         *
+         *     Attributes:
+         *         none: 只能为 true，表示事实上的无目标。
+         */
+        NoTarget: {
+            /**
+             * None
+             * @constant
+             */
+            none: true;
+        };
+        /**
          * ObjectResponse
          * @description 对象的历史名字，保留给未来撤回功能定位。
          *
@@ -6722,6 +6861,7 @@ export interface components {
             /** Repoint Changes */
             repoint_changes?: components["schemas"]["ListedChange"][] | null;
         };
+        PositiveCount: number;
         /**
          * PreviewNotice
          * @description 预览里需要提醒用户的一条说明或拒绝理由，字段对应诊断的五段内容。
@@ -6801,6 +6941,39 @@ export interface components {
             type: "about:blank";
         };
         /**
+         * ProfileCamera
+         * @description 相机事实；话题与共享内存来源不同时指定，不访问对应地址或路径。
+         *
+         *     Attributes:
+         *         name: 相机名，非空，同一 Profile 内唯一。
+         *         topic: 图像话题，以 / 开头；没有 ROS 图像话题时省略。
+         *         source: 非 ROS 来源描述，如 shm:路径；具体来源未知时省略。
+         *         message_type: ROS 消息类型；非 ROS 相机不适用。
+         *         encoding: 原始或压缩编码；省略表示未知。
+         *         resolution: [宽, 高]，两个正整数，单位像素；省略表示未知。
+         *         rate_hz: 标称帧率，有限正数，单位 Hz；省略表示未知。
+         *         stamp: 时间戳来源，header 或 receive；省略表示未知。
+         *         stamp_trusted: 时间戳是否可信；省略表示未确认。
+         *         trigger: 触发方式描述；省略表示未确认，不用于对齐。
+         */
+        ProfileCamera: {
+            encoding?: components["schemas"]["ProfileText"] | null;
+            message_type?: components["schemas"]["ProfileText"] | null;
+            name: components["schemas"]["ProfileText"];
+            rate_hz?: components["schemas"]["RateHz"] | null;
+            /** Resolution */
+            resolution?: components["schemas"]["PositiveCount"][] | null;
+            source?: components["schemas"]["ProfileText"] | null;
+            /** Stamp */
+            stamp?: ("header" | "receive") | null;
+            /** Stamp Trusted */
+            stamp_trusted?: boolean | null;
+            /** Topic */
+            topic?: string | null;
+            trigger?: components["schemas"]["ProfileText"] | null;
+        };
+        ProfileText: string;
+        /**
          * ProgressPart
          * @description 工具一个特征的独立完成计数（M4-02），不参与作业条目成败计算。
          *
@@ -6876,6 +7049,25 @@ export interface components {
             dataset_ids: string[];
             /** Job Id */
             job_id: string;
+        };
+        RateHz: number;
+        /**
+         * ReadinessCondition
+         * @description 加入 ROS 图前的事实条件，不在读取时执行检查。
+         *
+         *     Attributes:
+         *         check: 条件类型，address_present 或 run_on_robot。
+         *         value: 要求的地址；run_on_robot 无参数时省略。
+         *         reason: 条件的原因，非空文本，不含凭据或命令。
+         */
+        ReadinessCondition: {
+            /**
+             * Check
+             * @enum {string}
+             */
+            check: "address_present" | "run_on_robot";
+            reason: components["schemas"]["ProfileText"];
+            value?: components["schemas"]["ProfileText"] | null;
         };
         /**
          * RecoveryBlockResponse
@@ -7042,6 +7234,63 @@ export interface components {
             mac: string;
         };
         /**
+         * RobotProfile
+         * @description 按型号共用的版本化事实说明；不含单台机器人凭据或工具算法参数。
+         *
+         *     Attributes:
+         *         profile: 稳定标识，小写字母、数字、下划线或连字符，以字母开头。
+         *         version: 说明档版本，正整数；更改事实后由评审升级。
+         *         model: 与机器人登记和数据集 robot_model 相同的非空文字。
+         *         robot_type_labels: 数据里的型号标签；省略表示未知，空列表表示确认没有标签。
+         *         ros: ROS 图和就绪条件。
+         *         joint_group: 按文件顺序的关节组，可为空。
+         *         camera: 按文件顺序的相机，可为空。
+         */
+        RobotProfile: {
+            /** Camera */
+            camera: components["schemas"]["ProfileCamera"][];
+            /** Joint Group */
+            joint_group: components["schemas"]["JointGroup"][];
+            model: components["schemas"]["ProfileText"];
+            /** Profile */
+            profile: string;
+            /** Robot Type Labels */
+            robot_type_labels?: components["schemas"]["ProfileText"][] | null;
+            ros: components["schemas"]["RosGraph"];
+            version: components["schemas"]["PositiveCount"];
+        };
+        /**
+         * RobotProfileList
+         * @description 说明档列表响应。
+         *
+         *     Attributes:
+         *         items: 按部署文件名排序的摘要，可为空。
+         */
+        RobotProfileList: {
+            /** Items */
+            items: components["schemas"]["RobotProfileSummary"][];
+        };
+        /**
+         * RobotProfileSummary
+         * @description 说明档列表的一行，不复制机器人连接信息。
+         *
+         *     Attributes:
+         *         profile: 说明档稳定标识。
+         *         version: 正整数事实版本号。
+         *         model: 机器人型号字符串。
+         *         unknown_count: 未确认事实的数量，非负，关节名按组记一项。
+         */
+        RobotProfileSummary: {
+            /** Model */
+            model: string;
+            /** Profile */
+            profile: string;
+            /** Unknown Count */
+            unknown_count: number;
+            /** Version */
+            version: number;
+        };
+        /**
          * RobotResponse
          * @description 机器人完整登记响应，robot_id 是工单约定的整数。
          */
@@ -7108,6 +7357,36 @@ export interface components {
          */
         RoleRequest: {
             role: components["schemas"]["Role"];
+        };
+        /**
+         * RosGraph
+         * @description ROS 图的加入方式，仅保存事实，不执行 shell 或连接 DDS。
+         *
+         *     Attributes:
+         *         distro: ROS 发行版，非空文本。
+         *         rmw: RMW 实现名称，非空文本。
+         *         domain_id: DDS 域编号，非负整数；省略表示未知。
+         *         discovery: 发现方式，非空文本。
+         *         discovery_server: 发现服务器地址；该方式不用服务器时省略。
+         *         participant: 参与者类型；发现方式未指定时省略。
+         *         qos_subscribe: 订阅可靠性，BEST_EFFORT 或 RELIABLE。
+         *         readiness: 按文件顺序检查的就绪条件，可为空。
+         */
+        RosGraph: {
+            discovery: components["schemas"]["ProfileText"];
+            discovery_server?: components["schemas"]["ProfileText"] | null;
+            distro: components["schemas"]["ProfileText"];
+            /** Domain Id */
+            domain_id?: number | null;
+            participant?: components["schemas"]["ProfileText"] | null;
+            /**
+             * Qos Subscribe
+             * @enum {string}
+             */
+            qos_subscribe: "BEST_EFFORT" | "RELIABLE";
+            /** Readiness */
+            readiness: components["schemas"]["ReadinessCondition"][];
+            rmw: components["schemas"]["ProfileText"];
         };
         /**
          * ScanParameters
@@ -17879,6 +18158,228 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    list_robot_profiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RobotProfileList"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_robot_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RobotProfile"];
                 };
             };
             /** @description Bad Request */

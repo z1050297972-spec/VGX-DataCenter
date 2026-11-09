@@ -4372,6 +4372,158 @@
         "title": "JobSummary",
         "type": "object"
       },
+      "JointGroup": {
+        "additionalProperties": false,
+        "description": "目标与观测共享名字、顺序、维数和单位的关节组。\n\nAttributes:\n    name: 组名，非空，同一 Profile 内唯一。\n    joints: 按来源数组顺序排列的非空关节名列表；未知时省略。\n    joint_count: 名字未知时记录的正整数维数，与 joints 二选一。\n    unit: 位置值的物理单位；省略表示未知，不按数值猜测。\n    observation: 必填的观测来源。\n    target: 目标来源或明确的无目标；省略表示目标未知。",
+        "properties": {
+          "joint_count": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositiveCount"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "joints": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProfileText"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Joints"
+          },
+          "name": {
+            "$ref": "#/components/schemas/ProfileText"
+          },
+          "observation": {
+            "$ref": "#/components/schemas/JointSource"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JointSource"
+              },
+              {
+                "$ref": "#/components/schemas/NoTarget"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "observation"
+        ],
+        "title": "JointGroup",
+        "type": "object"
+      },
+      "JointSource": {
+        "additionalProperties": false,
+        "description": "一个关节组的数据来源，省略的事实等待补测。\n\nAttributes:\n    topic: ROS 话题绝对名称，以 / 开头。\n    message_type: 话题消息类型，非空文本；省略表示未知。\n    extract: 数组取法，如 JointState.position 或 json:字段路径；\n        也可用非空路径列表逐项提取标量，顺序等于关节顺序；省略表示未知。\n    rate_hz: 标称频率，有限正数，单位 Hz；不是运行时最低频率保证。\n    stamp: 时间戳来源，header 或 receive；省略表示未知。\n    stamp_trusted: 时间戳是否可信，省略表示未确认；false 不替调用方选择对齐策略。\n    may_be_silent: 已知在空闲时可能不发消息，默认 false，不代表存活保证。",
+        "properties": {
+          "extract": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProfileText"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extract"
+          },
+          "may_be_silent": {
+            "default": false,
+            "title": "May Be Silent",
+            "type": "boolean"
+          },
+          "message_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rate_hz": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RateHz"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stamp": {
+            "anyOf": [
+              {
+                "enum": [
+                  "header",
+                  "receive"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          },
+          "stamp_trusted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp Trusted"
+          },
+          "topic": {
+            "pattern": "^/\\S+$",
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic"
+        ],
+        "title": "JointSource",
+        "type": "object"
+      },
       "JsonValue": {},
       "LayoutRequest": {
         "additionalProperties": false,
@@ -5257,6 +5409,22 @@
         "title": "NavigationPreviewResponse",
         "type": "object"
       },
+      "NoTarget": {
+        "additionalProperties": false,
+        "description": "确认没有目标的组；不能用来表示目标尚未补测。\n\nAttributes:\n    none: 只能为 true，表示事实上的无目标。",
+        "properties": {
+          "none": {
+            "const": true,
+            "title": "None",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "none"
+        ],
+        "title": "NoTarget",
+        "type": "object"
+      },
       "ObjectResponse": {
         "additionalProperties": false,
         "description": "对象的历史名字，保留给未来撤回功能定位。\n\nAttributes:\n    kind: account/audit_settings/job/dataset_index/navigation_write/robot/collection_method/collection_purpose，必填；job 不表示账号。\n    object_id: 账号/作业编号十进制文本或设置键 retention、索引键 all；失败新建尚无编号时 None。\n    name: 当时显示名、固定设置名或“作业显示名 #编号”，1-64 码点，必填。\n    deleted: 账号编号已不存在为 True；设置、作业或未分配编号为 False。",
@@ -5712,6 +5880,10 @@
         "title": "PlanReport",
         "type": "object"
       },
+      "PositiveCount": {
+        "exclusiveMinimum": 0.0,
+        "type": "integer"
+      },
       "PreviewNotice": {
         "additionalProperties": false,
         "description": "预览里需要提醒用户的一条说明或拒绝理由，字段对应诊断的五段内容。\n\nAttributes:\n    model_config: 冻结，拒绝未知字段。\n    code: 稳定的规则码，英文，例如 `will_add_dataset_root`、`source_not_reachable`。\n    message: 中文说明，非空，不含密码等敏感信息。\n    objects: 涉及的对象（路径、编号），键值对元组，可为空。",
@@ -5846,6 +6018,129 @@
         ],
         "title": "ProblemResponse",
         "type": "object"
+      },
+      "ProfileCamera": {
+        "additionalProperties": false,
+        "description": "相机事实；话题与共享内存来源不同时指定，不访问对应地址或路径。\n\nAttributes:\n    name: 相机名，非空，同一 Profile 内唯一。\n    topic: 图像话题，以 / 开头；没有 ROS 图像话题时省略。\n    source: 非 ROS 来源描述，如 shm:路径；具体来源未知时省略。\n    message_type: ROS 消息类型；非 ROS 相机不适用。\n    encoding: 原始或压缩编码；省略表示未知。\n    resolution: [宽, 高]，两个正整数，单位像素；省略表示未知。\n    rate_hz: 标称帧率，有限正数，单位 Hz；省略表示未知。\n    stamp: 时间戳来源，header 或 receive；省略表示未知。\n    stamp_trusted: 时间戳是否可信；省略表示未确认。\n    trigger: 触发方式描述；省略表示未确认，不用于对齐。",
+        "properties": {
+          "encoding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "$ref": "#/components/schemas/ProfileText"
+          },
+          "rate_hz": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RateHz"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PositiveCount"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stamp": {
+            "anyOf": [
+              {
+                "enum": [
+                  "header",
+                  "receive"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp"
+          },
+          "stamp_trusted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp Trusted"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "pattern": "^/\\S+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "trigger": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ProfileCamera",
+        "type": "object"
+      },
+      "ProfileText": {
+        "minLength": 1,
+        "pattern": "\\S",
+        "type": "string"
       },
       "ProgressPart": {
         "additionalProperties": false,
@@ -5983,6 +6278,43 @@
           "dataset_ids"
         ],
         "title": "QueuedNavigationJob",
+        "type": "object"
+      },
+      "RateHz": {
+        "exclusiveMinimum": 0.0,
+        "type": "number"
+      },
+      "ReadinessCondition": {
+        "additionalProperties": false,
+        "description": "加入 ROS 图前的事实条件，不在读取时执行检查。\n\nAttributes:\n    check: 条件类型，address_present 或 run_on_robot。\n    value: 要求的地址；run_on_robot 无参数时省略。\n    reason: 条件的原因，非空文本，不含凭据或命令。",
+        "properties": {
+          "check": {
+            "enum": [
+              "address_present",
+              "run_on_robot"
+            ],
+            "title": "Check",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ProfileText"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "check",
+          "reason"
+        ],
+        "title": "ReadinessCondition",
         "type": "object"
       },
       "RecoveryBlockResponse": {
@@ -6341,6 +6673,112 @@
         "title": "RobotMac",
         "type": "object"
       },
+      "RobotProfile": {
+        "additionalProperties": false,
+        "description": "按型号共用的版本化事实说明；不含单台机器人凭据或工具算法参数。\n\nAttributes:\n    profile: 稳定标识，小写字母、数字、下划线或连字符，以字母开头。\n    version: 说明档版本，正整数；更改事实后由评审升级。\n    model: 与机器人登记和数据集 robot_model 相同的非空文字。\n    robot_type_labels: 数据里的型号标签；省略表示未知，空列表表示确认没有标签。\n    ros: ROS 图和就绪条件。\n    joint_group: 按文件顺序的关节组，可为空。\n    camera: 按文件顺序的相机，可为空。",
+        "properties": {
+          "camera": {
+            "items": {
+              "$ref": "#/components/schemas/ProfileCamera"
+            },
+            "title": "Camera",
+            "type": "array"
+          },
+          "joint_group": {
+            "items": {
+              "$ref": "#/components/schemas/JointGroup"
+            },
+            "title": "Joint Group",
+            "type": "array"
+          },
+          "model": {
+            "$ref": "#/components/schemas/ProfileText"
+          },
+          "profile": {
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "title": "Profile",
+            "type": "string"
+          },
+          "robot_type_labels": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProfileText"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Robot Type Labels"
+          },
+          "ros": {
+            "$ref": "#/components/schemas/RosGraph"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveCount"
+          }
+        },
+        "required": [
+          "profile",
+          "version",
+          "model",
+          "ros",
+          "joint_group",
+          "camera"
+        ],
+        "title": "RobotProfile",
+        "type": "object"
+      },
+      "RobotProfileList": {
+        "additionalProperties": false,
+        "description": "说明档列表响应。\n\nAttributes:\n    items: 按部署文件名排序的摘要，可为空。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RobotProfileSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "RobotProfileList",
+        "type": "object"
+      },
+      "RobotProfileSummary": {
+        "additionalProperties": false,
+        "description": "说明档列表的一行，不复制机器人连接信息。\n\nAttributes:\n    profile: 说明档稳定标识。\n    version: 正整数事实版本号。\n    model: 机器人型号字符串。\n    unknown_count: 未确认事实的数量，非负，关节名按组记一项。",
+        "properties": {
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "unknown_count": {
+            "title": "Unknown Count",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile",
+          "version",
+          "model",
+          "unknown_count"
+        ],
+        "title": "RobotProfileSummary",
+        "type": "object"
+      },
       "RobotResponse": {
         "additionalProperties": false,
         "description": "机器人完整登记响应，robot_id 是工单约定的整数。",
@@ -6484,6 +6922,77 @@
           "role"
         ],
         "title": "RoleRequest",
+        "type": "object"
+      },
+      "RosGraph": {
+        "additionalProperties": false,
+        "description": "ROS 图的加入方式，仅保存事实，不执行 shell 或连接 DDS。\n\nAttributes:\n    distro: ROS 发行版，非空文本。\n    rmw: RMW 实现名称，非空文本。\n    domain_id: DDS 域编号，非负整数；省略表示未知。\n    discovery: 发现方式，非空文本。\n    discovery_server: 发现服务器地址；该方式不用服务器时省略。\n    participant: 参与者类型；发现方式未指定时省略。\n    qos_subscribe: 订阅可靠性，BEST_EFFORT 或 RELIABLE。\n    readiness: 按文件顺序检查的就绪条件，可为空。",
+        "properties": {
+          "discovery": {
+            "$ref": "#/components/schemas/ProfileText"
+          },
+          "discovery_server": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "distro": {
+            "$ref": "#/components/schemas/ProfileText"
+          },
+          "domain_id": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain Id"
+          },
+          "participant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "qos_subscribe": {
+            "enum": [
+              "BEST_EFFORT",
+              "RELIABLE"
+            ],
+            "title": "Qos Subscribe",
+            "type": "string"
+          },
+          "readiness": {
+            "items": {
+              "$ref": "#/components/schemas/ReadinessCondition"
+            },
+            "title": "Readiness",
+            "type": "array"
+          },
+          "rmw": {
+            "$ref": "#/components/schemas/ProfileText"
+          }
+        },
+        "required": [
+          "distro",
+          "rmw",
+          "discovery",
+          "qos_subscribe",
+          "readiness"
+        ],
+        "title": "RosGraph",
         "type": "object"
       },
       "ScanParameters": {
@@ -21331,6 +21840,271 @@
         "summary": "Confirm Navigation Write",
         "tags": [
           "navigation-writes"
+        ]
+      }
+    },
+    "/api/robot-profiles": {
+      "get": {
+        "description": "向登录账号返回说明档摘要和未知事实数量。\n\nArgs:\n    profiles: 已认证请求取得的启动快照，按文件名排序。\n\nReturns:\n    所有说明档的身份和未知项计数，保持快照顺序，允许空列表。\n\nRaises:\n    DefectError: 应用未装配说明档，由依赖报告程序缺陷。\n\nSide Effects:\n    无；仅读内存，不连接机器人或读取磁盘。\n\nTime Semantics:\n    返回进程启动时的事实版本；不声称是机器人实时状态。",
+        "operationId": "list_robot_profiles",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotProfileList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "List Robot Profiles",
+        "tags": [
+          "robot-profiles"
+        ]
+      }
+    },
+    "/api/robot-profiles/{profile}": {
+      "get": {
+        "description": "向登录账号返回指定说明档的结构化全文。\n\nArgs:\n    profile: 说明档标识，只在内存中精确匹配，不解释为路径。\n    profiles: 当前应用启动时读取的快照。\n\nReturns:\n    说明档的已知事实；未知值省略，明确无目标保留 none=true。\n\nRaises:\n    _ProfileNotFoundError: 标识不在快照中，返回统一 404 诊断。\n    DefectError: 应用漏装配说明档，由依赖报告。\n\nSide Effects:\n    无；不读文件，不执行就绪检查。\n\nTime Semantics:\n    与列表共用同一启动快照；无轮询或网络等待。",
+        "operationId": "get_robot_profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile",
+            "required": true,
+            "schema": {
+              "title": "Profile",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotProfile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Robot Profile",
+        "tags": [
+          "robot-profiles"
         ]
       }
     },

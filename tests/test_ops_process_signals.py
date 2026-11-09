@@ -53,6 +53,8 @@ def deployment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Deployment:
     shutil.copytree(
         Path(rdp.__file__).parent, root / "src/rdp", ignore=shutil.ignore_patterns("__pycache__")
     )
+    # M5 启动必读说明档；临时部署也携带仓库文件，不能用缺少 profiles 的副本冒充部署。
+    shutil.copytree(Path(__file__).parents[1] / "profiles", root / "profiles")
     # 子进程保留真实 worker 生命周期，但镜像检查必须使用内存传输，不能访问外网。
     (root / "src/sitecustomize.py").write_text(
         "from rdp.jobs.downloads.plan import HttpResponse, UrllibTransport\n"

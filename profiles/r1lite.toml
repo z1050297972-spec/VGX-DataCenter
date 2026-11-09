@@ -1,0 +1,119 @@
+# RobotProfile：Galaxea R1 Lite，ADR 0007、M5-01。
+# 话题、类型与频率来自环境事实 0007/0008；不含转换算法参数或单机凭据。
+profile = "r1lite"
+version = 1
+model = "Galaxea R1 Lite"
+robot_type_labels = ["galaxea_r1lite", "r1lite"]
+
+[ros]
+distro = "humble"
+rmw = "rmw_fastrtps_cpp"
+discovery = "fastdds_discovery_server"
+discovery_server = "10.42.0.238:11811"
+participant = "SUPER_CLIENT"
+qos_subscribe = "BEST_EFFORT"
+# domain_id 待补测，见规划票 18；不把发现服务器方式猜成 domain 0。
+readiness = [
+  { check = "address_present", value = "10.42.0.238", reason = "eth1 没拿到该地址时所有节点互相断开，原厂录制会录出空数据（0008）" },
+]
+
+[[joint_group]]
+name = "left_arm"
+joint_count = 6
+# 关节名与位置数组的对应顺序、单位待补测，见规划票 18；不沿用草样推测的 rad。
+observation = { topic = "/hdas/feedback_arm_left", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 200, stamp = "header", stamp_trusted = true }
+# 0008 实时频率优先；左夹爪无消息、躯干目标无新频率，沿用 0007 的录制频率。
+# ADR 0007：目标来自主臂链路，时间戳不可信；可信度不等于平台已选择对齐策略。
+target = { topic = "/motion_target/target_joint_state_arm_left", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 199.3, stamp = "header", stamp_trusted = false, may_be_silent = false }
+
+[[joint_group]]
+name = "right_arm"
+joint_count = 6
+# 关节名与位置数组的对应顺序、单位待补测，见规划票 18；不沿用草样推测的 rad。
+observation = { topic = "/hdas/feedback_arm_right", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 200, stamp = "header", stamp_trusted = true }
+# 0008 实时频率优先；左夹爪无消息、躯干目标无新频率，沿用 0007 的录制频率。
+# ADR 0007：目标来自主臂链路，时间戳不可信；可信度不等于平台已选择对齐策略。
+target = { topic = "/motion_target/target_joint_state_arm_right", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 199.6, stamp = "header", stamp_trusted = false, may_be_silent = false }
+
+[[joint_group]]
+name = "left_gripper"
+joint_count = 1
+# 关节名与位置数组的对应顺序、单位待补测，见规划票 18；不沿用草样推测的 rad。
+observation = { topic = "/hdas/feedback_gripper_left", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 200, stamp = "header", stamp_trusted = true }
+# 0008 实时频率优先；左夹爪无消息、躯干目标无新频率，沿用 0007 的录制频率。
+# ADR 0007：目标来自主臂链路，时间戳不可信；可信度不等于平台已选择对齐策略。
+target = { topic = "/motion_target/target_position_gripper_left", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 19.8, stamp = "header", stamp_trusted = false, may_be_silent = true }
+
+[[joint_group]]
+name = "right_gripper"
+joint_count = 1
+# 关节名与位置数组的对应顺序、单位待补测，见规划票 18；不沿用草样推测的 rad。
+observation = { topic = "/hdas/feedback_gripper_right", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 195.6, stamp = "header", stamp_trusted = true }
+# 0008 实时频率优先；左夹爪无消息、躯干目标无新频率，沿用 0007 的录制频率。
+# ADR 0007：目标来自主臂链路，时间戳不可信；可信度不等于平台已选择对齐策略。
+target = { topic = "/motion_target/target_position_gripper_right", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 19.94, stamp = "header", stamp_trusted = false, may_be_silent = false }
+
+[[joint_group]]
+name = "torso"
+joint_count = 3
+# 关节名与位置数组的对应顺序、单位待补测，见规划票 18；不沿用草样推测的 rad。
+observation = { topic = "/hdas/feedback_torso", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 200, stamp = "header", stamp_trusted = true }
+# 0008 实时频率优先；左夹爪无消息、躯干目标无新频率，沿用 0007 的录制频率。
+# ADR 0007：目标来自主臂链路，时间戳不可信；可信度不等于平台已选择对齐策略。
+target = { topic = "/motion_target/target_joint_state_torso", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 184, stamp = "header", stamp_trusted = false, may_be_silent = false }
+
+[[joint_group]]
+name = "chassis"
+joint_count = 3
+# 关节名与位置数组的对应顺序、单位待补测，见规划票 18；不沿用草样推测的 rad。
+observation = { topic = "/hdas/feedback_chassis", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 200, stamp = "header", stamp_trusted = true }
+# 0008 只确认底盘目标是速度 TwistStamped；它不是三项关节位置，取法待补测，见规划票 18。
+target = { topic = "/motion_target/target_speed_chassis", message_type = "geometry_msgs/msg/TwistStamped", rate_hz = 199.9, stamp = "header", stamp_trusted = false }
+
+[[camera]]
+name = "head_left"
+topic = "/hdas/camera_head/left_raw/image_raw_color/compressed"
+message_type = "sensor_msgs/msg/CompressedImage"
+encoding = "h264"
+resolution = [1920, 1536]
+# 0008 的实时观测值；标称频率不代表实时下限，也不替代消息时间戳。
+rate_hz = 30.0
+stamp = "header"
+stamp_trusted = true
+# trigger 待补测，见规划票 18。
+
+[[camera]]
+name = "head_right"
+topic = "/hdas/camera_head/right_raw/image_raw_color/compressed"
+message_type = "sensor_msgs/msg/CompressedImage"
+encoding = "h264"
+resolution = [1920, 1536]
+# 0008 的实时观测值；标称频率不代表实时下限，也不替代消息时间戳。
+rate_hz = 30.07
+stamp = "header"
+stamp_trusted = true
+# trigger 待补测，见规划票 18。
+
+[[camera]]
+name = "wrist_left"
+topic = "/hdas/camera_wrist_left/color/image_raw/compressed"
+message_type = "sensor_msgs/msg/CompressedImage"
+encoding = "jpeg"
+resolution = [1280, 720]
+# 0008 的实时观测值；标称频率不代表实时下限，也不替代消息时间戳。
+rate_hz = 29.75
+stamp = "header"
+stamp_trusted = true
+trigger = "independent"  # 草样：腕部与头部不是同步触发。
+
+[[camera]]
+name = "wrist_right"
+topic = "/hdas/camera_wrist_right/color/image_raw/compressed"
+message_type = "sensor_msgs/msg/CompressedImage"
+encoding = "jpeg"
+resolution = [1280, 720]
+# 0008 的实时观测值；标称频率不代表实时下限，也不替代消息时间戳。
+rate_hz = 29.98
+stamp = "header"
+stamp_trusted = true
+trigger = "independent"  # 草样：腕部与头部不是同步触发。
