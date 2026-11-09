@@ -4,6 +4,7 @@
 不把未知目标当作无目标。取法只描述来源，不执行 JSON 路径或处理实时消息。
 """
 
+from ipaddress import ip_address
 from typing import Annotated, Literal, Self
 
 from pydantic import (
@@ -30,20 +31,34 @@ class ReadinessCondition(_ProfileModel):
     """加入 ROS 图前的事实条件，不在读取时执行检查。
 
     Attributes:
-        check: 条件类型，address_present 或 run_on_robot。
-        value: 要求的地址；run_on_robot 无参数时省略。
-        reason: 条件的原因，非空文本，不含凭据或命令。
+        check: 平台封闭的只读检查类型；run_on_robot 仅作说明，不执行检查。
+        value: address_present 为 IP 文本；udp_port_listening 为 1 至 65535 的整数端口号；
+            process_running 为命令行中的固定文本；run_on_robot 不提供值。
+        level: 不满足时的级别，error（默认）或 warning；说明性条件不影响结果。
+        reason: 条件的原因和下一步，非空文本；不能包含凭据，仅展示而不作为命令执行。
     """
 
-    check: Literal["address_present", "run_on_robot"]
-    value: ProfileText | None = None
+    check: Literal["address_present", "udp_port_listening", "process_running", "run_on_robot"]
+    value: ProfileText | int | None = None
+    level: Literal["error", "warning"] = "error"
     reason: ProfileText
 
     @model_validator(mode="after")
-    def _address_value(self) -> Self:
-        """地址检查必须给地址，否则后续连接检查没有可执行的事实。"""
-        if self.check == "address_present" and self.value is None:
-            raise ValueError("address_present 的 value 必须提供地址")
+    def _check_value(self) -> Self:
+        """按封闭检查类型校验事实，不允许把缺少参数当作就绪。"""
+        if self.check == "run_on_robot":
+            if self.value is not None:
+                raise ValueError("run_on_robot 不接受 value")
+        elif self.check == "udp_port_listening":
+            if not isinstance(self.value, int) or not 1 <= self.value <= 65535:
+                raise ValueError("udp_port_listening 的 value 必须为 1 至 65535 的整数端口号")
+        elif not isinstance(self.value, str):
+            raise ValueError("地址或进程检查必须提供非空文本 value")
+        elif self.check == "address_present":
+            try:
+                ip_address(self.value)
+            except ValueError:
+                raise ValueError("address_present 的 value 必须为 IP 地址") from None
         return self
 
 

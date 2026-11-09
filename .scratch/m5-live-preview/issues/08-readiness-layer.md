@@ -54,3 +54,9 @@ Status: in-progress
 
 - 2026-11-09 开票（执行线）。
 - 2026-11-09 04:26 派工（执行线）：工作目录 `robot-data-platform.wt/m5-08-readiness`，Codex gpt-6-astra high，systemd 单元 `rdp-m5-08`，日志 `~/.cache/rdp-dispatch/m5-08/`。
+- 2026-11-09 05:0x 派工交回（约 35 分钟，Codex 全量检查后端 2869、前端 414）。评审：
+  - 运行日志 41 条命令，没有连机器人、读写 `~/.ssh`、安装、联网、提交、碰 /mnt。
+  - 只读脚本经标准输入交给一次 `ssh … bash -s`；四种检查各对应固定命令（`ip -br addr`、`ss -Huln`、`pgrep -f`、说明性），值一律 `shlex.quote`，进程文本先 `re.escape`；结果是"序号:状态"行协议，数量或格式不符按执行失败处理。r1lite 改为 v2 四条就绪条件，与工单一致。
+  - 变异抽查：warning 当 error（被抓）、进程值不加引号（被抓）、地址和端口不加引号（没抓到；地址读入时按 IP 校验、端口限定整数，非法值进不了脚本，属于双保险，不打回）。用备份还原。
+  - 判断题（不打回）：worker 启动时读入 Profile 快照，改 Profile 要重启 worker（升级会重启）；诊断"实际"一段写的是条件类型（如 `process_running 条件不满足`），可读性一般，下一步里有完整原因。
+- 2026-11-09 实现提交（分支 `t/m5-08-readiness`），等负责人说"合并"。

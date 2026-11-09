@@ -57,7 +57,7 @@ def test_rejected_key_explains_manual_install(
         assert "ssh-copy-id" in diagnostic["next_step"]
         assert "tester@127.0.0.1" in diagnostic["next_step"]
         assert f"-p {endpoint.getsockname()[1]}" in diagnostic["next_step"]
-        assert job["progress"]["stage_name"] == "网络：通过；登录：失败"
+        assert job["progress"]["stage_name"] == "网络：通过；登录：失败；就绪：未执行"
         assert output_marker not in str(job)
         assert output_marker not in api.client.get(f"/api/jobs/{job_id}/log").text
         assert output_marker not in caplog.text
@@ -90,8 +90,8 @@ def test_changed_host_key_requires_manual_confirmation(tmp_path: Path) -> None:
         assert known_hosts.read_text() == "existing-host-key\n"
 
 
-def test_success_uses_current_registration_and_reports_both_layers(tmp_path: Path) -> None:
-    """验收 3：执行时采用更新后的登记，假 SSH 只接受无交互的平台身份和远程 true。"""
+def test_missing_profile_warns_after_checking_current_registration(tmp_path: Path) -> None:
+    """M5-08 验收 3：采用最新登记完成登录；型号没有 Profile 时跳过就绪并带警告成功。"""
     program = fake_ssh(tmp_path, "exit 1\n")
     with socket.socket() as endpoint, job_api_case(tmp_path / "state") as api:
         endpoint.bind(("127.0.0.1", 0))
@@ -121,9 +121,15 @@ def test_success_uses_current_registration_and_reports_both_layers(tmp_path: Pat
         )
         run(api, job_id, program)
         job = api.client.get(f"/api/jobs/{job_id}").json()
-        assert job["summary"]["outcome"] == "succeeded", job
-        assert job["progress"]["stage_name"] == "网络：通过；登录：通过"
-        assert job["progress"]["done"] == 2 and job["diagnostics"] == []
+        assert job["summary"]["outcome"] == "succeeded_with_warnings", job
+        assert job["progress"]["stage_name"] == "网络：通过；登录：通过；就绪：跳过"
+        assert job["progress"]["warning_count"] == 1
+        diagnostic = job["diagnostics"][0]["samples"][0]
+        assert diagnostic["level"] == "warning"
+        assert diagnostic["stage"] == "第 3 层 就绪"
+        assert {"key": "robot_id", "value": str(robot_id)} in diagnostic["objects"]
+        assert diagnostic["actual"] == "该型号没有 RobotProfile，未检查就绪条件"
+        assert "跳过" in diagnostic["consequence"]
         assert api.client.get("/api/robots").json()["items"][0] == changed.json()
 
 

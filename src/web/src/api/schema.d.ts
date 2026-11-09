@@ -7133,18 +7133,27 @@ export interface components {
          * @description 加入 ROS 图前的事实条件，不在读取时执行检查。
          *
          *     Attributes:
-         *         check: 条件类型，address_present 或 run_on_robot。
-         *         value: 要求的地址；run_on_robot 无参数时省略。
-         *         reason: 条件的原因，非空文本，不含凭据或命令。
+         *         check: 平台封闭的只读检查类型；run_on_robot 仅作说明，不执行检查。
+         *         value: address_present 为 IP 文本；udp_port_listening 为 1 至 65535 的整数端口号；
+         *             process_running 为命令行中的固定文本；run_on_robot 不提供值。
+         *         level: 不满足时的级别，error（默认）或 warning；说明性条件不影响结果。
+         *         reason: 条件的原因和下一步，非空文本；不能包含凭据，仅展示而不作为命令执行。
          */
         ReadinessCondition: {
             /**
              * Check
              * @enum {string}
              */
-            check: "address_present" | "run_on_robot";
+            check: "address_present" | "udp_port_listening" | "process_running" | "run_on_robot";
+            /**
+             * Level
+             * @default error
+             * @enum {string}
+             */
+            level: "error" | "warning";
             reason: components["schemas"]["ProfileText"];
-            value?: components["schemas"]["ProfileText"] | null;
+            /** Value */
+            value?: components["schemas"]["ProfileText"] | number | null;
         };
         /**
          * RecoveryBlockResponse

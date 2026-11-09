@@ -26,7 +26,7 @@ def test_member_reads_profiles_and_paired_joint_sources(tmp_path: Path) -> None:
         assert set(items) == {"autolife", "r1lite"}
         assert items["autolife"]["unknown_count"] > 0
         assert items["r1lite"]["model"] == "Galaxea R1 Lite"
-        assert items["r1lite"]["version"] == 1
+        assert items["r1lite"]["version"] == 2
         response = case.client.get("/api/robot-profiles/r1lite")
         assert response.status_code == 200
         groups = {group["name"]: group for group in response.json()["joint_group"]}
