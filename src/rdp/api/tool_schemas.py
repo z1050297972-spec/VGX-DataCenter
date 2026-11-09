@@ -3,6 +3,7 @@
 from pydantic import BaseModel, ConfigDict
 
 from rdp.infra.diagnostics import Diagnostic
+from rdp.jobs.conversion.lerobot import LeRobotEnvironment
 from rdp.tools.manifest import ToolCommands
 from rdp.tools.registry import ToolConfiguration, ToolStatus
 
@@ -47,10 +48,12 @@ class ToolListResponse(BaseModel):
 
     Attributes:
         items: 按工具名排序，空登记目录返回空元组，不过滤无效清单。
+        lerobot_environment: 本次请求的解释器版本与指纹状态；探测失败保留错误说明。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
     items: tuple[ToolSummaryResponse, ...]
+    lerobot_environment: LeRobotEnvironment
 
 
 class ToolDetailResponse(ToolSummaryResponse):

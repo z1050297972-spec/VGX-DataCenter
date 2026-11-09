@@ -12,11 +12,15 @@ from rdp.infra.storage import DeviceNumber, MountInspector, StorageAccessChecker
 from rdp.jobs.sandbox import SandboxSpec
 
 
-def fake_converter(root: Path, *, verify_code: int = 0) -> ToolFiles:
+def fake_converter(
+    root: Path, *, verify_code: int = 0, lengths: tuple[int, ...] = (3, 3)
+) -> ToolFiles:
     """假程序按真实命令解析参数，仅在终端打印固定进度，并留下可观察的调用记录。"""
     files = tool_files(root)
     content = f"""#!{sys.executable}
 import argparse, json, pathlib, sys, time
+import pyarrow as pa
+import pyarrow.parquet as pq
 parser = argparse.ArgumentParser()
 parser.add_argument("command", choices=["verify", "convert"])
 parser.add_argument("-c", required=True)
@@ -29,6 +33,7 @@ assert pathlib.Path(a.c).is_file()
 assert all(pathlib.Path(p).exists() for p in a.inputs)
 with pathlib.Path(__file__).with_suffix(".calls").open("a") as log:
     log.write(a.command + "\\n")
+pathlib.Path(__file__).with_suffix(".inputs").write_text(json.dumps(a.inputs))
 if a.command == "verify":
     print("话题核对：缺少右臂目标" if {verify_code} else "话题核对通过", flush=True)
     sys.exit({verify_code})
@@ -40,7 +45,14 @@ time.sleep(0.6)
 sys.stderr.write("head_left [===] 6/6 帧  完成\\nstate [===] 6/6 帧  完成\\naction [===] 6/6 帧  完成\\n")
 output = pathlib.Path(a.o)
 (output / "meta").mkdir(parents=True)
-(output / "meta/info.json").write_text(json.dumps({{"total_episodes": 2, "total_frames": 6, "codebase_version": a.format}}))
+lengths = {lengths!r}
+(output / "meta/info.json").write_text(json.dumps({{"total_episodes": len(lengths), "total_frames": sum(lengths), "codebase_version": a.format, "fps": 30, "features": {{}}, "data_path": "data/chunk-{{chunk_index:03d}}/file-{{file_index:03d}}.parquet"}}))
+rows = [{{"episode_index": i, "length": n}} for i, n in enumerate(lengths)]
+if a.format == "v3.0":
+    (output / "meta/episodes/chunk-000").mkdir(parents=True)
+    pq.write_table(pa.Table.from_pylist(rows), output / "meta/episodes/chunk-000/file-000.parquet")
+else:
+    (output / "meta/episodes.jsonl").write_text("".join(json.dumps(row) + "\\n" for row in rows))
 """.encode()
     manifest_path = files.package / "tool.toml"
     text = manifest_path.read_text()

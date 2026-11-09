@@ -41,7 +41,7 @@ def test_submission_rejects_invalid_selection(
 
 @pytest.mark.parametrize("needs_gpu", [True, False])
 def test_gpu_requirement_follows_manifest(tmp_path: Path, needs_gpu: bool) -> None:
-    """验收6：启动登记从清单取GPU要求，恢复为interrupt且成员可提交。"""
+    """验收6：启动登记从清单取GPU要求，恢复为interrupt且仅管理员可提交。"""
     files = fake_converter(tmp_path / "tool")
     manifest = files.package / "tool.toml"
     manifest.write_text(
@@ -53,7 +53,7 @@ def test_gpu_requirement_follows_manifest(tmp_path: Path, needs_gpu: bool) -> No
     assert definition is not None
     assert definition.requires_gpu is needs_gpu
     assert definition.recovery_mode.value == "interrupt"
-    assert definition.submission_role.value == "member"
+    assert definition.submission_role.value == "administrator"
     parameters = definition.parameters_model.model_validate(
         {
             "dataset_id": "dataset-35",

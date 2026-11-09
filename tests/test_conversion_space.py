@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from conversion_cleaning_support import seed_preview
 from conversion_support import fake_converter, no_sandbox, settings, storage_checker
 from datasets_execution_support import dataset_case
 from jobs_execution_support import execution_case
@@ -119,6 +120,8 @@ def _convert(
             space_ratio_percent=space_ratio_percent,
             space_reserve_gib=space_reserve_gib,
         )
+
+        parameters = seed_preview(scan.engine, files, parameters)
 
         def execute(context: ExecutionContext) -> None:
             ConversionExecutor("mcap2lerobot", dependencies).execute(

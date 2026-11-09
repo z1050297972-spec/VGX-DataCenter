@@ -645,6 +645,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cleaning-previews/{job_id}/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Convert From Cleaning Preview
+         * @description 按管理员的最终选择从成功清洗预览提交转换。
+         *
+         *     Args:
+         *         job_id: 1 至 2^63-1 的预览作业编号，十进制字符串。
+         *         body: 输出版本、空间百分比和 GiB 预留，以及报告内的最终剔除身份列表。
+         *         context: 已认证管理员、作业服务及请求唯一 UTC 时刻。
+         *         session: 只读数据库事务，仅用于读取预览和原作业输入。
+         *
+         *     Returns:
+         *         HTTP 201 的新排队转换作业，输出版本省略时取工具清单首项。
+         *
+         *     Raises:
+         *         JobInputError: 预览不存在、选择非法、无剩余文件或 episode，返回 422。
+         *         AuthorizationError: 非管理员，返回 403。
+         *         ExternalError: 数据库或审计写入失败，返回 502。
+         *         ConflictError: 作业提交写锁竞争，返回 409。
+         *
+         *     Side Effects:
+         *         保存新作业及审计，不读取工具程序或存储根；剔除列表原样保存。
+         *
+         *     Time Semantics:
+         *         使用成功预览的永久快照；排队后由 worker 重新核对指纹和输入元数据。
+         */
+        post: operations["convert_from_cleaning_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/collection-vocabulary": {
         parameters: {
             query?: never;
@@ -2382,46 +2423,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/jobs/convert/{tool_name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Submit Conversion Job
-         * @description 提交工具转换作业，Web仅校验登记选项和数据块索引。
-         *
-         *     Args:
-         *         context: 已认证身份、请求时刻和审计上下文。
-         *         tool_name: 工具列表返回的登记包名称。
-         *         body: 数据集、1至200个数据块、型号及可选输出版本。
-         *
-         *     Returns:
-         *         新排队作业，默认输出版本已由工具清单补齐。
-         *
-         *     Raises:
-         *         JobInputError: 工具未登记、型号/版本无效或数据块归属/格式不符，422。
-         *         AuthenticationError: 当前会话失效，401。
-         *         ConflictError: 数据库写锁竞争，409。
-         *         ExternalError: 数据库不可用，502。
-         *
-         *     Side Effects:
-         *         经JobService同事务写作业和操作日志；不访问输入存储根或执行工具。
-         *
-         *     Time Semantics:
-         *         使用请求UTC时刻，不等待worker或GPU，不重试提交。
-         */
-        post: operations["submit_conversion_job"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/jobs/download": {
         parameters: {
             query?: never;
@@ -4073,6 +4074,7 @@ export interface paths {
          * @description 向登录成员返回全部工具的登记摘要和状态。
          *
          *     Args:
+         *         request: 含部署工具配置的请求。
          *         registry: 认证后读取的工具快照，包含清单无效的条目。
          *
          *     Returns:
@@ -4082,10 +4084,10 @@ export interface paths {
          *         ExternalError: 登记根目录不可读取，经统一边界返回 502。
          *
          *     Side Effects:
-         *         无；依赖只读登记包和工具程序，不执行命令或写操作日志。
+         *         只读登记包和工具程序；已配置 LeRobot 时在只读断网沙箱探测，不写操作日志。
          *
          *     Time Semantics:
-         *         返回本次请求快照；文件身份未变时复用进程内指纹，不缓存清单。
+         *         返回本次请求快照；LeRobot 的导入和源码指纹探测各至多 15 秒，失败保留 error 状态，不阻止列表返回。
          */
         get: operations["list_tools"];
         put?: never;
@@ -4826,23 +4828,16 @@ export interface components {
             preview_job_id: string;
         };
         /**
-         * ConversionParameters
-         * @description 转换参数；输入规则复用 InputSelection，输出版本由工具模型补默认值。
-         *
-         *     Attributes:
-         *         output_format: 输出版本；None 由工具模型替换成清单首项。
-         *         space_ratio_percent: 空间估算百分比，整数 0 至 1000，默认 25。
-         *         space_reserve_gib: 空间预留偏置，0 至 1024 GiB，默认 1。
+         * ConversionOptions
+         * @description 从预览发起转换的最终选择；空剔除列表表示全部保留，不重新套默认。
          */
-        ConversionParameters: {
-            /** Dataset Id */
-            dataset_id: string;
+        ConversionOptions: {
+            /** Excluded Episodes */
+            excluded_episodes?: components["schemas"]["EpisodeSelection"][];
+            /** Excluded Files */
+            excluded_files?: number[];
             /** Output Format */
             output_format?: string | null;
-            /** Robot Model */
-            robot_model: string;
-            /** Source Ids */
-            source_ids: string[];
             /**
              * Space Ratio Percent
              * @default 25
@@ -5901,6 +5896,16 @@ export interface components {
             start_time_s: number;
         };
         /**
+         * EpisodeSelection
+         * @description 预览段的稳定身份；两个编号均为从零起的整数。
+         */
+        EpisodeSelection: {
+            /** File Index */
+            file_index: number;
+            /** Segment Index */
+            segment_index: number;
+        };
+        /**
          * ErrorRecord
          * @description 脱离 Session 的不可变报错快照，同时作为查询接口响应模型。
          *
@@ -6617,6 +6622,27 @@ export interface components {
             layout: "A" | "B" | "C";
             /** Updated At */
             updated_at: string | null;
+        };
+        /**
+         * LeRobotEnvironment
+         * @description 请求时的环境状态；未配置或失败时实际值为 null，失败不拖垮工具列表。
+         */
+        LeRobotEnvironment: {
+            /** Actual Fingerprint */
+            actual_fingerprint?: string | null;
+            /** Actual Version */
+            actual_version?: string | null;
+            /** Expected Fingerprint */
+            expected_fingerprint: string;
+            /** Expected Version */
+            expected_version: string;
+            /** Message */
+            message?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unconfigured" | "available" | "mismatch" | "error";
         };
         /**
          * LineageDownstream
@@ -8163,10 +8189,12 @@ export interface components {
          *
          *     Attributes:
          *         items: 按工具名排序，空登记目录返回空元组，不过滤无效清单。
+         *         lerobot_environment: 本次请求的解释器版本与指纹状态；探测失败保留错误说明。
          */
         ToolListResponse: {
             /** Items */
             items: components["schemas"]["ToolSummaryResponse"][];
+            lerobot_environment: components["schemas"]["LeRobotEnvironment"];
         };
         /** @enum {string} */
         ToolStatus: "可用" | "程序找不到" | "指纹不符" | "清单无效";
@@ -10076,6 +10104,122 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CleaningPreviewResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    convert_from_cleaning_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversionOptions"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
                 };
             };
             /** @description Bad Request */
@@ -15103,122 +15247,6 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["IngestConfirmation"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Request Entity Too Large */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Too Many Requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-            /** @description Bad Gateway */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemResponse"];
-                };
-            };
-        };
-    };
-    submit_conversion_job: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tool_name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConversionParameters"];
             };
         };
         responses: {
