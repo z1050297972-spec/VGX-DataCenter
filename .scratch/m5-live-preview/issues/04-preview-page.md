@@ -57,3 +57,4 @@ Status: in-progress
 ## Comments
 
 - 2026-11-09 开票（执行线），与第 08 张并行。
+- 2026-11-09 04:32 派工（执行线）：工作目录 `robot-data-platform.wt/m5-04-preview`，Codex gpt-6-astra high，systemd 单元 `rdp-m5-04`，日志 `~/.cache/rdp-dispatch/m5-04/`；与第 08 张并行。
