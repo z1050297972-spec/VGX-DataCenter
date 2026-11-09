@@ -10,7 +10,7 @@ from rdp.api.account_auth import AccountRequestContext, enforce_api_access, set_
 
 
 class AccountSecurityBoundary:
-    """所有 API 默认认证，静态资源仍由前端导航规则处理。"""
+    """所有 API 和 Lichtblick 资源默认认证，平台 SPA 仍由前端导航规则处理。"""
 
     def __init__(self, app: ASGIApp) -> None:
         """只保存下游，不在构造时读数据库或请求。"""
@@ -19,7 +19,9 @@ class AccountSecurityBoundary:
     async def __call__(self, scope: ASGIMessage, receive: Receive, send: Send) -> None:
         """未通过安全决策就不读取 body，取消也不吞掉。"""
         path = scope.get("path", "")
-        if scope["type"] != "http" or not (path == "/api" or path.startswith("/api/")):
+        if scope["type"] != "http" or not (
+            path == "/api" or path.startswith(("/api/", "/lichtblick/"))
+        ):
             await self._app(scope, receive, send)
             return
         request = Request(scope, receive=receive)

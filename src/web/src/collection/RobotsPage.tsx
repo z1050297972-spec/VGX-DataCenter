@@ -1,5 +1,7 @@
 // 机器人登记操作数据库；连接检查提交给 worker，页面只读公钥，不保存凭据。
 import { useState, type ReactElement } from "react";
+import { Link } from "@tanstack/react-router";
+import { listPreviewProfiles } from "../api/preview";
 import { useQuery } from "@tanstack/react-query";
 import {
   AutoComplete,
@@ -43,7 +45,7 @@ const EMPTY_ROBOT: RobotInput = {
  * 管理全部机器人登记，展示引用数及最后修改身份。
  * @returns antd 列表、新建和编辑表单及服务端诊断。
  * @throws 无；读取和写入失败用 DiagnosticCard 显示。
- * @sideEffects 读取机器人和型号候选；用户提交后保存或改变状态，成功刷新列表。
+ * @sideEffects 读取机器人、型号候选和 Profile 摘要；用户提交后保存或改变状态，成功刷新列表。
  * @timeSemantics 无轮询、无自动重试；查询离页清理，单次请求上限 ACCOUNT_TIMEOUT_MS。
  */
 export function RobotsPage(): ReactElement {
@@ -57,6 +59,12 @@ export function RobotsPage(): ReactElement {
   const models = useQuery({
     queryKey: ["robots", "models"],
     queryFn: ({ signal }) => listRobotModels({ client, signal, payload: undefined }),
+    retry: false,
+    gcTime: 0,
+  });
+  const profiles = useQuery({
+    queryKey: ["robot-profiles"],
+    queryFn: ({ signal }) => listPreviewProfiles({ client, signal, payload: undefined }),
     retry: false,
     gcTime: 0,
   });
@@ -87,8 +95,9 @@ export function RobotsPage(): ReactElement {
           </Button>
         </Flex>
       </header>
-      {[list.error, models.error, editor === null ? action.error : null].map((error, index) =>
-        error ? <DiagnosticCard key={index} failure={toFailureView(error)} /> : null,
+      {[list.error, models.error, profiles.error, editor === null ? action.error : null].map(
+        (error, index) =>
+          error ? <DiagnosticCard key={index} failure={toFailureView(error)} /> : null,
       )}
       <Card>
         <Table<Robot>
@@ -148,6 +157,22 @@ export function RobotsPage(): ReactElement {
             {
               title: "连接检查",
               render: (_, row) => <RobotConnection robot={row} />,
+            },
+            {
+              title: "实时预览",
+              render: (_, row) =>
+                profiles.data?.items.some((profile) => profile.model === row.robot_model) ? (
+                  <Link to="/robots/$robotId/preview" params={{ robotId: String(row.robot_id) }}>
+                    实时预览
+                  </Link>
+                ) : (
+                  <Space vertical>
+                    <Button disabled>实时预览</Button>
+                    <Typography.Text type="secondary">
+                      {profiles.isFetching ? "正在读取 RobotProfile" : "该型号没有 RobotProfile"}
+                    </Typography.Text>
+                  </Space>
+                ),
             },
             {
               title: "操作",

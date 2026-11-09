@@ -3863,6 +3863,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/robots/{robot_id}/preview-layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Preview Layout
+         * @description 为已登记机器人生成可供同源查看器导入的布局。
+         *
+         *     Args:
+         *         robot_id: 机器人永久编号，1 至 2^63-1。
+         *         session: 当前请求的只读数据库事务，响应前释放。
+         *         profiles: 通过认证取得的启动时 RobotProfile 快照。
+         *
+         *     Returns:
+         *         Lichtblick 1.30.0 裸布局 JSON，相机与位置曲线按 Profile 顺序生成。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 机器人不存在或型号没有 RobotProfile，404 带五段诊断。
+         *         ExternalError: 登记数据库不可读，由统一数据库边界报告。
+         *         DefectError: Profile 未装配，由依赖报告。
+         *
+         *     Side Effects:
+         *         无；只读登记数据库与内存快照，不连接机器人、不读取存储根。
+         *
+         *     Time Semantics:
+         *         机器人型号取请求事务快照，Profile 取进程启动版本；曲线时间语义见 build_preview_layout。
+         */
+        get: operations["get_preview_layout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/robots/{robot_id}/restore": {
         parameters: {
             query?: never;
@@ -6993,6 +7032,8 @@ export interface components {
          *         stamp: 时间戳来源，header 或 receive；省略表示未知。
          *         stamp_trusted: 时间戳是否可信；省略表示未确认。
          *         trigger: 触发方式描述；省略表示未确认，不用于对齐。
+         *         stereo_eye: 双目的 left 或 right；与 stereo_partner 同时提供，省略表示未声明双目。
+         *         stereo_partner: 同一 Profile 内另一目的相机名；必须目别相反且相互指回。
          */
         ProfileCamera: {
             encoding?: components["schemas"]["ProfileText"] | null;
@@ -7006,6 +7047,9 @@ export interface components {
             stamp?: ("header" | "receive") | null;
             /** Stamp Trusted */
             stamp_trusted?: boolean | null;
+            /** Stereo Eye */
+            stereo_eye?: ("left" | "right") | null;
+            stereo_partner?: components["schemas"]["ProfileText"] | null;
             /** Topic */
             topic?: string | null;
             trigger?: components["schemas"]["ProfileText"] | null;
@@ -19110,6 +19154,120 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_preview_layout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                robot_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["JsonValue"];
+                    };
+                };
             };
             /** @description Bad Request */
             400: {

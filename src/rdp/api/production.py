@@ -17,6 +17,7 @@ from sqlalchemy import Engine
 from rdp.api import create_app
 from rdp.api.datasets import configure_datasets
 from rdp.api.jobs import configure_jobs
+from rdp.api.lichtblick import configure_lichtblick
 from rdp.api.robot_profiles import configure_robot_profiles
 from rdp.api.shutdown import drain_error_reports
 from rdp.api.storage import configure_storage
@@ -136,6 +137,7 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
         create_app(dist, database=engine, clock=clock, platform_version=version) 内登记版本，
         返回后 configure_jobs(..., scheduling=...)、configure_storage(..., inspector=...)、
         configure_tools(..., settings=runtime.tools)，
+        configure_lichtblick 绑定状态目录的网页位置，不要求已经安装；
         configure_robot_profiles 只读部署目录 profiles 并校验，失败则不启动监听，
         导航根非空时configure_datasets，再单进程调用 runner，不二次 configure_version。
         启动时不访问存储根内容；M1.5查看器请求独立带超时只读。失败在本边界写一次诊断；数据库版本不匹配明确提示 rdp migrate。
@@ -161,6 +163,7 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
         configure_storage(app, inspector=runtime.inspector)
         configure_tools(app, settings=runtime.tools)
         configure_robot_profiles(app)
+        configure_lichtblick(app, state_dir=runtime.paths.root)
         if runtime.nav_root is not None:
             configure_datasets(
                 app,
@@ -170,7 +173,6 @@ def start_web(runtime: WebRuntime, *, runner: UvicornRunner) -> int:
                     app.state.job_service,
                 ),
             )
-        if runtime.nav_root is not None:
             app.state.file_viewer_service = FileViewerService(
                 runtime.engine, runtime.nav_root, runtime.inspector, runtime.storage_options
             )
