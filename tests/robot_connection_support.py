@@ -7,6 +7,7 @@ from threading import Event, Lock
 from account_api_support import ApiCase
 from jobs_scheduling_support import claim_fixture, resources_fixture
 
+from rdp.collection.profile import load_robot_profiles
 from rdp.infra.db.connection import session_scope
 from rdp.jobs.execution import ExecutionWork, ExecutorDependencies, execute_job
 from rdp.jobs.progress import ExecutionMonitor, ExecutionSignals
@@ -24,13 +25,13 @@ def fake_ssh(root: Path, body: str) -> Path:
     return program
 
 
-def submit(api: ApiCase, port: int) -> tuple[int, str]:
+def submit(api: ApiCase, port: int, *, model: str = "测试型号") -> tuple[int, str]:
     """只登记回环地址，经公开接口提交连接检查。"""
     response = api.client.post(
         "/api/robots",
         json={
             "name": "回环机器人",
-            "robot_model": "测试型号",
+            "robot_model": model,
             "address": "127.0.0.1",
             "ssh_user": "tester",
             "ssh_port": port,
@@ -46,11 +47,53 @@ def submit(api: ApiCase, port: int) -> tuple[int, str]:
     return robot_id, job.json()["job_id"]
 
 
-def run(api: ApiCase, job_id: str, program: Path) -> None:
+def readiness_ssh(root: Path, *, missing: str, process_text: str = "HDAS/HDAS") -> Path:
+    """假 SSH 用本机 bash 执行收到的脚本；系统探针全部替换，不访问任何网络或真实设备。"""
+    probes = root / "probes"
+    probes.mkdir()
+    for name, body in {
+        "ip": "assert sys.argv[1:] == ['-br', 'addr']\n"
+        f"print('eth1 UP {'10.42.0.23/24' if missing == 'address' else '10.42.0.238/24'}')\n",
+        "ss": "assert sys.argv[1:] == ['-Huln']\nprint('UNCONN 0 0 0.0.0.0:11811 0.0.0.0:*')\n",
+        "pgrep": "assert sys.argv[1:3] == ['-f', '--']\n"
+        f"commands = {'signal_camera_node' if missing == 'HDAS' else process_text + ' signal_camera_node'!r}\n"
+        "sys.exit(0 if re.search(sys.argv[3], commands) else 1)\n",
+    }.items():
+        probe = probes / name
+        probe.write_text("#!/usr/bin/python3\nimport sys, re\n" + body)
+        probe.chmod(0o700)
+    program = fake_ssh(root, "")
+    program.write_text(
+        "#!/usr/bin/python3\nimport sys, os, subprocess, json\nfrom pathlib import Path\n"
+        "a = sys.argv[1:]\n"
+        "assert a[a.index('--') + 1] == '127.0.0.1'\n"
+        "if a[-1] == 'true': sys.exit(0)\n"
+        "assert a[a.index('--') + 2:] == ['bash', '-s']\n"
+        "assert a[a.index('-F') + 1] == '/dev/null'\n"
+        "assert 'BatchMode=yes' in a and 'IdentityAgent=none' in a\n"
+        "assert 'IdentitiesOnly=yes' in a and 'StrictHostKeyChecking=accept-new' in a\n"
+        "script = sys.stdin.read()\n"
+        f"Path({str(root / 'received-script')!r}).write_text(script)\n"
+        f"Path({str(root / 'received-argv')!r}).write_text(json.dumps(a))\n"
+        f"env = dict(os.environ, PATH={str(probes)!r} + ':/usr/bin:/bin')\n"
+        "sys.exit(subprocess.run(['/bin/bash', '-s'], input=script, text=True, "
+        "env=env, timeout=3, check=False).returncode)\n"
+    )
+    return program
+
+
+def run(api: ApiCase, job_id: str, program: Path, *, profiles_dir: Path | None = None) -> None:
     """真实领取并执行作业，注入的仅是系统 SSH 可执行文件边界。"""
     paths = api.app.state.job_paths
     registry = production_registry(
-        connection_dependencies=ConnectionDependencies(api.engine, paths, ssh=program)
+        connection_dependencies=ConnectionDependencies(
+            api.engine,
+            paths,
+            load_robot_profiles(
+                Path(__file__).parents[1] / "profiles" if profiles_dir is None else profiles_dir
+            ),
+            ssh=program,
+        )
     )
     with session_scope(api.engine) as session:
         record = claim_job(session, int(job_id), now=api.clock(), paths=paths, gpu_index=None)

@@ -1,7 +1,7 @@
 # RobotProfile：Galaxea R1 Lite，ADR 0007、M5-01。
 # 话题、类型与频率来自环境事实 0007/0008；不含转换算法参数或单机凭据。
 profile = "r1lite"
-version = 1
+version = 2
 model = "Galaxea R1 Lite"
 robot_type_labels = ["galaxea_r1lite", "r1lite"]
 
@@ -14,7 +14,10 @@ participant = "SUPER_CLIENT"
 qos_subscribe = "BEST_EFFORT"
 # domain_id 待补测，见规划票 18；不把发现服务器方式猜成 domain 0。
 readiness = [
-  { check = "address_present", value = "10.42.0.238", reason = "eth1 没拿到该地址时所有节点互相断开，原厂录制会录出空数据（0008）" },
+  { check = "udp_port_listening", value = 11811, level = "error", reason = "本机发现服务器没在跑：厂商软件栈没启动。先确认主臂网线接通（eth1 有 10.42.0.238），再在机器人上执行 boot.sh（0014）" },
+  { check = "process_running", value = "HDAS/HDAS", level = "error", reason = "手臂驱动 HDAS 没在跑：厂商软件栈没启动或已退出。先确认主臂网线接通，再执行 boot.sh（0014）" },
+  { check = "process_running", value = "signal_camera_node", level = "error", reason = "头部相机节点没在跑：厂商软件栈没启动或已退出。先确认主臂网线接通，再执行 boot.sh（0014）" },
+  { check = "address_present", value = "10.42.0.238", level = "warning", reason = "eth1（主臂网线）断开：已在跑的厂商程序照常工作，但这时重启厂商栈会互相发现不了、录出空数据。重启前先接通主臂（0008、0014）" },
 ]
 
 [[joint_group]]

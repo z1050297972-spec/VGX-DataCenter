@@ -24,6 +24,8 @@ def runtime_inputs(root: Path, *, migrated: bool = True) -> RuntimeInputs:
     config = root / "config.toml"
     tools = root / "tools"
     tools.mkdir()
+    # worker 启动时读取说明档；空目录表示测试部署没有已登记的型号说明档。
+    (root / "profiles").mkdir()
     config.write_text(
         'state_dir = "~/state"\nnav_root = "~/nav"\n[jobs]\ngpus = []\n'
         + f"[tools]\nregistry_dir = {json.dumps(str(tools))}\nlibrary_root = {json.dumps(str(root / 'library'))}\n"

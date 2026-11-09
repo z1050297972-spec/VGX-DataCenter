@@ -12,6 +12,7 @@ from typing import Literal, cast
 
 from sqlalchemy import Engine
 
+from rdp.collection.profile import load_robot_profiles
 from rdp.infra.config import LoadedConfig, PlatformConfig, load_config
 from rdp.infra.db.connection import create_database_engine
 from rdp.infra.db.migration import check_database_version
@@ -133,9 +134,9 @@ def prepare_service(
     Raises:
         ValueError: load_config、state_paths 或 configure_logging 拒绝配置、路径或日志时间。
         OSError: 配置、状态目录、日志或时区规则读写失败，保留原路径及原因。
-        InputError: 数据库缺失/版本不匹配，明确提示 rdp migrate；或版本文件、调度/存储登记不合法。
+        InputError: 数据库缺失/版本不匹配，明确提示 rdp migrate；或版本文件、调度/存储登记或 RobotProfile 不合法。
         ConflictError: 数据库版本检查锁冲突。
-        ExternalError: 数据库、构建信息或系统挂载来源初始化 I/O 失败。
+        ExternalError: 数据库、构建信息、RobotProfile 或系统挂载来源初始化 I/O 失败。
         DefectError: 注入时钟无效、注册表或受管引擎配置错误。
 
     Side Effects:
@@ -143,6 +144,7 @@ def prepare_service(
         用 log_config_source/log_state_warnings 记录来源和目录权限警告，再建引擎并
         check_database_version，绝不自动迁移；显式配置文件来源另记安全路径，不记录配置内容。
         production_registry 完成所有类型登记后 validate_storage_roots，再补齐各类型日志目录；
+        worker 从部署目录只读加载 RobotProfile 快照；格式或读取失败则拒绝启动。
         两次 initialize_state 返回的权限警告按路径去重，每个路径只报告一次。
         SchedulingCatalog 使用 resolve_scheduling、production_schedules、local_timezone(inputs.localtime)。
         MountInspector 绑定配置根、mounts 两个读取方法和 UTC 时钟；不调用 read_storage_root。
@@ -203,7 +205,9 @@ def prepare_service(
                     rescan,
                     navigation,
                     download,
-                    connection_dependencies=ConnectionDependencies(engine, paths),
+                    connection_dependencies=ConnectionDependencies(
+                        engine, paths, load_robot_profiles(inputs.layout.root / "profiles")
+                    ),
                 ),
                 config,
                 engine,
