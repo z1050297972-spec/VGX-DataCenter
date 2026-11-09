@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from rdp.jobs.downloads.job import DownloadDependencies
     from rdp.jobs.execution import ExecutionContext
     from rdp.jobs.navwrite.pipeline import NavWriteDependencies
+    from rdp.jobs.robot_connection.job import ConnectionDependencies
 
 
 # 类型键是持久化协议；登记、执行装配、定时规则和HTTP入口共用，不复用历史含义。
@@ -241,6 +242,8 @@ def production_registry(
     rescan_dependencies: RescanDependencies | None = None,
     nav_write_dependencies: NavWriteDependencies | None = None,
     download_dependencies: DownloadDependencies | None = None,
+    *,
+    connection_dependencies: ConnectionDependencies | None = None,
 ) -> JobRegistry:
     """构造示例与维护作业的生产登记表。
 
@@ -249,13 +252,15 @@ def production_registry(
         nav_write_dependencies: worker的写导航层依赖（M1-07）；Web传None，只能校验提交参数，
             执行时缺依赖属于程序缺陷。
         download_dependencies: worker下载边界依赖；Web传None，仅校验参数。
+        connection_dependencies: worker 的机器人连接能力；Web 传 None，不生成密钥或联网。
 
     Returns:
         新 JobRegistry：示例、维护、数据集扫描与统计，以及 nav_write_apply、
         两个创建预览、nav_data_origin_preview、nav_repoint_preview 和
         nav_fields_preview、nav_lineage_preview、自动写入 nav_size_sync，以及 resume 的 download；扫描与预览为 restart，
         执行能力由入口显式注入。
-        三个示例为 interrupt，两个清除为 restart；只有 example_gpu 需要 GPU，各类默认并发 1。
+        三个示例与 robot_connection_check 为 interrupt，两个清除为 restart；
+        只有 example_gpu 需要 GPU，各类默认并发 1。
 
     Raises:
         DefectError: 示例类型的静态定义违反登记契约。
@@ -295,8 +300,10 @@ def production_registry(
         execute_gpu_example,
         execute_navigation_example,
     )
+    from rdp.jobs.robot_connection.job import build_connection_definition
 
     registry = JobRegistry()
+    registry.register(build_connection_definition(connection_dependencies))
     registry.register(
         JobDefinition(
             "example_count",

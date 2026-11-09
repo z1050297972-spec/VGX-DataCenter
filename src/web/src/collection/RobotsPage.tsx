@@ -1,4 +1,4 @@
-// 机器人登记只操作平台数据库；不连接机器人、不保存凭据、不访问数据盘。
+// 机器人登记操作数据库；连接检查提交给 worker，页面只读公钥，不保存凭据。
 import { useState, type ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -23,6 +23,7 @@ import { DiagnosticCard } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
 import { formatDateTime } from "../time";
 import { RegistryRowActions, useRegistryAction } from "./shared";
+import { RobotConnection } from "./RobotConnection";
 import "./collection.css";
 
 // 工单 01：每台最多 8 块网卡；SSH 默认端口为 22。
@@ -143,6 +144,10 @@ export function RobotsPage(): ReactElement {
                   <span>{formatDateTime(row.updated_at)}</span>
                 </Space>
               ),
+            },
+            {
+              title: "连接检查",
+              render: (_, row) => <RobotConnection robot={row} />,
             },
             {
               title: "操作",

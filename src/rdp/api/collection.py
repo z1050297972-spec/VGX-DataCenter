@@ -5,7 +5,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -22,11 +22,13 @@ from rdp.api.collection_schemas import (
     VocabularyResponse,
 )
 from rdp.api.database import get_read_session, get_session
+from rdp.api.jobs import JobContext
 from rdp.collection import service
 from rdp.collection.models import RobotRow
 from rdp.collection.types import MethodInput, PurposeInput, RobotInput
 from rdp.infra.ids import MAX_SQLITE_INTEGER
 from rdp.jobs.datasets.models import DatasetRow
+from rdp.jobs.robot_connection.keys import SshPublicKey, read_public_key
 
 router = APIRouter(prefix="/api", tags=["机器人与采集词表"])
 Context = Annotated[AccountRequestContext, Depends(get_authenticated_context)]
@@ -51,6 +53,35 @@ def _response[T: RobotResponse | MethodResponse | PurposeResponse](
             "updated_at": record.updated_at,
         }
     )
+
+
+@router.get("/robots/ssh-public-key", response_model=SshPublicKey)
+def robot_ssh_public_key(
+    robot_id: Annotated[int, Query(ge=1, le=MAX_SQLITE_INTEGER)],
+    session: ReadSession,
+    context: JobContext,
+) -> SshPublicKey:
+    """只读展示平台公钥和指定机器人的手动安装命令。
+
+    Args:
+        robot_id: 机器人永久编号，1 至 2^63-1；只从登记读取连接信息。
+        session: 当前请求的只读数据库事务。
+        context: 已登录成员或管理员，以及显式装配的状态目录。
+
+    Returns:
+        公钥一行与 ssh-copy-id 命令；worker 尚未生成时两项均为 None。
+
+    Raises:
+        CollectionNotFoundError: 指定机器人不存在，404。
+        ExternalError: 状态服务未配置、公钥不可读或路径不安全，502。
+
+    Side Effects:
+        无；只读平台公钥与登记，既不读取私钥也不调用 SSH 或生成密钥。
+
+    Time Semantics:
+        不等待作业执行，公钥未生成立即返回；安装命令取当前登记快照。
+    """
+    return read_public_key(context.paths, session, robot_id)
 
 
 @router.get("/robots", response_model=RobotsResponse)

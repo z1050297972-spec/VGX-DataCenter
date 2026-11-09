@@ -6682,6 +6682,40 @@
         "title": "SourceAddition",
         "type": "object"
       },
+      "SshPublicKey": {
+        "additionalProperties": false,
+        "description": "只返回公钥及当前机器人的手动安装命令；未生成或登记不完整时相应字段为 None。",
+        "properties": {
+          "copy_command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copy Command"
+          },
+          "public_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Key"
+          }
+        },
+        "required": [
+          "public_key",
+          "copy_command"
+        ],
+        "title": "SshPublicKey",
+        "type": "object"
+      },
       "StagingEntry": {
         "description": "一个不含绝对路径的暂存目录观察。",
         "properties": {
@@ -21718,6 +21752,146 @@
           }
         ],
         "summary": "Robot Model Options",
+        "tags": [
+          "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/robots/ssh-public-key": {
+      "get": {
+        "description": "只读展示平台公钥和指定机器人的手动安装命令。\n\nArgs:\n    robot_id: 机器人永久编号，1 至 2^63-1；只从登记读取连接信息。\n    session: 当前请求的只读数据库事务。\n    context: 已登录成员或管理员，以及显式装配的状态目录。\n\nReturns:\n    公钥一行与 ssh-copy-id 命令；worker 尚未生成时两项均为 None。\n\nRaises:\n    CollectionNotFoundError: 指定机器人不存在，404。\n    ExternalError: 状态服务未配置、公钥不可读或路径不安全，502。\n\nSide Effects:\n    无；只读平台公钥与登记，既不读取私钥也不调用 SSH 或生成密钥。\n\nTime Semantics:\n    不等待作业执行，公钥未生成立即返回；安装命令取当前登记快照。",
+        "operationId": "robot_ssh_public_key_api_robots_ssh_public_key_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "robot_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Robot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SshPublicKey"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Robot Ssh Public Key",
         "tags": [
           "机器人与采集词表"
         ]
