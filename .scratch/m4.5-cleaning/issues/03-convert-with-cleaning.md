@@ -12,7 +12,7 @@ Status: not-started
 
 ### 1. "进行转换"接口
 
-`POST /api/cleaning-previews/{job_id}/convert`（`operation_id = convert_from_cleaning_preview`），只有管理员：
+`POST /api/cleaning-previews/{job_id}/convert`（`operation_id = convert_from_cleaning_preview`），只有管理员（第 04 张前端已按本节契约写）：
 
 - 请求体：`output_format`（可省略，取清单首项）、`space_ratio_percent`、`space_reserve_gib`（含义和默认值同现有转换参数）、`excluded_files`（预览里的 `file_index` 列表）、`excluded_episodes`（`{file_index, segment_index}` 列表）。这两项是用户的**最终**选择（前端以报告的默认处理为初值），服务端原样保存，不再套默认。
 - 校验（不通过 422）：预览存在；`file_index`、`(file_index, segment_index)` 都在报告里；有致命问题的文件必须在 `excluded_files` 里；剔除后至少剩一个文件、至少剩一个 episode；`excluded_episodes` 里不能有已被剔除文件的段（冗余输入直接拒绝，免得含义不清）。
@@ -41,7 +41,7 @@ Status: not-started
 - 平台配置 `[tools]` 加可选的 `lerobot_python`（LeRobot 环境解释器的绝对路径）。没配置时，有 episode 要剔除的转换在「核对输入」以输入问题失败（"未配置 LeRobot 环境"）；没有要剔除的转换不受影响。本机部署要配成 `/home/shawn/miniconda3/envs/lerobot/bin/python`（运维手册写在第 05 张；本票不改真实配置）。
 - 指纹核对：每次「剔除」前，在同一个沙箱设置下用该解释器运行一段探测（`-I`，`PYTHONDONTWRITEBYTECODE=1`），取实际导入的 `lerobot` 版本和包目录；平台在自己这边按指纹范围读包目录里的文件算 sha256（相对路径排序，路径和内容摘要依次进哈希），与 `env.toml` 比对。版本或指纹不符以输入问题失败："LeRobot 环境已变化，需要重新登记"。
 - 运行 LeRobot：沙箱照现有 bwrap 写法（根目录只读，只有本作业暂存目录可写），另外断网（`--unshare-net`），环境变量 `HF_HUB_OFFLINE=1`、`PYTHONDONTWRITEBYTECODE=1`，`HF_HOME` 指向暂存目录下的私有目录；不额外要 GPU（试跑实测重新编码走 CPU 的 libx265，见 Comments），作业本身因工具需要仍占着一张卡。超时与取消复用受管进程（上限 12 小时）。
-- `GET /api/tools`（或详情）带上 LeRobot 环境状态：未配置 / 可用 / 版本或指纹不符（附实际值）。状态在请求时探测，超时和失败都如实显示，不让工具列表失败。
+- `GET /api/tools` 的列表响应加 `lerobot_environment`：`{status: "unconfigured" | "available" | "mismatch" | "error", expected_version, actual_version | null, expected_fingerprint, actual_fingerprint | null, message | null}`（第 04 张前端已按这个契约写）。状态在请求时探测（有界超时），超时和失败记为 `error` 并带说明，不让工具列表失败。
 - 指纹算法（平台和登记要一致）：包目录下 `configs/`、`datasets/`、`utils/` 递归找 `.py`（跳过 `__pycache__`），取相对包目录的 POSIX 路径，按路径排序；依次把 `路径 + b"\0" + 文件内容的 sha256 十六进制 + b"\n"` 送进一个 sha256，取十六进制。执行线 2026-11-09 用此算法在本机算得：63 个文件，`9e5c3242e11ad6be6bbd594bb4fa6bbe09f8eb8f2392081af2c2279449495831`（包目录 `/home/shawn/桌面/lerobot/src/lerobot`，版本 0.6.2），写进 `env.toml`。
 
 ## 不做
