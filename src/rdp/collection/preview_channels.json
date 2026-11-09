@@ -1,0 +1,8 @@
+{
+  "port": 8765,
+  "camera_topic": "/viz/camera/{name}",
+  "joint_topic": "/viz/joint/{name}/{source}",
+  "video_schema": "foxglove.CompressedVideo",
+  "image_schema": "sensor_msgs/msg/CompressedImage",
+  "joint_schema": "sensor_msgs/msg/JointState"
+}

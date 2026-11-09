@@ -42,7 +42,11 @@ function registryFetch(
   let robots = [{ ...robot, reference_count: references }];
   const methods = [{ ...method, reference_count: references }];
   const purposes = [{ ...purpose, reference_count: references }];
-  const fallback = pageFetch();
+  const defaultFallback = pageFetch();
+  const fallback: FetchImplementation = (request) =>
+    new URL(request.url).pathname === "/api/robot-profiles"
+      ? Promise.resolve(Response.json({ items: [] }))
+      : defaultFallback(request);
   const writes = options.writes ?? [];
   return async (request) => {
     const path = new URL(request.url).pathname;
