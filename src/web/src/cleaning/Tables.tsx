@@ -1,6 +1,6 @@
 // 清洗事实表：使用报告中的稳定下标，不将最终产物编号当作请求身份。
 import type { ReactElement } from "react";
-import { Collapse, Space, Switch, Table, Tag, Typography } from "antd";
+import { Collapse, Space, Switch, Table, Tag, Tooltip, Typography } from "antd";
 import type {
   CleaningReport,
   EpisodeIssue,
@@ -8,6 +8,7 @@ import type {
   FileReport,
   TopicAlignment,
 } from "../api/cleaning";
+import { formatNumber } from "./formatNumber";
 import { DiagnosticEntries } from "../DiagnosticCard";
 
 interface FileTableProps {
@@ -30,9 +31,27 @@ export function FileTable(props: FileTableProps): ReactElement {
       dataSource={props.report.files}
       pagination={false}
       scroll={{ x: "max-content" }}
-      expandable={{ expandedRowRender: (file) => <TopicTable topics={file.topics} /> }}
+      expandable={{ expandedRowRender: (file) => <FileDetails file={file} /> }}
       columns={[
-        { title: "文件", dataIndex: "path" },
+        {
+          title: "处理",
+          fixed: "left",
+          render: (_, file) => (
+            <Space orientation="vertical">
+              <Switch
+                aria-label={`文件 ${file.path} 保留`}
+                checked={!props.excludedFiles.has(file.file_index)}
+                checkedChildren="保留"
+                unCheckedChildren="剔除"
+                disabled={file.fatal_issues.length > 0}
+                onChange={() => {
+                  props.toggleFile(file.file_index);
+                }}
+              />
+            </Space>
+          ),
+        },
+        { title: "文件", render: (_, file) => <FileName path={file.path} /> },
         {
           title: "保留帧 / 基准帧",
           render: (_, file) => `${String(file.kept_frames)} / ${String(file.reference_frames)}`,
@@ -52,40 +71,57 @@ export function FileTable(props: FileTableProps): ReactElement {
         },
         {
           title: "致命问题和警告",
-          render: (_, file) => (
-            <Space orientation="vertical">
-              <DiagnosticEntries diagnostics={file.fatal_issues} />
-              <DiagnosticEntries diagnostics={file.warnings} />
-              {file.topics
-                .filter((topic) => topic.image_check === "unchecked_h264")
-                .map((topic) => (
-                  <Tag key={topic.topic}>{topic.topic}：H.264 画面未检查</Tag>
-                ))}
-            </Space>
-          ),
-        },
-        {
-          title: "处理",
-          render: (_, file) => (
-            <Space orientation="vertical">
-              <Switch
-                aria-label={`文件 ${file.path} 保留`}
-                checked={!props.excludedFiles.has(file.file_index)}
-                checkedChildren="保留"
-                unCheckedChildren="剔除"
-                disabled={file.fatal_issues.length > 0}
-                onChange={() => {
-                  props.toggleFile(file.file_index);
-                }}
-              />
-              {file.fatal_issues.length > 0 && (
-                <Typography.Text type="danger">致命问题，固定剔除</Typography.Text>
-              )}
-            </Space>
-          ),
+          render: (_, file) => <FileIssues file={file} />,
         },
       ]}
     />
+  );
+}
+
+// 可见列只放文件名；完整路径通过 antd 悬停提示提供，避免路径决定表格最小宽度。
+function FileName({ path }: { path: string | undefined }): ReactElement {
+  if (!path) return <>未知文件</>;
+  return (
+    <Tooltip title={path}>
+      <Typography.Text className="cleaning-file-name" ellipsis>
+        {path.split("/").at(-1) || path}
+      </Typography.Text>
+    </Tooltip>
+  );
+}
+
+function FileIssues({ file }: { file: FileReport }): ReactElement {
+  const primary = file.fatal_issues[0] ?? file.warnings[0];
+  return (
+    <Space orientation="vertical" className="cleaning-issues">
+      <Space wrap>
+        <Tag color="red">致命 {file.fatal_issues.length}</Tag>
+        <Tag color="orange">警告 {file.warnings.length}</Tag>
+      </Space>
+      {primary && (
+        <Typography.Text type={file.fatal_issues.length ? "danger" : undefined}>
+          实际：{primary.actual}
+        </Typography.Text>
+      )}
+      {file.fatal_issues.length > 0 && (
+        <Typography.Text type="danger" strong>
+          该文件已固定剔除
+        </Typography.Text>
+      )}
+    </Space>
+  );
+}
+
+// 五段诊断保留完整内容，按需展开；与对齐统计一起使用卡片内可收缩的网格。
+function FileDetails({ file }: { file: FileReport }): ReactElement {
+  return (
+    <div className="cleaning-file-details">
+      <Typography.Title level={5}>致命问题与警告明细</Typography.Title>
+      <DiagnosticEntries diagnostics={file.fatal_issues} />
+      <DiagnosticEntries diagnostics={file.warnings} />
+      <Typography.Title level={5}>话题对齐统计</Typography.Title>
+      <TopicTable topics={file.topics} />
+    </div>
   );
 }
 
@@ -96,11 +132,18 @@ function TopicTable({ topics }: { topics: TopicAlignment[] }): ReactElement {
       dataSource={topics}
       pagination={false}
       size="small"
+      scroll={{ x: "max-content" }}
       columns={[
         { title: "话题", dataIndex: "topic" },
-        { title: "容差（ms）", dataIndex: "tolerance_ms" },
-        { title: "|Δt| 平均（ms）", render: (_, topic) => topic.mean_abs_dt_ms ?? "未知" },
-        { title: "|Δt| 最大（ms）", render: (_, topic) => topic.max_abs_dt_ms ?? "未知" },
+        { title: "容差", render: (_, topic) => formatNumber(topic.tolerance_ms, "milliseconds") },
+        {
+          title: "|Δt| 平均",
+          render: (_, topic) => formatNumber(topic.mean_abs_dt_ms, "milliseconds"),
+        },
+        {
+          title: "|Δt| 最大",
+          render: (_, topic) => formatNumber(topic.max_abs_dt_ms, "milliseconds"),
+        },
         { title: "复用帧", dataIndex: "reused_frames" },
         { title: "坏帧", dataIndex: "bad_frames" },
         {
@@ -151,36 +194,8 @@ export function EpisodeTable(props: EpisodeTableProps): ReactElement {
       }
       columns={[
         {
-          title: "产物编号（从 0 开始）",
-          render: (_, episode) => props.numbers.get(episodeKey(episode)) ?? "—（剔除）",
-        },
-        {
-          title: "文件",
-          render: (_, episode) => files.get(episode.file_index)?.path ?? "未知文件",
-        },
-        { title: "段下标", dataIndex: "segment_index" },
-        { title: "帧数", dataIndex: "frame_count" },
-        { title: "时长（秒）", dataIndex: "duration_s" },
-        { title: "原始时间跨度（秒）", dataIndex: "stamp_span_s" },
-        { title: "开始时间（原始 stamp 秒）", dataIndex: "start_time_s" },
-        {
-          title: "问题",
-          render: (_, episode) => (
-            <Space orientation="vertical">
-              {episode.issues.map((issue, index) => (
-                <Issue key={index} issue={issue} />
-              ))}
-              {files
-                .get(episode.file_index)
-                ?.topics.filter((topic) => topic.image_check === "unchecked_h264")
-                .map((topic) => (
-                  <Tag key={topic.topic}>{topic.topic}：H.264 画面未检查</Tag>
-                ))}
-            </Space>
-          ),
-        },
-        {
           title: "处理",
+          fixed: "left",
           render: (_, episode) => (
             <Space orientation="vertical">
               <Switch
@@ -199,6 +214,43 @@ export function EpisodeTable(props: EpisodeTableProps): ReactElement {
               {props.excludedFiles.has(episode.file_index) && (
                 <Typography.Text type="secondary">所属文件已剔除</Typography.Text>
               )}
+            </Space>
+          ),
+        },
+        {
+          title: "产物编号（从 0 开始）",
+          render: (_, episode) => props.numbers.get(episodeKey(episode)) ?? "—（剔除）",
+        },
+        {
+          title: "文件",
+          render: (_, episode) => <FileName path={files.get(episode.file_index)?.path} />,
+        },
+        { title: "段下标", dataIndex: "segment_index" },
+        { title: "帧数", dataIndex: "frame_count" },
+        { title: "时长", render: (_, episode) => formatNumber(episode.duration_s, "seconds") },
+        {
+          title: "原始时间跨度",
+          render: (_, episode) => formatNumber(episode.stamp_span_s, "span"),
+        },
+        {
+          title: "开始时间（原始 stamp）",
+          render: (_, episode) => formatNumber(episode.start_time_s, "seconds"),
+        },
+        {
+          title: "问题",
+          render: (_, episode) => (
+            <Space orientation="vertical" className="cleaning-issues">
+              {episode.issues.map((issue, index) => (
+                <Issue key={index} issue={issue} />
+              ))}
+              {files
+                .get(episode.file_index)
+                ?.topics.filter((topic) => topic.image_check === "unchecked_h264")
+                .map((topic) => (
+                  <Tag className="cleaning-topic-note" key={topic.topic}>
+                    {topic.topic}：H.264 画面未检查
+                  </Tag>
+                ))}
             </Space>
           ),
         },
@@ -223,14 +275,17 @@ function Issue({ issue }: { issue: EpisodeIssue }): ReactElement {
             children: (
               <>
                 <div>次数：{details.count}</div>
-                <div>首次时间（相对段首秒）：{details.first_time_s ?? "未知"}</div>
+                <div>首次时间（相对段首秒）：{formatNumber(details.first_time_s, "seconds")}</div>
                 <div>
                   特征：{details.feature ?? "—"}；话题：{details.topic ?? "—"}
                 </div>
                 <div>
                   区间（相对段首秒，含端点）：
                   {details.ranges
-                    .map((range) => `${String(range.start_s)}–${String(range.end_s)}`)
+                    .map(
+                      (range) =>
+                        `${formatNumber(range.start_s, "seconds")}–${formatNumber(range.end_s, "seconds")}`,
+                    )
                     .join("、") || "无"}
                 </div>
                 <DiagnosticEntries diagnostics={[issue.diagnostic]} />

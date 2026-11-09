@@ -134,13 +134,13 @@ it.each([{ severe_checks: ["non_finite", "frozen_image"] }, { severe_checks: [] 
     const page = mountReport(false, snapshot);
     try {
       fireEvent.click(await screen.findByText("规则说明"));
-      expect(await screen.findByText("17 毫秒")).toBeTruthy();
-      expect(screen.getByText("2.7 倍 / 270 毫秒")).toBeTruthy();
+      expect(await screen.findByText("17.000 毫秒")).toBeTruthy();
+      expect(screen.getByText("2.7 倍 / 270.000 毫秒")).toBeTruthy();
       expect(screen.getByText("73 帧")).toBeTruthy();
       for (const text of [
         "observation.state",
         "action",
-        "4.5 秒",
+        "4.50 秒",
         "2.25 秒",
         "0.75 秒",
         "平均亮度 < 12",

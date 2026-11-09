@@ -1,7 +1,43 @@
-/* 清洗报告仅补充布局与被剔除文件的底色，问题标签和诊断保持原有醒目程度。 */
+/* minmax(0, 1fr) 允许网格轨道小于表格固有宽度，横向滚动由 antd Table 自己承接。 */
 .cleaning-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--rdp-space-5);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.cleaning-section {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cleaning-file-details {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--rdp-space-3);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 文件名和问题摘要的阅读宽度沿用全局宽度档位，长路径放在 Tooltip 中。 */
+.cleaning-file-name {
+  max-width: var(--rdp-width-filter-wide);
+  vertical-align: middle;
+}
+
+.cleaning-issues {
+  max-width: var(--rdp-width-filter-tasks);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* antd Tag 默认不换行，话题名较长时允许换行，完整提示仍保持可见。 */
+.cleaning-topic-note {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .cleaning-excluded-file {

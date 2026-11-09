@@ -111,7 +111,7 @@ function Report({ preview, jobId }: { preview: CleaningPreview; jobId: string })
           清洗报告 #{jobId}
         </Typography.Title>
       </header>
-      <Card title="报告概要">
+      <Card className="cleaning-section" title="报告概要">
         <Descriptions
           items={[
             { key: "dataset", label: "数据集", children: preview.dataset_id },
@@ -142,12 +142,13 @@ function Report({ preview, jobId }: { preview: CleaningPreview; jobId: string })
         <DiagnosticEntries diagnostics={report.warnings} />
       </Card>
       <Collapse
+        className="cleaning-section"
         items={[{ key: "rules", label: "规则说明", children: <ReportRules report={report} /> }]}
       />
-      <Card title="文件">
+      <Card className="cleaning-section" title="文件">
         <FileTable report={report} excludedFiles={excludedFiles} toggleFile={toggleFile} />
       </Card>
-      <Card title="episode">
+      <Card className="cleaning-section" title="episode">
         <Checkbox
           checked={search.onlyIssues}
           onChange={(event) => {
@@ -172,7 +173,7 @@ function Report({ preview, jobId }: { preview: CleaningPreview; jobId: string })
           }}
         />
       </Card>
-      <Card title="进行转换">
+      <Card className="cleaning-section" title="进行转换">
         <ConvertFromReport
           preview={preview}
           jobId={jobId}
