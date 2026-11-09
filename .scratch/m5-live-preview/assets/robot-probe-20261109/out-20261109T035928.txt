@@ -1,0 +1,44 @@
+
+===== 环境 =====
+2026-11-09T18:59:30+08:00
+Linux 5.15.136-rt-tegra aarch64
+Ubuntu 22.04.4 LTS
+ 18:59:30 up  8:44, 15 users,  load average: 11.29, 11.22, 11.30
+Python 3.10.12
+/usr/bin/pip3
+pip 22.0.2 from /usr/lib/python3/dist-packages/pip (python 3.10)
+venv: 可用
+/dev/nvme0n1p1  938G  396G  495G  45% /
+Mem:            29Gi        10Gi        16Gi       227Mi       2.9Gi        18Gi
+8
+eth1             DOWN           
+pypi: 200
+
+===== 复制节点环境 =====
+环境取自 pid=55569；FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml；RMW=默认
+rclpy 可导入 3.10.12
+
+===== 头部相机配置（只读，敏感字段打码） =====
+
+===== 网络与发现服务器 =====
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+eth0             UP             192.168.2.150/24 fe80::4ebb:47ff:fee4:ed82/64 
+eth1             DOWN           
+can0             UP             
+can1             UP             
+wlan0            UP             192.168.0.229/24 fd00:3::b993:ddc6:fcb9:9dc0/64 fd00:3::ff9e:9f5c:351c:20c4/64 fe80::44e7:c25f:db17:6941/64 
+l4tbr0           DOWN           
+usb0             DOWN           
+usb1             DOWN           
+br-34c013db497f  DOWN           172.18.0.1/16 
+docker0          DOWN           172.17.0.1/16 
+br-ef9f2d76692f  UP             172.20.0.1/16 fe80::42:17ff:fea0:f43b/64 
+br-30a07dc96a19  DOWN           172.19.0.1/16 
+vethec30818@if14 UP             fe80::3876:9aff:febf:5ab0/64 
+UNCONN 0 0 0.0.0.0:11811 0.0.0.0:* users:(("fast-discovery-",pid=54165,fd=18))
+发现服务器地址 10.42.0.238
+
+===== 订阅头部左路（最多等 15 秒，收到后再收 3 秒） =====
+发现/订阅等待结束，用时 15.1 秒
+收到 0 条
+结束 2026-11-09T18:59:47+08:00

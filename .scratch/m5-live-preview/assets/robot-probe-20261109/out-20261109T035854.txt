@@ -1,0 +1,25 @@
+
+===== 环境 =====
+2026-11-09T18:58:55+08:00
+Linux 5.15.136-rt-tegra aarch64
+Ubuntu 22.04.4 LTS
+ 18:58:55 up  8:43, 15 users,  load average: 11.41, 11.28, 11.33
+Python 3.10.12
+/usr/bin/pip3
+pip 22.0.2 from /usr/lib/python3/dist-packages/pip (python 3.10)
+venv: 可用
+/dev/nvme0n1p1  938G  396G  495G  45% /
+Mem:            29Gi        10Gi        16Gi       227Mi       2.9Gi        18Gi
+8
+eth1             DOWN           
+pypi: 200
+
+===== 复制节点环境 =====
+环境取自 pid=55569；FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml；RMW=默认
+rclpy 可导入 3.10.12
+
+===== 头部相机配置（只读，敏感字段打码） =====
+
+===== 订阅头部左路 3 秒 =====
+收到 0 条
+结束 2026-11-09T18:59:03+08:00
