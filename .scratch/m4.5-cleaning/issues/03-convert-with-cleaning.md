@@ -40,9 +40,9 @@ Status: not-started
   - `delete_episodes.py`：在 LeRobot 环境里运行的小脚本：参数是源目录、目标目录、要删的 episode 编号；用 `LeRobotDataset`（本地根目录、离线）加载后调用 `lerobot.datasets.dataset_tools.delete_episodes`，结束时在 stdout 打一行 JSON（保留的 episode 数、帧数）。脚本只做这些。
 - 平台配置 `[tools]` 加可选的 `lerobot_python`（LeRobot 环境解释器的绝对路径）。没配置时，有 episode 要剔除的转换在「核对输入」以输入问题失败（"未配置 LeRobot 环境"）；没有要剔除的转换不受影响。本机部署要配成 `/home/shawn/miniconda3/envs/lerobot/bin/python`（运维手册写在第 05 张；本票不改真实配置）。
 - 指纹核对：每次「剔除」前，在同一个沙箱设置下用该解释器运行一段探测（`-I`，`PYTHONDONTWRITEBYTECODE=1`），取实际导入的 `lerobot` 版本和包目录；平台在自己这边按指纹范围读包目录里的文件算 sha256（相对路径排序，路径和内容摘要依次进哈希），与 `env.toml` 比对。版本或指纹不符以输入问题失败："LeRobot 环境已变化，需要重新登记"。
-- 运行 LeRobot：沙箱照现有 bwrap 写法（根目录只读，只有本作业暂存目录可写），另外断网（`--unshare-net`），环境变量 `HF_HUB_OFFLINE=1`、`PYTHONDONTWRITEBYTECODE=1`，`HF_HOME` 指向暂存目录下的私有目录；占用本作业已分配的 GPU（重新编码可能用 GPU 编码器）。超时与取消复用受管进程（上限 12 小时）。
+- 运行 LeRobot：沙箱照现有 bwrap 写法（根目录只读，只有本作业暂存目录可写），另外断网（`--unshare-net`），环境变量 `HF_HUB_OFFLINE=1`、`PYTHONDONTWRITEBYTECODE=1`，`HF_HOME` 指向暂存目录下的私有目录；不额外要 GPU（试跑实测重新编码走 CPU 的 libx265，见 Comments），作业本身因工具需要仍占着一张卡。超时与取消复用受管进程（上限 12 小时）。
 - `GET /api/tools`（或详情）带上 LeRobot 环境状态：未配置 / 可用 / 版本或指纹不符（附实际值）。状态在请求时探测，超时和失败都如实显示，不让工具列表失败。
-- 执行线在本票派工前用真实环境算好指纹写进 `env.toml`（实现者先放占位，执行线填）。
+- 指纹算法（平台和登记要一致）：包目录下 `configs/`、`datasets/`、`utils/` 递归找 `.py`（跳过 `__pycache__`），取相对包目录的 POSIX 路径，按路径排序；依次把 `路径 + b"\0" + 文件内容的 sha256 十六进制 + b"\n"` 送进一个 sha256，取十六进制。执行线 2026-11-09 用此算法在本机算得：63 个文件，`9e5c3242e11ad6be6bbd594bb4fa6bbe09f8eb8f2392081af2c2279449495831`（包目录 `/home/shawn/桌面/lerobot/src/lerobot`，版本 0.6.2），写进 `env.toml`。
 
 ## 不做
 
@@ -70,3 +70,8 @@ Status: not-started
 2. 执行线用真实 LeRobot 环境在副本上跑一次删除脚本：先用工具把 M5 真实样本副本转成 v3.0 到测试目录（系统盘，GPU），再删掉一个 episode，`cleaned` 能用 `LeRobotDataset` 读出、episode 数对、视频能解码；记下耗时和重新编码用的编码器。两块数据盘写入扇区不变。
 
 ## Comments
+
+- 2026-11-09 05:4x 执行线预先试跑（`~/.cache/rdp-drill/m4.5-spike/`，系统盘，两块数据盘写入扇区前后 5304 / 33280 不变）：
+  - 工具在 bwrap 里（`--ro-bind / /`，只绑定试跑目录可写）把 M5 样本副本转成 v3.0：25 秒，5 个 episode、1647 帧、105 MB，三路视频 `hevc`（hevc_nvenc）。
+  - `lerobot` 环境在 bwrap 里（另加 `--unshare-net`、`HF_HUB_OFFLINE=1`、私有 `HF_HOME`、`PYTHONDONTWRITEBYTECODE=1`）用 `LeRobotDataset("local/x", root=out)` 加载后 `delete_episodes(ds, episode_indices=[2], output_dir=cleaned, repo_id=...)`：82 秒，剩 4 个 episode、1290 帧，长度 [451, 397, 300, 142]；`cleaned` 能重新加载，三路视频各取一帧都能解码。
+  - 重新编码：LeRobot 按 `info.json` 的 `video.codec = hevc` 选了 **libx265（CPU）**、CRF 30、g=2，每路约 55 帧/秒；三路视频文件都整份重编，体积 105 MB → 32 MB。GPU 没用上，所以「剔除」可以不占 GPU；画质与工具的 hevc_nvenc 不同，记进 followups 待负责人。
