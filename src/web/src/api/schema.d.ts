@@ -3757,6 +3757,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/robots/ssh-public-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Robot Ssh Public Key
+         * @description 只读展示平台公钥和指定机器人的手动安装命令。
+         *
+         *     Args:
+         *         robot_id: 机器人永久编号，1 至 2^63-1；只从登记读取连接信息。
+         *         session: 当前请求的只读数据库事务。
+         *         context: 已登录成员或管理员，以及显式装配的状态目录。
+         *
+         *     Returns:
+         *         公钥一行与 ssh-copy-id 命令；worker 尚未生成时两项均为 None。
+         *
+         *     Raises:
+         *         CollectionNotFoundError: 指定机器人不存在，404。
+         *         ExternalError: 状态服务未配置、公钥不可读或路径不安全，502。
+         *
+         *     Side Effects:
+         *         无；只读平台公钥与登记，既不读取私钥也不调用 SSH 或生成密钥。
+         *
+         *     Time Semantics:
+         *         不等待作业执行，公钥未生成立即返回；安装命令取当前登记快照。
+         */
+        get: operations["robot_ssh_public_key_api_robots_ssh_public_key_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/robots/{robot_id}": {
         parameters: {
             query?: never;
@@ -7482,6 +7520,16 @@ export interface components {
             validation_status: "path_exists_only";
             /** Version */
             version: string | null;
+        };
+        /**
+         * SshPublicKey
+         * @description 只返回公钥及当前机器人的手动安装命令；未生成或登记不完整时相应字段为 None。
+         */
+        SshPublicKey: {
+            /** Copy Command */
+            copy_command: string | null;
+            /** Public Key */
+            public_key: string | null;
         };
         /**
          * StagingEntry
@@ -18771,6 +18819,118 @@ export interface operations {
                 };
             };
             /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    robot_ssh_public_key_api_robots_ssh_public_key_get: {
+        parameters: {
+            query: {
+                robot_id: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SshPublicKey"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
             422: {
                 headers: {
                     [name: string]: unknown;

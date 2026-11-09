@@ -56,6 +56,7 @@ from rdp.jobs.downloads.job import DownloadDependencies
 from rdp.jobs.downloads.plan import PlanDependencies, UrllibTransport
 from rdp.jobs.navwrite.wiring import build_nav_write_dependencies
 from rdp.jobs.registry import JobRegistry, production_registry
+from rdp.jobs.robot_connection.job import ConnectionDependencies
 from rdp.jobs.schedules import local_timezone, production_schedules
 from rdp.jobs.scheduling import resolve_scheduling
 from rdp.jobs.scheduling_types import SchedulingCatalog
@@ -198,7 +199,15 @@ def prepare_service(
         else:
             download = _download_dependencies(config, rescan, engine, paths)
             registry = _with_conversions(
-                production_registry(rescan, navigation, download), config, engine, rescan.storage
+                production_registry(
+                    rescan,
+                    navigation,
+                    download,
+                    connection_dependencies=ConnectionDependencies(engine, paths),
+                ),
+                config,
+                engine,
+                rescan.storage,
             )
 
         try:

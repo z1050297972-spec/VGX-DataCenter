@@ -170,3 +170,50 @@ function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error("请求失败", { cause: toFailureView(null) });
   return value;
 }
+
+/** 平台仅提供公钥，空值表示 worker 尚未生成或连接登记不完整。 */
+export type SshPublicKey = components["schemas"]["SshPublicKey"];
+
+/**
+ * 获取指定机器人的平台公钥和手动安装命令。
+ * @param input - 账号客户端、取消信号和机器人永久正整数编号。
+ * @returns 公钥与安装命令；未生成时为空，不触发密钥生成。
+ * @throws Error 读取或鉴权失败，由页面统一展示诊断。
+ * @sideEffects 一次只读 GET /api/robots/ssh-public-key，不连接机器人。
+ * @timeSemantics 最多 ACCOUNT_TIMEOUT_MS 毫秒，不等待 worker，也不自动重试。
+ */
+export function getRobotSshPublicKey(input: AccountCall<Robot["robot_id"]>): Promise<SshPublicKey> {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) =>
+    required(
+      (
+        await input.client.GET("/api/robots/ssh-public-key", {
+          params: { query: { robot_id: input.payload } },
+          signal,
+        })
+      ).data,
+    ),
+  );
+}
+
+/**
+ * 提交指定机器人的两层连接检查。
+ * @param input - 客户端、取消信号和机器人正整数编号，不携带连接信息或凭据。
+ * @returns 新作业记录，由调用方进入详情页查看结果。
+ * @throws Error 提交失败或超时，交统一诊断；不推测后台是否已提交。
+ * @sideEffects 一次 POST /api/jobs；成功后由 worker 重读登记并检查连接。
+ * @timeSemantics 提交上限 ACCOUNT_TIMEOUT_MS 毫秒，无自动重试，不等待检查结束。
+ */
+export function checkRobotConnection(
+  input: AccountCall<Robot["robot_id"]>,
+): Promise<components["schemas"]["JobResponse"]> {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) =>
+    required(
+      (
+        await input.client.POST("/api/jobs", {
+          body: { type_name: "robot_connection_check", parameters: { robot_id: input.payload } },
+          signal,
+        })
+      ).data,
+    ),
+  );
+}

@@ -210,3 +210,50 @@ it("编辑机器人提交完整可编辑字段并刷新原行", async () => {
     page.close();
   }
 });
+
+// M5-02：页面展示可复制的公钥与命令；检查按钮只提交机器人编号并进入作业详情。
+it("展示平台公钥并提交连接检查", async () => {
+  const writes: Request[] = [];
+  const fallback = registryFetch();
+  const connectionJob = {
+    ...(await import("../jobs/testSupport")).job,
+    type_name: "robot_connection_check",
+    display_name: "检查机器人连接",
+    parameters: { robot_id: 1 },
+  };
+  const page = mountPage("/robots", async (request) => {
+    const url = new URL(request.url);
+    if (url.pathname === "/api/robots/ssh-public-key") {
+      expect(url.searchParams.get("robot_id")).toBe("1");
+      return Response.json({
+        public_key: "ssh-ed25519 example-public-key rdp@test",
+        copy_command: "ssh-copy-id -i /state/ssh/id_ed25519.pub -p 2222 -- tester@127.0.0.1",
+      });
+    }
+    if (url.pathname === "/api/jobs" && request.method === "POST") {
+      writes.push(request.clone());
+      return Response.json(connectionJob, { status: 201 });
+    }
+    if (url.pathname === `/api/jobs/${connectionJob.job_id}`) return Response.json(connectionJob);
+    return fallback(request);
+  });
+  try {
+    fireEvent.click(await screen.findByRole("button", { name: "平台公钥" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText("ssh-ed25519 example-public-key rdp@test")).toBeTruthy();
+    expect(within(dialog).getByText(/ssh-copy-id -i/u)).toBeTruthy();
+    expect(within(dialog).getAllByRole("button", { name: "复制" })).toHaveLength(2);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "检查连接" }));
+    await waitFor(() => {
+      expect(page.router.state.location.pathname).toBe(`/jobs/${connectionJob.job_id}`);
+    });
+    expect(writes).toHaveLength(1);
+    expect(await writes[0]?.json()).toEqual({
+      type_name: "robot_connection_check",
+      parameters: { robot_id: 1 },
+    });
+  } finally {
+    page.close();
+  }
+});

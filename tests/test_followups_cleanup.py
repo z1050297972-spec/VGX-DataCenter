@@ -41,7 +41,7 @@ def test_removed_backfill_cannot_be_submitted(tmp_path: Path) -> None:
 
 
 def test_production_submission_roles_and_member_write_rejection(tmp_path: Path) -> None:
-    """验证24个生产类型的角色及集合精确匹配，成员不能经通用接口提交写入作业或留下记录。"""
+    """验证25个生产类型的角色及集合精确匹配，成员不能经通用接口提交写入作业或留下记录。"""
     # 期望来自工单D2及已交付的归类表，不能从类型属性推导，否则降权变异会一起改变期望。
     expected_roles = {
         "conversion_ingest_apply": Role.ADMINISTRATOR,
@@ -68,6 +68,7 @@ def test_production_submission_roles_and_member_write_rejection(tmp_path: Path) 
         "nav_write_apply": Role.ADMINISTRATOR,
         "purge_audit_logs": Role.ADMINISTRATOR,
         "purge_errors": Role.ADMINISTRATOR,
+        "robot_connection_check": Role.MEMBER,
     }
     actual_roles = {
         definition.type_name: definition.submission_role
