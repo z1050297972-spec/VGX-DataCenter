@@ -1,0 +1,64 @@
+✓ 基准帧数: 工具 1651  平台 1651
+✓ /hdas/camera_wrist_left/color/image_raw/compressed 容差: 工具 35.0  平台 35.0
+✓ /hdas/camera_wrist_left/color/image_raw/compressed |Δt| 平均: 工具 15.54  平台 15.539891317989097
+✓ /hdas/camera_wrist_left/color/image_raw/compressed |Δt| 最大: 工具 18.822  平台 18.821963
+✓ /hdas/camera_wrist_left/color/image_raw/compressed 复用: 工具 18  平台 18
+✓ /hdas/camera_wrist_left/color/image_raw/compressed 坏帧: 工具 0  平台 0
+✓ /hdas/camera_wrist_right/color/image_raw/compressed 容差: 工具 35.0  平台 35.0
+✓ /hdas/camera_wrist_right/color/image_raw/compressed |Δt| 平均: 工具 2.845  平台 2.8454789073288915
+✓ /hdas/camera_wrist_right/color/image_raw/compressed |Δt| 最大: 工具 37.176  平台 37.17623
+✓ /hdas/camera_wrist_right/color/image_raw/compressed 复用: 工具 20  平台 20
+✓ /hdas/camera_wrist_right/color/image_raw/compressed 坏帧: 工具 1  平台 1
+✓ /hdas/feedback_arm_left 容差: 工具 10.0  平台 10.0
+✓ /hdas/feedback_arm_left |Δt| 平均: 工具 1.268  平台 1.26849382616596
+✓ /hdas/feedback_arm_left |Δt| 最大: 工具 3.384  平台 3.383838
+✓ /hdas/feedback_arm_left 复用: 工具 0  平台 0
+✓ /hdas/feedback_arm_left 坏帧: 工具 0  平台 0
+✓ /hdas/feedback_gripper_left 容差: 工具 10.0  平台 10.0
+✓ /hdas/feedback_gripper_left |Δt| 平均: 工具 1.296  平台 1.2957644003634161
+✓ /hdas/feedback_gripper_left |Δt| 最大: 工具 3.345  平台 3.344926
+✓ /hdas/feedback_gripper_left 复用: 工具 0  平台 0
+✓ /hdas/feedback_gripper_left 坏帧: 工具 0  平台 0
+✓ /hdas/feedback_arm_right 容差: 工具 10.0  平台 10.0
+✓ /hdas/feedback_arm_right |Δt| 平均: 工具 1.342  平台 1.3421026935190794
+✓ /hdas/feedback_arm_right |Δt| 最大: 工具 3.572  平台 3.571699
+✓ /hdas/feedback_arm_right 复用: 工具 0  平台 0
+✓ /hdas/feedback_arm_right 坏帧: 工具 0  平台 0
+✓ /hdas/feedback_gripper_right 容差: 工具 10.0  平台 10.0
+✓ /hdas/feedback_gripper_right |Δt| 平均: 工具 1.368  平台 1.3677719351907933
+✓ /hdas/feedback_gripper_right |Δt| 最大: 工具 4.228  平台 4.227779
+✓ /hdas/feedback_gripper_right 复用: 工具 0  平台 0
+✓ /hdas/feedback_gripper_right 坏帧: 工具 0  平台 0
+✓ /motion_target/target_joint_state_arm_left 容差: 工具 10.0  平台 10.0
+✓ /motion_target/target_joint_state_arm_left |Δt| 平均: 工具 1.607  平台 1.6066460345245306
+✓ /motion_target/target_joint_state_arm_left |Δt| 最大: 工具 10.616  平台 10.616209
+✓ /motion_target/target_joint_state_arm_left 复用: 工具 0  平台 0
+✓ /motion_target/target_joint_state_arm_left 坏帧: 工具 3  平台 3
+✓ /motion_target/target_position_gripper_left 容差: 工具 30.0  平台 30.0
+✓ /motion_target/target_position_gripper_left |Δt| 平均: 工具 12.622  平台 12.62187714294367
+✓ /motion_target/target_position_gripper_left |Δt| 最大: 工具 27.721  平台 27.721385
+✓ /motion_target/target_position_gripper_left 复用: 工具 560  平台 560
+✓ /motion_target/target_position_gripper_left 坏帧: 工具 0  平台 0
+✓ /motion_target/target_joint_state_arm_right 容差: 工具 10.0  平台 10.0
+✓ /motion_target/target_joint_state_arm_right |Δt| 平均: 工具 1.622  平台 1.621500920654149
+✓ /motion_target/target_joint_state_arm_right |Δt| 最大: 工具 10.647  平台 10.647378
+✓ /motion_target/target_joint_state_arm_right 复用: 工具 0  平台 0
+✓ /motion_target/target_joint_state_arm_right 坏帧: 工具 3  平台 3
+✓ /motion_target/target_position_gripper_right 容差: 工具 30.0  平台 30.0
+✓ /motion_target/target_position_gripper_right |Δt| 平均: 工具 12.622  平台 12.62187714294367
+✓ /motion_target/target_position_gripper_right |Δt| 最大: 工具 27.721  平台 27.721385
+✓ /motion_target/target_position_gripper_right 复用: 工具 560  平台 560
+✓ /motion_target/target_position_gripper_right 坏帧: 工具 0  平台 0
+✓ 坏帧总数: 工具 4  平台 4
+✓ 基准断点: 工具 0  平台 0
+✓ 过短丢弃段数: 工具 0  平台 0
+✓ 过短丢弃帧数: 工具 0  平台 0
+✓ 保留帧数: 工具 1647  平台 1647
+✓ episode 数: 工具 5  平台 5
+✓ episode #0 起止与帧数: 工具 (0, 451, 451)  平台 (0, 451, 451)
+✓ episode #1 起止与帧数: 工具 (452, 849, 397)  平台 (452, 849, 397)
+✓ episode #2 起止与帧数: 工具 (850, 1207, 357)  平台 (850, 1207, 357)
+✓ episode #3 起止与帧数: 工具 (1208, 1508, 300)  平台 (1208, 1508, 300)
+✓ episode #4 起止与帧数: 工具 (1509, 1651, 142)  平台 (1509, 1651, 142)
+
+共核对 62 项，不一致 0 项

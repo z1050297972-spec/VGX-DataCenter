@@ -1,0 +1,144 @@
+
+[video] /hdas/camera_head/left_raw/image_raw_color/compressed
+  feature      : observation.images.head_left
+  schema       : sensor_msgs/msg/CompressedImage
+  消息编码     : cdr
+  图像编码     : h264 (1659)
+  H.264        : 关键帧 166，含 B 帧的消息 0，首个关键帧前 8 条
+  消息数       : 1659
+  时长         : 55.000 s
+  平均频率     : 30.00 Hz
+  间隔 (ms)    : 平均 33.334  最大 33.494  最小 33.325  方差 0.000 ms²  标准差 0.009
+  ! 8 条消息在第一个关键帧之前，无法解码，已排除
+
+[video] /hdas/camera_wrist_left/color/image_raw/compressed
+  feature      : observation.images.wrist_left
+  schema       : sensor_msgs/msg/CompressedImage
+  消息编码     : cdr
+  图像编码     : bgr8; jpeg compressed bgr8 (1640)
+  消息数       : 1640
+  时长         : 55.170 s
+  平均频率     : 29.71 Hz
+  间隔 (ms)    : 平均 33.661  最大 66.672  最小 33.324  方差 10.737 ms²  标准差 3.277
+  ! 平均频率 29.71 Hz 低于目标 fps 30
+
+[video] /hdas/camera_wrist_right/color/image_raw/compressed
+  feature      : observation.images.wrist_right
+  schema       : sensor_msgs/msg/CompressedImage
+  消息编码     : cdr
+  图像编码     : bgr8; jpeg compressed bgr8 (1636)
+  消息数       : 1636
+  时长         : 55.170 s
+  平均频率     : 29.64 Hz
+  间隔 (ms)    : 平均 33.743  最大 100.006  最小 33.333  方差 14.786 ms²  标准差 3.845
+  ! 平均频率 29.64 Hz 低于目标 fps 30
+
+[vector] /hdas/feedback_arm_left
+  feature      : observation.state
+  schema       : sensor_msgs/msg/JointState
+  消息编码     : cdr
+  消息数       : 11057
+  时长         : 55.280 s
+  平均频率     : 200.00 Hz
+  间隔 (ms)    : 平均 5.000  最大 11.698  最小 0.029  方差 0.102 ms²  标准差 0.319
+  ✓ OK
+
+[vector] /hdas/feedback_gripper_left
+  feature      : observation.state
+  schema       : sensor_msgs/msg/JointState
+  消息编码     : cdr
+  消息数       : 11057
+  时长         : 55.280 s
+  平均频率     : 200.00 Hz
+  间隔 (ms)    : 平均 5.000  最大 16.553  最小 0.018  方差 0.138 ms²  标准差 0.372
+  ✓ OK
+
+[vector] /hdas/feedback_arm_right
+  feature      : observation.state
+  schema       : sensor_msgs/msg/JointState
+  消息编码     : cdr
+  消息数       : 11057
+  时长         : 55.280 s
+  平均频率     : 200.00 Hz
+  间隔 (ms)    : 平均 5.000  最大 12.857  最小 0.017  方差 0.111 ms²  标准差 0.333
+  ✓ OK
+
+[vector] /hdas/feedback_gripper_right
+  feature      : observation.state
+  schema       : sensor_msgs/msg/JointState
+  消息编码     : cdr
+  消息数       : 11047
+  时长         : 55.230 s
+  平均频率     : 200.00 Hz
+  间隔 (ms)    : 平均 5.000  最大 16.738  最小 0.011  方差 0.166 ms²  标准差 0.407
+  ✓ OK
+
+[vector] /motion_target/target_joint_state_arm_left
+  feature      : action
+  schema       : sensor_msgs/msg/JointState
+  消息编码     : cdr
+  消息数       : 10548
+  时长         : 55.185 s
+  平均频率     : 191.12 Hz
+  间隔 (ms)    : 平均 5.232  最大 26.295  最小 0.158  方差 2.769 ms²  标准差 1.664
+  ✓ OK
+
+[vector] /motion_target/target_position_gripper_left
+  feature      : action
+  schema       : sensor_msgs/msg/JointState
+  消息编码     : cdr
+  消息数       : 1095
+  时长         : 55.190 s
+  平均频率     : 19.82 Hz
+  间隔 (ms)    : 平均 50.448  最大 75.150  最小 41.924  方差 4.589 ms²  标准差 2.142
+  ! 平均频率 19.82 Hz 低于目标 fps 30
+
+[vector] /motion_target/target_joint_state_arm_right
+  feature      : action
+  schema       : sensor_msgs/msg/JointState
+  消息编码     : cdr
+  消息数       : 10533
+  时长         : 55.185 s
+  平均频率     : 190.85 Hz
+  间隔 (ms)    : 平均 5.240  最大 29.957  最小 0.206  方差 2.904 ms²  标准差 1.704
+  ✓ OK
+
+[vector] /motion_target/target_position_gripper_right
+  feature      : action
+  schema       : sensor_msgs/msg/JointState
+  消息编码     : cdr
+  消息数       : 1095
+  时长         : 55.190 s
+  平均频率     : 19.82 Hz
+  间隔 (ms)    : 平均 50.448  最大 75.150  最小 41.924  方差 4.589 ms²  标准差 2.142
+  ! 平均频率 19.82 Hz 低于目标 fps 30
+
+同步检查
+  基准         : /hdas/camera_head/left_raw/image_raw_color/compressed
+  规则         : 默认容差 10 ms，基准间隔 > 53.333 ms 处切开，少于 90 帧的段丢弃
+  基准帧数     : 1651
+  |Δt|：每帧与所取消息的 stamp 之差；复用：与前一帧取到同一条消息
+  ✓ /hdas/camera_wrist_left/color/image_raw/compressed     容差  35.0  |Δt| 平均  15.540  最大   18.822 ms  复用   18  坏帧    0
+  ! /hdas/camera_wrist_right/color/image_raw/compressed    容差  35.0  |Δt| 平均   2.845  最大   37.176 ms  复用   20  坏帧    1
+  ✓ /hdas/feedback_arm_left                                容差  10.0  |Δt| 平均   1.268  最大    3.384 ms  复用    0  坏帧    0
+  ✓ /hdas/feedback_gripper_left                            容差  10.0  |Δt| 平均   1.296  最大    3.345 ms  复用    0  坏帧    0
+  ✓ /hdas/feedback_arm_right                               容差  10.0  |Δt| 平均   1.342  最大    3.572 ms  复用    0  坏帧    0
+  ✓ /hdas/feedback_gripper_right                           容差  10.0  |Δt| 平均   1.368  最大    4.228 ms  复用    0  坏帧    0
+  ! /motion_target/target_joint_state_arm_left             容差  10.0  |Δt| 平均   1.607  最大   10.616 ms  复用    0  坏帧    3
+  ✓ /motion_target/target_position_gripper_left            容差  30.0  |Δt| 平均  12.622  最大   27.721 ms  复用  560  坏帧    0
+  ! /motion_target/target_joint_state_arm_right            容差  10.0  |Δt| 平均   1.622  最大   10.647 ms  复用    0  坏帧    3
+  ✓ /motion_target/target_position_gripper_right           容差  30.0  |Δt| 平均  12.622  最大   27.721 ms  复用  560  坏帧    0
+  坏帧明细（帧号 @ 相对基准起点的时间：超出容差的 topic 及其 |Δt|）
+      451 @  15.033 s: /motion_target/target_joint_state_arm_left 10.0ms, /motion_target/target_joint_state_arm_right 10.0ms
+      849 @  28.300 s: /motion_target/target_joint_state_arm_left 10.6ms, /motion_target/target_joint_state_arm_right 10.6ms
+     1207 @  40.233 s: /motion_target/target_joint_state_arm_left 10.2ms, /motion_target/target_joint_state_arm_right 10.2ms
+     1508 @  50.267 s: /hdas/camera_wrist_right/color/image_raw/compressed 37.2ms
+  坏帧 4，基准断点 0，过短丢弃 0 段 0 帧
+  保留 1647 / 1651 帧，切分为 5 个 episode：
+    #0   帧     0..451     451 帧   15.000 s
+    #1   帧   452..849     397 帧   13.200 s
+    #2   帧   850..1207    357 帧   11.867 s
+    #3   帧  1208..1508    300 帧    9.967 s
+    #4   帧  1509..1651    142 帧    4.700 s
+
+verify 通过：11 个 topic 全部正常
