@@ -58,3 +58,6 @@ Status: in-progress
 
 - 2026-11-09 开票（执行线），与第 08 张并行。
 - 2026-11-09 04:32 派工（执行线）：工作目录 `robot-data-platform.wt/m5-04-preview`，Codex gpt-6-astra high，systemd 单元 `rdp-m5-04`，日志 `~/.cache/rdp-dispatch/m5-04/`；与第 08 张并行。
+- 2026-11-09 负责人："我记得只有左右手腕相机和头部rgb，为什么会多出一个呢？"→ 执行线核对录制样本：头部是双目，左目、右目两路都录（52 秒样本各约 1660 帧，各带标定）；厂商网关和 mcap2lerobot 用的是左目。负责人："同意，默认只显示3路"。**范围补充（评审修复轮做）**：
+  - RobotProfile 相机加两项事实（可选）：`stereo_eye`（`"left"`/`"right"`）和 `stereo_partner`（另一目的相机名）；R1 Lite 的 head_left、head_right 填上，`version` 与第 08 张一致写 2。
+  - 预览布局默认跳过 `stereo_eye = "right"` 的相机，R1 Lite 默认 3 个 Image 面板（head_left、wrist_left、wrist_right）。验收 2 相应改为 3 个 Image 面板，且没有 head_right。
