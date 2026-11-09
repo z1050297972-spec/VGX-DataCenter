@@ -26,7 +26,7 @@ from rdp.infra.db.connection import session_scope, session_scope_with_lock_timeo
 from rdp.infra.diagnostics import ConflictError, DefectError, DiagnosticCategory
 from rdp.jobs import _audit, _download_cleanup, _pagination, _storage, _views, policy
 from rdp.jobs._parameters import validate as validate_parameters
-from rdp.jobs.conversion.parameters import ConversionParameters, selected_inputs
+from rdp.jobs.conversion.parameters import InputSelection, selected_inputs
 from rdp.jobs.models import JobRow, WorkerHeartbeatRow
 from rdp.jobs.records import NewJob, StateChange, find_job, insert_job, transition_job
 from rdp.jobs.registry import JobDefinition, JobRegistry
@@ -142,7 +142,7 @@ class JobService:
                 if type_name == _download_cleanup.DELETE_TYPE:
                     # 管理员权限由类型声明统一重验；占用检查与插入同事务，避免并发绕过。
                     _download_cleanup.check_busy(session, checked)
-                if issubclass(definition.parameters_model, ConversionParameters):
+                if issubclass(definition.parameters_model, InputSelection):
                     selected_inputs(session, definition.parameters_model.model_validate(checked))
                 attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
                 record = insert_job(session, NewJob(definition, checked, actor, request.now, None))
@@ -429,7 +429,7 @@ class JobService:
                 if original.type_name == _download_cleanup.DELETE_TYPE:
                     # 重提仍按类型声明校验管理员，并与首次提交共用事务内占用检查。
                     _download_cleanup.check_busy(session, original.parameters)
-                if issubclass(definition.parameters_model, ConversionParameters):
+                if issubclass(definition.parameters_model, InputSelection):
                     selected_inputs(
                         session, definition.parameters_model.model_validate(original.parameters)
                     )

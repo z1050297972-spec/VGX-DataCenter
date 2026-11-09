@@ -18,6 +18,7 @@ class ToolSummaryResponse(BaseModel):
         output_format: 输出格式；清单无效时为 None。
         output_versions: 按清单顺序的输出版本；清单无效时为空。
         robot_models: 按清单顺序的适用型号字符串；清单无效时为空。
+        cleaning_models: 按清单顺序的有清洗规则型号；清单无效时为空。
         needs_gpu: 是否必须分配 GPU；清单无效时为 None。
         status: 四种工具状态之一。
         diagnostics: 统一五段诊断，可用时为空。
@@ -33,6 +34,7 @@ class ToolSummaryResponse(BaseModel):
     output_format: str | None
     output_versions: tuple[str, ...]
     robot_models: tuple[str, ...]
+    cleaning_models: tuple[str, ...]
     needs_gpu: bool | None
     status: ToolStatus
     diagnostics: tuple[Diagnostic, ...]

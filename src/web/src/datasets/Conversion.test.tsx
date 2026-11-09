@@ -43,6 +43,7 @@ it("mcap且型号匹配时可转换，默认型号、格式和全部mcap数据�
         input_format: "mcap",
         output_format: "lerobot",
         output_versions: ["v3.0", "v2.1"],
+        cleaning_models: [],
         robot_models: ["Galaxea R1 Lite"],
         needs_gpu: true,
         status: "可用",

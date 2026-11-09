@@ -9,13 +9,15 @@ from rdp.jobs.cleaning._report import ReportBuilder
 from rdp.jobs.cleaning.models import CleaningReport
 
 
-def build_cleaning_report(
+# 可选文件通知保留第 01 张的五参数调用契约，避免已有调用方被迫更换回调结构。
+def build_cleaning_report(  # noqa: PLR0913
     inputs: Sequence[tuple[str, Path]],
     tool_config_path: Path,
     rules_path: Path,
     *,
     checkpoint: Callable[[], None],
     progress: Callable[[int], None],
+    file_progress: Callable[[int, int, int | None], None] | None = None,
 ) -> CleaningReport:
     """按工具规则预览 MCAP 的对齐切段和段内质量问题。
 
@@ -25,6 +27,8 @@ def build_cleaning_report(
         rules_path: schema_version 为 1 的清洗规则 TOML 路径。
         checkpoint: 无参数取消检查函数；抛出异常时原样终止，不生成部分报告。
         progress: 接收累计实际读取的 MCAP 字节数，非负且单调；每秒至多通知一次。
+        file_progress: 可选文件开始通知，接收从 1 起的文件序号、总文件数和总字节数；
+            任一文件无法 stat 时总字节为 None，省略表示不通知。
 
     Returns:
         冻结的版本一报告；文件按展开顺序，episode 按文件、保留段顺序排列。
@@ -32,7 +36,7 @@ def build_cleaning_report(
 
     Raises:
         InputError: 配置或规则不合法、目录无法展开或没有 MCAP、输入规模超过安全上限。
-        Exception: checkpoint 或 progress 抛出的异常原样传播。
+        Exception: checkpoint、progress 或 file_progress 抛出的异常原样传播。
 
     Side Effects:
         只读输入和配置，不写任何数据。文件请求 O_NOATIME；EPERM 时退回只读并记警告。
@@ -46,5 +50,5 @@ def build_cleaning_report(
     """
     config, rules, tool_sha256, rules_sha256 = load_configs(tool_config_path, rules_path)
     files, warnings = collect_inputs(inputs, checkpoint)
-    builder = ReportBuilder(config, rules, checkpoint, progress)
+    builder = ReportBuilder(config, rules, checkpoint, progress, file_progress)
     return builder.build(files, warnings, (tool_sha256, rules_sha256))

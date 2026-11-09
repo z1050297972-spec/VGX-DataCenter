@@ -166,6 +166,7 @@ def _summary(item: RegisteredTool) -> ToolSummaryResponse:
         output_format=manifest.io.output_format if manifest else None,
         output_versions=manifest.io.output_versions if manifest else (),
         robot_models=tuple(manifest.models) if manifest else (),
+        cleaning_models=tuple(manifest.cleaning) if manifest else (),
         needs_gpu=manifest.runtime.needs_gpu if manifest else None,
         status=item.status,
         diagnostics=item.diagnostics,

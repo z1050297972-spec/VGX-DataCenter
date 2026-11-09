@@ -101,6 +101,71 @@ class CleaningSummary(_FrozenModel):
     kept_frames: int
 
 
+class CleaningSyncRules(_FrozenModel):
+    """报告生成时生效的对齐规则；毫秒值仅用于展示，不改变纳秒对齐计算。
+
+    Attributes:
+        default_tolerance_ms: 工具配置的默认话题容差，单位毫秒。
+        max_frame_gap: 最大相邻基准帧间隔，相对于标准帧间隔的倍数。
+        max_frame_gap_ms: max_frame_gap 按报告顶层 fps 换算的毫秒值。
+        min_episode_frames: 最短保留段的基准帧数，非负整数。
+    """
+
+    default_tolerance_ms: float
+    max_frame_gap: float
+    max_frame_gap_ms: float
+    min_episode_frames: int
+
+
+class CleaningSourceRules(_FrozenModel):
+    """单个来源话题的规则快照；未配置的阈值和限位显式保存为 null。
+
+    Attributes:
+        topic: 清洗规则中的来源话题名。
+        static_threshold: 静止阈值，单位与来源数值一致；None 表示不检查。
+        jump_threshold: 跳变阈值，单位与来源数值一致；None 表示不检查。
+        limits: 按维度排列的下限、上限对，单位与来源数值一致；None 表示未配置。
+    """
+
+    topic: str
+    static_threshold: float | None
+    jump_threshold: float | None
+    limits: tuple[tuple[float, float], ...] | None
+
+
+class CleaningCheckRules(_FrozenModel):
+    """报告生成时生效的质量检查规则，不依赖前端维护默认数值。
+
+    Attributes:
+        static_feature: 静止检查使用的向量特征名。
+        long_static_s: 连续静止最短时长，单位秒。
+        jump_feature: 跳变检查使用的向量特征名。
+        frozen_s: 相机冻结最短时长，单位秒。
+        sample_interval_s: 亮度抽样间隔，单位秒。
+        dark_below: 黑屏亮度阈值，0 至 255，严格小于时命中。
+        bright_above: 过曝亮度阈值，0 至 255，严格大于时命中。
+        sources: 按清洗规则原顺序的来源阈值，可为空。
+        severe_checks: 默认剔除 episode 的严重检查规则码，顺序由检查模块定义。
+    """
+
+    static_feature: str
+    long_static_s: float
+    jump_feature: str
+    frozen_s: float
+    sample_interval_s: float
+    dark_below: float
+    bright_above: float
+    sources: tuple[CleaningSourceRules, ...]
+    severe_checks: tuple[str, ...]
+
+
+class CleaningRuleSnapshot(_FrozenModel):
+    """完整规则说明快照；fps 和 reference_topic 只保留在报告顶层。"""
+
+    sync: CleaningSyncRules
+    checks: CleaningCheckRules
+
+
 class CleaningReport(_FrozenModel):
     """版本一报告；Pydantic 的 JSON 方法用于存库，规则指纹取文件原始字节。"""
 
@@ -109,6 +174,7 @@ class CleaningReport(_FrozenModel):
     rules_sha256: str
     fps: int
     reference_topic: str
+    rules: CleaningRuleSnapshot
     files: tuple[FileReport, ...]
     episodes: tuple[EpisodeReport, ...]
     summary: CleaningSummary

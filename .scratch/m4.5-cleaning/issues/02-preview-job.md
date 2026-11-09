@@ -1,6 +1,6 @@
 # 清洗预览作业、报告存储与接口
 
-Status: not-started
+Status: done（2026-11-09 08:0x 评审通过，合进集成分支 t/m4.5-cleaning）
 
 分级：直做（在已有作业框架里加类型，契约在第 01 张）。依赖：第 01 张。决定见 `../decisions.md`。
 
@@ -57,3 +57,12 @@ Status: not-started
 2. 执行线在副本环境（测试配置、临时状态目录，输入指向 M5 真实样本副本所在目录登记成的只读根）起 web 和 worker，用接口提交一次预览并取回报告；两块数据盘写入扇区不变。
 
 ## Comments
+
+- 2026-11-09 06:5x 派工 Codex（gpt-6-astra high，单元 rdp-m45-02，日志 `~/.cache/rdp-dispatch/m4.5-02/`），约 70 分钟交付：`rdp/jobs/cleaning/{job,parameters,records,registration}.py`、`rdp/api/cleaning_previews.py`、迁移 `v0022_cleaning_previews.py`；`ExecutionContext.save_on_success`（报告与成功终态同一事务）；`InputSelection` 抽出供转换和预览共用；工具清单 `[cleaning]`。作业类型键 `cleaning_preview_mcap2lerobot`。
+- 执行线补：`tools/mcap2lerobot/tool.toml` 加 `[cleaning]`（Codex 按 AGENTS 规则 3 不改 `tools/`）；注释不能含字面 `[models]`（测试辅助按字符串替换它）。
+- 评审追加 1 处（第 04 张需要）：报告加 `rules`（`sync` 和 `checks`，`severe_checks` 与判严重共用 `_checks.SEVERE_CHECKS`）。resume 时沙箱没开本地通信，5 个接口测试由执行线跑。
+- `make api-types` 后两个旧前端测试的工具假数据缺 `cleaning_models`，执行线只补了这两处假数据。
+- 变异抽查：成员可提交被抓；"不论成败都写报告"没被抓——现有取消测试在读文件途中取消，那时还没登记写入，终态前一刻被取消的窄窗口没有测试覆盖。后果只是保存一份完整报告，不打回，记在这里。
+- 检查：`make check` 全绿，后端 2898、前端 414，0 skipped。
+- 验收 2（副本环境起 web/worker 提交预览）并入第 05 张的端到端演练，同一环境一起做。
+

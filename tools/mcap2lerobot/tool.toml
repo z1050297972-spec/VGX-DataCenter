@@ -26,6 +26,10 @@ output_versions = ["v3.0", "v2.1"]          # 由 {format} 选择，默认第一
 # 键是数据集 robot_model 字符串（不建型号表），值是本登记包里的配置文件。
 "Galaxea R1 Lite" = "configs/r1lite.toml"
 
+[cleaning]
+# M4.5：清洗预览用的规则（平台登记包内），键是上面登记过的型号；没有清洗规则的型号不能预览，也就不能转换。
+"Galaxea R1 Lite" = "cleaning/r1lite.toml"
+
 [runtime]
 needs_gpu = true                            # r1lite.toml 用 hevc_nvenc；没卡就等，不改用 CPU
 progress = "mcap2lerobot-pty"               # 进度来源：伪终端里的 indicatif 进度条

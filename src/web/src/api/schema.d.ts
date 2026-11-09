@@ -605,6 +605,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cleaning-previews/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cleaning Preview
+         * @description 向任意登录账号返回指定作业的成功清洗报告。
+         *
+         *     Args:
+         *         job_id: 1 至 2^63-1 的规范十进制作业编号。
+         *         account: 已认证且无需强制改密的请求身份。
+         *         session: 响应发送前关闭的只读数据库事务。
+         *
+         *     Returns:
+         *         身份、三个完整 SHA-256、UTC 生成时刻及版本一报告。
+         *
+         *     Raises:
+         *         JobNotFoundError: 作业不存在、未成功完成或不是预览作业，返回 404。
+         *         AuthenticationError: 未登录或会话无效，返回 401。
+         *         DefectError: 存库报告版本或结构无法识别，返回 500。
+         *         ExternalError: 数据库不可读取，返回 502。
+         *
+         *     Side Effects:
+         *         无（只读报告表，不重算清洗结果）。
+         *
+         *     Time Semantics:
+         *         当前事务快照，不等待运行中的预览完成。
+         */
+        get: operations["get_cleaning_preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/collection-vocabulary": {
         parameters: {
             query?: never;
@@ -2256,6 +2296,47 @@ export interface paths {
          *         一次请求唯一 UTC 时刻；普通写锁预算 5 秒、失败补记 100 毫秒，不重试 POST。
          */
         post: operations["submit_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/cleaning-preview/{tool_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Cleaning Preview Job
+         * @description 提交管理员清洗预览，参数与索引在 Web 校验。
+         *
+         *     Args:
+         *         context: 已认证请求身份、UTC 时刻和审计上下文。
+         *         tool_name: 工具列表中的登记名称。
+         *         body: 数据集编号、1 至 200 个不重复数据块编号和已登记清洗规则的型号。
+         *
+         *     Returns:
+         *         新排队作业，HTTP 201，参数不包含输出格式或空间选项。
+         *
+         *     Raises:
+         *         AuthorizationError: 当前账号不是管理员，返回 403。
+         *         JobInputError: 工具、型号、输入归属或格式无效，返回 422。
+         *         AuthenticationError: 会话无效，返回 401。
+         *         ConflictError: 数据库写锁竞争，返回 409。
+         *         ExternalError: 数据库不可用，返回 502。
+         *
+         *     Side Effects:
+         *         作业和提交审计同事务保存；不读取输入文件或写入存储根。
+         *
+         *     Time Semantics:
+         *         使用请求 UTC 时刻，不等待后台读取，不自动重试 POST。
+         */
+        post: operations["submit_cleaning_preview_job"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4445,6 +4526,179 @@ export interface components {
             /** Value */
             value: string;
         };
+        /**
+         * CleaningCheckRules
+         * @description 报告生成时生效的质量检查规则，不依赖前端维护默认数值。
+         *
+         *     Attributes:
+         *         static_feature: 静止检查使用的向量特征名。
+         *         long_static_s: 连续静止最短时长，单位秒。
+         *         jump_feature: 跳变检查使用的向量特征名。
+         *         frozen_s: 相机冻结最短时长，单位秒。
+         *         sample_interval_s: 亮度抽样间隔，单位秒。
+         *         dark_below: 黑屏亮度阈值，0 至 255，严格小于时命中。
+         *         bright_above: 过曝亮度阈值，0 至 255，严格大于时命中。
+         *         sources: 按清洗规则原顺序的来源阈值，可为空。
+         *         severe_checks: 默认剔除 episode 的严重检查规则码，顺序由检查模块定义。
+         */
+        CleaningCheckRules: {
+            /** Bright Above */
+            bright_above: number;
+            /** Dark Below */
+            dark_below: number;
+            /** Frozen S */
+            frozen_s: number;
+            /** Jump Feature */
+            jump_feature: string;
+            /** Long Static S */
+            long_static_s: number;
+            /** Sample Interval S */
+            sample_interval_s: number;
+            /** Severe Checks */
+            severe_checks: string[];
+            /** Sources */
+            sources: components["schemas"]["CleaningSourceRules"][];
+            /** Static Feature */
+            static_feature: string;
+        };
+        /**
+         * CleaningPreviewParameters
+         * @description 清洗选择，型号还须通过工具专属模型的 cleaning 登记校验。
+         */
+        CleaningPreviewParameters: {
+            /** Dataset Id */
+            dataset_id: string;
+            /** Robot Model */
+            robot_model: string;
+            /** Source Ids */
+            source_ids: string[];
+        };
+        /**
+         * CleaningPreviewResponse
+         * @description 预览身份和报告；作业编号沿用 API 十进制字符串，created_at 为 UTC。
+         */
+        CleaningPreviewResponse: {
+            /** Binary Sha256 */
+            binary_sha256: string;
+            /** Config Sha256 */
+            config_sha256: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Job Id */
+            job_id: string;
+            report: components["schemas"]["CleaningReport"];
+            /** Robot Model */
+            robot_model: string;
+            /** Rules Sha256 */
+            rules_sha256: string;
+            /** Tool Name */
+            tool_name: string;
+        };
+        /**
+         * CleaningReport
+         * @description 版本一报告；Pydantic 的 JSON 方法用于存库，规则指纹取文件原始字节。
+         */
+        CleaningReport: {
+            /** Episodes */
+            episodes: components["schemas"]["EpisodeReport"][];
+            /** Files */
+            files: components["schemas"]["FileReport"][];
+            /** Fps */
+            fps: number;
+            /** Reference Topic */
+            reference_topic: string;
+            rules: components["schemas"]["CleaningRuleSnapshot"];
+            /** Rules Sha256 */
+            rules_sha256: string;
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            summary: components["schemas"]["CleaningSummary"];
+            /** Tool Config Sha256 */
+            tool_config_sha256: string;
+            /**
+             * Warnings
+             * @default []
+             */
+            warnings: components["schemas"]["Diagnostic"][];
+        };
+        /**
+         * CleaningRuleSnapshot
+         * @description 完整规则说明快照；fps 和 reference_topic 只保留在报告顶层。
+         */
+        CleaningRuleSnapshot: {
+            checks: components["schemas"]["CleaningCheckRules"];
+            sync: components["schemas"]["CleaningSyncRules"];
+        };
+        /**
+         * CleaningSourceRules
+         * @description 单个来源话题的规则快照；未配置的阈值和限位显式保存为 null。
+         *
+         *     Attributes:
+         *         topic: 清洗规则中的来源话题名。
+         *         static_threshold: 静止阈值，单位与来源数值一致；None 表示不检查。
+         *         jump_threshold: 跳变阈值，单位与来源数值一致；None 表示不检查。
+         *         limits: 按维度排列的下限、上限对，单位与来源数值一致；None 表示未配置。
+         */
+        CleaningSourceRules: {
+            /** Jump Threshold */
+            jump_threshold: number | null;
+            /** Limits */
+            limits: [
+                number,
+                number
+            ][] | null;
+            /** Static Threshold */
+            static_threshold: number | null;
+            /** Topic */
+            topic: string;
+        };
+        /**
+         * CleaningSummary
+         * @description 整份报告的计数；kept_frames 是时间对齐保留数，尚未扣除数值问题段。
+         */
+        CleaningSummary: {
+            /** Episodes */
+            episodes: number;
+            /** Excluded Episodes */
+            excluded_episodes: number;
+            /** Excluded Files */
+            excluded_files: number;
+            /** Files */
+            files: number;
+            /** Kept Frames */
+            kept_frames: number;
+            /** Reference Frames */
+            reference_frames: number;
+        };
+        /**
+         * CleaningSyncRules
+         * @description 报告生成时生效的对齐规则；毫秒值仅用于展示，不改变纳秒对齐计算。
+         *
+         *     Attributes:
+         *         default_tolerance_ms: 工具配置的默认话题容差，单位毫秒。
+         *         max_frame_gap: 最大相邻基准帧间隔，相对于标准帧间隔的倍数。
+         *         max_frame_gap_ms: max_frame_gap 按报告顶层 fps 换算的毫秒值。
+         *         min_episode_frames: 最短保留段的基准帧数，非负整数。
+         */
+        CleaningSyncRules: {
+            /** Default Tolerance Ms */
+            default_tolerance_ms: number;
+            /** Max Frame Gap */
+            max_frame_gap: number;
+            /** Max Frame Gap Ms */
+            max_frame_gap_ms: number;
+            /** Min Episode Frames */
+            min_episode_frames: number;
+        };
         CollectionIdentifier: number;
         /**
          * CollectionInformation
@@ -4573,15 +4827,12 @@ export interface components {
         };
         /**
          * ConversionParameters
-         * @description 用户选择的转换输入；输出版本由工具专属模型补默认值。
+         * @description 转换参数；输入规则复用 InputSelection，输出版本由工具模型补默认值。
          *
          *     Attributes:
-         *         dataset_id: 已索引的数据集永久编号，非空。
-         *         source_ids: 按命令顺序排列的1至200个不同数据块编号。
-         *         robot_model: 工具清单中的型号配置键，非空。
-         *         output_format: 输出版本；None由工具模型替换成清单首项。
-         *         space_ratio_percent: 空间估算百分比，整数0至1000，默认25。
-         *         space_reserve_gib: 空间预留偏置，0至1024 GiB，默认1。
+         *         output_format: 输出版本；None 由工具模型替换成清单首项。
+         *         space_ratio_percent: 空间估算百分比，整数 0 至 1000，默认 25。
+         *         space_reserve_gib: 空间预留偏置，0 至 1024 GiB，默认 1。
          */
         ConversionParameters: {
             /** Dataset Id */
@@ -5604,6 +5855,52 @@ export interface components {
             view: components["schemas"]["View"];
         };
         /**
+         * EpisodeIssue
+         * @description 数值或画面检查；严重问题默认剔除 episode，提示只供人工判断。
+         */
+        EpisodeIssue: {
+            /** Check */
+            check: string;
+            details: components["schemas"]["IssueDetails"];
+            diagnostic: components["schemas"]["Diagnostic"];
+            /** Message */
+            message: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "severe" | "hint";
+        };
+        /**
+         * EpisodeReport
+         * @description 保留段身份不随剔除文件改变；基准帧范围左闭右开，下标从零起。
+         */
+        EpisodeReport: {
+            /**
+             * Default Action
+             * @enum {string}
+             */
+            default_action: "keep" | "exclude";
+            /** Duration S */
+            duration_s: number;
+            /** End Frame */
+            end_frame: number;
+            /** File Index */
+            file_index: number;
+            /** Frame Count */
+            frame_count: number;
+            /** Issues */
+            issues: components["schemas"]["EpisodeIssue"][];
+            /** Segment Index */
+            segment_index: number;
+            /** Stamp Span S */
+            stamp_span_s: number;
+            /** Start Frame */
+            start_frame: number;
+            /** Start Time S */
+            start_time_s: number;
+        };
+        /**
          * ErrorRecord
          * @description 脱离 Session 的不可变报错快照，同时作为查询接口响应模型。
          *
@@ -5719,6 +6016,42 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /**
+         * FileReport
+         * @description 展开顺序中的一个文件；元数据无法读取时大小、mtime_ns 为 None。
+         */
+        FileReport: {
+            /** Bad Frames */
+            bad_frames: number;
+            /** Default Excluded */
+            default_excluded: boolean;
+            /** Fatal Issues */
+            fatal_issues: components["schemas"]["Diagnostic"][];
+            /** File Index */
+            file_index: number;
+            /** Gaps */
+            gaps: number;
+            /** Kept Frames */
+            kept_frames: number;
+            /** Mtime Ns */
+            mtime_ns: number | null;
+            /** Path */
+            path: string;
+            /** Reference Frames */
+            reference_frames: number;
+            /** Short Frames */
+            short_frames: number;
+            /** Short Segments */
+            short_segments: number;
+            /** Size Bytes */
+            size_bytes: number | null;
+            /** Source Id */
+            source_id: string;
+            /** Topics */
+            topics: components["schemas"]["TopicAlignment"][];
+            /** Warnings */
+            warnings: components["schemas"]["Diagnostic"][];
         };
         /**
          * FilterOption
@@ -5994,6 +6327,25 @@ export interface components {
             receive_bytes_per_s: number;
             /** Send Bytes Per S */
             send_bytes_per_s: number;
+        };
+        /**
+         * IssueDetails
+         * @description 检查明细；count 为完整次数，ranges 为前十个区间，时间均相对段首。
+         */
+        IssueDetails: {
+            /** Count */
+            count: number;
+            /** Feature */
+            feature?: string | null;
+            /** First Time S */
+            first_time_s?: number | null;
+            /**
+             * Ranges
+             * @default []
+             */
+            ranges: components["schemas"]["TimeRange"][];
+            /** Topic */
+            topic?: string | null;
         };
         /**
          * JobListResponse
@@ -7699,6 +8051,16 @@ export interface components {
             type_name: string;
         };
         /**
+         * TimeRange
+         * @description 相对 episode 第一条基准 stamp 的区间，单位秒，两个端点均包含。
+         */
+        TimeRange: {
+            /** End S */
+            end_s: number;
+            /** Start S */
+            start_s: number;
+        };
+        /**
          * TokenInput
          * @description 密钥仅存在于请求内存，不进入作业参数或模型 repr。
          */
@@ -7762,6 +8124,8 @@ export interface components {
          *         source_note: 登记时源码状态说明；未填写或清单无效时为 None。
          */
         ToolDetailResponse: {
+            /** Cleaning Models */
+            cleaning_models: string[];
             command: components["schemas"]["ToolCommands"] | null;
             /** Configurations */
             configurations: components["schemas"]["ToolConfiguration"][];
@@ -7818,6 +8182,7 @@ export interface components {
          *         output_format: 输出格式；清单无效时为 None。
          *         output_versions: 按清单顺序的输出版本；清单无效时为空。
          *         robot_models: 按清单顺序的适用型号字符串；清单无效时为空。
+         *         cleaning_models: 按清单顺序的有清洗规则型号；清单无效时为空。
          *         needs_gpu: 是否必须分配 GPU；清单无效时为 None。
          *         status: 四种工具状态之一。
          *         diagnostics: 统一五段诊断，可用时为空。
@@ -7825,6 +8190,8 @@ export interface components {
          *         sha256_prefix: 登记的程序 SHA-256 前 12 位；清单无效时为 None。
          */
         ToolSummaryResponse: {
+            /** Cleaning Models */
+            cleaning_models: string[];
             /** Diagnostics */
             diagnostics: components["schemas"]["Diagnostic"][];
             /** Input Format */
@@ -7848,6 +8215,33 @@ export interface components {
             summary: string | null;
             /** Version */
             version: string | null;
+        };
+        /**
+         * TopicAlignment
+         * @description 全文件基准帧上的对齐统计；空话题的时间差为 None，不伪造为零。
+         */
+        TopicAlignment: {
+            /** Bad Frames */
+            bad_frames: number;
+            /**
+             * Image Check
+             * @enum {string}
+             */
+            image_check: "not_applicable" | "sampled" | "unchecked_h264";
+            /** Image Check Note */
+            image_check_note?: string | null;
+            /** Max Abs Dt Ms */
+            max_abs_dt_ms: number | null;
+            /** Mean Abs Dt Ms */
+            mean_abs_dt_ms: number | null;
+            /** Missing Optional */
+            missing_optional: boolean;
+            /** Reused Frames */
+            reused_frames: number;
+            /** Tolerance Ms */
+            tolerance_ms: number;
+            /** Topic */
+            topic: string;
         };
         /**
          * TreeSize
@@ -9638,6 +10032,118 @@ export interface operations {
                 headers: {
                     /** @description 向上取整的剩余秒数，1-60 */
                     "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_cleaning_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CleaningPreviewResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {
@@ -14367,6 +14873,122 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SubmitJobPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    submit_cleaning_preview_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CleaningPreviewParameters"];
             };
         };
         responses: {
