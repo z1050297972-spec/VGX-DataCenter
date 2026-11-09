@@ -1,9 +1,22 @@
 // 转换提交边界（M4.5-04）：只能从清洗报告转换，禁止绕过预览直接提交工具。
 import type { AccountCall } from "./accounts";
-import type { CleaningConversionSubmission } from "./cleaningTemp";
+import type { components, operations } from "./schema";
 import { boundedRequest } from "./_request";
 import { JOB_REQUEST_TIMEOUT_MS, type Job } from "./jobs";
 import { toFailureView } from "./problems";
+
+/** 从报告转换的请求体，字段与可选性均以 OpenAPI 为准。 */
+export type CleaningConversionInput = components["schemas"]["ConversionOptions"];
+/** 剔除段的稳定身份，直接使用生成的文件及段下标结构。 */
+export type ExcludedEpisode = components["schemas"]["EpisodeSelection"];
+
+/** 页面提交上下文；路径参数和请求体分别引用生成类型。 */
+export interface CleaningConversionSubmission {
+  /** 预览作业的规范十进制编号文本，不经 Number 转换。 */
+  jobId: operations["convert_from_cleaning_preview"]["parameters"]["path"]["job_id"];
+  /** 当前输出选项和剔除选择。 */
+  parameters: CleaningConversionInput;
+}
 
 /**
  * 按清洗报告和当前剔除选择提交转换。

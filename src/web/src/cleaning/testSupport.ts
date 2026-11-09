@@ -1,5 +1,5 @@
 // 清洗页面测试事实：三个文件、三个段，编号和汇总均手算，不读取真实数据。
-import type { ToolList } from "../api/cleaningTemp";
+import type { ToolList } from "../api/tools";
 import type { CleaningPreview, EpisodeReport } from "../api/cleaning";
 import type { components } from "../api/schema";
 

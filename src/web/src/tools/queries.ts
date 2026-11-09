@@ -1,5 +1,5 @@
 // 工具查询生命周期（M4-01）：清单不持久缓存，按账号隔离，离页或关闭详情时取消请求。
-import type { ToolList } from "../api/cleaningTemp";
+import type { ToolList } from "../api/tools";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import { getTool, getTools, type ToolDetail } from "../api/tools";

@@ -1,7 +1,7 @@
 // M4-01 验收 5：真实页面和路由只替换 HTTP 传输，验证不可用工具的可见状态和诊断。
 import { fireEvent, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
-import type { ToolList, LeRobotEnvironment } from "../api/cleaningTemp";
+import type { ToolList, LeRobotEnvironment } from "../api/tools";
 import { cleaningTools } from "../cleaning/testSupport";
 import { mountPage, pageFetch } from "../scheduling/pageTestSupport";
 

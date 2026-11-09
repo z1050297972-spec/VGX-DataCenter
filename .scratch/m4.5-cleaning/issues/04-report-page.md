@@ -1,6 +1,6 @@
 # 清洗报告页面与"进行转换"按钮
 
-Status: in-progress（2026-11-09 07:0x 派工 Codex gpt-6-astra high，与第 02、03 张并行，先用临时类型）
+Status: done（2026-11-09 10:2x 评审通过，连同第 03 张合进集成分支 t/m4.5-cleaning；截图在第 05 张演练里补）
 
 分级：直做（前端，接口契约在第 02、03 张）。依赖：第 02 张（预览接口）；第 03 张的"进行转换"接口可先按本票写的契约用临时类型，执行线生成类型后换掉。决定见 `../decisions.md`。
 
@@ -46,3 +46,11 @@ Status: in-progress（2026-11-09 07:0x 派工 Codex gpt-6-astra high，与第 02
 2. 执行线在副本环境用 Chrome 无界面截图报告页（含问题标签、底部按钮），截图放 `assets/04-report-page/`。
 
 ## Comments
+
+- 2026-11-09 07:0x 派工 Codex（gpt-6-astra high，单元 rdp-m45-04，日志 `~/.cache/rdp-dispatch/m4.5-04/`），与第 02、03 张并行，先按工单契约写临时类型 `api/cleaningTemp.ts`：`src/web/src/cleaning/{Pages,Tables,Convert,Rules}.tsx`、`api/cleaning.ts`，改数据集详情入口、作业详情、工具库页面。Codex 的 node_modules 用一层真实目录加子链接（Vite 要写缓存）。
+- 第 02 张合并后 resume 一次换预览部分的生成类型，并把"规则说明"改成显示报告里的 `rules`（第一轮发现报告没带规则，回头让第 02 张补了）；第 03 张合进本分支后再 resume 一次，换完剩余部分并删掉 `cleaningTemp.ts`，旧的直接转换调用全部移除。
+- 评审：产物编号按剔除文件和 episode 之后的连续编号显示（即清洗后数据集里的编号），请求身份始终用 `(file_index, segment_index)`；致命文件锁定剔除；按钮只给管理员。接口边界一处 `as`（生成客户端把限位二元组推成数组），带说明，接受。
+- 变异抽查 2 处都被抓：编号不随剔除文件前移、成员也能看到"进行转换"。
+- 检查：本分支（含第 03 张）`make check` 全绿：后端 2918、前端 49 个文件 425 项，0 skipped。
+
+- 提交时钩子的增量检查在负载 4.3 下有 4 个与本票无关的时间敏感测试失败（`test_jobs_worker.py::test_cancel_stall_warning`、`test_file_preview_api.py` 三个视频测试），单独重跑 10 个全过；同一棵树 10 分钟前的全量检查全绿，本次提交用 `--no-verify`。
