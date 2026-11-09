@@ -4,9 +4,10 @@ import { expect, it } from "vitest";
 import { mountPage, pageFetch } from "../scheduling/pageTestSupport";
 import { account } from "../accounts/testSupport";
 import { job } from "../jobs/testSupport";
+import type { CleaningPreview } from "../api/cleaning";
 import { preview, cleaningTools } from "./testSupport";
 
-function mountReport(member = false) {
+function mountReport(member = false, snapshot: CleaningPreview = preview) {
   const requests: Request[] = [];
   const fallback = pageFetch(undefined, undefined, () => ({
     ...account,
@@ -14,7 +15,7 @@ function mountReport(member = false) {
   }));
   const page = mountPage("/cleaning/42", (request) => {
     const path = new URL(request.url).pathname;
-    if (path === "/api/cleaning-previews/42") return Promise.resolve(Response.json(preview));
+    if (path === "/api/cleaning-previews/42") return Promise.resolve(Response.json(snapshot));
     if (path === "/api/tools") return Promise.resolve(Response.json(cleaningTools));
     if (path === "/api/cleaning-previews/42/convert") {
       requests.push(request.clone());
@@ -115,3 +116,54 @@ it.each(["文件", "episode"])("全部剔除%s时禁用转换并说明原因", a
     page.close();
   }
 });
+
+// 规则说明必须使用报告快照；可变的严重检查列表以及 null 阈值不能被前端默认值覆盖。
+it.each([{ severe_checks: ["non_finite", "frozen_image"] }, { severe_checks: [] }])(
+  "规则说明展示快照阈值，严重检查按 $severe_checks 显示",
+  async ({ severe_checks }) => {
+    const snapshot: CleaningPreview = {
+      ...preview,
+      report: {
+        ...preview.report,
+        rules: {
+          ...preview.report.rules,
+          checks: { ...preview.report.rules.checks, severe_checks },
+        },
+      },
+    };
+    const page = mountReport(false, snapshot);
+    try {
+      fireEvent.click(await screen.findByText("规则说明"));
+      expect(await screen.findByText("17 毫秒")).toBeTruthy();
+      expect(screen.getByText("2.7 倍 / 270 毫秒")).toBeTruthy();
+      expect(screen.getByText("73 帧")).toBeTruthy();
+      for (const text of [
+        "observation.state",
+        "action",
+        "4.5 秒",
+        "2.25 秒",
+        "0.75 秒",
+        "平均亮度 < 12",
+        "平均亮度 > 238",
+      ]) {
+        expect(screen.getByText(text)).toBeTruthy();
+      }
+      const source = screen.getByRole("row", { name: /state 0[.]002 0[.]7/ });
+      expect(within(source).getByText("第 1 维：[-1.2, 1.3]")).toBeTruthy();
+      const gripper = screen.getByRole("row", { name: /gripper 0[.]2/ });
+      expect(within(gripper).getByText("不检查")).toBeTruthy();
+      expect(within(gripper).getByText("未配置")).toBeTruthy();
+      const unchecked = screen.getByRole("row", { name: /unchecked/ });
+      expect(within(unchecked).getAllByText("不检查")).toHaveLength(2);
+      const severeRow = screen.getByText("严重检查（默认剔除）").closest("tr");
+      if (!severeRow) throw new Error("缺少严重检查说明");
+      expect(within(severeRow).queryByText("frozen_image") !== null).toBe(
+        severe_checks.includes("frozen_image"),
+      );
+      if (!severe_checks.length) expect(within(severeRow).getByText("无")).toBeTruthy();
+      expect(screen.queryByText(/报告未提供/)).toBeNull();
+    } finally {
+      page.close();
+    }
+  },
+);

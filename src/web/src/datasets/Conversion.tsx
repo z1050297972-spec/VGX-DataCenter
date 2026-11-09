@@ -2,11 +2,8 @@
 import { useState, type ReactElement } from "react";
 import { Alert, Button, Checkbox, Drawer, Form, Select, Space, Typography } from "antd";
 import type { DatasetDetail } from "../api/datasets";
-import type {
-  ToolSummary,
-  CleaningPreviewInput,
-  CleaningPreviewSubmission,
-} from "../api/cleaningTemp";
+import type { CleaningPreviewInput, CleaningPreviewSubmission } from "../api/cleaning";
+import type { ToolSummary } from "../api/tools";
 import { submitCleaningPreview } from "../api/cleaning";
 import { useTools } from "../tools/queries";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";

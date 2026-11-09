@@ -1,12 +1,9 @@
 // 报告底部转换表单：先确认当前选择，再经已有作业 action 提交；不直接提交工具转换。
 import { useState, type ReactElement } from "react";
 import { Alert, Button, Form, InputNumber, Modal, Select, Typography } from "antd";
-import type {
-  CleaningConversionInput,
-  CleaningPreview,
-  ExcludedEpisode,
-  ToolSummary,
-} from "../api/cleaningTemp";
+import type { CleaningConversionInput, ExcludedEpisode } from "../api/cleaningTemp";
+import type { CleaningPreview } from "../api/cleaning";
+import type { ToolSummary } from "../api/tools";
 import { convertFromCleaningPreview } from "../api/conversion";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import { useJobAction } from "../jobs/_actions";

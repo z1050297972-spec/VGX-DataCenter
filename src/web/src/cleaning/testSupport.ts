@@ -1,5 +1,6 @@
 // 清洗页面测试事实：三个文件、三个段，编号和汇总均手算，不读取真实数据。
-import type { CleaningPreview, ToolList, EpisodeReport } from "../api/cleaningTemp";
+import type { ToolList } from "../api/cleaningTemp";
+import type { CleaningPreview, EpisodeReport } from "../api/cleaning";
 import type { components } from "../api/schema";
 
 export const fatal: components["schemas"]["Diagnostic"] = {
@@ -28,7 +29,7 @@ const episode: EpisodeReport = {
   default_action: "keep",
 };
 export const preview: CleaningPreview = {
-  job_id: 42,
+  job_id: "42",
   dataset_id: "dataset-14",
   tool_name: "mcap2lerobot",
   robot_model: "R1",
@@ -42,6 +43,30 @@ export const preview: CleaningPreview = {
     rules_sha256: "rules",
     fps: 10,
     reference_topic: "/camera",
+    // 特意不同于常见默认值，确保页面展示快照而非自己补阈值。
+    rules: {
+      sync: {
+        default_tolerance_ms: 17,
+        max_frame_gap: 2.7,
+        max_frame_gap_ms: 270,
+        min_episode_frames: 73,
+      },
+      checks: {
+        static_feature: "observation.state",
+        long_static_s: 4.5,
+        jump_feature: "action",
+        frozen_s: 2.25,
+        sample_interval_s: 0.75,
+        dark_below: 12,
+        bright_above: 238,
+        severe_checks: ["non_finite", "frozen_image"],
+        sources: [
+          { topic: "/state", static_threshold: 0.002, jump_threshold: 0.7, limits: [[-1.2, 1.3]] },
+          { topic: "/gripper", static_threshold: 0.2, jump_threshold: null, limits: null },
+          { topic: "/unchecked", static_threshold: null, jump_threshold: null, limits: null },
+        ],
+      },
+    },
     warnings: [],
     summary: {
       files: 3,

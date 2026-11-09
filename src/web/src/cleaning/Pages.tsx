@@ -3,11 +3,12 @@ import { useState, type ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { Alert, Breadcrumb, Card, Checkbox, Collapse, Descriptions, Typography } from "antd";
-import type { CleaningPreview, CleaningReport } from "../api/cleaningTemp";
+import type { CleaningPreview } from "../api/cleaning";
 import { getCleaningPreview } from "../api/cleaning";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import { DiagnosticCard, DiagnosticEntries } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
+import { ReportRules } from "./Rules";
 import { ConvertFromReport } from "./Convert";
 import { EpisodeTable, FileTable, episodeKey } from "./Tables";
 import "./cleaning.css";
@@ -141,7 +142,7 @@ function Report({ preview, jobId }: { preview: CleaningPreview; jobId: string })
         <DiagnosticEntries diagnostics={report.warnings} />
       </Card>
       <Collapse
-        items={[{ key: "rules", label: "规则说明", children: <Rules report={report} /> }]}
+        items={[{ key: "rules", label: "规则说明", children: <ReportRules report={report} /> }]}
       />
       <Card title="文件">
         <FileTable report={report} excludedFiles={excludedFiles} toggleFile={toggleFile} />
@@ -194,27 +195,4 @@ function toggled<T>(previous: Set<T>, key: T): Set<T> {
   if (next.has(key)) next.delete(key);
   else next.add(key);
   return next;
-}
-
-function Rules({ report }: { report: CleaningReport }): ReactElement {
-  return (
-    <>
-      <Descriptions
-        items={[
-          { key: "reference", label: "基准话题", children: report.reference_topic },
-          { key: "fps", label: "帧率", children: `${String(report.fps)} 帧/秒` },
-          { key: "config", label: "配置指纹", children: report.tool_config_sha256 },
-          { key: "rules", label: "规则指纹", children: report.rules_sha256 },
-        ]}
-      />
-      <Typography.Paragraph>
-        逐话题容差见文件展开项。默认容差、断点阈值、最短段和数值检查阈值：报告未提供。
-      </Typography.Paragraph>
-      <Typography.Paragraph>
-        数值检查以 episode
-        中的检查项、说明和明细为准：严重问题默认剔除，提示默认保留；可以逐段修改。H.264
-        话题画面未检查。
-      </Typography.Paragraph>
-    </>
-  );
 }

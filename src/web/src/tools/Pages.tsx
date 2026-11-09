@@ -15,11 +15,11 @@ import {
   Tag,
   Typography,
 } from "antd";
-import type { ToolDetail } from "../api/tools";
+import type { ToolDetail, ToolSummary } from "../api/tools";
 import { toFailureView } from "../api/problems";
 import { DiagnosticCard, DiagnosticEntries } from "../DiagnosticCard";
 import { useTool, useTools } from "./queries";
-import type { ToolSummary, LeRobotEnvironment } from "../api/cleaningTemp";
+import type { LeRobotEnvironment } from "../api/cleaningTemp";
 import "./tools.css";
 
 /**

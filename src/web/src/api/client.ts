@@ -1,5 +1,5 @@
 // Web 请求边界（ADR 0001、0002）；使用 openapi-fetch，不承载页面状态。
-// M4.5 清洗路径暂由 cleaningTemp 补足，生成类型就绪后恢复 paths。
+// 预览使用生成路径；第 03 张转换与环境扩展暂由 cleaningTemp 补足，生成后恢复 paths。
 import type { Client, ClientOptions } from "openapi-fetch";
 import createClient from "openapi-fetch";
 import { createProblemFetch } from "./problems";

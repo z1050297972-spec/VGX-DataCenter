@@ -7,7 +7,7 @@ import type {
   EpisodeReport,
   FileReport,
   TopicAlignment,
-} from "../api/cleaningTemp";
+} from "../api/cleaning";
 import { DiagnosticEntries } from "../DiagnosticCard";
 
 interface FileTableProps {

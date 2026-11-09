@@ -1,9 +1,27 @@
-// 清洗预览 HTTP 边界：请求复用账号客户端与作业超时，报告类型集中于临时契约。
+// 清洗预览 HTTP 边界：类型与路径均取 OpenAPI，复用账号客户端和作业超时。
 import type { AccountCall } from "./accounts";
-import type { CleaningPreview, CleaningPreviewSubmission } from "./cleaningTemp";
+import type { components, operations } from "./schema";
 import { boundedRequest } from "./_request";
 import { JOB_REQUEST_TIMEOUT_MS, type Job } from "./jobs";
 import { toFailureView } from "./problems";
+
+/** 预览参数、响应及报告嵌套结构均引用生成类型，不另写字段。 */
+export type CleaningPreviewInput = components["schemas"]["CleaningPreviewParameters"];
+export type CleaningPreview = components["schemas"]["CleaningPreviewResponse"];
+export type CleaningReport = components["schemas"]["CleaningReport"];
+export type EpisodeIssue = components["schemas"]["EpisodeIssue"];
+export type EpisodeReport = components["schemas"]["EpisodeReport"];
+export type FileReport = components["schemas"]["FileReport"];
+export type TopicAlignment = components["schemas"]["TopicAlignment"];
+export type CleaningSourceRules = components["schemas"]["CleaningSourceRules"];
+
+/** 将生成的路径参数与请求体组合为页面提交载荷，不是另一份 HTTP 请求结构。 */
+export interface CleaningPreviewSubmission {
+  /** 已登记工具名称，不接受程序路径。 */
+  tool: operations["submit_cleaning_preview_job"]["parameters"]["path"]["tool_name"];
+  /** 数据集、MCAP 数据块和有清洗规则的型号。 */
+  parameters: CleaningPreviewInput;
+}
 
 /**
  * 提交只读清洗预览作业。
@@ -40,6 +58,8 @@ export function getCleaningPreview(input: AccountCall<string>): Promise<Cleaning
       signal,
     });
     if (!response.data) throw new Error("请求失败", { cause: toFailureView(null) });
-    return response.data;
+    // openapi-fetch 的 Readable 会把生成的 limits 二元组展开成 number[]；传输不改变 JSON。
+    // 仅在响应边界恢复生成契约；依赖保留元组推导后可删除此断言，不放宽页面类型。
+    return response.data as CleaningPreview;
   });
 }
