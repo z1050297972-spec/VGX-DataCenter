@@ -4,6 +4,7 @@
 命令占位符和命名规则是本平台登记契约，标准库没有对应业务模型。
 """
 
+import tomllib
 from pathlib import Path, PurePosixPath
 from typing import Annotated, Literal, Self
 
@@ -141,6 +142,7 @@ class ToolManifest(_ManifestModel):
         program: 程序相对路径、字节数及完整 SHA-256。
         io: 输入输出格式和有序输出版本。
         models: robot_model 字符串到登记包内配置相对路径的映射。
+        cleaning: 有清洗规则的型号到包内规则相对路径的映射，默认空。
         runtime: GPU、进度解析器与外部程序要求。
         command: 预检与转换命令模板。
     """
@@ -150,19 +152,54 @@ class ToolManifest(_ManifestModel):
     program: ToolProgram
     io: ToolIO
     models: dict[str, RelativePath]
+    cleaning: dict[str, RelativePath] = Field(default_factory=dict)
     runtime: ToolRuntime
     command: ToolCommands
 
     @model_validator(mode="after")
     def _package(self, info: ValidationInfo) -> Self:
         """提供登记包上下文时核对目录名和每个配置的真实位置。"""
+        if not self.cleaning.keys() <= self.models.keys():
+            raise ValueError("cleaning 的型号必须全部在 models 中")
         if info.context is None:
             return self
         package = Path(info.context["package_dir"])
         if self.tool.name != package.name:
             raise ValueError("tool.name 必须等于登记包目录名")
-        for relative in self.models.values():
+        for relative in (*self.models.values(), *self.cleaning.values()):
             config = (package / relative).resolve()
             if not config.is_relative_to(package.resolve()) or not config.is_file():
                 raise ValueError(f"型号配置必须存在于登记包内：{relative}")
         return self
+
+
+def read_package_manifest(package: Path, root: Path) -> ToolManifest | None:
+    """读取受登记根约束的工具清单，坏清单不生成可提交类型。
+
+    Args:
+        package: 登记包目录路径，名称必须等于 tool.name。
+        root: 配置的登记根目录，解析后的包不得越界。
+
+    Returns:
+        通过校验的清单；字段、包边界或配置路径无效时返回 None。
+
+    Raises:
+        OSError: 登记清单不能读取，由入口决定如何展示或终止启动。
+
+    Side Effects:
+        无（只读登记包和配置存在性，不打开工具程序或数据盘）。
+
+    Time Semantics:
+        同步读取当前文件；不缓存，不自动重试。
+    """
+    try:
+        if not package.resolve().is_relative_to(root.resolve()) or not (
+            package / "tool.toml"
+        ).resolve().is_relative_to(package.resolve()):
+            return None
+        return ToolManifest.model_validate(
+            tomllib.loads((package / "tool.toml").read_text(encoding="utf-8")),
+            context={"package_dir": package},
+        )
+    except ValueError:
+        return None

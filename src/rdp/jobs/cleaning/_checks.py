@@ -22,6 +22,9 @@ from rdp.jobs.cleaning._scan import Scan, TopicData, Values
 from rdp.jobs.cleaning._sync import CHECKPOINT_FRAMES, TopicMatch
 from rdp.jobs.cleaning.models import EpisodeIssue, IssueDetails, TimeRange
 
+# 决定记录第 5 节：仅非有限值和整段静止默认剔除；报告说明与判严重共用此顺序。
+SEVERE_CHECKS = ("non_finite", "entire_static")
+
 
 @dataclass(frozen=True)
 class SegmentContext:
@@ -329,7 +332,7 @@ def _issue(
     check: str, message: str, details: IssueDetails, context: SegmentContext
 ) -> EpisodeIssue:
     """质量问题仍使用平台 Diagnostic；严重只剔除当前段，不误报整文件失败。"""
-    severe = check in ("non_finite", "entire_static")
+    severe = check in SEVERE_CHECKS
     base = diagnostic(
         f"cleaning.{check}",
         f"{message}，共 {details.count} 次",

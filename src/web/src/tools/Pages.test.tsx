@@ -14,6 +14,7 @@ it("工具库中的指纹不符显示红色状态，展开后显示五段诊断"
         input_format: "mcap",
         output_format: "lerobot",
         output_versions: ["v3.0", "v2.1"],
+        cleaning_models: [],
         robot_models: ["Galaxea R1 Lite"],
         needs_gpu: true,
         status: "指纹不符",

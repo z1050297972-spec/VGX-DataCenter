@@ -41,6 +41,8 @@ from rdp.infra.storage import (
 )
 from rdp.infra.version import DeploymentLayout, read_platform_version
 from rdp.jobs._clock import ClockReader
+from rdp.jobs.cleaning.job import CleaningDependencies
+from rdp.jobs.cleaning.registration import register_cleaning_jobs
 from rdp.jobs.conversion.job import ConversionDependencies
 from rdp.jobs.conversion.registration import register_conversion_jobs
 from rdp.jobs.datasets.rescan import RescanDependencies
@@ -250,6 +252,13 @@ def _with_conversions(
         config.tools,
         config.storage_roots,
         ConversionDependencies(engine, config.tools, config.storage_roots, storage=storage)
+        if storage is not None
+        else None,
+    )
+    register_cleaning_jobs(
+        registry,
+        config.tools,
+        CleaningDependencies(engine, config.tools, config.storage_roots, storage)
         if storage is not None
         else None,
     )

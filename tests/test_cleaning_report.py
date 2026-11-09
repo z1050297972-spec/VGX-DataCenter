@@ -9,7 +9,7 @@ from rdp.jobs.cleaning import CleaningReport, build_cleaning_report
 
 
 def test_alignment_segments_and_file_failure_isolation(tmp_path: Path) -> None:
-    """手腕缺帧造成 8 坏帧；间隔切出末尾 50 帧短段；缺话题文件不影响好文件。"""
+    """验证坏帧、短段和文件失败隔离，以及报告保存 R1 Lite 生效规则和严重检查清单。"""
     tool, rules = configs(tmp_path)
     bad = tmp_path / "bad.mcap"
     good = tmp_path / "good.mcap"
@@ -46,6 +46,21 @@ def test_alignment_segments_and_file_failure_isolation(tmp_path: Path) -> None:
     assert report.summary.excluded_files == 1
     assert report.summary.kept_frames == 262
     assert CleaningReport.model_validate_json(report.model_dump_json()) == report
+    # 正式登记配置只读；空输入即可核对规则快照，无需访问真实 MCAP 或存储根。
+    package = Path(__file__).parents[1] / "tools/mcap2lerobot"
+    r1lite = build_cleaning_report(
+        [],
+        package / "configs/r1lite.toml",
+        package / "cleaning/r1lite.toml",
+        checkpoint=noop,
+        progress=ignore_progress,
+    )
+    assert r1lite.rules.sync.max_frame_gap_ms == pytest.approx(53.333333333333336)
+    assert r1lite.rules.sync.min_episode_frames == 90
+    assert r1lite.rules.checks.model_dump(mode="json")["severe_checks"] == [
+        "non_finite",
+        "entire_static",
+    ]
 
 
 @pytest.mark.parametrize(

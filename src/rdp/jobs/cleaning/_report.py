@@ -2,17 +2,22 @@
 
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from pathlib import Path
 
 from rdp.infra.diagnostics import Diagnostic, InputError
-from rdp.jobs.cleaning._checks import SegmentContext, check_segment
+from rdp.jobs.cleaning._checks import SEVERE_CHECKS, SegmentContext, check_segment
 from rdp.jobs.cleaning._config import CleaningRules, ToolConfig
 from rdp.jobs.cleaning._io import diagnostic
 from rdp.jobs.cleaning._scan import MAX_CACHE_BYTES, Scan, Scanner
 from rdp.jobs.cleaning._sync import SyncPlan, TopicInput, TopicMatch, plan
 from rdp.jobs.cleaning.models import (
+    CleaningCheckRules,
     CleaningReport,
+    CleaningRuleSnapshot,
+    CleaningSourceRules,
     CleaningSummary,
+    CleaningSyncRules,
     EpisodeReport,
     FileReport,
     TopicAlignment,
@@ -33,12 +38,14 @@ class ReportBuilder:
         rules: CleaningRules,
         checkpoint: Callable[[], None],
         progress: Callable[[int], None],
+        file_progress: Callable[[int, int, int | None], None] | None = None,
     ) -> None:
         """保存调用方回调，文件编号由展开顺序唯一确定。"""
         self.config = config
         self.rules = rules
         self.checkpoint = checkpoint
         self.progress = progress
+        self.file_progress = file_progress
         self.dimensions: dict[tuple[str, str], int] = {}
         self.completed_bytes = 0
         self.file_read_bytes = 0
@@ -50,8 +57,15 @@ class ReportBuilder:
         """每文件独立预览；坏文件不终止后续文件，报告仅保存统计和段级问题。"""
         reports: list[FileReport] = []
         episodes: list[EpisodeReport] = []
+        total_bytes = None
+        if self.file_progress is not None:
+            # 文件读取失败仍交扫描生成文件级诊断，不能因进度统计提前终止整份报告。
+            with suppress(OSError):
+                total_bytes = sum(path.stat().st_size for _, path in files)
         for index, (source_id, path) in enumerate(files):
             self.checkpoint()
+            if self.file_progress is not None:
+                self.file_progress(index + 1, len(files), total_bytes)
             self.file_read_bytes = 0
             # 致命文件不锁定后续文件的维度，用户排除该文件后转换也不会读取它。
             dimensions = dict(self.dimensions)
@@ -84,10 +98,44 @@ class ReportBuilder:
             rules_sha256=hashes[1],
             fps=self.config.fps,
             reference_topic=self.config.sync.reference_topic,
+            rules=self._rules_snapshot(),
             files=tuple(reports),
             episodes=tuple(episodes),
             summary=summary,
             warnings=tuple(warnings),
+        )
+
+    def _rules_snapshot(self) -> CleaningRuleSnapshot:
+        """只投影本次已解析配置，确保报告说明与实际检查使用同一份值。"""
+        sync = self.config.sync
+        rules = self.rules
+        return CleaningRuleSnapshot(
+            sync=CleaningSyncRules(
+                default_tolerance_ms=sync.max_dt_ms,
+                max_frame_gap=sync.max_frame_gap,
+                # fps 是帧/秒；乘 1000 把帧间隔从秒换算成供规则说明使用的毫秒。
+                max_frame_gap_ms=sync.max_frame_gap * 1000 / self.config.fps,
+                min_episode_frames=sync.min_episode_frames,
+            ),
+            checks=CleaningCheckRules(
+                static_feature=rules.static.feature,
+                long_static_s=rules.static.long_static_s,
+                jump_feature=rules.jump.feature,
+                frozen_s=rules.image.frozen_s,
+                sample_interval_s=rules.image.sample_interval_s,
+                dark_below=rules.image.dark_below,
+                bright_above=rules.image.bright_above,
+                sources=tuple(
+                    CleaningSourceRules(
+                        topic=source.topic,
+                        static_threshold=source.static_threshold,
+                        jump_threshold=source.jump_threshold,
+                        limits=source.limits,
+                    )
+                    for source in rules.source
+                ),
+                severe_checks=SEVERE_CHECKS,
+            ),
         )
 
     def _progress(self, file_bytes: int) -> None:
