@@ -53,3 +53,10 @@ Status: in-progress
 
 - 2026-11-09 开票（执行线），M5 第一批，与 01 并行。
 - 2026-11-09 01:51 派工（执行线）：工作目录 `robot-data-platform.wt/m5-02-*`，Codex gpt-6-astra high，systemd 单元 `rdp-m5-02`，日志 `~/.cache/rdp-dispatch/m5-02/`。同时并行：另一张实现票和一份联网调研（Lichtblick 自托管、机器人侧组件，`~/.cache/rdp-dispatch/m5-research/`）。
+- 2026-11-09 02:54 派工交回（约 63 分钟）。Codex 最后一次全量检查有 1 个已有测试 `tests/test_jobs_schedules.py::test_unique_race` 偶发失败（100 毫秒短锁超时返回冲突），单独重跑通过；执行线重跑全量全绿，与 M4 遗留第 8 条的"后端偶发失败"同类。
+- 2026-11-09 评审：
+  - 运行日志 51 条命令，没有 ssh、ping、curl 机器人，没有读写 `~/.ssh`、安装、联网、提交、碰 /mnt（命中的一条是写 `keys.py` 的 heredoc，内容里有 ssh 字样）。
+  - SSH 参数：`-F /dev/null`、`BatchMode`、`IdentitiesOnly`、`IdentityAgent=none`、`PreferredAuthentications=publickey`、平台自己的 known_hosts、`GlobalKnownHostsFile=/dev/null`，`-l` 单独传用户、`--` 结束选项，远程只执行 `true`。私钥 600、目录 700，生成用临时目录加硬链接，已有私钥不覆盖。
+  - 变异抽查 3 处都被抓到：去掉"主机密钥变化"分支、公钥接口改读私钥、第 1 层失败不报错；用备份还原。
+  - 判断题（不打回）：公钥在第一次连接检查时由 worker 生成，之前公钥接口返回空；作业恢复方式是"标记中断"，重启后不自动去连机器人。
+- 2026-11-09 实现提交 `d9ef516`（分支 `t/m5-02-ssh-check`；执行线全量检查后端 2862、前端 414）。等负责人说"合并"。
