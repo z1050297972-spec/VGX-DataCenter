@@ -1,0 +1,18 @@
+
+===== 复制节点环境 =====
+环境取自 pid=55569；FASTRTPS_DEFAULT_PROFILES_FILE=/opt/galaxea/find_server/super_client_profile.xml；RMW=默认
+rclpy 可导入 3.10.12
+改用本机 XML 副本（只在临时目录）
+
+===== 订阅头部左路（最多等 15 秒，收到后再收 3 秒） =====
+发现/订阅等待结束，用时 3.9 秒
+收到 92 条
+format: ['h264']
+frame_id: ['']
+接收频率约 30.0 Hz，平均 62807 字节
+每条消息里的 NAL 类型序列（次数）:
+   [1] 83
+   [7, 8, 5] 9
+第一条前 32 字节: 0000000161e04082ffba3800342cb081fd32e6fc0233e4271f5f18ff9d04932d
+SPS: profile_idc=100 constraint=0x0c level_idc=51 → codec avc1.640c33
+结束 2026-11-09T19:08:08+08:00
