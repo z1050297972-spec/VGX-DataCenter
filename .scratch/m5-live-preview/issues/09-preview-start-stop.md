@@ -172,3 +172,4 @@ localhost_only = false  # 厂商进程环境 ROS_LOCALHOST_ONLY=0
 - 2026-11-10 20:36 修复轮交回（约 17 分钟，Codex 后端 2909、前端 419），运行日志 20 条命令无违规。评审：改为 `python3 -m zipfile -e` 解到 `site.part`、核对顶层只有 `foxglove` 和 dist-info 后替换 `site/`；运行和自检在 source ROS 之后加 `PYTHONPATH`、`exec python3`；venv/pip/`TMPDIR`/`venv_unavailable` 全部删除。交叉测试两条：真实 r1lite 配置通过第 03 张校验得 15 条路由；生产程序目录打包含全部 `*.py`。修复提交 `686ed45`（钩子全量全绿）。等负责人说"合并"；合并、升级后用真按钮在 R1 Lite 上演练一次。
 - 2026-11-10 21:2x 负责人"合并"：合并进 main `0300ed8`，合并后全量检查后端 2909、前端 419。升级真实部署又被执行线自动模式的权限检查（Production Deploy）拦下，没有绕开；升级和 `rdp install-viz-relay-wheel` 由负责人执行，之后用真按钮在 R1 Lite 上演练一次。
 
+- 2026-11-10 21:26 负责人在部署 `0.1.0 (e762df5)` 上用真按钮演练：作业 1367 开启预览成功（网络、登录、就绪通过；安装：已安装——复用演练留下的 wheel 和 site/，只传新包 `2883faae9465913b`；5 秒开启），浏览器里 Lichtblick 连上（机器人日志 2 个客户端、编解码器自检 `avc1.640833`）；作业 1368 停止成功，进程和端口都已释放，演练旧包已清理。随后另一会话把部署升级到 `3250fab`（含本票和 M4.5），wheel 已登记在状态目录（sha256 核对一致）。
