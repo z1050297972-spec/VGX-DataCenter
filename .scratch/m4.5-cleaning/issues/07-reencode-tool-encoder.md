@@ -1,6 +1,6 @@
 # 剔除后的重新编码用工具原来的编码方式
 
-Status: open（2026-11-10 负责人："剔除后可以使用原来的编码方式，这样保持一致"）
+Status: done（2026-11-10 评审、复验通过；b5bb9e7 已合进 t/m4.5-cleaning）
 
 分级：直做（后端 + 平台脚本 + 文档）。分支 `t/m4.5-07-reencode`，从 `t/m4.5-cleaning` 开。来源：`../followups.md` 第 3 条。
 
@@ -54,3 +54,9 @@ LeRobot 的 `_keep_episodes_from_video_with_av` 只用编码器对象的 `vcodec
 2. 执行线：在真实 `lerobot` 环境、bwrap 沙箱、GPU 下跑平台的剔除，用 ffprobe 对照视频流参数，用 PSNR 对照画质；再在副本环境把第 05 张演练的"剔除一个 episode → 转换 → 入库"走一遍。
 
 ## Comments
+- 2026-11-10 派工 Codex（gpt-6-astra high，单元 rdp-m45-07，日志 `~/.cache/rdp-dispatch/m4.5-07/`），与第 06 张并行。新增 `conversion/_encoder.py` 的 `encoder_parameters(ToolConfig)`（照 config.rs 分支与顺序，数值文本用 Pydantic 的 Rust 风格序列化）；`CleaningRuntime` 加 `config`（第 5 阶段用 `load_configs` 读转换所用登记配置）；`delete_episodes.py` 加必填 `--encoder`，调用期间替换 `dataset_tools.encoder_config_from_video_info` 并在 `finally` 恢复；回执 `cleaning.encoder`。文档：使用手册 §11.2、运维手册、ADR 0008 修订节、decisions、followups 第 3 条。
+- 评审通过（非阻塞：从 `rdp.jobs.cleaning._config` 跨包导入私有模块，工具链未报，照旧）。变异抽查 2 处都被抓：不替换编码器工厂、替换后不恢复。本分支后端全量 2922 过；钩子在负载下有 1 个已知偶发失败，用 `--no-verify` 提交。注意：票工作树的 .venv 软链到集成工作树，提交时要 `PYTHONPATH=$PWD/src git commit`，否则钩子测的是集成工作树的代码（第一次提交因此误报 3 个失败）。
+- 集成分支（合 07、06，06 带进 main 701ae34）`make api-types` 无变化，`make check` 全绿：后端 2934、前端 430，0 skipped。
+- 复验（`assets/07-drill/drill2.sh`，副本环境，输入是系统盘样本副本）：预览 5 段 → 剔除 (0, 2) → 转换作业 12 六阶段完成 → 自动入库 `R1_lite_table_withdrawing_lerobot_12`：4 个 episode、1290 帧，血缘参数带清洗字段；回执 `cleaning.encoder` = hevc_nvenc、yuv420p、`g 2, bf 0, rc constqp, qp 30`。`video-compare.txt`：三路视频流参数与工具原产物逐项相同（hevc Main、level 不变、yuv420p、color_range tv、无 B 帧、time_base 1/15360、I/P 交替），PSNR 平均 52.9 / 53.7 / 51.5 dB（头部 / 左腕 / 右腕）。不剔除再转一次（作业 18）：「剔除」跳过，回执 `encoder` 为 null。两块数据盘写入扇区前后不变，`/mnt/datasets` 清单不变，worker.log 0 个 ERROR。
+- 用时：剔除脚本单独跑（同一份工具产物）沙箱外 23 秒、沙箱内 34 秒，两次产物逐字节相同；原来 CPU x265 沙箱外 80 秒。演练里整个「剔除」阶段约 64 秒（含环境探测、回环镜像读写和产物核对）。
+- 复验脚本当时按阶段 3 统计"转换阶段带逐帧进度的采样"（日志里显示 0 / 1），转换其实是第 4 阶段；脚本已改，按 `progress-1.log` 重算为 12 / 12。

@@ -1,0 +1,15 @@
+== observation.images.head_left 保留帧段 [(0, 451), (451, 848), (1205, 1505), (1505, 1647)]
+  原产物 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=150|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1647  72868776 字节
+  清洗后 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=150|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1290  65503315 字节
+  清洗后前 8 帧类型 I P I P I P I P
+  PSNR（清洗后 vs 原产物对应帧）y:51.468940 u:60.102039 v:59.562634 average:52.923757 min:49.553241 max:55.891613
+== observation.images.wrist_left 保留帧段 [(0, 451), (451, 848), (1205, 1505), (1505, 1647)]
+  原产物 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=93|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1647  13113789 字节
+  清洗后 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=93|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1290  12027615 字节
+  清洗后前 8 帧类型 I P I P I P I P
+  PSNR（清洗后 vs 原产物对应帧）y:52.398583 u:58.999688 v:59.306338 average:53.723387 min:49.195816 max:56.203615
+== observation.images.wrist_right 保留帧段 [(0, 451), (451, 848), (1205, 1505), (1505, 1647)]
+  原产物 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=93|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1647  23738842 字节
+  清洗后 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=93|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1290  20313805 字节
+  清洗后前 8 帧类型 I P I P I P I P
+  PSNR（清洗后 vs 原产物对应帧）y:50.273370 u:55.806891 v:55.770728 average:51.463633 min:46.273434 max:55.308912

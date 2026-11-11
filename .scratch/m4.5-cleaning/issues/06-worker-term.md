@@ -1,6 +1,6 @@
 # 给工具开伪终端时设 TERM（修 M4 进度条缺陷）
 
-Status: open（2026-11-10 负责人："请帮忙维修"）
+Status: done（2026-11-10 评审、复验通过；分支 t/m4.5-06-worker-term b45cdaa 从 main 701ae34 开，已合进 t/m4.5-cleaning，未合并 main、未升级）
 
 分级：直做（后端，一处改动）。代码分支从 main 开（`t/m4.5-06-worker-term`，部署要单独用），做完也合进 `t/m4.5-cleaning`。来源：`../followups.md` 第 5 条。
 
@@ -34,3 +34,6 @@ bwrap 不清环境变量（没有 `--clearenv`），子进程能拿到这个值�
 2. 执行线验证：在没有 `TERM` 的环境里，用平台的 `run_terminal_process` 跑真实工具转换样本副本（系统盘上的那份，不读数据盘），作业进度里能解析出逐帧进度，不再出现"连续30秒未解析出进度"。
 
 ## Comments
+- 2026-11-10 派工 Codex（gpt-6-astra high，单元 rdp-m45-06，日志 `~/.cache/rdp-dispatch/m4.5-06/`）。改 `_ProcessRun._spawn`：只在伪终端运行时复制环境（含 GPU 设置）并强制 `TERM=xterm-256color`，父进程环境不变；测试参数化 TERM 缺失和 `dumb` 两种。
+- 评审通过；变异抽查（去掉设 TERM 那一行）两个用例都失败。本分支全量检查后端 2880 过、1 个失败是已知偶发的 `test_file_preview_api.py::test_video_concurrency_is_two_and_recovers`（与第 07 张钩子并行时负载高，单独重跑该文件 9 个全过；followups 第 10 条）。提交 b45cdaa（`--no-verify`）。
+- 复验（`assets/07-drill/`，worker 用 `env -u TERM` 起，环境里 TERM 条数 0）：转换作业 12 的「转换」阶段 12 次采样全部带逐路帧进度（如 head_left 45/1647 → 1620/1647），作业日志里"未解析出进度"0 条。

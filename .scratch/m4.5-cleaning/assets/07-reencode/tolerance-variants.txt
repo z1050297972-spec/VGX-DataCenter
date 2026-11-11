@@ -1,0 +1,13 @@
+2026-11-10 执行线：切段容差试算（样本副本 ~/.cache/rdp-m5-offline/sample/r1lite_20261011_52s.mcap，系统盘；不读数据盘）
+负责人决定：保持现状（不改容差）。以下仅作记录。
+
+tolerance_variants.py（平台 build_cleaning_report，临时配置副本）：
+现状: 坏帧 4 保留 1647/1651 episode [451, 397, 357, 300, 142] 有坏帧的话题 {右手腕相机: (35.0, 37.18, 1), target_joint_state_arm_left: (10.0, 10.62, 3), target_joint_state_arm_right: (10.0, 10.65, 3)}
+手臂目标16: 坏帧 1 保留 1650/1651 episode [1508, 142] 有坏帧的话题 {右手腕相机: (35.0, 37.18, 1)}
+手臂目标16+手腕40: 坏帧 0 保留 1651/1651 episode [1651]
+
+topic_gaps.py（header.stamp 间隔）：
+target_joint_state_arm_left 条数 10548 中位间隔 5.01 ms p99 14.77 最大 26.29 超过20ms的间隔 22
+target_joint_state_arm_right 条数 10533 中位间隔 5.01 ms p99 14.79 最大 29.96 超过20ms的间隔 22
+右手腕相机 条数 1636 中位间隔 33.33 ms p99 66.67 最大 100.01 超过60ms 19
+头部左相机（基准） 条数 1659 中位间隔 33.33 ms p99 33.37 最大 33.49
