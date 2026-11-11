@@ -1,0 +1,1 @@
+default-src 'self'; connect-src 'self' ws: blob: data:; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' 'sha256-0GFbAGMKU+WR+/WJo276oYG8JsQJ3JsWbDVGaXGktTc='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'

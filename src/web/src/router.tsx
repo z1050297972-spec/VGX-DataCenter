@@ -52,6 +52,7 @@ const CreateDatasetPage = lazyRouteComponent(
   () => import("./datasets/CreationPages"),
   "CreateDatasetPage",
 );
+const PreviewPage = lazyRouteComponent(() => import("./collection/PreviewPage"), "PreviewPage");
 const RobotsPage = lazyRouteComponent(() => import("./collection/RobotsPage"), "RobotsPage");
 const VocabularyPage = lazyRouteComponent(
   () => import("./collection/VocabularyPage"),
@@ -235,6 +236,14 @@ export function createAppRouter(options: AppRouterOptions) {
     path: "/robots",
     component: RobotsPage,
   });
+  const preview = createRoute({
+    getParentRoute: () => root,
+    path: "/robots/$robotId/preview",
+    beforeLoad: ({ params }) => {
+      if (!/^[1-9][0-9]*$/u.test(params.robotId)) notFound({ throw: true });
+    },
+    component: PreviewPage,
+  });
   const vocabulary = createRoute({
     getParentRoute: () => root,
     path: "/collection-vocabulary",
@@ -274,6 +283,7 @@ export function createAppRouter(options: AppRouterOptions) {
       tools,
       datasets,
       robots,
+      preview,
       vocabulary,
       createLink,
       createDataset,

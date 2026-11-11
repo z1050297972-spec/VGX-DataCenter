@@ -197,6 +197,8 @@ class ProfileCamera(_ProfileModel):
         stamp: 时间戳来源，header 或 receive；省略表示未知。
         stamp_trusted: 时间戳是否可信；省略表示未确认。
         trigger: 触发方式描述；省略表示未确认，不用于对齐。
+        stereo_eye: 双目的 left 或 right；与 stereo_partner 同时提供，省略表示未声明双目。
+        stereo_partner: 同一 Profile 内另一目的相机名；必须目别相反且相互指回。
     """
 
     name: ProfileText
@@ -209,6 +211,8 @@ class ProfileCamera(_ProfileModel):
     stamp: Literal["header", "receive"] | None = None
     stamp_trusted: bool | None = None
     trigger: ProfileText | None = None
+    stereo_eye: Literal["left", "right"] | None = None
+    stereo_partner: ProfileText | None = None
 
     @model_validator(mode="after")
     def _one_source(self) -> Self:
@@ -267,6 +271,25 @@ class RobotProfile(_ProfileModel):
         if len({item.name for item in value}) != len(value):
             raise ValueError("name 不得重复")
         return value
+
+    @model_validator(mode="after")
+    def _stereo_pairs(self) -> Self:
+        """双目必须是完整的互指关系，避免布局把未配对的相机误当右目隐藏。"""
+        cameras = {camera.name: camera for camera in self.camera}
+        for camera in self.camera:
+            if camera.stereo_eye is None:
+                if camera.stereo_partner is not None:
+                    raise ValueError("双目 stereo_eye 与 stereo_partner 必须同时提供")
+                continue
+            partner = cameras.get(camera.stereo_partner or "")
+            opposite_eye = "right" if camera.stereo_eye == "left" else "left"
+            if (
+                partner is None
+                or partner.stereo_eye != opposite_eye
+                or partner.stereo_partner != camera.name
+            ):
+                raise ValueError("双目伙伴必须在同一 Profile 中存在、目别相反且互相指回")
+        return self
 
     @property
     def unknown_count(self) -> int:

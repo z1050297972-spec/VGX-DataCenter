@@ -6735,7 +6735,7 @@
       },
       "ProfileCamera": {
         "additionalProperties": false,
-        "description": "相机事实；话题与共享内存来源不同时指定，不访问对应地址或路径。\n\nAttributes:\n    name: 相机名，非空，同一 Profile 内唯一。\n    topic: 图像话题，以 / 开头；没有 ROS 图像话题时省略。\n    source: 非 ROS 来源描述，如 shm:路径；具体来源未知时省略。\n    message_type: ROS 消息类型；非 ROS 相机不适用。\n    encoding: 原始或压缩编码；省略表示未知。\n    resolution: [宽, 高]，两个正整数，单位像素；省略表示未知。\n    rate_hz: 标称帧率，有限正数，单位 Hz；省略表示未知。\n    stamp: 时间戳来源，header 或 receive；省略表示未知。\n    stamp_trusted: 时间戳是否可信；省略表示未确认。\n    trigger: 触发方式描述；省略表示未确认，不用于对齐。",
+        "description": "相机事实；话题与共享内存来源不同时指定，不访问对应地址或路径。\n\nAttributes:\n    name: 相机名，非空，同一 Profile 内唯一。\n    topic: 图像话题，以 / 开头；没有 ROS 图像话题时省略。\n    source: 非 ROS 来源描述，如 shm:路径；具体来源未知时省略。\n    message_type: ROS 消息类型；非 ROS 相机不适用。\n    encoding: 原始或压缩编码；省略表示未知。\n    resolution: [宽, 高]，两个正整数，单位像素；省略表示未知。\n    rate_hz: 标称帧率，有限正数，单位 Hz；省略表示未知。\n    stamp: 时间戳来源，header 或 receive；省略表示未知。\n    stamp_trusted: 时间戳是否可信；省略表示未确认。\n    trigger: 触发方式描述；省略表示未确认，不用于对齐。\n    stereo_eye: 双目的 left 或 right；与 stereo_partner 同时提供，省略表示未声明双目。\n    stereo_partner: 同一 Profile 内另一目的相机名；必须目别相反且相互指回。",
         "properties": {
           "encoding": {
             "anyOf": [
@@ -6821,6 +6821,31 @@
               }
             ],
             "title": "Stamp Trusted"
+          },
+          "stereo_eye": {
+            "anyOf": [
+              {
+                "enum": [
+                  "left",
+                  "right"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stereo Eye"
+          },
+          "stereo_partner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileText"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "topic": {
             "anyOf": [
@@ -24088,6 +24113,150 @@
         "summary": "Update Robot",
         "tags": [
           "机器人与采集词表"
+        ]
+      }
+    },
+    "/api/robots/{robot_id}/preview-layout": {
+      "get": {
+        "description": "为已登记机器人生成可供同源查看器导入的布局。\n\nArgs:\n    robot_id: 机器人永久编号，1 至 2^63-1。\n    session: 当前请求的只读数据库事务，响应前释放。\n    profiles: 通过认证取得的启动时 RobotProfile 快照。\n\nReturns:\n    Lichtblick 1.30.0 裸布局 JSON，相机与位置曲线按 Profile 顺序生成。\n\nRaises:\n    CollectionNotFoundError: 机器人不存在或型号没有 RobotProfile，404 带五段诊断。\n    ExternalError: 登记数据库不可读，由统一数据库边界报告。\n    DefectError: Profile 未装配，由依赖报告。\n\nSide Effects:\n    无；只读登记数据库与内存快照，不连接机器人、不读取存储根。\n\nTime Semantics:\n    机器人型号取请求事务快照，Profile 取进程启动版本；曲线时间语义见 build_preview_layout。",
+        "operationId": "get_preview_layout",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "robot_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Robot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/JsonValue"
+                  },
+                  "title": "Response Get Preview Layout",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Preview Layout",
+        "tags": [
+          "实时预览"
         ]
       }
     },

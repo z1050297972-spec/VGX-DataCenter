@@ -22,8 +22,9 @@ readiness = [
 
 [[joint_group]]
 name = "left_arm"
+unit = "rad"  # 本机采集样本确认的弧度（0014）。
 joint_count = 6
-# 关节名与位置数组的对应顺序、单位待补测，见规划票 18；不沿用草样推测的 rad。
+# 关节名与位置数组的对应顺序仍待补测，见规划票 18。
 observation = { topic = "/hdas/feedback_arm_left", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 200, stamp = "header", stamp_trusted = true }
 # 0008 实时频率优先；左夹爪无消息、躯干目标无新频率，沿用 0007 的录制频率。
 # ADR 0007：目标来自主臂链路，时间戳不可信；可信度不等于平台已选择对齐策略。
@@ -31,8 +32,9 @@ target = { topic = "/motion_target/target_joint_state_arm_left", message_type = 
 
 [[joint_group]]
 name = "right_arm"
+unit = "rad"  # 本机采集样本确认的弧度（0014）。
 joint_count = 6
-# 关节名与位置数组的对应顺序、单位待补测，见规划票 18；不沿用草样推测的 rad。
+# 关节名与位置数组的对应顺序仍待补测，见规划票 18。
 observation = { topic = "/hdas/feedback_arm_right", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 200, stamp = "header", stamp_trusted = true }
 # 0008 实时频率优先；左夹爪无消息、躯干目标无新频率，沿用 0007 的录制频率。
 # ADR 0007：目标来自主臂链路，时间戳不可信；可信度不等于平台已选择对齐策略。
@@ -40,8 +42,9 @@ target = { topic = "/motion_target/target_joint_state_arm_right", message_type =
 
 [[joint_group]]
 name = "left_gripper"
+unit = "0-100"  # 开合量，哪端张开未核对（0014）
 joint_count = 1
-# 关节名与位置数组的对应顺序、单位待补测，见规划票 18；不沿用草样推测的 rad。
+# 关节名与位置数组的对应顺序仍待补测，见规划票 18。
 observation = { topic = "/hdas/feedback_gripper_left", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 200, stamp = "header", stamp_trusted = true }
 # 0008 实时频率优先；左夹爪无消息、躯干目标无新频率，沿用 0007 的录制频率。
 # ADR 0007：目标来自主臂链路，时间戳不可信；可信度不等于平台已选择对齐策略。
@@ -49,8 +52,9 @@ target = { topic = "/motion_target/target_position_gripper_left", message_type =
 
 [[joint_group]]
 name = "right_gripper"
+unit = "0-100"  # 开合量，哪端张开未核对（0014）
 joint_count = 1
-# 关节名与位置数组的对应顺序、单位待补测，见规划票 18；不沿用草样推测的 rad。
+# 关节名与位置数组的对应顺序仍待补测，见规划票 18。
 observation = { topic = "/hdas/feedback_gripper_right", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 195.6, stamp = "header", stamp_trusted = true }
 # 0008 实时频率优先；左夹爪无消息、躯干目标无新频率，沿用 0007 的录制频率。
 # ADR 0007：目标来自主臂链路，时间戳不可信；可信度不等于平台已选择对齐策略。
@@ -58,8 +62,9 @@ target = { topic = "/motion_target/target_position_gripper_right", message_type 
 
 [[joint_group]]
 name = "torso"
+unit = "rad"  # 本机采集样本确认的弧度（0014）。
 joint_count = 3
-# 关节名与位置数组的对应顺序、单位待补测，见规划票 18；不沿用草样推测的 rad。
+# 关节名与位置数组的对应顺序仍待补测，见规划票 18。
 observation = { topic = "/hdas/feedback_torso", message_type = "sensor_msgs/msg/JointState", extract = "JointState.position", rate_hz = 200, stamp = "header", stamp_trusted = true }
 # 0008 实时频率优先；左夹爪无消息、躯干目标无新频率，沿用 0007 的录制频率。
 # ADR 0007：目标来自主臂链路，时间戳不可信；可信度不等于平台已选择对齐策略。
@@ -75,6 +80,8 @@ target = { topic = "/motion_target/target_speed_chassis", message_type = "geomet
 
 [[camera]]
 name = "head_left"
+stereo_eye = "left"
+stereo_partner = "head_right"
 topic = "/hdas/camera_head/left_raw/image_raw_color/compressed"
 message_type = "sensor_msgs/msg/CompressedImage"
 encoding = "h264"
@@ -87,6 +94,8 @@ stamp_trusted = true
 
 [[camera]]
 name = "head_right"
+stereo_eye = "right"
+stereo_partner = "head_left"
 topic = "/hdas/camera_head/right_raw/image_raw_color/compressed"
 message_type = "sensor_msgs/msg/CompressedImage"
 encoding = "h264"

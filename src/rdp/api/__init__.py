@@ -42,11 +42,13 @@ from rdp.api.file_viewer import router as file_viewer_router
 from rdp.api.health import HealthResponse, get_health
 from rdp.api.jobs import router as jobs_router
 from rdp.api.jobs import worker_router
+from rdp.api.lichtblick import router as lichtblick_router
 from rdp.api.lineage import router as lineage_router
 from rdp.api.monitoring import ResourceSampler
 from rdp.api.monitoring import router as monitoring_router
 from rdp.api.navigation import router as navigation_router
 from rdp.api.navigation_writes import router as navigation_writes_router
+from rdp.api.preview import router as preview_router
 from rdp.api.robot_profiles import router as robot_profiles_router
 from rdp.api.storage import router as storage_router
 from rdp.api.tools import router as tools_router
@@ -161,6 +163,8 @@ def _install_job_and_monitoring_routes(app: FastAPI) -> None:
     app.include_router(monitoring_router)
     app.include_router(tools_router)
     app.include_router(robot_profiles_router)
+    app.include_router(lichtblick_router)
+    app.include_router(preview_router)
 
 
 def create_app(
@@ -188,7 +192,7 @@ def create_app(
         独立的 FastAPI 应用；GET /api/health 返回 200 和 {"status": "ok"}，
         响应模型为 HealthResponse，并出现在 OpenAPI 中。
         web_dist 为 None 时 / 返回 404；给定目录时存在的静态文件原样返回，
-        /api/ 以外找不到文件的 GET 返回 index.html，供前端处理路由。
+        /api/、/lichtblick/ 以外找不到文件的 GET 返回 index.html，供前端处理路由。
         /api 及 /api/ 下未知路径返回 404 JSON，绝不返回 index.html；
         非 GET 请求不使用 SPA 回退。静态服务不允许读取目录外文件或跟随越界软链接。
         应用包含 RequestIdMiddleware，包在框架错误处理中间件之外；每次 HTTP 请求
@@ -215,7 +219,9 @@ def create_app(
         M1 第03张登记 /api/datasets 路由及展示类型；服务由 configure_datasets 显式装配，
         离线导出不读取导航，详情请求的导航只读边界由数据集服务负责。
         M4 工具列表和详情由 configure_tools 装配登记路径；工厂不读取工具文件。
-        M5 说明档路由只注册 schema；生产启动调用 configure_robot_profiles 一次加载文件。
+        M5 说明档与预览布局路由只注册 schema；生产启动调用 configure_robot_profiles 一次加载文件。
+        /lichtblick/ 使用已登录账号边界和独立 CSP，未安装时返回带安装命令的 404 诊断；
+        configure_lichtblick 由生产入口绑定状态目录，静态资源不回退平台首页。
 
     Raises:
         FileNotFoundError: 创建时 web_dist 不存在，或其中 index.html 不存在。
@@ -306,7 +312,11 @@ def create_app(
             """把不存在的前端路由交给首页，文件传输仍由 StaticFiles 负责。"""
             # 仅前端 GET 导航允许回退；API 业务异常与其他方法保留通用 404 JSON。
             path = request.url.path
-            if request.method != "GET" or path == "/api" or path.startswith("/api/"):
+            if (
+                request.method != "GET"
+                or path == "/api"
+                or path.startswith(("/api/", "/lichtblick/"))
+            ):
                 return JSONResponse(
                     {"detail": getattr(_error, "detail", "Not Found")},
                     status_code=404,
