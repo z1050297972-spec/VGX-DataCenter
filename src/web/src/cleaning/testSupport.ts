@@ -59,7 +59,7 @@ export const preview: CleaningPreview = {
         sample_interval_s: 0.75,
         dark_below: 12,
         bright_above: 238,
-        severe_checks: ["non_finite", "frozen_image"],
+        severe_checks: ["non_finite", "entire_static"],
         sources: [
           { topic: "/state", static_threshold: 0.002, jump_threshold: 0.7, limits: [[-1.2, 1.3]] },
           { topic: "/gripper", static_threshold: 0.2, jump_threshold: null, limits: null },
@@ -80,7 +80,8 @@ export const preview: CleaningPreview = {
       file_index,
       source_id: "recording-a",
       path,
-      size_bytes: 1000,
+      // 大小刻意不同，流程卡片必须累计本报告所有文件，包括固定剔除的文件。
+      size_bytes: (file_index + 1) * 21_801_234_567,
       mtime_ns: 1000,
       fatal_issues: file_index === 0 ? [fatal] : [],
       warnings: [],

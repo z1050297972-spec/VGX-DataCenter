@@ -13,6 +13,14 @@
   max-width: 100%;
 }
 
+/* Steps 的语义插槽允许收缩；长话题名在窄屏换行，不截断内容或扩大页面宽度。 */
+.cleaning-process-content {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .cleaning-file-details {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

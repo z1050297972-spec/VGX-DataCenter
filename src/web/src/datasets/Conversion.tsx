@@ -115,6 +115,9 @@ function ConversionForm({
       }}
     >
       <Typography.Paragraph>先只读检查数据质量，生成报告后再决定是否转换。</Typography.Paragraph>
+      <Typography.Paragraph>
+        预览会把所选数据块里的每个文件完整读一遍，数据越大耗时越长；完成后在报告里看问题、决定保留或剔除，再从报告底部进行转换。
+      </Typography.Paragraph>
       <Form.Item label="清洗工具">
         <Select
           aria-label="清洗工具"

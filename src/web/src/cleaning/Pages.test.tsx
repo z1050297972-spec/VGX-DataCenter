@@ -26,6 +26,39 @@ function mountReport(member = false, snapshot: CleaningPreview = preview) {
   return { ...page, requests };
 }
 
+it("清洗流程默认展示六步，并使用报告的文件数和规则数值", async () => {
+  // 非默认阈值与手算总大小验证流程说明来自报告；不展开规则说明也能读到六步。
+  const page = mountReport();
+  try {
+    const process = await screen.findByRole("region", { name: "清洗流程" });
+    for (const title of [
+      "读取文件",
+      "时间对齐",
+      "判坏帧、切段",
+      "文件级检查",
+      "段内质量检查",
+      "选择与转换",
+    ]) {
+      expect(within(process).getByText(title)).toBeTruthy();
+    }
+    expect(within(process).getByText(/本次 3 个 MCAP 文件[，、]共 130.81 GB/)).toBeTruthy();
+    expect(within(process).getByText(/基准：以话题 \/camera.*10 帧\/秒/)).toBeTruthy();
+    expect(within(process).getByText(/坏帧：.*默认 17.000 毫秒/)).toBeTruthy();
+    expect(within(process).getByText(/切段：.*相邻基准帧间隔超过 270.000 毫秒/)).toBeTruthy();
+    expect(within(process).getByText(/丢弃：短于 73 帧的段丢弃/)).toBeTruthy();
+    expect(within(process).getByText("默认剔除（严重）")).toBeTruthy();
+    expect(within(process).getByText("非有限值、整段静止")).toBeTruthy();
+    expect(within(process).getByText("只提示（默认保留）")).toBeTruthy();
+    expect(within(process).getByText(/连续静止至少 4.50 秒/)).toBeTruthy();
+    expect(within(process).getByText(/相机冻结至少 2.25 秒/)).toBeTruthy();
+    expect(within(process).getByText(/每 0.75 秒 抽一帧/)).toBeTruthy();
+    const conversion = within(process).getByRole("list", { name: "进行转换后的六个步骤" });
+    expect(within(conversion).getAllByRole("listitem")).toHaveLength(6);
+  } finally {
+    page.close();
+  }
+});
+
 it("致命文件固定剔除并显示原因，剔除前面的文件后保留段编号前移", async () => {
   // 致命文件不能恢复；编号按最终产物从零连续计算，文件身份始终不变。
   const page = mountReport();
