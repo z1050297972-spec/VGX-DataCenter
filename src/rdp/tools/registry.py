@@ -1,10 +1,12 @@
 """只读工具登记（领域层，M4-01、decisions 1/2），不执行程序或访问数据集。
 
 TOML、SHA-256、lru_cache 和文件访问复用标准库；工具状态和五段诊断是本票业务规则。
-ADR 0006 的 Web 例外仅限登记包与工具程序：禁止据此读取其他存储根内容。
+README 打开沿用 worker 的 O_NOATIME/EPERM 规则，在此局部实现以避免只读工具领域依赖 worker。
+ADR 0006 的 Web 例外及 M4.5-10 仅限登记包、工具程序与 README：禁止读取其他存储根内容。
 工具库位于本地系统盘；只接受普通文件，分块读取设总预算，不创建线程或子进程。
 """
 
+import errno
 import hashlib
 import os
 import stat
@@ -25,6 +27,8 @@ _HASH_CHUNK_BYTES = 1024 * 1024
 _HASH_TIMEOUT_S = 10.0
 # 工具只有几个；保留最近 128 份文件身份，避免重新登记后旧指纹无限积累。
 _FINGERPRINT_CACHE_LIMIT = 128
+# M4.5-10 将 README 限制为 1 MiB，按原始字节计数，不能按解码后的字符数判断。
+_MAX_README_BYTES = 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -71,6 +75,7 @@ class RegisteredTool:
         diagnostics: 按发现顺序的五段诊断元组；可用时为空。
         program_path: 工具程序绝对路径；清单无效时为 None。
         configurations: 型号配置快照，按清单顺序；清单无效时为空。
+        readme_available: 工具目录内是否存在普通 README 文件；清单无效或路径越界时为 False。
     """
 
     name: str
@@ -79,6 +84,7 @@ class RegisteredTool:
     diagnostics: tuple[Diagnostic, ...]
     program_path: Path | None
     configurations: tuple[ToolConfiguration, ...]
+    readme_available: bool = False
 
 
 @dataclass(frozen=True)
@@ -97,7 +103,7 @@ def load_tool_registry(registry_dir: Path, library_root: Path) -> ToolRegistry:
 
     Args:
         registry_dir: 平台登记包根目录，绝对路径；每个直接子目录是一份登记。
-        library_root: 本地工具库根目录，绝对路径；只读登记的程序文件，不扫描其他内容。
+        library_root: 本地工具库根目录，绝对路径；只读登记程序并检查 README 是否存在。
 
     Returns:
         按目录名排序的快照；坏清单仅标记该工具无效，不阻止其他登记。
@@ -108,7 +114,8 @@ def load_tool_registry(registry_dir: Path, library_root: Path) -> ToolRegistry:
         ValueError: 任一根目录不是绝对路径。
 
     Side Effects:
-        无磁盘写入；只读登记包和程序。程序以 O_RDONLY | O_NOATIME 打开，失败不退回普通读取。
+        无磁盘写入；只读登记包和程序，对 README 只做路径与普通文件检查。
+        程序以 O_RDONLY | O_NOATIME 打开，失败不退回普通读取。
         进程内缓存文件身份对应的 SHA-256，最多保留 128 项；不启动线程或子进程。
 
     Time Semantics:
@@ -132,6 +139,69 @@ def _contained_path(root: Path, relative: str) -> Path:
     if not path.is_relative_to(root.resolve()):
         raise ValueError(f"路径越出登记边界：{relative}")
     return path
+
+
+def read_tool_readme(tool: RegisteredTool, library_root: Path) -> str:
+    """读取已登记工具本体目录内的 UTF-8 README。
+
+    Args:
+        tool: 本次登记快照中的工具；必须含已校验的清单。
+        library_root: 本地工具库根目录，必须为绝对路径，不接受客户端路径。
+
+    Returns:
+        不超过 1 MiB 原始字节的 UTF-8 文本，保留换行；允许空文件。
+
+    Raises:
+        FileNotFoundError: 工具目录或 README.md 不存在。
+        ValueError: 清单无效、根路径非绝对、路径越界、非普通文件、超过 1 MiB 或编码非 UTF-8。
+        OSError: 文件无法打开或读取，包括路径在打开前变成软链接。
+
+    Side Effects:
+        只读 README；优先 O_NOATIME，仅 EPERM 时退回普通只读，此时文件系统可能更新访问时间。
+        不修改文件内容、不执行工具、不缓存说明文本。
+
+    Time Semantics:
+        同步读取本地普通文件，单次最多读取 1 MiB 加一个判界字节；每次调用重新读取，无重试。
+    """
+    if not library_root.is_absolute():
+        raise ValueError("工具库必须使用绝对路径")
+    if tool.manifest is None:
+        raise ValueError("工具清单无效，无法定位 README.md")
+    directory = _contained_path(library_root, tool.manifest.tool.directory)
+    readme = _contained_path(directory, "README.md")
+    # NONBLOCK 防止误配 FIFO 卡住线程；NOFOLLOW 防止已解析的末级路径被换成链接。
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NONBLOCK | os.O_NOFOLLOW
+    try:
+        descriptor = os.open(readme, flags | os.O_NOATIME)
+    except OSError as error:
+        if error.errno != errno.EPERM:
+            raise
+        descriptor = os.open(readme, flags)
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ValueError("README.md 必须是普通文件")
+        if metadata.st_size > _MAX_README_BYTES:
+            raise ValueError("README.md 超过 1 MiB 上限")
+        # 文件可能在 stat 后增长，因此实际读取仍须有界，不能只相信先前的大小。
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            content = stream.read(_MAX_README_BYTES + 1)
+    finally:
+        os.close(descriptor)
+    if len(content) > _MAX_README_BYTES:
+        raise ValueError("README.md 超过 1 MiB 上限")
+    try:
+        return content.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ValueError("README.md 必须使用 UTF-8 编码") from error
+
+
+def _readme_available(directory: Path) -> bool:
+    """摘要只探测普通文件存在性，不读正文；README 故障不改变工具的运行状态。"""
+    try:
+        return _contained_path(directory, "README.md").is_file()
+    except (OSError, ValueError):
+        return False
 
 
 def _load_tool(package: Path, registry_dir: Path, library_root: Path) -> RegisteredTool:
@@ -180,7 +250,15 @@ def _load_valid_tool(package: Path, registry_dir: Path, library_root: Path) -> R
     directory = _contained_path(library_root, manifest.tool.directory)
     program = _contained_path(directory, manifest.program.path)
     status, diagnostics = _program_status(manifest, program)
-    return RegisteredTool(package.name, manifest, status, diagnostics, program, configurations)
+    return RegisteredTool(
+        package.name,
+        manifest,
+        status,
+        diagnostics,
+        program,
+        configurations,
+        readme_available=_readme_available(directory),
+    )
 
 
 def _read_configuration(package: Path, model: str, filename: str) -> ToolConfiguration:

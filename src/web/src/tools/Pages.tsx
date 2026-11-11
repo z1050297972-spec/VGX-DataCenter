@@ -1,5 +1,7 @@
-// 工具库只读页面（M4-01）：展示平台登记事实，不执行工具或提供登记修改入口。
+// 工具库只读页面（M4-01、M4.5-10）：展示登记事实和 README，不执行工具或修改登记。
 import { useState, type ReactElement } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Breadcrumb,
   Button,
@@ -8,6 +10,7 @@ import {
   Divider,
   Drawer,
   Flex,
+  Grid,
   Popover,
   Space,
   Spin,
@@ -18,20 +21,22 @@ import {
 import type { ToolDetail, ToolSummary } from "../api/tools";
 import { toFailureView } from "../api/problems";
 import { DiagnosticCard, DiagnosticEntries } from "../DiagnosticCard";
-import { useTool, useTools } from "./queries";
+import { useTool, useTools, useToolReadme } from "./queries";
 import type { LeRobotEnvironment } from "../api/tools";
 import "./tools.css";
 
 /**
  * 显示工具清单、指纹状态及可打开的登记详情。
- * @returns 工具表格和只读详情抽屉；不可用状态为红色，可展开五段诊断。
+ * @returns 工具表格、只读详情与说明抽屉；不可用状态为红色，可展开五段诊断。
  * @throws 无；加载失败交给 DiagnosticCard。
- * @sideEffects 读取工具列表，点击行时请求详情；重新检查按钮刷新列表，不写登记包或 URL。
+ * @sideEffects 读取工具列表，点击行时请求详情，点击说明时请求 README；重新检查刷新列表，不写登记包或 URL。
  * @timeSemantics 无轮询，打开页面现场检查；离页和关闭抽屉时取消相应请求。
  */
 export function ToolsPage(): ReactElement {
   const query = useTools();
   const [selected, setSelected] = useState<string | null>(null);
+  const [readmeName, setReadmeName] = useState<string | null>(null);
+  const screens = Grid.useBreakpoint();
   return (
     <section className="tools-page">
       <header className="app-page-header">
@@ -94,6 +99,31 @@ export function ToolsPage(): ReactElement {
             },
             { title: "需要 GPU", render: (_, tool) => gpuLabel(tool.needs_gpu) },
             { title: "状态", render: (_, tool) => <ToolStatus tool={tool} /> },
+            {
+              title: "操作",
+              render: (_, tool) => (
+                <Space
+                  orientation="vertical"
+                  size="small"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                  }}
+                >
+                  <Button
+                    autoInsertSpace={false}
+                    disabled={!tool.readme_available}
+                    onClick={() => {
+                      setReadmeName(tool.name);
+                    }}
+                  >
+                    说明
+                  </Button>
+                  {!tool.readme_available && (
+                    <Typography.Text type="secondary">工具目录里没有 README.md</Typography.Text>
+                  )}
+                </Space>
+              ),
+            },
           ]}
         />
       </Card>
@@ -108,7 +138,57 @@ export function ToolsPage(): ReactElement {
       >
         {selected && <ToolDetails key={selected} name={selected} />}
       </Drawer>
+      <Drawer
+        title={readmeName ? `${readmeName} 说明` : "工具说明"}
+        open={readmeName !== null}
+        onClose={() => {
+          setReadmeName(null);
+        }}
+        size={screens.sm ? "large" : "100%"}
+        destroyOnHidden
+      >
+        {readmeName && <ToolReadmeContent key={readmeName} name={readmeName} />}
+      </Drawer>
     </section>
+  );
+}
+
+function ToolReadmeContent({ name }: { name: string }): ReactElement {
+  const query = useToolReadme(name);
+  if (query.error) return <DiagnosticCard failure={toFailureView(query.error)} />;
+  if (!query.data)
+    return (
+      <Spin description="正在读取工具说明">
+        <div className="tools-loading" />
+      </Spin>
+    );
+  return (
+    <Typography className="tools-readme">
+      <ReactMarkdown
+        skipHtml
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => <Typography.Title level={1}>{children}</Typography.Title>,
+          h2: ({ children }) => <Typography.Title level={2}>{children}</Typography.Title>,
+          h3: ({ children }) => <Typography.Title level={3}>{children}</Typography.Title>,
+          h4: ({ children }) => <Typography.Title level={4}>{children}</Typography.Title>,
+          h5: ({ children }) => <Typography.Title level={5}>{children}</Typography.Title>,
+          a: ({ href, children }) => (
+            <Typography.Link href={href} target="_blank" rel="noreferrer">
+              {children}
+            </Typography.Link>
+          ),
+          table: ({ children }) => (
+            <Flex className="tools-readme-table-scroll">
+              <table className="tools-readme-table">{children}</table>
+            </Flex>
+          ),
+          pre: ({ children }) => <pre className="tools-readme-code">{children}</pre>,
+        }}
+      >
+        {query.data.content}
+      </ReactMarkdown>
+    </Typography>
   );
 }
 

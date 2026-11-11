@@ -4174,6 +4174,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tools/{name}/readme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Tool Readme
+         * @description 向登录成员返回已登记工具的 README 正文。
+         *
+         *     Args:
+         *         name: 工具列表中的登记名称，只在已认证的登记快照中查找。
+         *         request: 当前请求，仅使用服务端装配的工具库路径。
+         *         registry: 经过与工具详情相同认证依赖加载的登记快照。
+         *
+         *     Returns:
+         *         工具名称和原始 UTF-8 正文，最多 1 MiB，不转换 Markdown 或 HTML。
+         *
+         *     Raises:
+         *         _ToolNotFoundError: 工具未登记或 README 不存在，统一返回 404。
+         *         InputError: 清单无效、README 越界、非普通文件、超限或编码错误，统一返回 400。
+         *         ExternalError: 登记根目录或 README 无法读取，统一返回 502。
+         *
+         *     Side Effects:
+         *         只读登记包、程序指纹和 README；README 的 O_NOATIME 因 EPERM 回退时可能更新访问时间。
+         *
+         *     Time Semantics:
+         *         使用本次请求的登记快照定位文件，同步有界读取本地正文；无缓存、轮询或重试。
+         */
+        get: operations["get_tool_readme"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/version": {
         parameters: {
             query?: never;
@@ -8235,6 +8274,8 @@ export interface components {
             output_versions: string[];
             /** Program Path */
             program_path: string | null;
+            /** Readme Available */
+            readme_available: boolean;
             /** Robot Models */
             robot_models: string[];
             /** Sha256 Prefix */
@@ -8262,6 +8303,20 @@ export interface components {
             items: components["schemas"]["ToolSummaryResponse"][];
             lerobot_environment: components["schemas"]["LeRobotEnvironment"];
         };
+        /**
+         * ToolReadmeResponse
+         * @description 工具本体目录的只读使用说明。
+         *
+         *     Attributes:
+         *         name: 登记包目录名，与工具列表中的名称一致。
+         *         content: README 的完整 UTF-8 文本，原始字节不超过 1 MiB，保留换行。
+         */
+        ToolReadmeResponse: {
+            /** Content */
+            content: string;
+            /** Name */
+            name: string;
+        };
         /** @enum {string} */
         ToolStatus: "可用" | "程序找不到" | "指纹不符" | "清单无效";
         /**
@@ -8282,6 +8337,7 @@ export interface components {
          *         diagnostics: 统一五段诊断，可用时为空。
          *         program_path: 已核对边界的程序绝对路径；清单无效时为 None。
          *         sha256_prefix: 登记的程序 SHA-256 前 12 位；清单无效时为 None。
+         *         readme_available: 工具目录内是否存在普通 README.md；清单无效或路径越界时为 False。
          */
         ToolSummaryResponse: {
             /** Cleaning Models */
@@ -8300,6 +8356,8 @@ export interface components {
             output_versions: string[];
             /** Program Path */
             program_path: string | null;
+            /** Readme Available */
+            readme_available: boolean;
             /** Robot Models */
             robot_models: string[];
             /** Sha256 Prefix */
@@ -20495,6 +20553,118 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ToolDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_tool_readme: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolReadmeResponse"];
                 };
             };
             /** @description Bad Request */

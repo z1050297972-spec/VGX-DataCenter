@@ -1,6 +1,6 @@
 # 工具库页面"说明"按钮：浏览工具目录里的 README
 
-Status: open（2026-11-11 负责人："给mcap2lerobot写一个readme文件，放在其目录下，工具库页面再加一个读说明的摁纽，点击浏览该readme文件"）
+Status: done（评审、截图通过；在分支 t/m4.5-10-tool-readme，未合并 main、未升级。原：2026-11-11 负责人："给mcap2lerobot写一个readme文件，放在其目录下，工具库页面再加一个读说明的摁纽，点击浏览该readme文件"）
 
 分级：直做。分支 `t/m4.5-10-tool-readme`，从 main 开。
 
@@ -33,3 +33,6 @@ Status: open（2026-11-11 负责人："给mcap2lerobot写一个readme文件，�
 
 1. `make check` 全绿、0 skipped。
 2. 执行线在真实 README 上截图抽屉（1440 宽、390 宽）。
+- 2026-11-11 执行线写 README：`/mnt/datasets/工具/mcap2lerobot/README.md`（负责人选"放工具本体目录"；对照工具源码 main.rs/convert.rs/verify.rs/config.rs/h264.rs 和 configs/r1lite.toml；工具目录其他文件未动，未在工具目录跑 git）。
+- 派工 Codex（rdp-m45-10）：`registry.read_tool_readme`（工具目录约束、不跟随越界软链接、O_NOATIME、1 MiB、UTF-8）、`GET /api/tools/{name}/readme`、摘要 `readme_available`；前端"说明"按钮 + Drawer + react-markdown/remark-gfm（不渲染原始 HTML）。执行线 `make api-types` 后 resume 一轮换成生成类型、删临时契约文件。
+- 检查：`make check` 全绿，后端 2971、前端 434，0 skipped。演练状态目录起网页读真实 README（4301 字符），1440/390 宽截图无横向溢出（`assets/10-tool-readme/`）。

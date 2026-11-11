@@ -25,6 +25,7 @@ class ToolSummaryResponse(BaseModel):
         diagnostics: 统一五段诊断，可用时为空。
         program_path: 已核对边界的程序绝对路径；清单无效时为 None。
         sha256_prefix: 登记的程序 SHA-256 前 12 位；清单无效时为 None。
+        readme_available: 工具目录内是否存在普通 README.md；清单无效或路径越界时为 False。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -41,6 +42,20 @@ class ToolSummaryResponse(BaseModel):
     diagnostics: tuple[Diagnostic, ...]
     program_path: str | None
     sha256_prefix: str | None
+    readme_available: bool
+
+
+class ToolReadmeResponse(BaseModel):
+    """工具本体目录的只读使用说明。
+
+    Attributes:
+        name: 登记包目录名，与工具列表中的名称一致。
+        content: README 的完整 UTF-8 文本，原始字节不超过 1 MiB，保留换行。
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    name: str
+    content: str
 
 
 class ToolListResponse(BaseModel):
