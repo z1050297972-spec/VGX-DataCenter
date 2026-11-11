@@ -3,6 +3,7 @@ import { expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { mountPage, pageFetch } from "../scheduling/pageTestSupport";
 import type { FetchImplementation } from "../api/client";
+import { completedJob } from "../jobs/testSupport";
 
 function previewFetch(): FetchImplementation {
   const fallback = pageFetch();
@@ -48,6 +49,8 @@ it("非安全来源不提供实时预览连接", async () => {
     ).toBeTruthy();
     expect(screen.queryByTitle("Lichtblick 实时预览")).toBeNull();
     expect(screen.queryByRole("button", { name: "连接" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "开启预览" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "停止预览" })).toBeNull();
   } finally {
     page.close();
   }
@@ -106,12 +109,70 @@ it.each(["error", "timeout"])("预检 %s 时不嵌入查看器", async (result) 
     fireEvent.click(await screen.findByRole("button", { name: "连接" }));
     await waitFor(
       () => {
-        expect(
-          screen.getByText("机器人上的预览程序没在运行（第 03 张做好后由平台一键启动）"),
-        ).toBeTruthy();
+        expect(screen.getByText("机器人上的预览程序没在运行，先点开启预览")).toBeTruthy();
       },
       { timeout: 4000 },
     );
+    expect(screen.queryByTitle("Lichtblick 实时预览")).toBeNull();
+  } finally {
+    page.close();
+  }
+});
+
+// M5-09 验收：加载不启动；人工开启成功才握手，人工停止先撤下 iframe 再提交作业。
+it("人工启停预览并在启动成功后自动连接", async () => {
+  vi.stubGlobal("isSecureContext", true);
+  const sockets = vi.fn();
+  vi.stubGlobal(
+    "WebSocket",
+    class extends EventTarget {
+      constructor() {
+        super();
+        sockets();
+        queueMicrotask(() => this.dispatchEvent(new Event("open")));
+      }
+      close(): void {
+        /* 没有真实网络资源。 */
+      }
+    },
+  );
+  const requests: unknown[] = [];
+  const fallback = previewFetch();
+  const fetcher: FetchImplementation = async (request) => {
+    const path = new URL(request.url).pathname;
+    if (path === "/api/jobs" && request.method === "POST") {
+      const body: unknown = await request.json();
+      requests.push(body);
+      if (requests.length === 2) expect(screen.queryByTitle("Lichtblick 实时预览")).toBeNull();
+      return Response.json(
+        { ...completedJob, job_id: String(requests.length), state: "queued", summary: null },
+        { status: 201 },
+      );
+    }
+    if (path === "/api/jobs/1" || path === "/api/jobs/2")
+      return Response.json({
+        ...completedJob,
+        job_id: path.endsWith("1") ? "1" : "2",
+        type_name: path.endsWith("1") ? "robot_preview_start" : "robot_preview_stop",
+      });
+    return fallback(request);
+  };
+  const page = mountPage("/robots/7/preview", fetcher);
+  try {
+    const start = await screen.findByRole("button", { name: "开启预览" });
+    expect(requests).toEqual([]);
+    expect(sockets).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("预览要手动开启和停止，平台不会自动开启。正式采集前请先停止预览。"),
+    ).toBeTruthy();
+    fireEvent.click(start);
+    await screen.findByTitle("Lichtblick 实时预览");
+    expect(requests).toEqual([{ type_name: "robot_preview_start", parameters: { robot_id: 7 } }]);
+    fireEvent.click(screen.getByRole("button", { name: "停止预览" }));
+    await waitFor(() => {
+      expect(requests).toHaveLength(2);
+    });
+    expect(requests[1]).toEqual({ type_name: "robot_preview_stop", parameters: { robot_id: 7 } });
     expect(screen.queryByTitle("Lichtblick 实时预览")).toBeNull();
   } finally {
     page.close();

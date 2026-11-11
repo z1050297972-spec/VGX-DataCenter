@@ -259,7 +259,7 @@ def production_registry(
         两个创建预览、nav_data_origin_preview、nav_repoint_preview 和
         nav_fields_preview、nav_lineage_preview、自动写入 nav_size_sync，以及 resume 的 download；扫描与预览为 restart，
         执行能力由入口显式注入。
-        三个示例与 robot_connection_check 为 interrupt，两个清除为 restart；
+        三个示例与 robot_connection_check、robot_preview_start/stop 为 interrupt，两个清除为 restart；
         只有 example_gpu 需要 GPU，各类默认并发 1。
 
     Raises:
@@ -301,9 +301,12 @@ def production_registry(
         execute_navigation_example,
     )
     from rdp.jobs.robot_connection.job import build_connection_definition
+    from rdp.jobs.robot_connection.preview import build_preview_definitions
 
     registry = JobRegistry()
     registry.register(build_connection_definition(connection_dependencies))
+    for definition in build_preview_definitions(connection_dependencies):
+        registry.register(definition)
     registry.register(
         JobDefinition(
             "example_count",

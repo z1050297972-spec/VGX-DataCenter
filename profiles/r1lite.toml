@@ -1,7 +1,7 @@
 # RobotProfile：Galaxea R1 Lite，ADR 0007、M5-01。
 # 话题、类型与频率来自环境事实 0007/0008；不含转换算法参数或单机凭据。
 profile = "r1lite"
-version = 2
+version = 3
 model = "Galaxea R1 Lite"
 robot_type_labels = ["galaxea_r1lite", "r1lite"]
 
@@ -19,6 +19,13 @@ readiness = [
   { check = "process_running", value = "signal_camera_node", level = "error", reason = "头部相机节点没在跑：厂商软件栈没启动或已退出。先确认主臂网线接通，再执行 boot.sh（0014）" },
   { check = "address_present", value = "10.42.0.238", level = "warning", reason = "eth1（主臂网线）断开：已在跑的厂商程序照常工作，但这时重启厂商栈会互相发现不了、录出空数据。重启前先接通主臂（0008、0014）" },
 ]
+
+[ros.join]
+# 新参与者使用厂商 XML 的本地副本，eth1 断开仍可发现已运行的节点（0014）。
+setup_script = "/opt/ros/humble/setup.bash"
+fastdds_profiles_file = "/opt/galaxea/find_server/super_client_profile.xml"
+discovery_address = "127.0.0.1"
+localhost_only = false
 
 [[joint_group]]
 name = "left_arm"

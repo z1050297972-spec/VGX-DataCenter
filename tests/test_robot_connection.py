@@ -110,7 +110,7 @@ def test_missing_profile_warns_after_checking_current_registration(tmp_path: Pat
         # 假程序在系统边界核验安全契约；一旦改成别的远程命令或身份，返回非零。
         program.write_text(
             "#!/usr/bin/python3\nimport sys\nfrom pathlib import Path\na = sys.argv[1:]\n"
-            "assert a[-2:] == ['127.0.0.1', 'true']\n"
+            "assert a[-3:] == ['127.0.0.1', 'bash', '-s']\n"
             "assert a[a.index('-l') + 1] == 'new-user'\n"
             f"assert a[a.index('-p') + 1] == '{endpoint.getsockname()[1]}'\n"
             "assert a[a.index('-F') + 1] == '/dev/null'\n"

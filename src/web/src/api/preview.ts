@@ -26,3 +26,26 @@ export function listPreviewProfiles(
     return response.data;
   });
 }
+
+/**
+ * 提交人工开启或停止预览作业。
+ * @param input - 登录客户端、取消信号和机器人永久编号；不传连接信息。
+ * @param action - start 开启或 stop 停止。
+ * @returns 新作业记录，后续结果由作业查询读取。
+ * @throws Error 提交失败、响应缺失或超时，交统一诊断显示。
+ * @sideEffects 一次 POST /api/jobs，只有 worker 执行机器人操作。
+ * @timeSemantics 提交最多 ACCOUNT_TIMEOUT_MS，不重试、不等待机器人操作完成。
+ */
+export function submitPreviewJob(
+  input: AccountCall<components["schemas"]["RobotResponse"]["robot_id"]>,
+  action: "start" | "stop",
+): Promise<components["schemas"]["JobResponse"]> {
+  return boundedRequest(input.signal, ACCOUNT_TIMEOUT_MS, async (signal) => {
+    const response = await input.client.POST("/api/jobs", {
+      body: { type_name: `robot_preview_${action}`, parameters: { robot_id: input.payload } },
+      signal,
+    });
+    if (!response.data) throw new Error("请求失败");
+    return response.data;
+  });
+}
