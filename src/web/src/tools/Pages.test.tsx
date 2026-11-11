@@ -64,13 +64,13 @@ it("工具库中的指纹不符显示红色状态，展开后显示五段诊断"
   }
 });
 
-// 环境三种业务状态及探测失败均按服务端结果显示，不在前端比较版本或指纹。
+// 环境三种业务状态及探测失败均保留状态、版本和说明，卡片不显示指纹标签或值。
 it.each<{ status: LeRobotEnvironment["status"]; label: string }>([
   { status: "unconfigured", label: "未配置" },
   { status: "available", label: "可用" },
   { status: "mismatch", label: "不符" },
   { status: "error", label: "检查失败" },
-])("工具库显示 LeRobot 环境 $label 和实际值", async ({ status, label }) => {
+])("LeRobot 环境 $label 卡片保留版本和说明，不显示指纹", async ({ status, label }) => {
   const fallback = pageFetch();
   const page = mountPage("/tools", (request) =>
     new URL(request.url).pathname === "/api/tools"
@@ -80,18 +80,30 @@ it.each<{ status: LeRobotEnvironment["status"]; label: string }>([
             lerobot_environment: {
               ...cleaningTools.lerobot_environment,
               status,
+              expected_version: "0.6.2",
               actual_version: "0.6.1",
+              expected_fingerprint: "expected-hash",
               actual_fingerprint: "actual-hash",
+              message: "环境探测说明",
             },
           }),
         )
       : fallback(request),
   );
   try {
-    expect(await screen.findByText("LeRobot 环境")).toBeTruthy();
-    expect(screen.getAllByText(label).length).toBeGreaterThan(0);
-    expect(screen.getByText("0.6.1")).toBeTruthy();
-    expect(screen.getByText("actual-hash")).toBeTruthy();
+    const card = (await screen.findByText("LeRobot 环境")).closest(".ant-card");
+    expect(card).not.toBeNull();
+    const cardText = card?.textContent;
+    expect(cardText).toContain("状态");
+    expect(cardText).toContain(label);
+    expect(cardText).toContain("期望版本");
+    expect(cardText).toContain("0.6.2");
+    expect(cardText).toContain("实际版本");
+    expect(cardText).toContain("0.6.1");
+    expect(cardText).toContain("环境探测说明");
+    expect(cardText).not.toContain("指纹");
+    expect(cardText).not.toContain("expected-hash");
+    expect(cardText).not.toContain("actual-hash");
     expect(
       screen.getAllByRole("columnheader", { name: "有清洗规则的型号" }).length,
     ).toBeGreaterThan(0);
