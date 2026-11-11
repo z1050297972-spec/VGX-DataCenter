@@ -1,8 +1,5 @@
 """转换类型装配（领域层，M4-03）；启动只读登记包，不访问工具库或数据盘。"""
 
-import tomllib
-from pathlib import Path
-
 from rdp.accounts.types import Role
 from rdp.infra.config import StorageRootConfig, ToolsConfig
 from rdp.jobs.conversion.cleanup import (
@@ -15,7 +12,7 @@ from rdp.jobs.conversion.job import ConversionDependencies, ConversionExecutor
 from rdp.jobs.conversion.parameters import conversion_type_name, tool_parameters
 from rdp.jobs.registry import JobDefinition, JobRegistry, StorageUse
 from rdp.jobs.types import RecoveryMode
-from rdp.tools.manifest import ToolManifest
+from rdp.tools.manifest import read_package_manifest
 
 
 def register_conversion_jobs(
@@ -61,7 +58,7 @@ def register_conversion_jobs(
     for package in sorted(tools.registry_dir.iterdir()):
         if not package.is_dir():
             continue
-        manifest = _manifest(package, tools.registry_dir)
+        manifest = read_package_manifest(package, tools.registry_dir)
         if manifest is None:
             continue
         registry.register(
@@ -72,20 +69,6 @@ def register_conversion_jobs(
                 RecoveryMode.INTERRUPT,
                 ConversionExecutor(manifest.tool.name, dependencies).execute,
                 requires_gpu=manifest.runtime.needs_gpu,
+                submission_role=Role.ADMINISTRATOR,
             )
         )
-
-
-def _manifest(package: Path, root: Path) -> ToolManifest | None:
-    """坏清单不可提交；读取规则沿用工具清单模型和登记包真实路径边界。"""
-    try:
-        if not package.resolve().is_relative_to(root.resolve()) or not (
-            package / "tool.toml"
-        ).resolve().is_relative_to(package.resolve()):
-            return None
-        return ToolManifest.model_validate(
-            tomllib.loads((package / "tool.toml").read_text(encoding="utf-8")),
-            context={"package_dir": package},
-        )
-    except ValueError:
-        return None

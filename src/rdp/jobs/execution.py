@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import Engine
+from sqlalchemy.orm import Session
 
 from rdp.infra.db.connection import session_scope
 from rdp.infra.db.records import ErrorRecord, write_error
@@ -36,6 +37,7 @@ from rdp.jobs import _diagnostics, _storage, policy
 from rdp.jobs.errors import JobCancelledError, WorkerStoppingError
 from rdp.jobs.gpu import verify_gpu
 from rdp.jobs.logs import JobLog, JobLogMetadata, open_job_log
+from rdp.jobs.outcome import JobOutcome
 from rdp.jobs.policy import OUTPUT_JOIN_TIMEOUT_S
 from rdp.jobs.processes import ToolCommand, run_external_process
 from rdp.jobs.progress import ExecutionSignals, ProgressReporter
@@ -72,6 +74,7 @@ class ExecutionContext:
     """类型执行函数唯一输入，不提供数据库 Session 或 HTTP 对象。
 
     Attributes:
+        _success_writes: 当前执行私有的成功写入回调，终态事务内执行；失败或取消时丢弃。
         job_id: 当前永久作业正编号。
         parameters: 按当前登记 Pydantic 模型校验的参数对象，不含秘密。
         mode: fresh/resume/restart；恢复时不重写 started_at。
@@ -89,6 +92,7 @@ class ExecutionContext:
         navigation_example_path: 必填关键字，状态目录的示例文件绝对路径；其他类型为 None，不暴露整份路径配置。
     """
 
+    _success_writes: list[Callable[[Session], None]] = field(default_factory=list, kw_only=True)
     job_id: int
     parameters: BaseModel
     mode: ExecutionMode
@@ -101,6 +105,26 @@ class ExecutionContext:
     maintenance: MaintenanceActions | None = field(kw_only=True)
     gpu_example_command: ToolCommand | None = field(kw_only=True)
     navigation_example_path: Path | None = field(kw_only=True)
+
+    def save_on_success(self, write: Callable[[Session], None]) -> None:
+        """登记必须与成功终态原子提交的业务结果写入。
+
+        Args:
+            write: 接收终态 Session 的同步短写入回调；数据应事先算好，不得提交或做文件 I/O。
+
+        Returns:
+            无；仅登记到本次执行内存。
+
+        Raises:
+            无；回调异常在终态提交时传播，由执行器处理。
+
+        Side Effects:
+            成功终态确认后按登记顺序执行；失败、取消、中断不调用，写入失败整体回滚。
+
+        Time Semantics:
+            回调在最终事务重读取消状态之后执行，不在此开启事务或等待数据库。
+        """
+        self._success_writes.append(write)
 
     def write_navigation[T](self, verify: Callable[[], None], write: Callable[[], T]) -> T:
         """用本 worker 共享写锁保护执行前核对与写入。
@@ -342,6 +366,7 @@ class _ExecutionRun:
         self.reporter: ProgressReporter | None = None
         self.failures: tuple[Diagnostic, ...] = ()
         self.aborted = False
+        self.success_writes: list[Callable[[Session], None]] = []
 
     def run(self) -> JobRecord | None:
         """只收口执行阶段错误；最终事务与摘要分开，不回滚已完成记录来弥补文件失败。"""
@@ -431,6 +456,7 @@ class _ExecutionRun:
             self.reporter,
             self.log,
             dependencies.clock,
+            _success_writes=self.success_writes,
             _navigation=None
             if dependencies.resources is None
             else dependencies.resources.navigation,
@@ -554,6 +580,13 @@ class _ExecutionRun:
                     aborted=self.aborted and target is JobState.COMPLETED,
                 ),
             )
+            # 取消判定和业务结果共用终态事务，避免先落报告再发现取消的竞争窗口。
+            if result.summary is not None and result.summary.outcome in (
+                JobOutcome.SUCCEEDED,
+                JobOutcome.SUCCEEDED_WITH_WARNINGS,
+            ):
+                for write in self.success_writes:
+                    write(session)
             from rdp.jobs._followups import submit_followup
 
             submit_followup(

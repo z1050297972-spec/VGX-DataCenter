@@ -1,0 +1,88 @@
+{
+  "job_id": 12,
+  "tool": {
+    "name": "mcap2lerobot",
+    "version": "0.1.0",
+    "binary_sha256": "f09daa6af5d485e8a41c254e8a10347da4a4b59f8b0c3acb6f3a84669077e6ab",
+    "source_commit": "4027d15",
+    "source_note": "登记时（2026-11-08）工具仓库 configs/r1lite.toml 有 3 行未提交改动、docs/ 未纳入版本管理；按负责人要求不改工具，平台用本登记包里的配置副本。"
+  },
+  "configuration": {
+    "robot_model": "Galaxea R1 Lite",
+    "filename": "configs/r1lite.toml",
+    "content": "# topic -> LeRobot feature 映射配置\n#\n# 每个 [[feature]] 对应 LeRobot 数据集中的一列：\n#   type = \"video\"  : 单个图像 topic，编码为视频\n#   type = \"vector\" : 按 sources 顺序拼接多个 topic 的数值字段，得到一个 float 向量\n#                     field 是消息内的字段路径；names 为空时从消息中推断\n#                     video feature 和每个 source 都可以用 max_dt_ms 覆盖 sync.max_dt_ms\n\nrobot_type = \"galaxea_r1lite\"\nfps = 30\n# 任务描述，写入每一帧；也可以用 convert --task 指定\ntask = \"stack the blocks\"\n\n# 时间对齐：以 reference_topic 的每条消息为一帧，其他 topic 按 header.stamp 取最接近的消息。\n# 任一 topic 的 |Δt| 超过容差的帧是坏帧；首尾坏帧被裁掉，中间的坏帧和基准断点处把数据切成多个 episode。\n[sync]\nreference_topic = \"/hdas/camera_head/left_raw/image_raw_color/compressed\"\nmax_dt_ms = 10                                                            # 默认容差\nmax_frame_gap = 1.6                                                       # 基准相邻帧间隔超过 1.6 / fps 时切开\nmin_episode_frames = 90                                                   # 少于 3 秒的段丢弃\n\n# 视频编码参数，不写时与 lerobot 默认值一致（CPU 上的 SVT-AV1）\n# [video]\n# vcodec = \"libsvtav1\"\n# pix_fmt = \"yuv420p\"\n# g = 2\n# crf = 30\n# preset = 12\n# fast_decode = 0\n#\n# 用 NVIDIA GPU 编码：crf 会作为恒定 QP 使用，且自动关闭 B 帧。\n# 注意 AV1 的 QP 范围是 0~255（H.264/HEVC 为 0~51），同样的数值画质差别很大。\n# 本机 RTX 3090 使用 HEVC NVENC；AV1 NVENC 需要支持 AV1 编码的 GPU。\n[video]\nvcodec = \"hevc_nvenc\"\ncrf = 30\n#\n# [video]\n# vcodec = \"hevc_nvenc\"  # 或 \"h264_nvenc\"\n# crf = 30\n\n# ---------- 相机 ----------\n\n[[feature]]\nname = \"observation.images.head_left\"\ntype = \"video\"\ntopic = \"/hdas/camera_head/left_raw/image_raw_color/compressed\"\n\n[[feature]]\nname = \"observation.images.wrist_left\"\ntype = \"video\"\ntopic = \"/hdas/camera_wrist_left/color/image_raw/compressed\"\nmax_dt_ms = 35                                               # 与头部相机非同步触发；约一帧，允许用相邻帧补上丢失的一帧\n\n[[feature]]\nname = \"observation.images.wrist_right\"\ntype = \"video\"\ntopic = \"/hdas/camera_wrist_right/color/image_raw/compressed\"\nmax_dt_ms = 35                                                # 与头部相机非同步触发；约一帧，允许用相邻帧补上丢失的一帧\n\n# ---------- 状态 ----------\n#\n# 夹爪可能没开机：optional = true 时，topic 在某个文件中完全缺失（或没有有效 stamp）\n# 就用 fill 填充该文件的所有帧，并且不参与对齐；有数据时照常对齐。\n# fill 的长度即该 source 的维度；请改成夹爪不工作时合理的静止位置，\n# 取值落在正常范围外会拉偏这一维的统计值，影响归一化。\n# 可选 source 的维度名在配置中就要确定，不再从消息推断，需要时用 names 指定。\n\n[[feature]]\nname = \"observation.state\"\ntype = \"vector\"\nsources = [\n    { topic = \"/hdas/feedback_arm_left\", field = \"position\" },\n    { topic = \"/hdas/feedback_gripper_left\", field = \"position\" },\n    { topic = \"/hdas/feedback_arm_right\", field = \"position\" },\n    { topic = \"/hdas/feedback_gripper_right\", field = \"position\" },\n]\n\n# ---------- 动作 ----------\n\n[[feature]]\nname = \"action\"\ntype = \"vector\"\nsources = [\n    { topic = \"/motion_target/target_joint_state_arm_left\", field = \"position\" },\n    # 约 20Hz，容差放宽到 30ms\n    { topic = \"/motion_target/target_position_gripper_left\", field = \"position\", max_dt_ms = 30, optional = true, fill = [\n        100.0,\n    ] },\n    { topic = \"/motion_target/target_joint_state_arm_right\", field = \"position\" },\n    # 约 20Hz，容差放宽到 30ms\n    { topic = \"/motion_target/target_position_gripper_right\", field = \"position\", max_dt_ms = 30 },\n]\n",
+    "sha256": "f4809e72e497d397c467463e2d6c86d77144ac4393d29696b7105b29d7a5c38d"
+  },
+  "commands": {
+    "verify": [
+      "/mnt/datasets/工具/mcap2lerobot/target/release/mcap2lerobot",
+      "verify",
+      "-c",
+      "/home/shawn/桌面/robot-data-platform.wt/m4.5-cleaning/tools/mcap2lerobot/configs/r1lite.toml",
+      "/run/media/shawn/rdpm45in/20261011_sample/r1lite_20261011_52s.mcap"
+    ],
+    "convert": [
+      "/mnt/datasets/工具/mcap2lerobot/target/release/mcap2lerobot",
+      "convert",
+      "-c",
+      "/home/shawn/桌面/robot-data-platform.wt/m4.5-cleaning/tools/mcap2lerobot/configs/r1lite.toml",
+      "-o",
+      "/run/media/shawn/rdpm45out/暂存/转换/12/out",
+      "--format",
+      "v3.0",
+      "-y",
+      "/run/media/shawn/rdpm45in/20261011_sample/r1lite_20261011_52s.mcap"
+    ]
+  },
+  "inputs": [
+    {
+      "dataset_id": "dataset-35",
+      "source_id": "src_61c9b9cd1c2a",
+      "path": "/run/media/shawn/rdpm45in/20261011_sample/r1lite_20261011_52s.mcap"
+    }
+  ],
+  "started_at": "2026-11-11T02:49:10.831927+00:00",
+  "ended_at": "2026-11-11T02:50:42.654935+00:00",
+  "exit_code": 0,
+  "cleaning": {
+    "cleaning_preview_job_id": 9,
+    "rules_sha256": "d85d4869365c05cabf7f2f25591129badc0416b35e5500ffc7c76ddbdbf3a640",
+    "config_sha256": "f4809e72e497d397c467463e2d6c86d77144ac4393d29696b7105b29d7a5c38d",
+    "excluded_files": [],
+    "excluded_episodes": [
+      {
+        "file_index": 0,
+        "segment_index": 2,
+        "episode_index": 2,
+        "reason": "用户选择剔除"
+      }
+    ],
+    "lerobot_version": "0.6.2",
+    "lerobot_fingerprint": "9e5c3242e11ad6be6bbd594bb4fa6bbe09f8eb8f2392081af2c2279449495831",
+    "command": [
+      "/usr/bin/env",
+      "HF_HUB_OFFLINE=1",
+      "PYTHONDONTWRITEBYTECODE=1",
+      "HF_HOME=/run/media/shawn/rdpm45out/暂存/转换/12/hf-home",
+      "/home/shawn/miniconda3/envs/lerobot/bin/python",
+      "-I",
+      "-B",
+      "/home/shawn/桌面/robot-data-platform.wt/m4.5-cleaning/envs/lerobot/delete_episodes.py",
+      "/run/media/shawn/rdpm45out/暂存/转换/12/out",
+      "/run/media/shawn/rdpm45out/暂存/转换/12/cleaned",
+      "--encoder",
+      "{\"vcodec\": \"hevc_nvenc\", \"pix_fmt\": \"yuv420p\", \"options\": {\"g\": \"2\", \"bf\": \"0\", \"rc\": \"constqp\", \"qp\": \"30\"}}",
+      "2"
+    ],
+    "encoder": {
+      "vcodec": "hevc_nvenc",
+      "pix_fmt": "yuv420p",
+      "options": {
+        "g": "2",
+        "bf": "0",
+        "rc": "constqp",
+        "qp": "30"
+      }
+    }
+  }
+}

@@ -12,7 +12,9 @@ from rdp.jobs.policy import PROCESS_REAP_TIMEOUT_S
 CHECK_TIMEOUT_S = 300.0
 
 
-def run_bounded(command: tuple[str, ...]) -> tuple[bytes, bytes, int]:
+def run_bounded(
+    command: tuple[str, ...], *, timeout_s: float = CHECK_TIMEOUT_S
+) -> tuple[bytes, bytes, int]:
     """检查与回收分别限时；不用Popen上下文退出时的无界wait。"""
     process = subprocess.Popen(  # noqa: S603 # 理由：调用方只传固定解释器、模块及已校验参数，不经过shell。
         command,
@@ -26,7 +28,7 @@ def run_bounded(command: tuple[str, ...]) -> tuple[bytes, bytes, int]:
             if stream is not None:
                 streams.enter_context(stream)
         try:
-            stdout, stderr = process.communicate(timeout=CHECK_TIMEOUT_S)
+            stdout, stderr = process.communicate(timeout=timeout_s)
         finally:
             # 父检查进程可能还在等待ffprobe；组信号确保超时不会遗留可运行后代。
             with suppress(ProcessLookupError):

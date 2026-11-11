@@ -1,4 +1,4 @@
-// Web 请求边界（ADR 0001、0002）；只使用生成的接口类型和 openapi-fetch，不承载页面状态。
+// Web 请求边界（ADR 0001、0002）；使用 openapi-fetch，不承载页面状态。
 import type { Client, ClientOptions } from "openapi-fetch";
 import createClient from "openapi-fetch";
 import { createProblemFetch } from "./problems";
@@ -6,7 +6,7 @@ import type { components, paths } from "./schema";
 
 /** 健康响应只引用生成类型，禁止另写重复的接口结构。 */
 export type HealthResponse = components["schemas"]["HealthResponse"];
-/** 客户端方法和路径由 OpenAPI 约束。 */
+/** 客户端方法、路径与请求响应全部由 OpenAPI 生成类型约束。 */
 export type HealthClient = Client<paths>;
 /** 注入边界沿用 openapi-fetch 的 Request 输入契约，测试不用替换全局 fetch。 */
 export type FetchImplementation = NonNullable<ClientOptions["fetch"]>;

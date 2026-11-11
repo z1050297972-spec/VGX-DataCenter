@@ -1,13 +1,15 @@
-// 工具库 HTTP 边界（M4-01）：只用生成类型和账号客户端，不从浏览器读取程序路径。
+// 工具库 HTTP 边界：使用账号客户端；工具摘要、详情和 LeRobot 环境均取生成类型。
 import type { AccountCall } from "./accounts";
 import type { components } from "./schema";
 import { boundedRequest } from "./_request";
 import { toFailureView } from "./problems";
 
-/** 工具列表摘要，字段及四种状态均由 OpenAPI 生成。 */
-export type ToolSummary = components["schemas"]["ToolSummaryResponse"];
-/** 全部工具登记，包含无效清单。 */
+/** 工具清单及本次请求的 LeRobot 环境快照。 */
 export type ToolList = components["schemas"]["ToolListResponse"];
+/** 环境状态、期望值和可选实际值均由后端探测提供。 */
+export type LeRobotEnvironment = components["schemas"]["LeRobotEnvironment"];
+/** 工具摘要包含有清洗规则的型号，字段以 OpenAPI 为准。 */
+export type ToolSummary = components["schemas"]["ToolSummaryResponse"];
 /** 工具配置全文、命令和源码说明。 */
 export type ToolDetail = components["schemas"]["ToolDetailResponse"];
 /** 工具数量少且程序在本地系统盘；请求最多等待 30 秒，避免页面无限加载。 */

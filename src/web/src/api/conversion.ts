@@ -1,30 +1,37 @@
-// M4-03转换提交边界；字段取生成类型，复用作业请求预算和账号传输。
-import type { components } from "./schema";
+// 转换提交边界（M4.5-04）：只能从清洗报告转换，禁止绕过预览直接提交工具。
 import type { AccountCall } from "./accounts";
+import type { components, operations } from "./schema";
 import { boundedRequest } from "./_request";
 import { JOB_REQUEST_TIMEOUT_MS, type Job } from "./jobs";
 import { toFailureView } from "./problems";
 
-/** 数据块1至200个，型号与输出版本由服务端按工具清单校验。 */
-export type ConversionInput = components["schemas"]["ConversionParameters"];
-/** 工具身份只选登记名称，不接收可执行文件或配置路径。 */
-export interface ConversionSubmission {
-  /** 工具登记包名称。 */ tool: string;
-  /** 表单选择，默认值来自数据集和工具清单。 */ parameters: ConversionInput;
+/** 从报告转换的请求体，字段与可选性均以 OpenAPI 为准。 */
+export type CleaningConversionInput = components["schemas"]["ConversionOptions"];
+/** 剔除段的稳定身份，直接使用生成的文件及段下标结构。 */
+export type ExcludedEpisode = components["schemas"]["EpisodeSelection"];
+
+/** 页面提交上下文；路径参数和请求体分别引用生成类型。 */
+export interface CleaningConversionSubmission {
+  /** 预览作业的规范十进制编号文本，不经 Number 转换。 */
+  jobId: operations["convert_from_cleaning_preview"]["parameters"]["path"]["job_id"];
+  /** 当前输出选项和剔除选择。 */
+  parameters: CleaningConversionInput;
 }
 
 /**
- * 提交一次转换并返回新作业。
- * @param input - 账号客户端、工具和转换参数以及取消信号。
- * @returns 服务端已提交的排队作业，默认版本已经补齐。
- * @throws Error 参数、权限、网络或请求超时，通过统一诊断呈现。
- * @sideEffects 发出同源POST /api/jobs/convert/{tool_name}；不在浏览器访问数据路径。
- * @timeSemantics 请求最多10秒，不等待GPU或转换完成，不自动重试。
+ * 按清洗报告和当前剔除选择提交转换。
+ * @param input - 预览作业编号、输出版本、空间百分比和 GiB 偏置、稳定的文件及段下标。
+ * @returns 新转换作业；服务端再次核对管理员权限及报告有效性。
+ * @throws Error 权限、报告过期、参数、网络或超时失败，以统一诊断呈现。
+ * @sideEffects POST /api/cleaning-previews/{job_id}/convert；不在浏览器访问数据路径。
+ * @timeSemantics 请求最多 JOB_REQUEST_TIMEOUT_MS 毫秒，不等待转换完成，不自动重试。
  */
-export function submitConversion(input: AccountCall<ConversionSubmission>): Promise<Job> {
+export function convertFromCleaningPreview(
+  input: AccountCall<CleaningConversionSubmission>,
+): Promise<Job> {
   return boundedRequest(input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
-    const response = await input.client.POST("/api/jobs/convert/{tool_name}", {
-      params: { path: { tool_name: input.payload.tool } },
+    const response = await input.client.POST("/api/cleaning-previews/{job_id}/convert", {
+      params: { path: { job_id: input.payload.jobId } },
       body: input.payload.parameters,
       signal,
     });

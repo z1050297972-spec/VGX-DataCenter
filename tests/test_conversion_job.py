@@ -5,6 +5,7 @@ from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
+from conversion_cleaning_support import seed_preview
 from conversion_support import fake_converter, no_sandbox, settings, storage_checker
 from datasets_execution_support import dataset_case
 from jobs_execution_support import execution_case
@@ -22,7 +23,7 @@ from rdp.jobs.types import JobClock, JobRecord
 
 
 def test_conversion_success(tmp_path: Path, fake_nav: FakeNavigation) -> None:
-    """验收1：执行五阶段转换，最终帧数、产物及可复现回执一起保存。"""
+    """验收1：执行六阶段转换，最终帧数、产物及可复现回执一起保存。"""
     files = fake_converter(tmp_path / "tool")
     output = tmp_path / "output"
     output.mkdir()
@@ -47,6 +48,8 @@ def test_conversion_success(tmp_path: Path, fake_nav: FakeNavigation) -> None:
             output_format="v3.0",
         )
 
+        parameters = seed_preview(scan.engine, files, parameters)
+
         def execute(context: ExecutionContext) -> None:
             ConversionExecutor("mcap2lerobot", dependencies).execute(
                 replace(context, parameters=parameters)
@@ -66,14 +69,15 @@ def test_conversion_success(tmp_path: Path, fake_nav: FakeNavigation) -> None:
                 and result.summary.outcome is JobOutcome.SUCCEEDED
             )
             assert result.progress is not None
-            assert result.progress.stage_index == result.progress.stage_count == 5
+            assert result.progress.stage_index == result.progress.stage_count == 6
             assert result.progress.stage_name == "收尾"
             assert stages == [
-                (1, 5, "核对工具"),
-                (2, 5, "核对输入"),
-                (3, 5, "扫描"),
-                (4, 5, "转换"),
-                (5, 5, "收尾"),
+                (1, 6, "核对工具"),
+                (2, 6, "核对输入"),
+                (3, 6, "扫描"),
+                (4, 6, "转换"),
+                (5, 6, "剔除"),
+                (6, 6, "收尾"),
             ]
             assert [(part.name, part.done, part.total) for part in result.progress.parts] == [
                 ("head_left", 6, 6),
@@ -149,6 +153,8 @@ def _failed_conversion(tmp_path: Path, fake_nav: FakeNavigation, files: ToolFile
             robot_model="Galaxea R1 Lite",
             output_format="v3.0",
         )
+
+        parameters = seed_preview(scan.engine, files, parameters)
 
         def execute(context: ExecutionContext) -> None:
             ConversionExecutor("mcap2lerobot", dependencies).execute(

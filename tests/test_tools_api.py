@@ -3,6 +3,7 @@
 import hashlib
 from pathlib import Path
 
+import pytest
 from account_api_support import add_actor, api_case
 from pydantic import SecretStr
 from tool_registry_support import isolated_tool_cache as isolated_tool_cache
@@ -27,6 +28,7 @@ def test_member_reads_list_and_configuration_detail(tmp_path: Path) -> None:
         assert case.login("member", SecretStr("member-updated-value")).status_code == 200
         response = case.client.get("/api/tools")
         assert response.status_code == 200
+        assert response.json()["lerobot_environment"]["status"] == "unconfigured"
         item = response.json()["items"][0]
         assert item["name"] == "mcap2lerobot"
         assert item["robot_models"] == ["Galaxea R1 Lite"]
@@ -63,3 +65,50 @@ def test_missing_tool_returns_not_found(tmp_path: Path) -> None:
         assert response.json()["diagnostics"][0]["objects"] == [
             {"key": "tool", "value": "missing2tool"}
         ]
+
+
+@pytest.mark.parametrize("state", ["available", "mismatch", "error"])
+def test_lerobot_status_is_probed_without_failing_tool_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, state: str
+) -> None:
+    """M4.5：使用假解释器现场探测，源码改变或探测失败仍返回工具列表和明确状态。"""
+    from conversion_cleaning_support import fake_lerobot
+
+    from rdp.jobs.conversion import lerobot
+    from rdp.jobs.sandbox import SandboxSpec
+
+    files = tool_files(tmp_path / "tools")
+    python, registration = fake_lerobot(tmp_path / "lerobot")
+    monkeypatch.setattr(lerobot, "ENV_DIRECTORY", registration)
+
+    def sandbox(
+        argv: tuple[str, ...], spec: SandboxSpec, *, readonly_roots: tuple[Path, ...]
+    ) -> tuple[str, ...]:
+        return argv
+
+    monkeypatch.setattr(lerobot, "sandbox_argv", sandbox)
+    if state == "mismatch":
+        (registration / "package/datasets/read.py").write_text("# changed\n")
+    elif state == "error":
+        python.write_text("#!/bin/sh\nexit 1\n")
+    with api_case(tmp_path / "state") as case:
+        configure_tools(
+            case.app,
+            settings=ToolsConfig(
+                registry_dir=files.registry, library_root=files.library, lerobot_python=python
+            ),
+        )
+        assert case.login().status_code == 200
+        response = case.client.get("/api/tools")
+        assert response.status_code == 200, response.text
+        environment = response.json()["lerobot_environment"]
+        assert environment["status"] == state
+        assert environment["expected_version"] == "0.6.2"
+        assert len(environment["expected_fingerprint"]) == 64
+        if state == "available":
+            assert environment["actual_version"] == "0.6.2"
+            assert environment["actual_fingerprint"] == environment["expected_fingerprint"]
+            assert environment["message"] is None
+        else:
+            assert environment["message"]
+        assert len(response.json()["items"]) == 1

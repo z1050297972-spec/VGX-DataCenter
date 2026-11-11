@@ -849,7 +849,7 @@ def test_layout_migration_matches_model_and_preserves_existing_data(
     result = migrate(state_paths(PlatformConfig(state_dir=state), ()), now=NOW)
     assert (result.previous_revision, result.current_revision) == (
         "0007_dataset_index",
-        "0021_dataset_lineage",
+        "0022_cleaning_previews",
     )
     assert result.backup is not None and result.backup.is_file()
     from rdp.infra.db.migrations.versions.v0008_dataset_layout import downgrade

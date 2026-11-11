@@ -1,7 +1,8 @@
 """工具库 HTTP 入口（M4-01），成员只读；状态及诊断均由工具领域生成。
 
 ADR 0006 的例外仅允许读登记包与工具程序的 stat/指纹，不访问其他存储根文件。
-不执行工具、不写工具库或数据库；应用装配和 OpenAPI 导出不触发工具文件读取。
+不执行转换工具、不写工具库或数据库；列表请求可只读探测 LeRobot 环境。
+应用装配和 OpenAPI 导出不触发工具文件读取或环境探测。
 """
 
 from http import HTTPStatus
@@ -21,6 +22,7 @@ from rdp.infra.diagnostics import (
     ExternalError,
     InputError,
 )
+from rdp.jobs.conversion.lerobot import inspect_environment
 from rdp.tools.registry import RegisteredTool, ToolRegistry, load_tool_registry
 
 router = APIRouter(prefix="/api/tools", tags=["tools"])
@@ -85,10 +87,11 @@ RegistryDependency = Annotated[ToolRegistry, Depends(_get_registry)]
 
 
 @router.get("", response_model=ToolListResponse, operation_id="list_tools")
-def list_tools(registry: RegistryDependency) -> ToolListResponse:
+def list_tools(request: Request, registry: RegistryDependency) -> ToolListResponse:
     """向登录成员返回全部工具的登记摘要和状态。
 
     Args:
+        request: 含部署工具配置的请求。
         registry: 认证后读取的工具快照，包含清单无效的条目。
 
     Returns:
@@ -98,12 +101,15 @@ def list_tools(registry: RegistryDependency) -> ToolListResponse:
         ExternalError: 登记根目录不可读取，经统一边界返回 502。
 
     Side Effects:
-        无；依赖只读登记包和工具程序，不执行命令或写操作日志。
+        只读登记包和工具程序；已配置 LeRobot 时在只读断网沙箱探测，不写操作日志。
 
     Time Semantics:
-        返回本次请求快照；文件身份未变时复用进程内指纹，不缓存清单。
+        返回本次请求快照；LeRobot 的导入和源码指纹探测各至多 15 秒，失败保留 error 状态，不阻止列表返回。
     """
-    return ToolListResponse(items=tuple(_summary(item) for item in registry.items))
+    return ToolListResponse(
+        items=tuple(_summary(item) for item in registry.items),
+        lerobot_environment=inspect_environment(request.app.state.tools_config),
+    )
 
 
 @router.get("/{name}", response_model=ToolDetailResponse, operation_id="get_tool")
@@ -166,6 +172,7 @@ def _summary(item: RegisteredTool) -> ToolSummaryResponse:
         output_format=manifest.io.output_format if manifest else None,
         output_versions=manifest.io.output_versions if manifest else (),
         robot_models=tuple(manifest.models) if manifest else (),
+        cleaning_models=tuple(manifest.cleaning) if manifest else (),
         needs_gpu=manifest.runtime.needs_gpu if manifest else None,
         status=item.status,
         diagnostics=item.diagnostics,

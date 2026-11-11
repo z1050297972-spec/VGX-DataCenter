@@ -1,0 +1,91 @@
+
+===== 0. 前置记录 =====
+写入扇区 sda sdb: 5240 220024
+工具程序 atime 2026-10-22 21:46:15.894866177 -0600
+
+===== 1. 测试根：样本输入（只读登记）与平台区（可写） =====
+输入根 /run/media/shawn/rdpm45in 11bc4028-a41f-412a-8129-b72de98e7ab5；平台根 /run/media/shawn/rdpm45out 94986cf2-b50f-44ac-a2ea-feea1ba71482
+total 834796
+drwxrwxr-x 2 shawn shawn      4096 Nov 10 19:48 .
+drwxr-xr-x 4 shawn shawn      4096 Nov 10 19:48 ..
+-rw-rw-r-- 1 shawn shawn 854818066 Nov 10 19:48 r1lite_20261011_52s.mcap
+
+===== 2. 导航层副本，起 web / worker（worker 不带 TERM，模拟 systemd 服务） =====
+数据库版本：0022_cleaning_previews；备份：无
+exit= 0
+worker 环境里的 TERM 条数：0
+索引数据集 35
+
+===== 3. 工具库与 LeRobot 环境 =====
+mcap2lerobot 可用 清洗型号 ['Galaxea R1 Lite']
+LeRobot available 0.6.2 9e5c3242e11a None
+
+===== 4. 给 dataset-35 建链到样本副本（输入根） =====
+建链预览 6
+作业 6 "state":"completed"
+作业 7 "state":"completed"
+样本数据块 src_61c9b9cd1c2a
+
+===== 5. 清洗预览 =====
+预览作业 9
+作业 9 "state":"completed"
+汇总 {'files': 1, 'excluded_files': 0, 'episodes': 5, 'excluded_episodes': 0, 'reference_frames': 1651, 'kept_frames': 1647}
+episode [(0, 451), (1, 397), (2, 357), (3, 300), (4, 142)]
+
+===== 6. 进行转换：手动剔除 (0, 2) =====
+转换作业 12
+转换 "state":"completed"
+None None 6 扫描 6 转换 6 剔除 6 收尾 
+转换阶段带逐帧进度的采样：0 / 1；示例：
+剔除阶段首末采样时间：19:49:39 19:50:42 
+结果 {"total_episodes": 4, "total_frames": 1290, "codebase_version": "v3.0", "output_path": "/run/media/shawn/rdpm45out/暂存/转换/12/cleaned"}
+诊断 []
+作业日志 /home/shawn/.cache/rdp-drill/m4.5/home/.local/share/rdp/logs/转换：mcap2lerobot/2026-11-11_024910_777.log
+日志里'未解析出进度'条数：0
+2026-11-11T02:49:11.311496Z stdout mcap2lerobot│  H.264        : 关键帧 166，含 B 帧的消息 0，首个关键帧前 8 条
+2026-11-11T02:49:11.311556Z stdout mcap2lerobot│  ! 8 条消息在第一个关键帧之前，无法解码，已排除
+2026-11-11T02:49:11.312695Z stdout mcap2lerobot│  规则         : 默认容差 10 ms，基准间隔 > 53.333 ms 处切开，少于 90 帧的段丢弃
+回执 cleaning {"cleaning_preview_job_id": 9, "rules_sha256": "d85d4869365c05cabf7f2f25591129badc0416b35e5500ffc7c76ddbdbf3a640", "config_sha256": "f4809e72e497d397c467463e2d6c86d77144ac4393d29696b7105b29d7a5c38d", "excluded_files": [], "excluded_episodes": [{"file_index": 0, "segment_index": 2, "episode_index": 2, "reason": "用户选择剔除"}], "lerobot_version": "0.6.2", "lerobot_fingerprint": "9e5c3242e11ad6be6bbd594bb4fa6bbe09f8eb8f2392081af2c2279449495831", "command": ["/usr/bin/env", "HF_HUB_OFFLINE=1", "PYTHONDONTWRITEBYTECODE=1", "HF_HOME=/run/media/shawn/rdpm45out/暂存/转换/12/hf-home", "/home/shawn/miniconda3/envs/lerobot/bin/python", "-I", "-B", "/home/shawn/桌面/robot-data-platform.wt/m4.5-cleaning/envs/lerobot/delete_episodes.py", "/run/media/shawn/rdpm45out/暂存/转换/12/out", "/run/media/shawn/rdpm45out/暂存/转换/12/cleaned", "--encoder", "{\"vcodec\": \"hevc_nvenc\", \"pix_fmt\": \"yuv420p\", \"options\": {\"g\": \"2\", \"bf\": \"0\", \"rc\": \"constqp\", \"qp\": \"30\"}}", "2"], "encoder": {"vcodec": "hevc_nvenc", "pix_fmt": "yuv420p", "options": {"g": "2", "bf": "0", "rc": "constqp", "qp": "30"}}}
+cleaned 4 episode 1290 帧
+
+===== 7. 自动检查与自动入库 =====
+13|conversion_ingest_preview|completed
+14|conversion_ingest_apply|completed
+15|dataset_sizing|running
+新数据集 R1_lite_table_withdrawing_lerobot_12
+血缘 转换 完整 worker 12
+血缘 parameters {"cleaning_preview_job_id": 9, "cleaning_rules_sha256": "d85d4869365c05cabf7f2f25591129badc0416b35e5500ffc7c76ddbdbf3a640", "cleaning_excluded_files": 0, "cleaning_excluded_episodes": "2", "lerobot_version": "0.6.2", "lerobot_fingerprint": "9e5c3242e11ad6be6bbd594bb4fa6bbe09f8eb8f2392081af2c2279449495831"}
+链接 原始数据 -> /run/media/shawn/rdpm45out/转换/R1_lite_table_withdrawing_lerobot_12
+入库产物 4 episode 1290 帧
+
+===== 7b. 视频对照：工具原产物 out 与入库的清洗产物 =====
+清洗产物 /run/media/shawn/rdpm45out/转换/R1_lite_table_withdrawing_lerobot_12；原产物 /run/media/shawn/rdpm45out/暂存/转换/12/out
+回执 encoder {"vcodec": "hevc_nvenc", "pix_fmt": "yuv420p", "options": {"g": "2", "bf": "0", "rc": "constqp", "qp": "30"}}
+== observation.images.head_left 保留帧段 [(0, 451), (451, 848), (1205, 1505), (1505, 1647)]
+  原产物 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=150|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1647  72868776 字节
+  清洗后 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=150|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1290  65503315 字节
+  清洗后前 8 帧类型 I P I P I P I P
+  PSNR（清洗后 vs 原产物对应帧）y:51.468940 u:60.102039 v:59.562634 average:52.923757 min:49.553241 max:55.891613
+== observation.images.wrist_left 保留帧段 [(0, 451), (451, 848), (1205, 1505), (1505, 1647)]
+  原产物 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=93|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1647  13113789 字节
+  清洗后 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=93|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1290  12027615 字节
+  清洗后前 8 帧类型 I P I P I P I P
+  PSNR（清洗后 vs 原产物对应帧）y:52.398583 u:58.999688 v:59.306338 average:53.723387 min:49.195816 max:56.203615
+== observation.images.wrist_right 保留帧段 [(0, 451), (451, 848), (1205, 1505), (1505, 1647)]
+  原产物 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=93|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1647  23738842 字节
+  清洗后 stream|codec_name=hevc|profile=Main|has_b_frames=0|pix_fmt=yuv420p|level=93|color_range=tv|r_frame_rate=30/1|time_base=1/15360|nb_frames=1290  20313805 字节
+  清洗后前 8 帧类型 I P I P I P I P
+  PSNR（清洗后 vs 原产物对应帧）y:50.273370 u:55.806891 v:55.770728 average:51.463633 min:46.273434 max:55.308912
+
+===== 8. 同一预览再转一次，不剔除（剔除阶段应跳过） =====
+转换作业 18
+转换 "state":"completed"
+None None 6 核对输入 6 扫描 6 转换 6 收尾 
+回执 剔除 [] 命令 None encoder None
+
+===== 9. 只读核对 =====
+/mnt/datasets 清单逐字节相同
+写入扇区 前→后 5240	5240
+写入扇区 前→后 220024	220024
+工具程序 atime 2026-10-22 21:46:15.894866177 -0600
+worker.log ERROR 0

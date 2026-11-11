@@ -5,7 +5,7 @@
 
 import re
 from pathlib import Path
-from typing import Self
+from typing import Annotated, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select
@@ -20,34 +20,62 @@ from rdp.tools.manifest import ToolManifest
 MAX_CONVERSION_SOURCES = 200
 
 
-class ConversionParameters(BaseModel):
-    """用户选择的转换输入；输出版本由工具专属模型补默认值。
+class InputSelection(BaseModel):
+    """转换与清洗共用的索引选择，不读取数据盘。
 
     Attributes:
-        dataset_id: 已索引的数据集永久编号，非空。
-        source_ids: 按命令顺序排列的1至200个不同数据块编号。
-        robot_model: 工具清单中的型号配置键，非空。
-        output_format: 输出版本；None由工具模型替换成清单首项。
-        space_ratio_percent: 空间估算百分比，整数0至1000，默认25。
-        space_reserve_gib: 空间预留偏置，0至1024 GiB，默认1。
+        dataset_id: 唯一规范入口的数据集编号，非空。
+        source_ids: 按用户顺序的 1 至 200 个不同数据块编号。
+        robot_model: 登记工具的型号键，非空。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
     dataset_id: str = Field(min_length=1)
     source_ids: list[str] = Field(min_length=1, max_length=MAX_CONVERSION_SOURCES)
     robot_model: str = Field(min_length=1)
-    output_format: str | None = None
-    # M4-07实测产物/输入约0.13，默认25%约为两倍；用户可按实际编码参数调整。
-    space_ratio_percent: int = Field(default=25, strict=True, ge=0, le=1000)
-    # M4-07沿用M2的1 GiB默认余量，旧作业未保存参数时仍取此默认值。
-    space_reserve_gib: float = Field(default=1, ge=0, le=1024)
 
     @model_validator(mode="after")
     def _unique_sources(self) -> Self:
-        """重复编号会让工具重复转换同一份输入，因此提交时拒绝。"""
+        """重复编号会重复处理同一输入，因此提交时拒绝。"""
         if len(set(self.source_ids)) != len(self.source_ids):
             raise ValueError("数据块编号不得重复")
         return self
+
+
+class EpisodeSelection(BaseModel):
+    """预览段的稳定身份；两个编号均为从零起的整数。"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
+    file_index: int = Field(strict=True, ge=0)
+    segment_index: int = Field(strict=True, ge=0)
+
+
+class ConversionOptions(BaseModel):
+    """从预览发起转换的最终选择；空剔除列表表示全部保留，不重新套默认。"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
+    output_format: str | None = None
+    # M4-07 实测产物/输入约为 0.13，默认25%配1 GiB余量；剔除时再按两份产物预估。
+    space_ratio_percent: int = Field(default=25, strict=True, ge=0, le=1000)
+    space_reserve_gib: float = Field(default=1, ge=0, le=1024)
+    excluded_files: list[Annotated[int, Field(strict=True, ge=0)]] = Field(default_factory=list)
+    excluded_episodes: list[EpisodeSelection] = Field(default_factory=list)
+
+
+class ConversionParameters(InputSelection, ConversionOptions):
+    """转换参数；输入规则复用 InputSelection，输出版本由工具模型补默认值。
+
+    Attributes:
+        cleaning_preview_job_id: 成功预览编号；None 仅用于读取历史记录，执行时拒绝。
+        excluded_files: 最终剔除的 file_index 列表，空列表全部保留。
+        excluded_episodes: 最终剔除段的稳定预览身份，空列表全部保留。
+        output_format: 输出版本；None 由工具模型替换成清单首项。
+        space_ratio_percent: 空间估算百分比，整数 0 至 1000，默认 25。
+        space_reserve_gib: 空间预留偏置，0 至 1024 GiB，默认 1。
+    """
+
+    # 历史作业没有预览编号仍可读；执行器拒绝这种参数启动新转换。
+    cleaning_preview_job_id: int | None = Field(default=None, strict=True, gt=0)
 
 
 def tool_parameters(manifest: ToolManifest) -> type[ConversionParameters]:
@@ -88,12 +116,12 @@ def tool_parameters(manifest: ToolManifest) -> type[ConversionParameters]:
     return _ToolParameters
 
 
-def selected_inputs(session: Session, parameters: ConversionParameters) -> tuple[Path, ...]:
+def selected_inputs(session: Session, parameters: InputSelection) -> tuple[Path, ...]:
     """按用户顺序读取同一规范入口下的mcap数据块位置。
 
     Args:
         session: 调用方管理的短数据库事务。
-        parameters: 已通过结构校验的转换参数，数据块至多200项。
+        parameters: 已通过结构校验的转换或清洗输入选择，数据块至多200项。
 
     Returns:
         与source_ids逐项对应的绝对路径元组；仅为索引值，不表示文件在线。

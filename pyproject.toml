@@ -10,10 +10,15 @@ dependencies = [
     "alembic>=1.20.1",
     "argon2-cffi>=25.1.0",
     "fastapi>=0.161.1",
+    "lz4==4.4.5",
+    "mcap==1.6.0",
+    "mcap-ros2-support==0.6.0",
+    "pillow>=13.0.0",
     "pyarrow>=26.0.0",
     "pydantic>=2.14.1",
     "sqlalchemy>=2.1.6",
     "uvicorn>=0.54.0",
+    "zstandard==0.25.0",
 ]
 
 [project.scripts]
@@ -40,7 +45,7 @@ dev = [
 target-version = "py312"
 # 03 号决策票：格式化行宽 100 个字符，所有后端源码、脚本和测试共用。
 line-length = 100
-include = ["src/**/*.py", "scripts/**/*.py", "tests/**/*.py", "pyproject.toml"]
+include = ["src/**/*.py", "scripts/**/*.py", "tests/**/*.py", "envs/**/*.py", "pyproject.toml"]
 
 [tool.ruff.lint]
 # DOC 仍处于 preview；只启用逐条点名的预览规则，不随升级引入整组预览规则。
