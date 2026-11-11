@@ -1,0 +1,171 @@
+2026-11-11T02:49:10.777080Z 作业开头 job_id=12
+2026-11-11T02:49:10.777080Z type_name=convert_mcap2lerobot display_name=转换：mcap2lerobot
+2026-11-11T02:49:10.777080Z submitted_by={"account_id": 1, "name": "管理员"}
+2026-11-11T02:49:10.777080Z parameters={"output_format": "v3.0", "space_ratio_percent": 25, "space_reserve_gib": 1.0, "excluded_files": [], "excluded_episodes": [{"file_index": 0, "segment_index": 2}], "dataset_id": "dataset-35", "source_ids": ["src_61c9b9cd1c2a"], "robot_model": "Galaxea R1 Lite", "cleaning_preview_job_id": 9}
+2026-11-11T02:49:10.785671Z 领到GPU卡号：0
+2026-11-11T02:49:10.819346Z stdout nvidia-smi│0
+2026-11-11T02:49:10.819654Z stdout nvidia-smi│1
+2026-11-11T02:49:10.832249Z 阶段 1/6 · 核对工具
+2026-11-11T02:49:10.845360Z 阶段 2/6 · 核对输入
+2026-11-11T02:49:10.867451Z CUDA_VISIBLE_DEVICES=0 CUDA_DEVICE_ORDER=PCI_BUS_ID
+2026-11-11T02:49:11.311274Z stdout mcap2lerobot│
+2026-11-11T02:49:11.311418Z stdout mcap2lerobot│[video] /hdas/camera_head/left_raw/image_raw_color/compressed
+2026-11-11T02:49:11.311440Z stdout mcap2lerobot│  feature      : observation.images.head_left
+2026-11-11T02:49:11.311457Z stdout mcap2lerobot│  schema       : sensor_msgs/msg/CompressedImage
+2026-11-11T02:49:11.311471Z stdout mcap2lerobot│  消息编码     : cdr
+2026-11-11T02:49:11.311484Z stdout mcap2lerobot│  图像编码     : h264 (1659)
+2026-11-11T02:49:11.311496Z stdout mcap2lerobot│  H.264        : 关键帧 166，含 B 帧的消息 0，首个关键帧前 8 条
+2026-11-11T02:49:11.311510Z stdout mcap2lerobot│  消息数       : 1659
+2026-11-11T02:49:11.311521Z stdout mcap2lerobot│  时长         : 55.000 s
+2026-11-11T02:49:11.311532Z stdout mcap2lerobot│  平均频率     : 30.00 Hz
+2026-11-11T02:49:11.311543Z stdout mcap2lerobot│  间隔 (ms)    : 平均 33.334  最大 33.494  最小 33.325  方差 0.000 ms²  标准差 0.009
+2026-11-11T02:49:11.311556Z stdout mcap2lerobot│  ! 8 条消息在第一个关键帧之前，无法解码，已排除
+2026-11-11T02:49:11.311566Z stdout mcap2lerobot│
+2026-11-11T02:49:11.311576Z stdout mcap2lerobot│[video] /hdas/camera_wrist_left/color/image_raw/compressed
+2026-11-11T02:49:11.311587Z stdout mcap2lerobot│  feature      : observation.images.wrist_left
+2026-11-11T02:49:11.311597Z stdout mcap2lerobot│  schema       : sensor_msgs/msg/CompressedImage
+2026-11-11T02:49:11.311607Z stdout mcap2lerobot│  消息编码     : cdr
+2026-11-11T02:49:11.311616Z stdout mcap2lerobot│  图像编码     : bgr8; jpeg compressed bgr8 (1640)
+2026-11-11T02:49:11.311626Z stdout mcap2lerobot│  消息数       : 1640
+2026-11-11T02:49:11.311636Z stdout mcap2lerobot│  时长         : 55.170 s
+2026-11-11T02:49:11.311645Z stdout mcap2lerobot│  平均频率     : 29.71 Hz
+2026-11-11T02:49:11.311655Z stdout mcap2lerobot│  间隔 (ms)    : 平均 33.661  最大 66.672  最小 33.324  方差 10.737 ms²  标准差 3.277
+2026-11-11T02:49:11.311666Z stdout mcap2lerobot│  ! 平均频率 29.71 Hz 低于目标 fps 30
+2026-11-11T02:49:11.311675Z stdout mcap2lerobot│
+2026-11-11T02:49:11.311684Z stdout mcap2lerobot│[video] /hdas/camera_wrist_right/color/image_raw/compressed
+2026-11-11T02:49:11.311693Z stdout mcap2lerobot│  feature      : observation.images.wrist_right
+2026-11-11T02:49:11.311702Z stdout mcap2lerobot│  schema       : sensor_msgs/msg/CompressedImage
+2026-11-11T02:49:11.311711Z stdout mcap2lerobot│  消息编码     : cdr
+2026-11-11T02:49:11.311722Z stdout mcap2lerobot│  图像编码     : bgr8; jpeg compressed bgr8 (1636)
+2026-11-11T02:49:11.311732Z stdout mcap2lerobot│  消息数       : 1636
+2026-11-11T02:49:11.311742Z stdout mcap2lerobot│  时长         : 55.170 s
+2026-11-11T02:49:11.311761Z stdout mcap2lerobot│  平均频率     : 29.64 Hz
+2026-11-11T02:49:11.311775Z stdout mcap2lerobot│  间隔 (ms)    : 平均 33.743  最大 100.006  最小 33.333  方差 14.786 ms²  标准差 3.845
+2026-11-11T02:49:11.311786Z stdout mcap2lerobot│  ! 平均频率 29.64 Hz 低于目标 fps 30
+2026-11-11T02:49:11.311795Z stdout mcap2lerobot│
+2026-11-11T02:49:11.311830Z stdout mcap2lerobot│[vector] /hdas/feedback_arm_left
+2026-11-11T02:49:11.311842Z stdout mcap2lerobot│  feature      : observation.state
+2026-11-11T02:49:11.311851Z stdout mcap2lerobot│  schema       : sensor_msgs/msg/JointState
+2026-11-11T02:49:11.311859Z stdout mcap2lerobot│  消息编码     : cdr
+2026-11-11T02:49:11.311869Z stdout mcap2lerobot│  消息数       : 11057
+2026-11-11T02:49:11.311878Z stdout mcap2lerobot│  时长         : 55.280 s
+2026-11-11T02:49:11.311887Z stdout mcap2lerobot│  平均频率     : 200.00 Hz
+2026-11-11T02:49:11.311897Z stdout mcap2lerobot│  间隔 (ms)    : 平均 5.000  最大 11.698  最小 0.029  方差 0.102 ms²  标准差 0.319
+2026-11-11T02:49:11.311907Z stdout mcap2lerobot│  ✓ OK
+2026-11-11T02:49:11.311915Z stdout mcap2lerobot│
+2026-11-11T02:49:11.311923Z stdout mcap2lerobot│[vector] /hdas/feedback_gripper_left
+2026-11-11T02:49:11.311934Z stdout mcap2lerobot│  feature      : observation.state
+2026-11-11T02:49:11.311944Z stdout mcap2lerobot│  schema       : sensor_msgs/msg/JointState
+2026-11-11T02:49:11.311954Z stdout mcap2lerobot│  消息编码     : cdr
+2026-11-11T02:49:11.311964Z stdout mcap2lerobot│  消息数       : 11057
+2026-11-11T02:49:11.311983Z stdout mcap2lerobot│  时长         : 55.280 s
+2026-11-11T02:49:11.311995Z stdout mcap2lerobot│  平均频率     : 200.00 Hz
+2026-11-11T02:49:11.312005Z stdout mcap2lerobot│  间隔 (ms)    : 平均 5.000  最大 16.553  最小 0.018  方差 0.138 ms²  标准差 0.372
+2026-11-11T02:49:11.312014Z stdout mcap2lerobot│  ✓ OK
+2026-11-11T02:49:11.312023Z stdout mcap2lerobot│
+2026-11-11T02:49:11.312031Z stdout mcap2lerobot│[vector] /hdas/feedback_arm_right
+2026-11-11T02:49:11.312040Z stdout mcap2lerobot│  feature      : observation.state
+2026-11-11T02:49:11.312049Z stdout mcap2lerobot│  schema       : sensor_msgs/msg/JointState
+2026-11-11T02:49:11.312058Z stdout mcap2lerobot│  消息编码     : cdr
+2026-11-11T02:49:11.312068Z stdout mcap2lerobot│  消息数       : 11057
+2026-11-11T02:49:11.312077Z stdout mcap2lerobot│  时长         : 55.280 s
+2026-11-11T02:49:11.312087Z stdout mcap2lerobot│  平均频率     : 200.00 Hz
+2026-11-11T02:49:11.312097Z stdout mcap2lerobot│  间隔 (ms)    : 平均 5.000  最大 12.857  最小 0.017  方差 0.111 ms²  标准差 0.333
+2026-11-11T02:49:11.312106Z stdout mcap2lerobot│  ✓ OK
+2026-11-11T02:49:11.312117Z stdout mcap2lerobot│
+2026-11-11T02:49:11.312127Z stdout mcap2lerobot│[vector] /hdas/feedback_gripper_right
+2026-11-11T02:49:11.312138Z stdout mcap2lerobot│  feature      : observation.state
+2026-11-11T02:49:11.312148Z stdout mcap2lerobot│  schema       : sensor_msgs/msg/JointState
+2026-11-11T02:49:11.312158Z stdout mcap2lerobot│  消息编码     : cdr
+2026-11-11T02:49:11.312169Z stdout mcap2lerobot│  消息数       : 11047
+2026-11-11T02:49:11.312181Z stdout mcap2lerobot│  时长         : 55.230 s
+2026-11-11T02:49:11.312192Z stdout mcap2lerobot│  平均频率     : 200.00 Hz
+2026-11-11T02:49:11.312202Z stdout mcap2lerobot│  间隔 (ms)    : 平均 5.000  最大 16.738  最小 0.011  方差 0.166 ms²  标准差 0.407
+2026-11-11T02:49:11.312213Z stdout mcap2lerobot│  ✓ OK
+2026-11-11T02:49:11.312223Z stdout mcap2lerobot│
+2026-11-11T02:49:11.312233Z stdout mcap2lerobot│[vector] /motion_target/target_joint_state_arm_left
+2026-11-11T02:49:11.312244Z stdout mcap2lerobot│  feature      : action
+2026-11-11T02:49:11.312254Z stdout mcap2lerobot│  schema       : sensor_msgs/msg/JointState
+2026-11-11T02:49:11.312265Z stdout mcap2lerobot│  消息编码     : cdr
+2026-11-11T02:49:11.312296Z stdout mcap2lerobot│  消息数       : 10548
+2026-11-11T02:49:11.312350Z stdout mcap2lerobot│  时长         : 55.185 s
+2026-11-11T02:49:11.312364Z stdout mcap2lerobot│  平均频率     : 191.12 Hz
+2026-11-11T02:49:11.312374Z stdout mcap2lerobot│  间隔 (ms)    : 平均 5.232  最大 26.295  最小 0.158  方差 2.769 ms²  标准差 1.664
+2026-11-11T02:49:11.312384Z stdout mcap2lerobot│  ✓ OK
+2026-11-11T02:49:11.312397Z stdout mcap2lerobot│
+2026-11-11T02:49:11.312406Z stdout mcap2lerobot│[vector] /motion_target/target_position_gripper_left
+2026-11-11T02:49:11.312415Z stdout mcap2lerobot│  feature      : action
+2026-11-11T02:49:11.312424Z stdout mcap2lerobot│  schema       : sensor_msgs/msg/JointState
+2026-11-11T02:49:11.312433Z stdout mcap2lerobot│  消息编码     : cdr
+2026-11-11T02:49:11.312443Z stdout mcap2lerobot│  消息数       : 1095
+2026-11-11T02:49:11.312453Z stdout mcap2lerobot│  时长         : 55.190 s
+2026-11-11T02:49:11.312462Z stdout mcap2lerobot│  平均频率     : 19.82 Hz
+2026-11-11T02:49:11.312472Z stdout mcap2lerobot│  间隔 (ms)    : 平均 50.448  最大 75.150  最小 41.924  方差 4.589 ms²  标准差 2.142
+2026-11-11T02:49:11.312482Z stdout mcap2lerobot│  ! 平均频率 19.82 Hz 低于目标 fps 30
+2026-11-11T02:49:11.312491Z stdout mcap2lerobot│
+2026-11-11T02:49:11.312499Z stdout mcap2lerobot│[vector] /motion_target/target_joint_state_arm_right
+2026-11-11T02:49:11.312508Z stdout mcap2lerobot│  feature      : action
+2026-11-11T02:49:11.312517Z stdout mcap2lerobot│  schema       : sensor_msgs/msg/JointState
+2026-11-11T02:49:11.312525Z stdout mcap2lerobot│  消息编码     : cdr
+2026-11-11T02:49:11.312534Z stdout mcap2lerobot│  消息数       : 10533
+2026-11-11T02:49:11.312544Z stdout mcap2lerobot│  时长         : 55.185 s
+2026-11-11T02:49:11.312553Z stdout mcap2lerobot│  平均频率     : 190.85 Hz
+2026-11-11T02:49:11.312563Z stdout mcap2lerobot│  间隔 (ms)    : 平均 5.240  最大 29.957  最小 0.206  方差 2.904 ms²  标准差 1.704
+2026-11-11T02:49:11.312573Z stdout mcap2lerobot│  ✓ OK
+2026-11-11T02:49:11.312581Z stdout mcap2lerobot│
+2026-11-11T02:49:11.312590Z stdout mcap2lerobot│[vector] /motion_target/target_position_gripper_right
+2026-11-11T02:49:11.312598Z stdout mcap2lerobot│  feature      : action
+2026-11-11T02:49:11.312607Z stdout mcap2lerobot│  schema       : sensor_msgs/msg/JointState
+2026-11-11T02:49:11.312616Z stdout mcap2lerobot│  消息编码     : cdr
+2026-11-11T02:49:11.312626Z stdout mcap2lerobot│  消息数       : 1095
+2026-11-11T02:49:11.312634Z stdout mcap2lerobot│  时长         : 55.190 s
+2026-11-11T02:49:11.312644Z stdout mcap2lerobot│  平均频率     : 19.82 Hz
+2026-11-11T02:49:11.312652Z stdout mcap2lerobot│  间隔 (ms)    : 平均 50.448  最大 75.150  最小 41.924  方差 4.589 ms²  标准差 2.142
+2026-11-11T02:49:11.312661Z stdout mcap2lerobot│  ! 平均频率 19.82 Hz 低于目标 fps 30
+2026-11-11T02:49:11.312669Z stdout mcap2lerobot│
+2026-11-11T02:49:11.312677Z stdout mcap2lerobot│同步检查
+2026-11-11T02:49:11.312686Z stdout mcap2lerobot│  基准         : /hdas/camera_head/left_raw/image_raw_color/compressed
+2026-11-11T02:49:11.312695Z stdout mcap2lerobot│  规则         : 默认容差 10 ms，基准间隔 > 53.333 ms 处切开，少于 90 帧的段丢弃
+2026-11-11T02:49:11.312704Z stdout mcap2lerobot│  基准帧数     : 1651
+2026-11-11T02:49:11.312713Z stdout mcap2lerobot│  |Δt|：每帧与所取消息的 stamp 之差；复用：与前一帧取到同一条消息
+2026-11-11T02:49:11.312724Z stdout mcap2lerobot│  ✓ /hdas/camera_wrist_left/color/image_raw/compressed     容差  35.0  |Δt| 平均  15.540  最大   18.822 ms  复用   18  坏帧    0
+2026-11-11T02:49:11.312736Z stdout mcap2lerobot│  ! /hdas/camera_wrist_right/color/image_raw/compressed    容差  35.0  |Δt| 平均   2.845  最大   37.176 ms  复用   20  坏帧    1
+2026-11-11T02:49:11.312746Z stdout mcap2lerobot│  ✓ /hdas/feedback_arm_left                                容差  10.0  |Δt| 平均   1.268  最大    3.384 ms  复用    0  坏帧    0
+2026-11-11T02:49:11.312755Z stdout mcap2lerobot│  ✓ /hdas/feedback_gripper_left                            容差  10.0  |Δt| 平均   1.296  最大    3.345 ms  复用    0  坏帧    0
+2026-11-11T02:49:11.312764Z stdout mcap2lerobot│  ✓ /hdas/feedback_arm_right                               容差  10.0  |Δt| 平均   1.342  最大    3.572 ms  复用    0  坏帧    0
+2026-11-11T02:49:11.312777Z stdout mcap2lerobot│  ✓ /hdas/feedback_gripper_right                           容差  10.0  |Δt| 平均   1.368  最大    4.228 ms  复用    0  坏帧    0
+2026-11-11T02:49:11.312786Z stdout mcap2lerobot│  ! /motion_target/target_joint_state_arm_left             容差  10.0  |Δt| 平均   1.607  最大   10.616 ms  复用    0  坏帧    3
+2026-11-11T02:49:11.312796Z stdout mcap2lerobot│  ✓ /motion_target/target_position_gripper_left            容差  30.0  |Δt| 平均  12.622  最大   27.721 ms  复用  560  坏帧    0
+2026-11-11T02:49:11.312805Z stdout mcap2lerobot│  ! /motion_target/target_joint_state_arm_right            容差  10.0  |Δt| 平均   1.622  最大   10.647 ms  复用    0  坏帧    3
+2026-11-11T02:49:11.312814Z stdout mcap2lerobot│  ✓ /motion_target/target_position_gripper_right           容差  30.0  |Δt| 平均  12.622  最大   27.721 ms  复用  560  坏帧    0
+2026-11-11T02:49:11.312823Z stdout mcap2lerobot│  坏帧 4，基准断点 0，过短丢弃 0 段 0 帧
+2026-11-11T02:49:11.312832Z stdout mcap2lerobot│  保留 1647 / 1651 帧，切分为 5 个 episode：
+2026-11-11T02:49:11.312841Z stdout mcap2lerobot│    #0   帧     0..451     451 帧   15.000 s
+2026-11-11T02:49:11.312849Z stdout mcap2lerobot│    #1   帧   452..849     397 帧   13.200 s
+2026-11-11T02:49:11.312857Z stdout mcap2lerobot│    #2   帧   850..1207    357 帧   11.867 s
+2026-11-11T02:49:11.312866Z stdout mcap2lerobot│    #3   帧  1208..1508    300 帧    9.967 s
+2026-11-11T02:49:11.312874Z stdout mcap2lerobot│    #4   帧  1509..1651    142 帧    4.700 s
+2026-11-11T02:49:11.312882Z stdout mcap2lerobot│
+2026-11-11T02:49:11.312890Z stdout mcap2lerobot│verify 通过：11 个 topic 全部正常
+2026-11-11T02:49:11.321699Z 阶段 3/6 · 扫描
+2026-11-11T02:49:11.322249Z CUDA_VISIBLE_DEVICES=0 CUDA_DEVICE_ORDER=PCI_BUS_ID
+2026-11-11T02:49:11.335822Z stderr mcap2lerobot│[1/1] /run/media/shawn/rdpm45in/20261011_sample/r1lite_20261011_52s.mcap
+2026-11-11T02:49:11.700224Z stderr mcap2lerobot│5 个 episode，保留 1647 帧
+2026-11-11T02:49:11.836164Z 阶段 4/6 · 转换
+2026-11-11T02:49:38.141182Z stderr mcap2lerobot│完成：5 个 episode，1647 帧 -> /run/media/shawn/rdpm45out/暂存/转换/12/out
+2026-11-11T02:49:38.194983Z CUDA_VISIBLE_DEVICES=0 CUDA_DEVICE_ORDER=PCI_BUS_ID
+2026-11-11T02:49:38.598954Z 阶段 5/6 · 剔除
+2026-11-11T02:49:38.601411Z CUDA_VISIBLE_DEVICES=0 CUDA_DEVICE_ORDER=PCI_BUS_ID
+2026-11-11T02:49:38.702684Z stdout LeRobot 环境探测│{"version": "0.6.2", "package": "/home/shawn/\\u684c\\u9762/lerobot/src/lerobot"}
+2026-11-11T02:49:38.754865Z CUDA_VISIBLE_DEVICES=0 CUDA_DEVICE_ORDER=PCI_BUS_ID
+2026-11-11T02:49:38.807515Z stdout LeRobot 环境探测│{"version": "0.6.2", "package": "/home/shawn/\\u684c\\u9762/lerobot/src/lerobot", "fingerprint": "9e5c3242e11ad6be6bbd594bb4fa6bbe09f8eb8f2392081af2c2279449495831"}
+2026-11-11T02:49:38.859159Z CUDA_VISIBLE_DEVICES=0 CUDA_DEVICE_ORDER=PCI_BUS_ID
+2026-11-11T02:50:17.741329Z stderr LeRobot 剔除│\rProcessing observation.images.head_left video files:   0%|          | 0/1 [00:00<?, ?it/s]\rProcessing observation.images.head_left video files: 100%|██████████| 1/1 [00:30<00:00, 30.73s/it]\rProcessing observation.images.head_left video files: 100%|██████████| 1/1 [00:30<00:00, 30.73s/it]
+2026-11-11T02:50:26.939064Z stderr LeRobot 剔除│\rProcessing observation.images.wrist_left video files:   0%|          | 0/1 [00:00<?, ?it/s]\rProcessing observation.images.wrist_left video files: 100%|██████████| 1/1 [00:09<00:00,  9.20s/it]\rProcessing observation.images.wrist_left video files: 100%|██████████| 1/1 [00:09<00:00,  9.20s/it]
+2026-11-11T02:50:38.122772Z stderr LeRobot 剔除│\rProcessing observation.images.wrist_right video files:   0%|          | 0/1 [00:00<?, ?it/s]\rProcessing observation.images.wrist_right video files: 100%|██████████| 1/1 [00:11<00:00, 11.18s/it]\rProcessing observation.images.wrist_right video files: 100%|██████████| 1/1 [00:11<00:00, 11.18s/it]
+2026-11-11T02:50:38.448058Z stderr LeRobot 剔除│\rProcessing data files:   0%|          | 0/1 [00:00<?, ?it/s]\rProcessing data files: 100%|██████████| 1/1 [00:00<00:00,  7.75it/s]\rProcessing data files: 100%|██████████| 1/1 [00:00<00:00,  7.73it/s]
+2026-11-11T02:50:38.506231Z stderr LeRobot 剔除│\rProcessing episodes metadata:   0%|          | 0/4 [00:00<?, ?it/s]\rProcessing episodes metadata: 100%|██████████| 4/4 [00:00<00:00, 68.64it/s]
+2026-11-11T02:50:38.701815Z stdout LeRobot 剔除│{"total_episodes": 4, "total_frames": 1290}
+2026-11-11T02:50:42.146294Z CUDA_VISIBLE_DEVICES=0 CUDA_DEVICE_ORDER=PCI_BUS_ID
+2026-11-11T02:50:42.654804Z 阶段 6/6 · 收尾
+2026-11-11T02:50:42.685902Z 作业结尾 summary={"state": "completed", "outcome": "succeeded", "progress": {"stage_index": 6, "stage_count": 6, "stage_name": "收尾", "done": 1290, "total": 1290, "unit": "帧", "warning_count": 0, "failed_items": 0, "total_items": 4, "parts": [{"name": "head_left", "done": 1647, "total": 1647, "unit": "帧"}, {"name": "wrist_left", "done": 1647, "total": 1647, "unit": "帧"}, {"name": "wrist_right", "done": 1647, "total": 1647, "unit": "帧"}, {"name": "state", "done": 1647, "total": 1647, "unit": "帧"}, {"name": "action", "done": 1647, "total": 1647, "unit": "帧"}], "conversion": {"total_episodes": 4, "total_frames": 1290, "codebase_version": "v3.0", "output_path": "/run/media/shawn/rdpm45out/暂存/转换/12/cleaned"}}, "total_items": 4, "failed_items": 0, "warning_count": 0, "aborted": false, "elapsed_s": 91.87050121500215, "artifacts": ["/run/media/shawn/rdpm45out/暂存/转换/12", "/run/media/shawn/rdpm45out/暂存/转换/12/cleaned", "/run/media/shawn/rdpm45out/暂存/转换/12/转换回执.json"], "tool_exit_code": 0}
