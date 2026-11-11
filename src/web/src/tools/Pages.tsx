@@ -257,16 +257,6 @@ function EnvironmentStatus({ environment }: { environment: LeRobotEnvironment })
             label: "实际版本",
             children: environment.actual_version ?? "未知",
           },
-          {
-            key: "expected-fingerprint",
-            label: "期望指纹",
-            children: environment.expected_fingerprint,
-          },
-          {
-            key: "actual-fingerprint",
-            label: "实际指纹",
-            children: environment.actual_fingerprint ?? "未知",
-          },
         ]}
       />
       {environment.message && <Typography.Paragraph>{environment.message}</Typography.Paragraph>}
