@@ -169,3 +169,4 @@ localhost_only = false  # 厂商进程环境 ROS_LOCALHOST_ONLY=0
 - 2026-11-10 20:0x 第一轮交回（约 50 分钟，Codex 后端 2892、前端 419），运行日志 88 条命令无违规。评审：锁、进程身份（命令行、`--config` 在专用目录、进程组长三重核对）、端口检查、XML 副本、base64 上传、失败回收都可靠；登录也统一改成 `bash -s`。变异抽查：端口占用不报错、非 JointState 目标进路由都被抓到；只去掉 `-m viz_relay` 核对没抓到，但 `--config` 和组长核对仍在，属双保险，不打回。**阻塞问题**只有 venv/pip（机器人没有 ensurepip）。
 - 2026-11-10 第一轮提交 `0001da9`，把 main（`a7218f0`，含第 03 张）合进分支 `a71b5bf`。20:19 修复轮派工（续接同一会话，单元 `rdp-m5-09-fix`）：改为解压安装到 `~/rdp_viz/site/`，补与第 03 张的交叉测试。
 
+- 2026-11-10 20:36 修复轮交回（约 17 分钟，Codex 后端 2909、前端 419），运行日志 20 条命令无违规。评审：改为 `python3 -m zipfile -e` 解到 `site.part`、核对顶层只有 `foxglove` 和 dist-info 后替换 `site/`；运行和自检在 source ROS 之后加 `PYTHONPATH`、`exec python3`；venv/pip/`TMPDIR`/`venv_unavailable` 全部删除。交叉测试两条：真实 r1lite 配置通过第 03 张校验得 15 条路由；生产程序目录打包含全部 `*.py`。修复提交 `686ed45`（钩子全量全绿）。等负责人说"合并"；合并、升级后用真按钮在 R1 Lite 上演练一次。
