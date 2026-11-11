@@ -10,3 +10,20 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+/* 折叠面板允许在网格中收缩，长路径可换行，避免说明撑破窄屏。 */
+.storage-nas-guide {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 命令保留原始空白便于复制；长行只在代码块内滚动。 */
+.storage-nas-code {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: var(--rdp-space-3);
+  border-radius: var(--rdp-radius-control);
+  background: var(--rdp-surface);
+  font-family: var(--rdp-mono);
+  white-space: pre;
+}

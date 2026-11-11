@@ -8,6 +8,7 @@ import schema from "../api/openapi.json";
 import { DiagnosticCard } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
 import { formatDateTime } from "../time";
+import { NasGuide } from "./NasGuide";
 
 // 中文文案由后端唯一映射生成到OpenAPI，生成类型仍负责核对枚举覆盖完整。
 const offlineLabels: Record<NonNullable<StorageRoot["reason"]>, string> = schema.components.schemas
@@ -73,6 +74,7 @@ export function StorageRootsPage(): ReactElement {
           ]}
         />
       </Card>
+      <NasGuide />
     </section>
   );
 }
