@@ -160,6 +160,7 @@ def run_terminal_process(  # noqa: PLR0913  # 理由：M4-02指定此六参数�
 
     Side Effects:
         stdin接/dev/null，stdout原样逐行记日志；stderr经伪终端解析，仅文本加工具名前缀入日志。
+        复制继承环境并与GPU设置合并，强制设置子进程TERM=xterm-256color，不修改父进程环境。
         每30秒另写一条进度快照；连续30秒无可解析进度只警告一次，之后只报阶段级进度。
         GPU环境、独立进程组、退出码保存和TERM/KILL/读线程登记清理与run_external_process共用。
         工具失败的产物保留，伪终端原始重画字节不落日志。
@@ -427,12 +428,17 @@ class _ProcessRun:
             thread.start()
 
     def _spawn(self, stderr: int) -> None:
-        """只替换终端所需描述符；session、继承边界和GPU设置仍来自同一处。"""
+        """合并伪终端环境并启动进程；session、继承边界和GPU设置仍来自同一处。"""
+        environment = self.environment
+        if self.parser is not None:
+            environment = dict(os.environ if environment is None else environment)
+            # M4录制样本使用此终端类型；平台开的伪终端不能沿用worker缺失或dumb的TERM。
+            environment["TERM"] = "xterm-256color"
         try:
             self.process = subprocess.Popen(  # noqa: S603  # 理由：登记代码提供已校验绝对程序及参数，禁止shell。
                 self.command.argv,
                 cwd=self.command.cwd,
-                env=self.environment,
+                env=environment,
                 stdin=subprocess.DEVNULL if self.parser is not None else self.stdin,
                 stdout=subprocess.PIPE,
                 stderr=stderr,
