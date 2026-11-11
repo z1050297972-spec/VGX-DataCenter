@@ -1,6 +1,6 @@
 # 清洗报告页写明清洗的处理流程
 
-Status: open（2026-11-10 负责人："能否把这个功能的实现逻辑有条理地写到前端页面"）
+Status: done（2026-11-10 评审、截图通过；在分支 t/m4.5-08-process-explainer，未合并 main、未升级）
 
 分级：直做（前端 + 一句手册）。分支 `t/m4.5-08-process-explainer`，从 main 开。
 
@@ -44,3 +44,6 @@ Status: open（2026-11-10 负责人："能否把这个功能的实现逻辑有�
 2. 执行线用无界面 Chrome 截图报告页（1440 宽和手机宽各一张），放 `assets/08-process-explainer/`，不能横向溢出。
 
 ## Comments
+- 2026-11-10 派工 Codex（gpt-6-astra high，单元 rdp-m45-08，日志 `~/.cache/rdp-dispatch/m4.5-08/`）。新增 `cleaning/Process.tsx`（antd 竖排 Steps，6 步），放在报告概要和规则说明之间；抽屉补一句整份读取、越大越久；使用手册 §11.2 补一句。
+- 第一轮评审打回 2 处：总大小用 `formatNumber`（6 位有效数字）会把 131 GB 显示成"130808000000 字节"，改用 `datasets/formatBytes.ts`；每步是一大段长句，不够"有条理"，改成概括句 + 分行要点（第 4 步列致命问题、第 5 步分"默认剔除/只提示"两组、第 6 步转换过程编号 6 小步）。resume 一轮修好。文件级致命问题按后端诊断核对过（file_read、missing_topic、message、no_keyframe、reference、message_limit/cache_limit/alignment_limit）。
+- 检查：`make check` 全绿，后端 2962、前端 432，0 skipped。截图（`assets/08-process-explainer/`，演练状态目录里预览作业 9 的真实样本报告）：1440 宽、390 宽都没有横向溢出，长话题名换行。整页截图里的深色条是悬浮菜单，不是布局问题。

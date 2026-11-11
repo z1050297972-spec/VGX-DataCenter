@@ -9,6 +9,7 @@ import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 import { DiagnosticCard, DiagnosticEntries } from "../DiagnosticCard";
 import { toFailureView } from "../api/problems";
 import { ReportRules } from "./Rules";
+import { CleaningProcess } from "./Process";
 import { ConvertFromReport } from "./Convert";
 import { EpisodeTable, FileTable, episodeKey } from "./Tables";
 import "./cleaning.css";
@@ -20,7 +21,7 @@ const REPORT_GC_TIME_MS = 0;
 
 /**
  * 读取并显示一个清洗预览报告。
- * @returns 报告、规则说明、选择表和底部转换区域；404 明确表示没有报告。
+ * @returns 报告、清洗流程、规则说明、选择表和底部转换区域；404 明确表示没有报告。
  * @throws 无；接口失败使用统一诊断组件。
  * @sideEffects 按账号和路由编号读取报告；问题筛选写入类型化 URL，选择不持久化。
  * @timeSemantics 生成时间转浏览器本地显示；进入重新请求、离页取消，不轮询、不自动重试。
@@ -141,6 +142,7 @@ function Report({ preview, jobId }: { preview: CleaningPreview; jobId: string })
         />
         <DiagnosticEntries diagnostics={report.warnings} />
       </Card>
+      <CleaningProcess report={report} />
       <Collapse
         className="cleaning-section"
         items={[{ key: "rules", label: "规则说明", children: <ReportRules report={report} /> }]}
