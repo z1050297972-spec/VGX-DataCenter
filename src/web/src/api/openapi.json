@@ -6966,7 +6966,7 @@
       },
       "RosGraph": {
         "additionalProperties": false,
-        "description": "ROS 图的加入方式，仅保存事实，不执行 shell 或连接 DDS。\n\nAttributes:\n    distro: ROS 发行版，非空文本。\n    rmw: RMW 实现名称，非空文本。\n    domain_id: DDS 域编号，非负整数；省略表示未知。\n    discovery: 发现方式，非空文本。\n    discovery_server: 发现服务器地址；该方式不用服务器时省略。\n    participant: 参与者类型；发现方式未指定时省略。\n    qos_subscribe: 订阅可靠性，BEST_EFFORT 或 RELIABLE。\n    readiness: 按文件顺序检查的就绪条件，可为空。",
+        "description": "ROS 图的加入方式，仅保存事实，不执行 shell 或连接 DDS。\n\nAttributes:\n    distro: ROS 发行版，非空文本。\n    rmw: RMW 实现名称，非空文本。\n    domain_id: DDS 域编号，非负整数；省略表示未知。\n    discovery: 发现方式，非空文本。\n    discovery_server: 发现服务器地址；该方式不用服务器时省略。\n    participant: 参与者类型；发现方式未指定时省略。\n    qos_subscribe: 订阅可靠性，BEST_EFFORT 或 RELIABLE。\n    readiness: 按文件顺序检查的就绪条件，可为空。\n    join: 新参与者环境；缺省表示尚不支持开启预览。",
         "properties": {
           "discovery": {
             "$ref": "#/components/schemas/ProfileText"
@@ -6995,6 +6995,16 @@
               }
             ],
             "title": "Domain Id"
+          },
+          "join": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RosJoin"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "participant": {
             "anyOf": [
@@ -7033,6 +7043,38 @@
           "readiness"
         ],
         "title": "RosGraph",
+        "type": "object"
+      },
+      "RosJoin": {
+        "additionalProperties": false,
+        "description": "新参与者加入 ROS 图的事实（0014），不修改厂商配置。\n\nAttributes:\n    setup_script: ROS 环境脚本的绝对路径。\n    fastdds_profiles_file: 只读厂商 XML 的绝对路径。\n    discovery_address: 副本中的发现服务器 IP 字面量。\n    localhost_only: 是否只允许回环通信，与厂商进程环境一致。",
+        "properties": {
+          "discovery_address": {
+            "title": "Discovery Address",
+            "type": "string"
+          },
+          "fastdds_profiles_file": {
+            "pattern": "^/",
+            "title": "Fastdds Profiles File",
+            "type": "string"
+          },
+          "localhost_only": {
+            "title": "Localhost Only",
+            "type": "boolean"
+          },
+          "setup_script": {
+            "pattern": "^/",
+            "title": "Setup Script",
+            "type": "string"
+          }
+        },
+        "required": [
+          "setup_script",
+          "fastdds_profiles_file",
+          "discovery_address",
+          "localhost_only"
+        ],
+        "title": "RosJoin",
         "type": "object"
       },
       "ScanParameters": {

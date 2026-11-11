@@ -62,6 +62,29 @@ class ReadinessCondition(_ProfileModel):
         return self
 
 
+class RosJoin(_ProfileModel):
+    """新参与者加入 ROS 图的事实（0014），不修改厂商配置。
+
+    Attributes:
+        setup_script: ROS 环境脚本的绝对路径。
+        fastdds_profiles_file: 只读厂商 XML 的绝对路径。
+        discovery_address: 副本中的发现服务器 IP 字面量。
+        localhost_only: 是否只允许回环通信，与厂商进程环境一致。
+    """
+
+    setup_script: str = Field(pattern=r"^/")
+    fastdds_profiles_file: str = Field(pattern=r"^/")
+    discovery_address: str
+    localhost_only: bool
+
+    @field_validator("discovery_address")
+    @classmethod
+    def _ip_literal(cls, value: str) -> str:
+        """发现地址只能是 IP 字面量，不在运行时解析主机名。"""
+        ip_address(value)
+        return value
+
+
 class RosGraph(_ProfileModel):
     """ROS 图的加入方式，仅保存事实，不执行 shell 或连接 DDS。
 
@@ -74,6 +97,7 @@ class RosGraph(_ProfileModel):
         participant: 参与者类型；发现方式未指定时省略。
         qos_subscribe: 订阅可靠性，BEST_EFFORT 或 RELIABLE。
         readiness: 按文件顺序检查的就绪条件，可为空。
+        join: 新参与者环境；缺省表示尚不支持开启预览。
     """
 
     distro: ProfileText
@@ -84,6 +108,7 @@ class RosGraph(_ProfileModel):
     participant: ProfileText | None = None
     qos_subscribe: Literal["BEST_EFFORT", "RELIABLE"]
     readiness: list[ReadinessCondition]
+    join: RosJoin | None = None
 
 
 class JointSource(_ProfileModel):

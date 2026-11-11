@@ -82,7 +82,14 @@ def readiness_ssh(root: Path, *, missing: str, process_text: str = "HDAS/HDAS") 
     return program
 
 
-def run(api: ApiCase, job_id: str, program: Path, *, profiles_dir: Path | None = None) -> None:
+def run(
+    api: ApiCase,
+    job_id: str,
+    program: Path,
+    *,
+    profiles_dir: Path | None = None,
+    relay_source: Path | None = None,
+) -> None:
     """真实领取并执行作业，注入的仅是系统 SSH 可执行文件边界。"""
     paths = api.app.state.job_paths
     registry = production_registry(
@@ -93,6 +100,7 @@ def run(api: ApiCase, job_id: str, program: Path, *, profiles_dir: Path | None =
                 Path(__file__).parents[1] / "profiles" if profiles_dir is None else profiles_dir
             ),
             ssh=program,
+            **({"relay_source": relay_source} if relay_source is not None else {}),
         )
     )
     with session_scope(api.engine) as session:
