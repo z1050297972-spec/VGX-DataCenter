@@ -37,17 +37,17 @@ def bundle(source: Path, config: dict[str, JsonValue]) -> tuple[str, bytes]:
 
 
 def query(package_id: str) -> str:
-    """只读查询 wheel、venv SDK 和包目录是否齐全，stdout 只含三个布尔结果。"""
+    """只读查询 wheel、site SDK 和包目录是否齐全，stdout 只含三个布尔结果。"""
     return (
         _variables(package_id)
         + r"""
 # Python 版本是安装前提，不能借安装修改系统 Python。
 PYTHONDONTWRITEBYTECODE=1 python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1 || { echo 'RDP_CONTROL_ERROR python_version'; exit 1; }
-w=0; v=0; p=0
+w=0; s=0; p=0
 if [[ -f "$wheel" ]] && printf '%s  %s\n' "$digest" "$wheel" | sha256sum -c - >/dev/null 2>&1; then w=1; fi
-if [[ -x "$root/venv/bin/python" ]] && PYTHONDONTWRITEBYTECODE=1 "$root/venv/bin/python" -c "import importlib.metadata; assert importlib.metadata.version('foxglove-sdk') == '$sdk_version'" >/dev/null 2>&1; then v=1; fi
+if PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$root/site" python3 -c "import importlib.metadata as m; assert m.version('foxglove-sdk') == '$sdk_version'" >/dev/null 2>&1; then s=1; fi
 if [[ -d "$package" ]]; then p=1; fi
-printf 'RDP_QUERY %s %s %s\n' "$w" "$v" "$p"
+printf 'RDP_QUERY %s %s %s\n' "$w" "$s" "$p"
 """
     )
 
@@ -73,16 +73,22 @@ fi
 mv -f -- "$wheel.part" "$wheel"
 """
     script += r"""
-# ensurepip 和 pip 都会建临时文件；指定 TMPDIR，保证安装也只写专用根。
-mkdir -p "$root/tmp"
-export TMPDIR="$root/tmp" PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
-# venv 复用系统 rclpy，pip 不联网、不拉依赖、不写用户缓存。
-if [[ ! -x "$root/venv/bin/python" ]]; then
-    python3 -m venv --system-site-packages "$root/venv" >/dev/null 2>&1 || { echo 'RDP_CONTROL_ERROR venv_unavailable'; exit 1; }
-fi
-if ! "$root/venv/bin/python" -c "import importlib.metadata; assert importlib.metadata.version('foxglove-sdk') == '$sdk_version'" >/dev/null 2>&1; then
-    PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1 \
-        "$root/venv/bin/python" -m pip install --no-index --no-deps "$wheel" >"$root/log/install.log" 2>&1 || { echo 'RDP_CONTROL_ERROR install_failed'; exit 1; }
+# 固定 wheel 只有包和元数据，标准库解压即可安装；禁写字节码，查询不产生额外文件。
+export PYTHONDONTWRITEBYTECODE=1
+if ! PYTHONPATH="$root/site" python3 -c "import importlib.metadata as m; assert m.version('foxglove-sdk') == '$sdk_version'" >/dev/null 2>&1; then
+    # 先清理中断残留；完整解压并核对布局后才替换 site，避免半成品被下次查询复用。
+    rm -rf -- "$root/site.part"
+    python3 -m zipfile -e "$wheel" "$root/site.part" >"$root/log/install.log" 2>&1 || { echo 'RDP_CONTROL_ERROR install_failed'; exit 1; }
+    if ! python3 - "$root/site.part" "$sdk_version" >>"$root/log/install.log" 2>&1 <<'RDP_SITE'
+import sys
+from pathlib import Path
+site, version = sys.argv[1:]
+# 固定版本不含脚本或 .data；布局变化必须停止，不能把未知安装内容直接发布。
+assert {p.name for p in Path(site).iterdir()} == {'foxglove', f'foxglove_sdk-{version}.dist-info'}
+RDP_SITE
+    then echo 'RDP_CONTROL_ERROR install_failed'; exit 1; fi
+    rm -rf -- "$root/site"
+    mv -- "$root/site.part" "$root/site"
 fi
 """
     if needs_package:
@@ -160,14 +166,14 @@ def _launch(profile: RobotProfile, *, self_test: bool) -> str:
             'export ROS_HOME="$HOME/rdp_viz/ros_home" ROS_LOG_DIR="$HOME/rdp_viz/log/ros"',
             "export PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1",
             "source " + shlex.quote(join.setup_script) + " || exit 1",
+            "# ROS setup 可能重设 PYTHONPATH，必须在 source 之后加入 SDK 并保留 ROS 路径。",
+            'export PYTHONPATH="$HOME/rdp_viz/site${PYTHONPATH:+:$PYTHONPATH}"',
             'export FASTRTPS_DEFAULT_PROFILES_FILE="$HOME/rdp_viz/fastdds_local.xml"',
             "export ROS_LOCALHOST_ONLY=" + shlex.quote(str(int(join.localhost_only))),
             "unset ROS_DOMAIN_ID"
             if profile.ros.domain_id is None
             else "export ROS_DOMAIN_ID=" + shlex.quote(str(profile.ros.domain_id)),
-            'exec "$HOME/rdp_viz/venv/bin/python" -m viz_relay '
-            + ("--self-test " if self_test else "")
-            + '--config "$1"',
+            "exec python3 -m viz_relay " + ("--self-test " if self_test else "") + '--config "$1"',
         )
     )
 

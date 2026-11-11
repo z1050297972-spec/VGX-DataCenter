@@ -1,8 +1,10 @@
-"""M5-09 假机器人：本机 bash、临时 HOME、假 Python/探针，真实 flock/setsid。"""
+"""M5-09 假机器人：本机 bash、临时 HOME、小 wheel/假探针，真实 flock/setsid。"""
 
 import hashlib
+import io
 import os
 import signal
+import zipfile
 from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from pathlib import Path
@@ -31,6 +33,10 @@ def prepare(
     (source / "__init__.py").write_text("")
     (source / "__main__.py").write_text("""import json, os, signal, sys, time
 from pathlib import Path
+import foxglove, rdp_test_ros
+assert foxglove.TEST_SDK == "offline fixture"
+assert rdp_test_ros.TEST_ROS == "system ROS fixture"
+assert sys.prefix == sys.base_prefix
 assert os.environ['LANG'] == 'C.UTF-8'
 assert os.environ['TEST_ROS_SETUP'] == '1'
 assert os.environ['ROS_LOCALHOST_ONLY'] == '0'
@@ -38,6 +44,7 @@ assert 'ROS_DOMAIN_ID' not in os.environ
 assert os.environ['PYTHONDONTWRITEBYTECODE'] == '1'
 assert os.environ['PYTHONUNBUFFERED'] == '1'
 root = Path.home() / 'rdp_viz'
+assert Path(foxglove.__file__).parent == root / 'site/foxglove'
 assert os.environ['ROS_HOME'] == str(root / 'ros_home')
 assert os.environ['ROS_LOG_DIR'] == str(root / 'log/ros')
 assert os.environ['FASTRTPS_DEFAULT_PROFILES_FILE'] == str(root / 'fastdds_local.xml')
@@ -52,44 +59,14 @@ else:
     print('RDP_VIZ_READY port=8765', flush=True)
     while True: time.sleep(0.05)
 """)
-    # 假 venv Python 只替换安装边界；运行模块及 XML 处理仍使用系统 Python。
-    wrapper = root / "venv-python"
-    wrapper.write_text("""#!/usr/bin/python3
-import os, sys
-from pathlib import Path
-root = Path.home() / 'rdp_viz'
-a = sys.argv[1:]
-if a[:2] == ['-m', 'pip']:
-    assert a[2:5] == ['install', '--no-index', '--no-deps']
-    assert os.environ['TMPDIR'] == str(root / 'tmp')
-    assert os.environ['PIP_NO_CACHE_DIR'] == '1'
-    assert os.environ['PIP_DISABLE_PIP_VERSION_CHECK'] == '1'
-    assert Path(a[-1]).read_bytes() == b'test-wheel'
-    (root / 'sdk-installed').touch()
-elif a and a[0] == '-c' and 'importlib.metadata' in a[1]:
-    sys.exit(0 if (root / 'sdk-installed').exists() else 1)
-else:
-    os.execv('/usr/bin/python3', ['/usr/bin/python3', *a])
-""")
-    wrapper.chmod(0o700)
-    python = probes / "python3"
-    python.write_text(
-        "#!/usr/bin/python3\nimport os, sys, shutil\nfrom pathlib import Path\na=sys.argv[1:]\n"
-        "if a[:2] == ['-m', 'venv']:\n"
-        "    assert a[2] == '--system-site-packages'\n"
-        "    assert os.environ['TMPDIR'] == str(Path.home() / 'rdp_viz/tmp')\n"
-        "    target = Path(a[3]) / 'bin/python'\n"
-        "    target.parent.mkdir(parents=True)\n"
-        f"    shutil.copyfile({str(wrapper)!r}, target)\n"
-        "    target.chmod(0o700)\n"
-        "else: os.execv('/usr/bin/python3', ['/usr/bin/python3', *a])\n"
-    )
-    python.chmod(0o700)
     # 厂商环境是只读输入，刻意含 shell 注入片段，证明只按路径字面量 source。
     vendor = root / "vendor"
     vendor.mkdir()
     setup = vendor / "setup'; touch injected #.bash"
-    setup.write_text("export TEST_ROS_SETUP=1\n")
+    ros = vendor / "ros"
+    ros.mkdir()
+    (ros / "rdp_test_ros.py").write_text('TEST_ROS = "system ROS fixture"\n')
+    setup.write_text(f"export TEST_ROS_SETUP=1\nexport PYTHONPATH='{ros}'\n")
     xml = vendor / "discovery.xml"
     xml.write_text("<profiles><address>10.0.0.1</address><address>10.0.0.2</address></profiles>")
     profiles = root / "profiles"
@@ -108,15 +85,28 @@ else:
         f"env=dict(os.environ, HOME={str(home)!r}, USER='tester', PATH={str(probes)!r}+':/usr/bin:/bin')\n"
         "sys.exit(subprocess.run(['/bin/bash','-s'], input=script, text=True, env=env, cwd=env['HOME'], timeout=35, check=False).returncode)\n"
     )
-    monkeypatch.setattr(viz_relay, "WHEEL_SHA256", hashlib.sha256(b"test-wheel").hexdigest())
+    monkeypatch.setattr(viz_relay, "WHEEL_SHA256", hashlib.sha256(wheel_bytes()).hexdigest())
     return ssh, profiles, source
+
+
+def wheel_bytes() -> bytes:
+    """自造固定内容的小 wheel，真实解压和版本查询无需读取离线缓存或安装依赖。"""
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w") as wheel:
+        # 固定 ZIP 时间戳，让传输夹具与注入摘要在多次调用间一致。
+        wheel.writestr(zipfile.ZipInfo("foxglove/__init__.py"), 'TEST_SDK = "offline fixture"\n')
+        wheel.writestr(
+            zipfile.ZipInfo("foxglove_sdk-0.30.3.dist-info/METADATA"),
+            "Metadata-Version: 2.1\nName: foxglove-sdk\nVersion: 0.30.3\n",
+        )
+    return output.getvalue()
 
 
 def install_wheel(api: ApiCase) -> Path:
     """工作站小 wheel 夹具，与注入的摘要一致。"""
     path = api.app.state.job_paths.root / "viz_relay/wheels" / viz_relay.WHEEL_FILENAME
     path.parent.mkdir(parents=True)
-    path.write_bytes(b"test-wheel")
+    path.write_bytes(wheel_bytes())
     return path
 
 

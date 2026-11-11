@@ -165,7 +165,7 @@ def _start(
                 ),
             )
         )
-    has_wheel, has_venv, has_package = (s == "1" for s in states[1:])
+    has_wheel, has_site, has_package = (s == "1" for s in states[1:])
     prefix = "网络：通过；登录：通过；就绪：" + ("有警告" if warnings else "通过")
     _progress(context, prefix + "；安装：进行中", done=3, total=5, warnings=warnings)
     try:
@@ -183,7 +183,7 @@ def _start(
         INSTALL_TIMEOUT_S,
         "安装",
     )
-    installed = "已是最新" if has_wheel and has_venv and has_package else "已安装"
+    installed = "已是最新" if has_wheel and has_site and has_package else "已安装"
     _progress(
         context, prefix + f"；安装：{installed}；启动：进行中", done=4, total=5, warnings=warnings
     )
@@ -249,10 +249,6 @@ def _remote(
         "python_version": (
             "机器人没有 Python 3.10 以上",
             "确认机器人 Python 版本后重试；平台不修改系统 Python",
-        ),
-        "venv_unavailable": (
-            "机器人 python3 -m venv 不可用",
-            "请负责人检查机器人 Python venv 环境",
         ),
         "xml_format": (
             "厂商 XML 和预期的格式不同",

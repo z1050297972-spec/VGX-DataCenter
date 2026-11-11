@@ -1,5 +1,6 @@
 """M5-09 作业验收：HTTP 到真实执行器和 bash，系统边界使用假机器人。"""
 
+import base64
 import os
 import socket
 import subprocess
@@ -14,6 +15,7 @@ from preview_start_stop_support import (
     prepare,
     reap_relay,
     submit_preview,
+    wheel_bytes,
 )
 from robot_connection_support import submit
 
@@ -21,7 +23,7 @@ from robot_connection_support import submit
 def test_first_start_installs_only_in_rdp_viz(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """验收 1/8：首启真实执行脚本，校验离线安装、ROS 环境及路径引号，仅写 rdp_viz。"""
+    """验收 1/8：首启真实执行脚本，校验解压安装到 site、系统 Python 与 ROS 环境及路径引号，仅写 rdp_viz。"""
     setup = prepare(tmp_path, monkeypatch)
     home = tmp_path / "robot-home"
     with socket.socket() as endpoint, job_api_case(tmp_path / "state") as api, reap_relay(home):
@@ -45,13 +47,17 @@ def test_first_start_installs_only_in_rdp_viz(
         )
         assert (
             home / "rdp_viz/wheels" / "foxglove_sdk-0.30.3-cp310-abi3-manylinux_2_28_aarch64.whl"
-        ).read_bytes() == b"test-wheel"
+        ).read_bytes() == wheel_bytes()
+        assert {p.name for p in (home / "rdp_viz/site").iterdir()} == {
+            "foxglove",
+            "foxglove_sdk-0.30.3.dist-info",
+        }
 
 
-def test_repeated_start_keeps_process_and_uploaded_wheel(
+def test_repeated_start_keeps_process_wheel_and_site(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """验收 2：同包再次开启复用进程和 wheel，不重复上传；eth1 警告保留。"""
+    """验收 2：同包再次开启复用进程、wheel 和 site，不重复上传或解压；eth1 警告保留。"""
     setup = prepare(tmp_path, monkeypatch, missing="address")
     home = tmp_path / "robot-home"
     with socket.socket() as endpoint, job_api_case(tmp_path / "state") as api, reap_relay(home):
@@ -70,12 +76,19 @@ def test_repeated_start_keeps_process_and_uploaded_wheel(
         pid = pidfile.read_text()
         wheel = next((home / "rdp_viz/wheels").glob("*.whl"))
         stat = wheel.stat()
+        sdk = home / "rdp_viz/site/foxglove/__init__.py"
+        sdk_stat = sdk.stat()
         second = submit_preview(api, robot_id, "start")
         execute_preview(api, second, setup)
         job = api.client.get(f"/api/jobs/{second}").json()
         assert job["summary"]["outcome"] == "succeeded_with_warnings", job
         assert "已在运行" in job["progress"]["stage_name"]
         assert pidfile.read_text() == pid
+        assert "安装：已是最新" in job["progress"]["stage_name"]
+        assert (sdk.stat().st_ino, sdk.stat().st_mtime_ns) == (
+            sdk_stat.st_ino,
+            sdk_stat.st_mtime_ns,
+        )
         assert (wheel.stat().st_ino, wheel.stat().st_mtime_ns) == (stat.st_ino, stat.st_mtime_ns)
 
 
@@ -164,16 +177,16 @@ def test_stop_only_terminates_owned_preview(
             unrelated.wait(timeout=2)
 
 
-def test_corrupt_upload_is_rejected_on_robot_before_venv(
+def test_corrupt_upload_is_rejected_on_robot_before_extraction(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """验收 1：传输途中改变 wheel 字节，机器人独立核对摘要，拒绝后不创建 venv。"""
+    """验收 1：传输途中改变 wheel 字节，机器人独立核对摘要，拒绝后不解压 site。"""
     setup = prepare(tmp_path, monkeypatch)
     ssh, _, _ = setup
     ssh.write_text(
         ssh.read_text().replace(
             "script = sys.stdin.read()",
-            "script = sys.stdin.read().replace('dGVzdC13aGVlbA==', 'Y29ycnVwdA==')",
+            f"script = sys.stdin.read().replace({base64.encodebytes(wheel_bytes()).decode()!r}, 'Y29ycnVwdA==\\n')",
         )
     )
     home = tmp_path / "robot-home"
@@ -188,5 +201,5 @@ def test_corrupt_upload_is_rejected_on_robot_before_venv(
         job = api.client.get(f"/api/jobs/{job_id}").json()
         assert job["summary"]["outcome"] == "failed", job
         assert job["diagnostics"][0]["samples"][0]["actual"] == "机器人收到的 wheel sha256 不符"
-        assert not (home / "rdp_viz/venv").exists()
+        assert not (home / "rdp_viz/site").exists()
         assert not list((home / "rdp_viz/wheels").iterdir())
