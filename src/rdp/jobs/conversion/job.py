@@ -27,6 +27,7 @@ from rdp.infra.diagnostics import (
 )
 from rdp.infra.storage import StorageAccessChecker
 from rdp.infra.timeutil import ensure_utc
+from rdp.jobs.cleaning._config import load_configs
 from rdp.jobs.conversion._cleaning import (
     CleaningRuntime,
     check_files,
@@ -187,8 +188,15 @@ class ConversionExecutor:
             context, stage, stage / "out", tuple(item.frame_count for item in selection.episodes)
         )
         _stage(context, 5)
+        tool_config, _, _, _ = load_configs(
+            config, deps.tools.registry_dir / tool.name / manifest.cleaning[parameters.robot_model]
+        )
         output, cleaning = finish_cleaning(
-            context, stage, preview, selection, CleaningRuntime(deps.tools, deps.sandbox, readonly)
+            context,
+            stage,
+            preview,
+            selection,
+            CleaningRuntime(deps.tools, deps.sandbox, readonly, tool_config),
         )
         _stage(context, 6)
         receipt: dict[str, object] = {

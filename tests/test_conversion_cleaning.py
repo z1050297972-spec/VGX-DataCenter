@@ -80,9 +80,13 @@ def cleaning_case(
     monkeypatch: pytest.MonkeyPatch,
     *,
     output_lengths: tuple[int, ...] = (2, 3, 4, 5),
+    encoder_crf: int = 30,
 ) -> Generator[CleaningConversionCase]:
     """三文件五段：剔除首文件后，最后文件的首段从原编号3前移到2。"""
     files = fake_converter(root / "tool", lengths=output_lengths)
+    # 预览前修改临时登记配置，证明删除参数来自转换所用文件而非写死的 R1 Lite 值。
+    config = files.package / "configs/r1lite.toml"
+    config.write_text(config.read_text().replace("crf = 30", f"crf = {encoder_crf}"))
     source = (
         fake.storage_roots[1].path / "R1_lite_table_withdrawing_mcap/20261009_table_withdrawing"
     )
@@ -144,19 +148,30 @@ def test_selected_files_are_ordered_and_no_lerobot_is_required(
         assert result.progress is not None and result.progress.conversion is not None
         assert result.progress.conversion.output_path == str(case.stage / "out")
         assert not case.python.with_suffix(".calls").exists()
+        cleaning = json.loads((case.stage / "转换回执.json").read_text())["cleaning"]
+        assert cleaning["encoder"] is None
 
 
 def test_episode_deletion_uses_shifted_indices_and_cleaned_result(
     tmp_path: Path, fake_nav: FakeNavigation, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """范围2：文件剔除后段号前移，LeRobot收到2，最终计数、位置和回执保持一致。"""
-    with cleaning_case(tmp_path, fake_nav, monkeypatch) as case:
+    """范围2及07范围2/3：段号前移；脚本使用登记编码器并恢复工厂，命令与回执一致。"""
+    with cleaning_case(tmp_path, fake_nav, monkeypatch, encoder_crf=21) as case:
         case.parameters = case.parameters.model_copy(
             update={"excluded_episodes": [EpisodeSelection(file_index=2, segment_index=0)]}
         )
         result = case.run()
         assert result.summary is not None and result.summary.outcome is JobOutcome.SUCCEEDED
-        assert json.loads(case.python.with_suffix(".calls").read_text()) == [2]
+        encoder = {
+            "vcodec": "hevc_nvenc",
+            "pix_fmt": "yuv420p",
+            "options": {"g": "2", "bf": "0", "rc": "constqp", "qp": "21"},
+        }
+        assert json.loads(case.python.with_suffix(".calls").read_text()) == {
+            "episodes": [2],
+            "encoder": encoder,
+        }
+        assert json.loads(case.python.with_suffix(".restored").read_text()) is True
         assert result.progress is not None and result.progress.conversion is not None
         assert result.progress.conversion.output_path == str(case.stage / "cleaned")
         assert result.progress.conversion.total_episodes == 3
@@ -172,6 +187,9 @@ def test_episode_deletion_uses_shifted_indices_and_cleaned_result(
         assert cleaning["lerobot_version"] == "0.6.2"
         assert len(cleaning["lerobot_fingerprint"]) == 64
         assert cleaning["command"][-1] == "2"
+        assert cleaning["encoder"] == encoder
+        command = cleaning["command"]
+        assert json.loads(command[command.index("--encoder") + 1]) == encoder
         with session_scope(case.engine, read_only=True) as session:
             preview = read_preview(session, 59)
         assert cleaning["config_sha256"] == preview.config_sha256

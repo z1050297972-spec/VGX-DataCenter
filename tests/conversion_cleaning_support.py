@@ -149,25 +149,61 @@ def seed_preview(
 
 
 def fake_lerobot(root: Path) -> tuple[Path, Path]:
-    """解释器替身区分 -c 探测与平台脚本，删除时按传入编号输出最小 v3 元数据。"""
+    """解释器替身运行真实平台脚本；假包核对编码器接口并产出最小 v3 元数据。"""
     root.mkdir()
     package = root / "package"
     for name in ("configs", "datasets", "utils"):
         (package / name).mkdir(parents=True)
+        (package / name / "__init__.py").write_text("")
+    (package / "__init__.py").write_text("")
     (package / "datasets/read.py").write_text("# 假数据集库\n")
-    digest = hashlib.sha256(
-        b"datasets/read.py\0"
-        + hashlib.sha256("# 假数据集库\n".encode()).hexdigest().encode()
-        + b"\n"
-    ).hexdigest()
+    (package / "datasets/lerobot_dataset.py").write_text("""
+class LeRobotDataset:
+    def __init__(self, repo_id, root):
+        self.root = root
+""")
+    (package / "datasets/dataset_tools.py").write_text(f"""
+import json
+from pathlib import Path
+from types import SimpleNamespace
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+def encoder_config_from_video_info(info):
+    raise AssertionError("删除脚本没有使用工具编码参数")
+
+def delete_episodes(dataset, episode_indices, output_dir, repo_id):
+    source, target = dataset.root, output_dir
+    encoder = encoder_config_from_video_info({{"video.codec": "hevc"}})
+    options = encoder.get_codec_options(as_strings=True)
+    snapshot = dict(options)
+    options.clear()
+    assert encoder.get_codec_options(encoder_threads=4) == snapshot
+    Path({str(root / "python.calls")!r}).write_text(json.dumps({{
+        "episodes": episode_indices,
+        "encoder": {{"vcodec": encoder.vcodec, "pix_fmt": encoder.pix_fmt, "options": snapshot}},
+    }}))
+    info = json.loads((source / "meta/info.json").read_text())
+    rows = pq.read_table(source / "meta/episodes/chunk-000/file-000.parquet").to_pylist()
+    rows = [dict(episode_index=index, length=row["length"]) for index, row in enumerate(row for row in rows if row["episode_index"] not in episode_indices)]
+    (target / "meta/episodes/chunk-000").mkdir(parents=True)
+    pq.write_table(pa.Table.from_pylist(rows), target / "meta/episodes/chunk-000/file-000.parquet")
+    info.update(total_episodes=len(rows), total_frames=sum(row["length"] for row in rows))
+    (target / "meta/info.json").write_text(json.dumps(info))
+    return SimpleNamespace(num_episodes=info["total_episodes"], num_frames=info["total_frames"])
+""")
+    digest = hashlib.sha256()
+    for path in sorted(package.rglob("*.py")):
+        if path.parent == package:
+            continue
+        digest.update(path.relative_to(package).as_posix().encode() + b"\0")
+        digest.update(hashlib.sha256(path.read_bytes()).hexdigest().encode() + b"\n")
     (root / "env.toml").write_text(
-        f'schema_version = 1\nversion = "0.6.2"\nfingerprint = "{digest}"\nfingerprint_scope = ["configs", "datasets", "utils"]\n'
+        f'schema_version = 1\nversion = "0.6.2"\nfingerprint = "{digest.hexdigest()}"\nfingerprint_scope = ["configs", "datasets", "utils"]\n'
     )
     program = root / "python"
     program.write_text(f"""#!{sys.executable}
-import json, pathlib, sys, os
-import pyarrow as pa
-import pyarrow.parquet as pq
+import json, pathlib, sys, os, runpy
 assert sys.argv[1:3] == ["-I", "-B"]
 assert os.environ["HF_HUB_OFFLINE"] == "1"
 assert os.environ["PYTHONDONTWRITEBYTECODE"] == "1"
@@ -176,17 +212,17 @@ if args[0] == "-c":
     pathlib.Path(args[2]).write_text(json.dumps({{"version": "0.6.2", "package": {str(package)!r}}}))
 else:
     assert pathlib.Path(args[0]).name == "delete_episodes.py"
-    source, target = pathlib.Path(args[1]), pathlib.Path(args[2])
-    excluded = [int(item) for item in args[3:]]
-    pathlib.Path(__file__).with_suffix(".calls").write_text(json.dumps(excluded))
-    info = json.loads((source / "meta/info.json").read_text())
-    rows = pq.read_table(source / "meta/episodes/chunk-000/file-000.parquet").to_pylist()
-    rows = [dict(episode_index=index, length=row["length"]) for index, row in enumerate(row for row in rows if row["episode_index"] not in excluded)]
-    (target / "meta/episodes/chunk-000").mkdir(parents=True)
-    pq.write_table(pa.Table.from_pylist(rows), target / "meta/episodes/chunk-000/file-000.parquet")
-    info.update(total_episodes=len(rows), total_frames=sum(row["length"] for row in rows))
-    (target / "meta/info.json").write_text(json.dumps(info))
-    print(json.dumps({{"total_episodes": info["total_episodes"], "total_frames": info["total_frames"]}}))
+    sys.path.insert(0, {str(root)!r})
+    import package
+    sys.modules["lerobot"] = package
+    from lerobot.datasets import dataset_tools
+    original = dataset_tools.encoder_config_from_video_info
+    sys.argv = args
+    try:
+        runpy.run_path(args[0], run_name="__main__")
+    finally:
+        assert dataset_tools.encoder_config_from_video_info is original
+        pathlib.Path(__file__).with_suffix(".restored").write_text("true")
 """)
     program.chmod(0o700)
     return program, root

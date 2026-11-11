@@ -19,9 +19,11 @@ from rdp.infra.diagnostics import (
     ExternalError,
     InputError,
 )
+from rdp.jobs.cleaning._config import ToolConfig
 from rdp.jobs.cleaning.records import CleaningPreview, read_preview
 from rdp.jobs.conversion._check_data import safe
 from rdp.jobs.conversion._cleaning_selection import Selection, select
+from rdp.jobs.conversion._encoder import encoder_parameters
 from rdp.jobs.conversion._process import CHECK_TIMEOUT_S
 from rdp.jobs.conversion.lerobot import (
     ENV_DIRECTORY,
@@ -143,11 +145,13 @@ class CleaningRuntime:
         settings: 已登记工具与解释器配置。
         sandbox: 与转换一致的沙箱参数构造器。
         readonly: 全部只读存储根绝对路径。
+        config: 转换命令所用登记配置经清洗解析器校验后的对象。
     """
 
     settings: ToolsConfig
     sandbox: Callable[[tuple[str, ...], SandboxSpec, tuple[Path, ...]], tuple[str, ...]]
     readonly: tuple[Path, ...]
+    config: ToolConfig
 
 
 def finish_cleaning(
@@ -187,6 +191,7 @@ def finish_cleaning(
         "lerobot_version": None,
         "lerobot_fingerprint": None,
         "command": None,
+        "encoder": None,
     }
     if not selection.excluded_indices:
         return output, receipt
@@ -208,6 +213,7 @@ def finish_cleaning(
     if python is None:
         raise InputError((problem("未配置 LeRobot 环境"),))
     cleaned = stage / "cleaned"
+    encoder = encoder_parameters(runtime.config)
     command = environment_argv(
         python,
         stage,
@@ -215,6 +221,8 @@ def finish_cleaning(
             str(ENV_DIRECTORY / "delete_episodes.py"),
             str(output),
             str(cleaned),
+            "--encoder",
+            json.dumps(encoder, ensure_ascii=False),
             *(str(index) for index in selection.excluded_indices),
         ),
     )
@@ -237,6 +245,7 @@ def finish_cleaning(
         lerobot_version=environment.actual_version,
         lerobot_fingerprint=environment.actual_fingerprint,
         command=command,
+        encoder=encoder,
     )
     return cleaned, receipt
 
