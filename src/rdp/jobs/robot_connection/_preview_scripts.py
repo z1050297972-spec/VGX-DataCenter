@@ -16,6 +16,7 @@ from pydantic import JsonValue
 from rdp.collection.profile_models import RobotProfile
 from rdp.infra import viz_relay
 from rdp.infra.diagnostics import DefectError
+from rdp.jobs.robot_connection._ros_scripts import copy_discovery_xml
 
 
 def bundle(source: Path, config: dict[str, JsonValue]) -> tuple[str, bytes]:
@@ -107,20 +108,10 @@ rm -f -- "$root/relay/package.tar.gz"
     script += "\ndiscovery=" + shlex.quote(join.discovery_address) + "\n"
     script += r"""
 # 厂商 XML 只读；解析后要求至少一个 address 且替换完全，避免悄悄加入错误的图。
-if ! PYTHONDONTWRITEBYTECODE=1 python3 - "$xml_source" "$root/fastdds_local.xml" "$discovery" <<'RDP_XML'
-import re
-import sys
-import xml.etree.ElementTree as ET
-from pathlib import Path
-source, destination, address = sys.argv[1:]
-original = Path(source).read_text(encoding='utf-8')
-# 不用 ElementTree 重写整份 XML：它会改命名空间前缀，厂商解析器未必接受。
-updated, count = re.subn(r'(<address>)[^<]*(</address>)', lambda m: m[1] + address + m[2], original)
-nodes = [node for node in ET.fromstring(updated).iter() if node.tag.split('}')[-1] == 'address']
-if count == 0 or count != len(nodes) or any(node.text != address for node in nodes):
-    sys.exit(1)
-Path(destination).write_text(updated, encoding='utf-8')
-RDP_XML
+"""
+    script += 'xml_destination="$root/fastdds_local.xml"\n'
+    script += "if ! " + copy_discovery_xml().lstrip()
+    script += r"""
 then echo 'RDP_CONTROL_ERROR xml_format'; exit 1; fi
 """
     script += "\nlaunch=" + shlex.quote(_launch(profile, self_test=True)) + "\n"

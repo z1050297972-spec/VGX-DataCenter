@@ -1,7 +1,7 @@
 # RobotProfile：Galaxea R1 Lite，ADR 0007、M5-01。
 # 话题、类型与频率来自环境事实 0007/0008；不含转换算法参数或单机凭据。
 profile = "r1lite"
-version = 3
+version = 4
 model = "Galaxea R1 Lite"
 robot_type_labels = ["galaxea_r1lite", "r1lite"]
 
@@ -17,7 +17,8 @@ readiness = [
   { check = "udp_port_listening", value = 11811, level = "error", reason = "本机发现服务器没在跑：厂商软件栈没启动。先确认主臂网线接通（eth1 有 10.42.0.238），再在机器人上执行 boot.sh（0014）" },
   { check = "process_running", value = "HDAS/HDAS", level = "error", reason = "手臂驱动 HDAS 没在跑：厂商软件栈没启动或已退出。先确认主臂网线接通，再执行 boot.sh（0014）" },
   { check = "process_running", value = "signal_camera_node", level = "error", reason = "头部相机节点没在跑：厂商软件栈没启动或已退出。先确认主臂网线接通，再执行 boot.sh（0014）" },
-  { check = "address_present", value = "10.42.0.238", level = "warning", reason = "eth1（主臂网线）断开：已在跑的厂商程序照常工作，但这时重启厂商栈会互相发现不了、录出空数据。重启前先接通主臂（0008、0014）" },
+  { check = "ros_node_visible", value = "/HDAS", level = "error", reason = "厂商节点没在本机发现服务器报到：多半是厂商栈在 eth1（主臂网线）断开时启动的，节点之间互相发现不了，这时采集会录出空数据。先接通主臂网线，确认 eth1 有 10.42.0.238；节点一般会在几十秒内自行报到，之后再检查一次；仍然看不到，再执行 robot_startup.sh kill 和 boot.sh（0014）" },
+  { check = "address_present", value = "10.42.0.238", level = "warning", reason = "eth1（主臂网线）断开：主臂没接或没上电。这时启动或重启的厂商节点报到不了，采集会录出空数据；接通后节点一般会自行报到（0008、0014）" },
 ]
 
 [ros.join]

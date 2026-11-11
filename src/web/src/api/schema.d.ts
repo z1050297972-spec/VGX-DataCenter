@@ -7518,7 +7518,8 @@ export interface components {
          *     Attributes:
          *         check: 平台封闭的只读检查类型；run_on_robot 仅作说明，不执行检查。
          *         value: address_present 为 IP 文本；udp_port_listening 为 1 至 65535 的整数端口号；
-         *             process_running 为命令行中的固定文本；run_on_robot 不提供值。
+         *             process_running 为命令行中的固定文本；ros_node_visible 为完整节点名，
+         *             匹配 ^/[A-Za-z0-9_/]+$；run_on_robot 不提供值。
          *         level: 不满足时的级别，error（默认）或 warning；说明性条件不影响结果。
          *         reason: 条件的原因和下一步，非空文本；不能包含凭据，仅展示而不作为命令执行。
          */
@@ -7527,7 +7528,7 @@ export interface components {
              * Check
              * @enum {string}
              */
-            check: "address_present" | "udp_port_listening" | "process_running" | "run_on_robot";
+            check: "address_present" | "udp_port_listening" | "process_running" | "ros_node_visible" | "run_on_robot";
             /**
              * Level
              * @default error
@@ -7840,7 +7841,7 @@ export interface components {
          *         participant: 参与者类型；发现方式未指定时省略。
          *         qos_subscribe: 订阅可靠性，BEST_EFFORT 或 RELIABLE。
          *         readiness: 按文件顺序检查的就绪条件，可为空。
-         *         join: 新参与者环境；缺省表示尚不支持开启预览。
+         *         join: 新参与者环境；缺省表示尚不支持开启预览或检查节点可见性。
          */
         RosGraph: {
             discovery: components["schemas"]["ProfileText"];

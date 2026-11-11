@@ -3,6 +3,7 @@
 import hashlib
 import io
 import os
+import shlex
 import signal
 import zipfile
 from collections.abc import Generator
@@ -66,11 +67,16 @@ else:
     ros = vendor / "ros"
     ros.mkdir()
     (ros / "rdp_test_ros.py").write_text('TEST_ROS = "system ROS fixture"\n')
-    setup.write_text(f"export TEST_ROS_SETUP=1\nexport PYTHONPATH='{ros}'\n")
+    setup.write_text(
+        f"export TEST_ROS_SETUP=1\nexport PYTHONPATH='{ros}'\n"
+        + "export PATH="
+        + shlex.quote(str(probes))
+        + ":/usr/bin:/bin\n"
+    )
     xml = vendor / "discovery.xml"
     xml.write_text("<profiles><address>10.0.0.1</address><address>10.0.0.2</address></profiles>")
     profiles = root / "profiles"
-    profiles.mkdir()
+    profiles.mkdir(exist_ok=True)
     text = (
         Path("profiles/r1lite.toml")
         .read_text()
