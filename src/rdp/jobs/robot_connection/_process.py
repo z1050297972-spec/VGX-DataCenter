@@ -1,4 +1,4 @@
-"""敏感命令的有界子进程边界，仅供连接检查使用。
+"""敏感命令的有界子进程边界，供连接检查与预览启停共用。
 
 复用标准库 Popen/selector；现有作业进程边界会原样落日志，不能用于可能携带
 认证信息的 SSH 输出。这里仅在内存保留有界输出供分类，日志只由调用方写安全结论。
@@ -60,7 +60,7 @@ def run(
     try:
         return _exchange(process, stdin, context, deadline)
     finally:
-        # 即使直接子进程已退出，也清理仍持有管道的后代；检查没有需要保留的远程工作。
+        # 即使直接子进程已退出，也清理仍持有管道的后代；预览由远端 setsid 脱离，不能持有 SSH 的标准管道。
         try:
             with suppress(ProcessLookupError):
                 os.killpg(process.pid, signal.SIGKILL)

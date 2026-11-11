@@ -55,6 +55,11 @@ Status: 开图（2026-11-09）。D1–D4 负责人已选（见下），其余按
   - 代码放平台仓库（例如 `robot/viz_relay/`），按 RobotProfile 版本锁定，走评审。
 - **D6 补充：通道约定**（第 04 张定，第 03 张照发）：相机 `/viz/camera/<RobotProfile 相机名>`（H.264 发 `foxglove.CompressedVideo`，JPEG 发 `sensor_msgs/msg/CompressedImage`）；关节 `/viz/joint/<关节组名>/obs`、`/target`（`sensor_msgs/msg/JointState`）；端口 8765。代码里集中在 `src/rdp/collection/preview_channels.json`。头部 H.264 换外壳时要清 SPS 的 constraint_set5（Lichtblick 1.30.0 缺陷，调研文档末节）。
 - **D6 补充：负责人对第 03 张的要求**（2026-11-09）：手腕先原样转发 `/compressed` 实测，超带宽再想办法；预览人工开启、人工停止，有按钮，不自动启动；在机器人上只装必要的东西（`~/rdp_viz/`），不用 sudo、不改厂商配置和启动脚本；正式采集时会关预览。
+- **D6 补充：第 03 张拆成两张并行**（执行线 2026-11-10，负责人"请你开始03"）：
+  - 03 是机器人上运行的转发程序 `src/rdp/robot_side/viz_relay/`：Python 3.10、只读服务器、有人看才订阅、头部换外壳并清 SPS set5、关节 50 Hz。
+  - 09 是平台一侧：按 RobotProfile 生成配置，把 foxglove-sdk 的 aarch64 wheel（manylinux_2_28，sha256 固定）和程序传到机器人 `~/rdp_viz/`，人工开启和停止的作业与按钮。
+  - 两张的接口（命令行、输出协议、配置格式）写在第 03 张的"约定"一节。
+  - RobotProfile 加 `ros.join`（新参与者用厂商 XML 的副本、地址换成 127.0.0.1），r1lite 升到 version 3。
 - **D7 RobotProfile 转正**：草样移到平台仓库 `profiles/`，平台读取并校验；机器人登记按型号找到对应的 Profile。补测前不知道的事实标"未知"，预览照样能用，比如单位未知的曲线标"单位未知"。
 - **D8 按 MAC 找新地址**：v1 不做。检查失败时提示"地址可能变了，去机器人登记页改地址"。以后要做，再开一张小票（局域网 ARP 表对 MAC）。
 - **D10 预览默认画面**（负责人 2026-11-09 同意）：R1 Lite 头部是双目，预览默认只显示头部左目和左右手腕 3 路；右目不进默认布局（需要时在 Lichtblick 里手动加面板）。实现在第 04 张。
@@ -77,7 +82,8 @@ spike 的结果决定 D6 的参数，以及 relay 用 foxglove_bridge 加转发�
 |---|---|---|
 | 01 | RobotProfile 转正、读取与校验（D7） | 否 |
 | 02 | 平台密钥与连接检查四层（D5、D9），机器人登记页加"检查连接" | 第一次加公钥时要 |
-| 03 | `viz_relay`（R1 Lite）和机器人侧安装、启停脚本（D6） | 演练时要 |
+| 03 | `viz_relay`（R1 Lite）转发程序本身（D6） | 演练时要 |
+| 09 | 平台一键开启、停止预览：上传安装、启停作业、按钮（从 03 拆出） | 演练时要 |
 | 04 | 预览页面：自托管 Lichtblick、嵌入、按 RobotProfile 生成布局（D3） | 否 |
 | 06 | 演练与文档 | 要 |
 | 07 | AutoLife 接入（现场补测之后） | 要 |

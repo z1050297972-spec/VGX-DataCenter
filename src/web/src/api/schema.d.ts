@@ -7840,6 +7840,7 @@ export interface components {
          *         participant: 参与者类型；发现方式未指定时省略。
          *         qos_subscribe: 订阅可靠性，BEST_EFFORT 或 RELIABLE。
          *         readiness: 按文件顺序检查的就绪条件，可为空。
+         *         join: 新参与者环境；缺省表示尚不支持开启预览。
          */
         RosGraph: {
             discovery: components["schemas"]["ProfileText"];
@@ -7847,6 +7848,7 @@ export interface components {
             distro: components["schemas"]["ProfileText"];
             /** Domain Id */
             domain_id?: number | null;
+            join?: components["schemas"]["RosJoin"] | null;
             participant?: components["schemas"]["ProfileText"] | null;
             /**
              * Qos Subscribe
@@ -7856,6 +7858,26 @@ export interface components {
             /** Readiness */
             readiness: components["schemas"]["ReadinessCondition"][];
             rmw: components["schemas"]["ProfileText"];
+        };
+        /**
+         * RosJoin
+         * @description 新参与者加入 ROS 图的事实（0014），不修改厂商配置。
+         *
+         *     Attributes:
+         *         setup_script: ROS 环境脚本的绝对路径。
+         *         fastdds_profiles_file: 只读厂商 XML 的绝对路径。
+         *         discovery_address: 副本中的发现服务器 IP 字面量。
+         *         localhost_only: 是否只允许回环通信，与厂商进程环境一致。
+         */
+        RosJoin: {
+            /** Discovery Address */
+            discovery_address: string;
+            /** Fastdds Profiles File */
+            fastdds_profiles_file: string;
+            /** Localhost Only */
+            localhost_only: boolean;
+            /** Setup Script */
+            setup_script: string;
         };
         /**
          * ScanParameters

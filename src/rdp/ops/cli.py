@@ -35,6 +35,7 @@ from rdp.ops.lifecycle import start_worker
 from rdp.ops.rebuild import rebuild_index
 from rdp.ops.runtime import RuntimeInputs, ServiceRuntime, prepare_service
 from rdp.ops.status import check_web_port, check_worker_stopped, has_active_jobs
+from rdp.ops.viz_relay import install_viz_relay_wheel
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +45,11 @@ class Command:
     """解析后的运维动作；不持有原始密码或 argparse Namespace。
 
     Attributes:
-        name: web、worker、migrate、create-admin、reset-password、status、rebuild-index、install-lichtblick 或 version。
+        name: web、worker、migrate、create-admin、reset-password、status、rebuild-index、install-lichtblick、install-viz-relay-wheel 或 version。
         no_stderr: 只适用于 web/worker；其他命令必须为 False。
         login_name: 账号命令的登录名；其他命令为 None，领域函数负责账号字段校验。
         display_name: create-admin 的显示名，其他命令为 None。
-        package: install-lichtblick 的本地 tar.gz 路径；其他命令为 None。
+        package: 离线安装命令的本地 tar.gz 或 whl 路径；其他命令为 None。
         status_check: status 必须选择 active-jobs、port 或 worker-stopped；其他命令为 None。
     """
 
@@ -62,6 +63,7 @@ class Command:
         "version",
         "rebuild-index",
         "install-lichtblick",
+        "install-viz-relay-wheel",
     ]
     no_stderr: bool = False
     login_name: str | None = None
@@ -96,7 +98,7 @@ def parse_command(argv: Sequence[str], *, console: Console) -> Command:
         Command；create-admin 接收 <登录名> <显示名>，reset-password 接收 <登录名>。
         web/worker 允许 --no-stderr；status 必须且只能选
         --active-jobs、--check-port 或 --worker-stopped 中一个。
-        install-lichtblick 接收本地 tar.gz 路径。
+        install-lichtblick 接收本地 tar.gz 路径；install-viz-relay-wheel 接收本地 whl。
         顶层 --version 产生 version 动作，各子命令均支持 --help。
 
     Raises:
@@ -158,7 +160,7 @@ def run_cli(
         服务走 prepare_service；worker 传 StorageAccessChecker、版本和完整 WorkerScheduling，
         Web 必须传入真实引擎。启动失败只在此边界记录一次诊断，版本闸门明确提示 rdp migrate。
         账号命令读取两次密码再调用现有领域事务；本层不另补成功操作日志。
-        install-lichtblick 只校验本地包并写状态目录，不联网、不初始化数据库。
+        离线安装命令只校验本地包并写状态目录，不联网、不初始化数据库。
         rebuild-index同步独占worker锁清空并重建索引，成功日志与发布同事务；不统计大小。
         --no-stderr 下已配置日志的服务失败只进文件；日志初始化之前失败仍可输出终端诊断。
         不吞 worker 非零码，不在同进程重启；lock_retained=True 时不 dispose 仍被线程使用的引擎。
@@ -200,12 +202,16 @@ def _run_local_command(command: Command, *, inputs: RuntimeInputs, console: Cons
     """分派有限的本地维护动作；网页安装不需要数据库初始化或 worker。"""
     if command.name == "rebuild-index":
         return rebuild_index(inputs, stdout=console.stdout)
-    if command.name == "install-lichtblick":
+    if command.name in ("install-lichtblick", "install-viz-relay-wheel"):
         if command.package is None:
             raise DefectError
         config = load_config(environ=inputs.environ, home=inputs.home).config
-        installed = install_lichtblick(Path(command.package), state_dir=config.state_dir)
-        console.stdout.write(f"Lichtblick 安装完成：{installed}\n")
+        installer = (
+            install_lichtblick if command.name == "install-lichtblick" else install_viz_relay_wheel
+        )
+        installed = installer(Path(command.package), state_dir=config.state_dir)
+        label = "Lichtblick" if command.name == "install-lichtblick" else "预览 wheel"
+        console.stdout.write(f"{label} 安装完成：{installed}\n")
         return 0
     return run_maintenance(command, inputs=inputs, console=console)
 
@@ -309,6 +315,7 @@ def _parser(console: Console) -> _Parser:
         "status": "只读检查作业、worker 锁或监听端口",
         "rebuild-index": "停止 worker 后清空并重建数据集索引",
         "install-lichtblick": "从本地 tar.gz 校验并安装 Lichtblick 网页",
+        "install-viz-relay-wheel": "从本地 whl 校验并存放机器人预览依赖",
     }
     for name, description in descriptions.items():
         child = subcommands.add_parser(
@@ -321,8 +328,13 @@ def _parser(console: Console) -> _Parser:
             child.add_argument("login_name", help="登录名")
         if name == "create-admin":
             child.add_argument("display_name", help="显示名")
-        if name == "install-lichtblick":
-            child.add_argument("package", help="本地 lichtblick-web.tar.gz 路径")
+        if name in ("install-lichtblick", "install-viz-relay-wheel"):
+            package_help = (
+                "本地 lichtblick-web.tar.gz 路径"
+                if name == "install-lichtblick"
+                else "本地机器人 whl 路径"
+            )
+            child.add_argument("package", help=package_help)
         if name == "status":
             child.epilog = "退出码 1：检查失败；2：参数错误。检查失败不能当作可安全维护。"
             group = child.add_mutually_exclusive_group(required=True)

@@ -143,7 +143,7 @@ def test_offline_fails(tmp_path: Path, reason: str, label: str) -> None:
 def test_no_storage_skips_checks(tmp_path: Path) -> None:
     """验证生产类型storage默认空，无声明的作业不读挂载表、不查UUID、不stat根、不读检查时钟。"""
     definitions = production_registry().definitions()
-    assert len(definitions) == 25 and all(item.storage == () for item in definitions)
+    assert len(definitions) == 27 and all(item.storage == () for item in definitions)
     forbidden = Mock(side_effect=AssertionError("不应访问存储"))
     checker = replace(
         _checker(tmp_path),

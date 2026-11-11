@@ -1,0 +1,149 @@
+{
+  "elapsed_s": 60.000184901000466,
+  "capabilities": [],
+  "channels": {
+    "/viz/joint/right_gripper/target": {
+      "messages": 0,
+      "bytes": 0,
+      "first_log_ns": null,
+      "last_log_ns": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rate_hz": 0.0,
+      "bytes_per_s": 0.0,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/JointState"
+    },
+    "/viz/joint/left_arm/obs": {
+      "messages": 2604,
+      "bytes": 531216,
+      "first_log_ns": 1794366417095016339,
+      "last_log_ns": 1794366476866768423,
+      "sha256": "719153ba5a21f693f73dbf7def3024df6f60a1dfc7bef3391f92015d06f905a6",
+      "rate_hz": 43.39986625535516,
+      "bytes_per_s": 8853.57271609245,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/JointState"
+    },
+    "/viz/joint/left_arm/target": {
+      "messages": 0,
+      "bytes": 0,
+      "first_log_ns": null,
+      "last_log_ns": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rate_hz": 0.0,
+      "bytes_per_s": 0.0,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/JointState"
+    },
+    "/viz/joint/torso/target": {
+      "messages": 0,
+      "bytes": 0,
+      "first_log_ns": null,
+      "last_log_ns": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rate_hz": 0.0,
+      "bytes_per_s": 0.0,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/JointState"
+    },
+    "/viz/camera/wrist_right": {
+      "messages": 1620,
+      "bytes": 351114738,
+      "first_log_ns": 1794366417136797702,
+      "last_log_ns": 1794366476868196152,
+      "sha256": "b9fd1917e5adee5047d004c1ab44bcfdd5abadfd10282108573e1d141def3e8a",
+      "rate_hz": 26.999916794806204,
+      "bytes_per_s": 5851894.266314926,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/CompressedImage"
+    },
+    "/viz/joint/right_arm/obs": {
+      "messages": 2603,
+      "bytes": 531012,
+      "first_log_ns": 1794366417093249694,
+      "last_log_ns": 1794366476885855115,
+      "sha256": "1ad0a04af94c7e72812baf908471e12316c0c0502902722a58cf9eb13eca7a75",
+      "rate_hz": 43.38319964004972,
+      "bytes_per_s": 8850.172726570143,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/JointState"
+    },
+    "/viz/joint/right_gripper/obs": {
+      "messages": 2591,
+      "bytes": 238372,
+      "first_log_ns": 1794366417099008290,
+      "last_log_ns": 1794366476867325933,
+      "sha256": "499af3c576f534e189bbb6bdf792e50d02d8b1bdf976ffa3929b22de9721ed62",
+      "rate_hz": 43.18320025638449,
+      "bytes_per_s": 3972.854423587373,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/JointState"
+    },
+    "/viz/joint/right_arm/target": {
+      "messages": 0,
+      "bytes": 0,
+      "first_log_ns": null,
+      "last_log_ns": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rate_hz": 0.0,
+      "bytes_per_s": 0.0,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/JointState"
+    },
+    "/viz/camera/wrist_left": {
+      "messages": 1660,
+      "bytes": 377172296,
+      "first_log_ns": 1794366417087825309,
+      "last_log_ns": 1794366476872452107,
+      "sha256": "ca9c75f8862d7e20a712b7f0f93451d8ed59f241e68700718061aef3266e05c7",
+      "rate_hz": 27.66658140702364,
+      "bytes_per_s": 6286185.56130001,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/CompressedImage"
+    },
+    "/viz/joint/left_gripper/target": {
+      "messages": 0,
+      "bytes": 0,
+      "first_log_ns": null,
+      "last_log_ns": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rate_hz": 0.0,
+      "bytes_per_s": 0.0,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/JointState"
+    },
+    "/viz/joint/torso/obs": {
+      "messages": 2599,
+      "bytes": 343068,
+      "first_log_ns": 1794366417099139108,
+      "last_log_ns": 1794366476881671385,
+      "sha256": "f46acc9a65cad53ca81c2623c386bbf8a60e4d1fe16d546c7fcd642536d71219",
+      "rate_hz": 43.316533178827974,
+      "bytes_per_s": 5717.782379605293,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/JointState"
+    },
+    "/viz/camera/head_left": {
+      "messages": 1760,
+      "bytes": 106945460,
+      "first_log_ns": 1794366417077362816,
+      "last_log_ns": 1794366476863748835,
+      "sha256": "7a84065ab8bc0f2e95d85d619a3afcede86e4073089009d0f67084893d3aa8cd",
+      "rate_hz": 29.33324293756723,
+      "bytes_per_s": 1782418.8404828857,
+      "encoding": "protobuf",
+      "schema_name": "foxglove.CompressedVideo"
+    },
+    "/viz/joint/left_gripper/obs": {
+      "messages": 2597,
+      "bytes": 238924,
+      "first_log_ns": 1794366417097583857,
+      "last_log_ns": 1794366476866883240,
+      "sha256": "e08db06a179f85ed3cfcd6d4329d178c757db123d9ca5b163295b63fd6765d19",
+      "rate_hz": 43.2831999482171,
+      "bytes_per_s": 3982.0543952359735,
+      "encoding": "cdr",
+      "schema_name": "sensor_msgs/msg/JointState"
+    }
+  }
+}
