@@ -25,8 +25,25 @@ from .config import IMAGE_TYPE, Route
 class RosSource:
     """可被录制回放源替换的原始 CDR 订阅源。"""
 
-    def __init__(self, reliability: str) -> None:
-        """创建独立上下文与单线程执行器；部分初始化失败也释放已创建资源。"""
+    def __init__(self, reliability: str, *, node_name: str = "rdp_viz_relay") -> None:
+        """创建独立上下文与单线程执行器，部分失败也释放已创建资源。
+
+        Args:
+            reliability: 已校验的 QoS 可靠性，best_effort 或 reliable。
+            node_name: 合法 ROS 节点名；默认 rdp_viz_relay，探测传 rdp_viz_probe。
+
+        Returns:
+            无。
+
+        Raises:
+            Exception: ROS 上下文、节点或执行器初始化失败，保留底层错误。
+
+        Side Effects:
+            初始化 ROS 并创建节点和执行器，不创建订阅或监听预览端口。
+
+        Time Semantics:
+            在主线程同步创建，不等待消息或节点发现；信号由入口统一处理。
+        """
         self._reliability = reliability
         self._context = Context()
         with ExitStack() as resources:
@@ -35,7 +52,7 @@ class RosSource:
             rclpy.init(
                 args=[], context=self._context, signal_handler_options=SignalHandlerOptions.NO
             )
-            self._node = rclpy.create_node("rdp_viz_relay", context=self._context)
+            self._node = rclpy.create_node(node_name, context=self._context)
             resources.callback(self._node.destroy_node)
             self._executor = SingleThreadedExecutor(context=self._context)
             resources.callback(self._executor.shutdown, timeout_sec=0.0)

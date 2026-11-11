@@ -10,6 +10,7 @@ import json
 import shlex
 import tarfile
 from pathlib import Path
+from typing import Literal
 
 from pydantic import JsonValue
 
@@ -114,7 +115,7 @@ rm -f -- "$root/relay/package.tar.gz"
     script += r"""
 then echo 'RDP_CONTROL_ERROR xml_format'; exit 1; fi
 """
-    script += "\nlaunch=" + shlex.quote(_launch(profile, self_test=True)) + "\n"
+    script += "\nlaunch=" + shlex.quote(_launch(profile, mode="self-test")) + "\n"
     script += r"""
 cd -- "$package"
 # 自检和运行使用同一份干净 ROS 环境；原始自检输出只留在机器人专用日志目录。
@@ -136,9 +137,43 @@ def start(package_id: str, profile: RobotProfile, port: int) -> str:
         + "\nport="
         + shlex.quote(str(port))
         + "\nlaunch="
-        + shlex.quote(_launch(profile, self_test=False))
+        + shlex.quote(_launch(profile, mode="service"))
         + "\n"
         + _resource("_preview_start.sh")
+    )
+
+
+def probe(package_id: str, profile: RobotProfile) -> str:
+    """生成无锁探测脚本，使用启动包的配置及相同 ROS 环境。
+
+    Args:
+        package_id: bundle 生成的 16 位十六进制包编号。
+        profile: 本次启动所用的已校验型号事实，必须含 ros.join。
+
+    Returns:
+        供 bash -s 执行的脚本；stdout 只保留探测或错误协议行。
+
+    Raises:
+        DefectError: profile 缺少 ros.join，平台调用前提不成立。
+
+    Side Effects:
+        构造时无；执行时覆盖 ~/rdp_viz/log/probe.log 并临时订阅 ROS，
+        不拿启停锁、不改 pidfile、不操作已运行的预览进程。
+
+    Time Semantics:
+        调用方用 PROBE_TIMEOUT_S 限制 SSH 总时长；与服务并行运行，不等待启停锁。
+    """
+    return (
+        _variables(package_id)
+        + "\nlaunch="
+        + shlex.quote(_launch(profile, mode="probe"))
+        + r"""
+cd -- "$package"
+# 探测与服务共用环境但不共用输出；保留全部协议行供平台拒绝重复结果。
+env -i HOME="$HOME" USER="$USER" LANG=C.UTF-8 PATH=/usr/bin:/bin \
+    bash -c "$launch" -- "$config" 2>"$root/log/probe.log" | \
+    grep -E '^RDP_VIZ_(PROBE|ERROR) '
+"""
     )
 
 
@@ -147,7 +182,7 @@ def stop() -> str:
     return _common() + _resource("_preview_stop.sh")
 
 
-def _launch(profile: RobotProfile, *, self_test: bool) -> str:
+def _launch(profile: RobotProfile, *, mode: Literal["service", "self-test", "probe"]) -> str:
     """先建立专用 ROS 输出路径再 source，最后 exec 保持 setsid 组长身份。"""
     join = profile.ros.join
     if join is None:
@@ -164,7 +199,9 @@ def _launch(profile: RobotProfile, *, self_test: bool) -> str:
             "unset ROS_DOMAIN_ID"
             if profile.ros.domain_id is None
             else "export ROS_DOMAIN_ID=" + shlex.quote(str(profile.ros.domain_id)),
-            "exec python3 -m viz_relay " + ("--self-test " if self_test else "") + '--config "$1"',
+            "exec python3 -m viz_relay "
+            + ("" if mode == "service" else f"--{mode} ")
+            + '--config "$1"',
         )
     )
 

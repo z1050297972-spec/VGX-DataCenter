@@ -12,12 +12,38 @@ from jobs_process_resources import reap_known
 from preview_start_stop_support import (
     execute_preview,
     install_wheel,
-    prepare,
     reap_relay,
     submit_preview,
     wheel_bytes,
 )
+from preview_start_stop_support import (
+    prepare as prepare_robot,
+)
 from robot_connection_support import submit
+
+
+def prepare(
+    root: Path, monkeypatch: pytest.MonkeyPatch, *, missing: str = ""
+) -> tuple[Path, Path, Path]:
+    """沿用假机器人并补 M5-12 协议；默认全部通过，可用临时文件指定探测输出。"""
+    setup = prepare_robot(root, monkeypatch, missing=missing)
+    main = setup[2] / "__main__.py"
+    main.write_text(
+        main.read_text().replace(
+            "if '--self-test' in sys.argv:",
+            """if '--probe' in sys.argv:
+    assert sys.argv[1:] == ['--probe', '--config', sys.argv[-1]]
+    config = json.loads(Path(sys.argv[-1]).read_text())
+    output = Path.home() / 'probe-output'
+    print(output.read_text() if output.exists() else 'RDP_VIZ_PROBE ' + json.dumps({
+        'window_s': 5.0, 'counts': {r['channel']: 1000 for r in config['routes']}
+    }), flush=True)
+    print('fake probe stderr', file=sys.stderr)
+    sys.exit(0)
+if '--self-test' in sys.argv:""",
+        )
+    )
+    return setup
 
 
 def test_first_start_installs_only_in_rdp_viz(
