@@ -19,14 +19,23 @@ from rdp.jobs.terminal import create_terminal_parser
 from rdp.jobs.types import JobClock, JobProgress
 
 
-def test_terminal_progress_and_logs(tmp_path: Path) -> None:
-    """验收4：假程序只向TTY画进度，窗口/空stdin/GPU正确，最终进度入库且日志不含重画字节。"""
+@pytest.mark.parametrize("worker_term", [None, "dumb"])
+def test_terminal_progress_and_logs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, worker_term: str | None
+) -> None:
+    """假工具收到固定TERM和GPU环境，父环境不变；TTY进度入库且日志不含重画字节。"""
+    if worker_term is None:
+        monkeypatch.delenv("TERM", raising=False)
+    else:
+        monkeypatch.setenv("TERM", worker_term)
+    parent_environment = dict(os.environ)
     script = tmp_path / "tool.py"
     script.write_text(
         """import os, sys
 assert sys.stdin.read() == ""
 print("stdout 原样输出", flush=True)
 assert os.get_terminal_size(2) == (200, 50)
+assert os.environ.get("TERM") == "xterm-256color"
 assert os.environ["CUDA_VISIBLE_DEVICES"] == "1"
 assert os.environ["CUDA_DEVICE_ORDER"] == "PCI_BUS_ID"
 if sys.stderr.isatty():
@@ -64,6 +73,7 @@ if sys.stderr.isatty():
         assert "stderr 假转换│完成：测试" in text
         assert "\x1b" not in text and "[===]" not in text
         assert all(not thread.is_alive() for thread in signals.monitor.threads)
+        assert dict(os.environ) == parent_environment
 
 
 def test_no_progress_preserves_precheck_snapshot(tmp_path: Path) -> None:
