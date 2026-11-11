@@ -1,6 +1,6 @@
 # 平台一键开启、停止预览：上传安装转发程序、启停作业、按钮
 
-Status: ready-for-agent
+Status: done
 
 分级：直做。负责人 2026-11-10："4.5还在做，请你开始03"。执行线把地图里的第 03 张拆成两张并行：第 03 张是机器人上运行的转发程序本身（`src/rdp/robot_side/viz_relay/`）；本票做平台这一侧，负责把它装到机器人上，并由人工开启和停止。合并前要负责人说"合并"。
 
@@ -170,3 +170,5 @@ localhost_only = false  # 厂商进程环境 ROS_LOCALHOST_ONLY=0
 - 2026-11-10 第一轮提交 `0001da9`，把 main（`a7218f0`，含第 03 张）合进分支 `a71b5bf`。20:19 修复轮派工（续接同一会话，单元 `rdp-m5-09-fix`）：改为解压安装到 `~/rdp_viz/site/`，补与第 03 张的交叉测试。
 
 - 2026-11-10 20:36 修复轮交回（约 17 分钟，Codex 后端 2909、前端 419），运行日志 20 条命令无违规。评审：改为 `python3 -m zipfile -e` 解到 `site.part`、核对顶层只有 `foxglove` 和 dist-info 后替换 `site/`；运行和自检在 source ROS 之后加 `PYTHONPATH`、`exec python3`；venv/pip/`TMPDIR`/`venv_unavailable` 全部删除。交叉测试两条：真实 r1lite 配置通过第 03 张校验得 15 条路由；生产程序目录打包含全部 `*.py`。修复提交 `686ed45`（钩子全量全绿）。等负责人说"合并"；合并、升级后用真按钮在 R1 Lite 上演练一次。
+- 2026-11-10 21:2x 负责人"合并"：合并进 main `0300ed8`，合并后全量检查后端 2909、前端 419。升级真实部署又被执行线自动模式的权限检查（Production Deploy）拦下，没有绕开；升级和 `rdp install-viz-relay-wheel` 由负责人执行，之后用真按钮在 R1 Lite 上演练一次。
+
