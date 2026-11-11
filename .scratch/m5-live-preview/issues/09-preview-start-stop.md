@@ -164,3 +164,4 @@ localhost_only = false  # 厂商进程环境 ROS_LOCALHOST_ONLY=0
 ## Comments
 
 - 2026-11-10 开票（执行线），与第 03 张并行。两张都合并后，派 Codex 补一个交叉测试：本票生成的 R1 Lite 配置能通过第 03 张的配置校验。
+- 2026-11-10 19:11 派工（执行线）：工作目录 `robot-data-platform.wt/m5-09-start-stop`（分支 `t/m5-09-start-stop`），Codex gpt-6-astra high，systemd 单元 `rdp-m5-09`，日志 `~/.cache/rdp-dispatch/m5-09/`；与第 03 张并行。机器人用的 wheel 已下载到 `~/.cache/rdp-m5-offline/wheels/`，sha256 与 PyPI 一致。

@@ -114,3 +114,4 @@ Status: ready-for-agent
 ## Comments
 
 - 2026-11-10 开票（执行线），与第 09 张并行。
+- 2026-11-10 19:11 派工（执行线）：工作目录 `robot-data-platform.wt/m5-03-relay`（分支 `t/m5-03-relay`），Codex gpt-6-astra high，systemd 单元 `rdp-m5-03`，日志 `~/.cache/rdp-dispatch/m5-03/`；与第 09 张并行。
