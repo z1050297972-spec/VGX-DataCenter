@@ -1,6 +1,6 @@
 # 给工具开伪终端时设 TERM（修 M4 进度条缺陷）
 
-Status: done（2026-11-10 评审、复验通过；分支 t/m4.5-06-worker-term b45cdaa 从 main 701ae34 开，已合进 t/m4.5-cleaning，未合并 main、未升级）
+Status: done（2026-11-10 评审、复验通过；分支 t/m4.5-06-worker-term b45cdaa 从 main 701ae34 开，已合进 t/m4.5-cleaning；2026-11-10 负责人"merge,update"后合进 main a7218f0 并升级部署）
 
 分级：直做（后端，一处改动）。代码分支从 main 开（`t/m4.5-06-worker-term`，部署要单独用），做完也合进 `t/m4.5-cleaning`。来源：`../followups.md` 第 5 条。
 
@@ -37,3 +37,4 @@ bwrap 不清环境变量（没有 `--clearenv`），子进程能拿到这个值�
 - 2026-11-10 派工 Codex（gpt-6-astra high，单元 rdp-m45-06，日志 `~/.cache/rdp-dispatch/m4.5-06/`）。改 `_ProcessRun._spawn`：只在伪终端运行时复制环境（含 GPU 设置）并强制 `TERM=xterm-256color`，父进程环境不变；测试参数化 TERM 缺失和 `dumb` 两种。
 - 评审通过；变异抽查（去掉设 TERM 那一行）两个用例都失败。本分支全量检查后端 2880 过、1 个失败是已知偶发的 `test_file_preview_api.py::test_video_concurrency_is_two_and_recovers`（与第 07 张钩子并行时负载高，单独重跑该文件 9 个全过；followups 第 10 条）。提交 b45cdaa（`--no-verify`）。
 - 复验（`assets/07-drill/`，worker 用 `env -u TERM` 起，环境里 TERM 条数 0）：转换作业 12 的「转换」阶段 12 次采样全部带逐路帧进度（如 head_left 45/1647 → 1620/1647），作业日志里"未解析出进度"0 条。
+- 2026-11-10 负责人"merge,update"：在 main 的工作树（m15-19-remove-backfill）把本分支合进 main（a7218f0，只带进 processes.py 和测试两个文件；main 已含 M5 第 03 张 viz_relay，是机器人侧程序，平台不加载）。main 全量检查全绿（后端 2895、前端 418）。`upgrade.sh --commit a7218f0 --yes` 升级真实部署：0.1.0 (85d7488) → 0.1.0 (a7218f0)，无新迁移，两个服务 active，`/api/health` ok；真实 rdp-worker 环境里确实没有 TERM，部署代码已含修复。真实转换要等 NAS，部署上的进度条没有实际跑过。未推送。升级前后已和 M5 会话（datasets-87）打过招呼。
