@@ -28,6 +28,27 @@ function transport(
 }
 
 describe("存储根页面", () => {
+  // 验证接入说明默认收起，展开后提供可核对的挂载行与 NFS 来源配置。
+  it("NAS 接入流程默认收起，点开后显示 fstab 和 nfs_export 配置", async () => {
+    const page = mountPage("/storage-roots", transport());
+    try {
+      const panel = await screen.findByRole("button", { name: "NAS 接入流程" });
+      expect(panel.getAttribute("aria-expanded")).toBe("false");
+      fireEvent.click(panel);
+      expect(panel.getAttribute("aria-expanded")).toBe("true");
+      expect(
+        screen.getByText(
+          "192.168.0.247:/volume1/rdp-dataset  /mnt/nas_platform  nfs  rw,vers=3,noatime,hard,_netdev,nofail  0  0",
+          { normalizer: (text) => text },
+        ),
+      ).toBeTruthy();
+      expect(
+        screen.getByText('nfs_export = "192.168.0.247:/volume1/rdp-dataset"', { exact: false }),
+      ).toBeTruthy();
+    } finally {
+      page.close();
+    }
+  });
   // 验证所有登录账号能通过菜单及直达路由进入，未登录遵循守卫跳转。
   it("成员与管理员均能从菜单打开 /storage-roots，未登录回登录页", async () => {
     for (const role of ["member", "administrator"] as const) {
