@@ -10,6 +10,7 @@ import subprocess
 
 from rdp.collection.profile_models import ReadinessCondition, RobotProfile
 from rdp.infra.diagnostics import (
+    DefectError,
     Diagnostic,
     DiagnosticCategory,
     DiagnosticLevel,
@@ -18,9 +19,13 @@ from rdp.infra.diagnostics import (
 )
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.robot_connection._process import run
+from rdp.jobs.robot_connection._ros_scripts import copy_discovery_xml
 
-# M5-08：全部条件合用一次 SSH，包含发送脚本与读取结果在内限时 10 秒。
-READINESS_TIMEOUT_S = 10.0
+# M5-11：为 ROS 发现留出等待时间，全部条件合用一次 SSH，总期限为 20 秒。
+READINESS_TIMEOUT_S = 20.0
+# M5-11 实测默认 spin 时间会漏节点；等待发现 3 秒，ROS 命令总计最多 8 秒。
+ROS_NODE_TIMEOUT_S = 8
+ROS_NODE_SPIN_TIME_S = 3
 
 
 def check(
@@ -35,7 +40,7 @@ def check(
             (*ssh_argv, "bash", "-s"),
             READINESS_TIMEOUT_S,
             context,
-            stdin=_script(profile.ros.readiness),
+            stdin=_script(profile),
         )
         context.reporter.tool_exit(result.returncode)
         if result.returncode != 0:
@@ -63,7 +68,7 @@ def check(
                     source="平台",
                     objects=(DiagnosticObject(key="robot_id", value=str(robot_id)),),
                     rule="robot_readiness.execution",
-                    actual="就绪检查执行失败、超过 10 秒期限或结果不完整",
+                    actual=f"就绪检查执行失败、超过 {READINESS_TIMEOUT_S:g} 秒期限或结果不完整",
                     expected="在期限内收到全部条件的机器结果",
                     consequence="本次检查失败，不能确认软件栈就绪",
                     next_step="检查机器人 SSH 服务和只读检查命令后重新检查连接",
@@ -72,9 +77,12 @@ def check(
         ) from error
 
 
-def _script(conditions: list[ReadinessCondition]) -> bytes:
+def _script(profile: RobotProfile) -> bytes:
     """值只作为 shell 字面量；脚本走 stdin，避免 pgrep 匹配到执行脚本的 shell。"""
     lines = ["set -o pipefail"]
+    conditions = profile.ros.readiness
+    if any(condition.check == "ros_node_visible" for condition in conditions):
+        lines.append(_node_list(profile))
     for index, condition in enumerate(conditions):
         if condition.check == "run_on_robot":
             lines.append(f"printf '%s\\n' '{index}:info'")
@@ -95,6 +103,9 @@ def _script(conditions: list[ReadinessCondition]) -> bytes:
             case "process_running":
                 # pgrep 使用 ERE；先转义正则元字符，再引用 shell 参数，保持固定文本语义。
                 command = "pgrep -f -- " + shlex.quote(re.escape(str(condition.value)))
+            case "ros_node_visible":
+                # 不能把 /HDAS_bridge 或查询失败前的部分输出当成 /HDAS 已报到。
+                command = "printf '%s\\n' \"$nodes\" | grep -Fx -- " + value
         lines.extend(
             (
                 f"if {command} >/dev/null; then",
@@ -105,6 +116,43 @@ def _script(conditions: list[ReadinessCondition]) -> bytes:
             )
         )
     return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def _node_list(profile: RobotProfile) -> str:
+    """所有节点条件共用一次隔离查询，失败丢弃部分结果，退出清理全部临时文件。"""
+    join = profile.ros.join
+    # 模型已经校验节点检查必须有 join；这里不另造降级环境。
+    if join is None:
+        raise DefectError()
+    launch = "\n".join(
+        (
+            "set -e -o pipefail",
+            "# 在 source 前隔离 ROS 输出并禁止字节码，避免写入 HOME 或厂商目录。",
+            'export ROS_HOME="$1/ros_home" ROS_LOG_DIR="$1/ros_log"',
+            "export PYTHONDONTWRITEBYTECODE=1",
+            'mkdir -p -- "$ROS_HOME" "$ROS_LOG_DIR"',
+            "source " + shlex.quote(join.setup_script) + " >/dev/null",
+            "xml_source=" + shlex.quote(join.fastdds_profiles_file),
+            'xml_destination="$1/fastdds_local.xml"',
+            "discovery=" + shlex.quote(join.discovery_address),
+            copy_discovery_xml(),
+            'export FASTRTPS_DEFAULT_PROFILES_FILE="$xml_destination"',
+            "export ROS_LOCALHOST_ONLY=" + shlex.quote(str(int(join.localhost_only))),
+            "unset ROS_DOMAIN_ID"
+            if profile.ros.domain_id is None
+            else "export ROS_DOMAIN_ID=" + shlex.quote(str(profile.ros.domain_id)),
+            "# 禁用 daemon，给新参与者足够发现时间；失败或超时由外层统一判为不满足。",
+            f"exec timeout {ROS_NODE_TIMEOUT_S} ros2 node list --no-daemon --spin-time {ROS_NODE_SPIN_TIME_S}",
+        )
+    )
+    return (
+        "# 临时目录由本次脚本独占，XML、ROS 缓存和日志一起回收，不动厂商文件。\n"
+        "readiness_tmp=$(mktemp -d) || exit 1\n"
+        "trap 'rm -rf -- \"$readiness_tmp\"' EXIT\n"
+        "trap 'exit 1' HUP INT TERM\n"
+        'nodes=$(env -i HOME="$HOME" USER="$USER" LANG=C.UTF-8 PATH=/usr/bin:/bin '
+        "bash -c " + shlex.quote(launch) + " -- \"$readiness_tmp\" 2>/dev/null) || nodes=''\n"
+    )
 
 
 def _condition_diagnostic(

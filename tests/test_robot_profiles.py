@@ -13,6 +13,31 @@ from rdp.infra.diagnostics import InputError
 PROFILES = Path(__file__).parents[1] / "profiles"
 
 
+@pytest.mark.parametrize("invalid", ["missing_join", "node_name"])
+def test_ros_node_condition_requires_join_and_full_node_name(tmp_path: Path, invalid: str) -> None:
+    """M5-11 验收 4：完整节点名可加载，缺少加入环境或节点名不合法则拒绝整份说明档。"""
+    source = (PROFILES / "r1lite.toml").read_text()
+    source = source.replace(
+        "readiness = [",
+        'readiness = [\n  { check = "ros_node_visible", value = "/HDAS", reason = "节点须报到" },',
+    )
+    path = tmp_path / "r1lite.toml"
+    path.write_text(source)
+    assert load_robot_profiles(tmp_path)[0].ros.readiness[0].value == "/HDAS"
+    if invalid == "missing_join":
+        start = source.index("[ros.join]")
+        end = source.index("[[joint_group]]", start)
+        source = source[:start] + source[end:]
+        expected = "ros.join"
+    else:
+        source = source.replace('value = "/HDAS"', 'value = "HDAS; echo injected"')
+        expected = "完整节点名"
+    path.write_text(source)
+    with pytest.raises(InputError) as caught:
+        load_robot_profiles(tmp_path)
+    assert expected in caught.value.diagnostics[0].actual
+
+
 def test_member_reads_profiles_and_paired_joint_sources(tmp_path: Path) -> None:
     """验收 1：登录成员可读两份正式文件，R1 Lite 四组来源成对，AutoLife 有未知事实。"""
     with api_case(tmp_path) as case:
@@ -26,7 +51,7 @@ def test_member_reads_profiles_and_paired_joint_sources(tmp_path: Path) -> None:
         assert set(items) == {"autolife", "r1lite"}
         assert items["autolife"]["unknown_count"] > 0
         assert items["r1lite"]["model"] == "Galaxea R1 Lite"
-        assert items["r1lite"]["version"] == 3
+        assert items["r1lite"]["version"] == 4
         response = case.client.get("/api/robot-profiles/r1lite")
         assert response.status_code == 200
         groups = {group["name"]: group for group in response.json()["joint_group"]}

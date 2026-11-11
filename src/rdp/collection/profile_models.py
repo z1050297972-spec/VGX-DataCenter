@@ -4,6 +4,7 @@
 不把未知目标当作无目标。取法只描述来源，不执行 JSON 路径或处理实时消息。
 """
 
+import re
 from ipaddress import ip_address
 from typing import Annotated, Literal, Self
 
@@ -33,12 +34,19 @@ class ReadinessCondition(_ProfileModel):
     Attributes:
         check: 平台封闭的只读检查类型；run_on_robot 仅作说明，不执行检查。
         value: address_present 为 IP 文本；udp_port_listening 为 1 至 65535 的整数端口号；
-            process_running 为命令行中的固定文本；run_on_robot 不提供值。
+            process_running 为命令行中的固定文本；ros_node_visible 为完整节点名，
+            匹配 ^/[A-Za-z0-9_/]+$；run_on_robot 不提供值。
         level: 不满足时的级别，error（默认）或 warning；说明性条件不影响结果。
         reason: 条件的原因和下一步，非空文本；不能包含凭据，仅展示而不作为命令执行。
     """
 
-    check: Literal["address_present", "udp_port_listening", "process_running", "run_on_robot"]
+    check: Literal[
+        "address_present",
+        "udp_port_listening",
+        "process_running",
+        "ros_node_visible",
+        "run_on_robot",
+    ]
     value: ProfileText | int | None = None
     level: Literal["error", "warning"] = "error"
     reason: ProfileText
@@ -53,12 +61,17 @@ class ReadinessCondition(_ProfileModel):
             if not isinstance(self.value, int) or not 1 <= self.value <= 65535:
                 raise ValueError("udp_port_listening 的 value 必须为 1 至 65535 的整数端口号")
         elif not isinstance(self.value, str):
-            raise ValueError("地址或进程检查必须提供非空文本 value")
+            raise ValueError("地址、进程或节点检查必须提供非空文本 value")
         elif self.check == "address_present":
             try:
                 ip_address(self.value)
             except ValueError:
                 raise ValueError("address_present 的 value 必须为 IP 地址") from None
+        elif (
+            self.check == "ros_node_visible"
+            and re.fullmatch(r"/[A-Za-z0-9_/]+", self.value) is None
+        ):
+            raise ValueError("ros_node_visible 的 value 必须为匹配 ^/[A-Za-z0-9_/]+$ 的完整节点名")
         return self
 
 
@@ -97,7 +110,7 @@ class RosGraph(_ProfileModel):
         participant: 参与者类型；发现方式未指定时省略。
         qos_subscribe: 订阅可靠性，BEST_EFFORT 或 RELIABLE。
         readiness: 按文件顺序检查的就绪条件，可为空。
-        join: 新参与者环境；缺省表示尚不支持开启预览。
+        join: 新参与者环境；缺省表示尚不支持开启预览或检查节点可见性。
     """
 
     distro: ProfileText
@@ -109,6 +122,13 @@ class RosGraph(_ProfileModel):
     qos_subscribe: Literal["BEST_EFFORT", "RELIABLE"]
     readiness: list[ReadinessCondition]
     join: RosJoin | None = None
+
+    @model_validator(mode="after")
+    def _node_check_requires_join(self) -> Self:
+        """节点可见性必须使用已登记的加入环境，不能继承登录 shell 的偶然配置。"""
+        if self.join is None and any(item.check == "ros_node_visible" for item in self.readiness):
+            raise ValueError("ros_node_visible 要求提供 ros.join")
+        return self
 
 
 class JointSource(_ProfileModel):

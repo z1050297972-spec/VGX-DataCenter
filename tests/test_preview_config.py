@@ -11,7 +11,7 @@ def test_r1lite_routes_and_hostname_binding() -> None:
     profile = next(p for p in load_robot_profiles(Path("profiles")) if p.profile == "r1lite")
     config = build_relay_config(profile, "robot.local")
     assert config["host"] == "0.0.0.0"  # noqa: S104  # 理由：只核对配置字面量，不监听端口。
-    assert config["profile_version"] == 3
+    assert config["profile_version"] == 4
     assert config["qos_reliability"] == "best_effort"
     routes = config["routes"]
     assert isinstance(routes, list)

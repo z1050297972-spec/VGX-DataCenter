@@ -1,5 +1,7 @@
 """SSH 验收装配：真实 HTTP/作业执行器，所有文件在 tmp，SSH 仅为假程序。"""
 
+import json
+import shlex
 import time
 from pathlib import Path
 from threading import Event, Lock
@@ -47,10 +49,14 @@ def submit(api: ApiCase, port: int, *, model: str = "测试型号") -> tuple[int
     return robot_id, job.json()["job_id"]
 
 
-def readiness_ssh(root: Path, *, missing: str, process_text: str = "HDAS/HDAS") -> Path:
+def readiness_ssh(
+    root: Path, *, missing: str, process_text: str = "HDAS/HDAS", ros_failure: str = ""
+) -> Path:
     """假 SSH 用本机 bash 执行收到的脚本；系统探针全部替换，不访问任何网络或真实设备。"""
     probes = root / "probes"
     probes.mkdir()
+    home = root / "robot-home"
+    home.mkdir(exist_ok=True)
     for name, body in {
         "ip": "assert sys.argv[1:] == ['-br', 'addr']\n"
         f"print('eth1 UP {'10.42.0.23/24' if missing == 'address' else '10.42.0.238/24'}')\n",
@@ -62,6 +68,37 @@ def readiness_ssh(root: Path, *, missing: str, process_text: str = "HDAS/HDAS") 
         probe = probes / name
         probe.write_text("#!/usr/bin/python3\nimport sys, re\n" + body)
         probe.chmod(0o700)
+    ros2 = probes / "ros2"
+    ros2.write_text(
+        "#!/usr/bin/python3\nimport os, sys, json, time\nfrom pathlib import Path\n"
+        "assert sys.argv[1:] == ['node', 'list', '--no-daemon', '--spin-time', '3']\n"
+        "assert os.environ['LANG'] == 'C.UTF-8'\n"
+        "assert os.environ['ROS_LOCALHOST_ONLY'] == '0'\n"
+        "assert 'ROS_DOMAIN_ID' not in os.environ\n"
+        "xml = Path(os.environ['FASTRTPS_DEFAULT_PROFILES_FILE'])\n"
+        "record = {key: os.environ[key] for key in "
+        "['ROS_HOME', 'ROS_LOG_DIR', 'FASTRTPS_DEFAULT_PROFILES_FILE']}\n"
+        "record['xml'] = xml.read_text()\n"
+        f"Path({str(root / 'ros-observation')!r}).write_text(json.dumps(record))\n"
+        f"failure = {ros_failure!r}\n"
+        "if failure == 'timeout': time.sleep(30)\n"
+        "print('/HDAS_bridge' if failure == 'missing' else '/HDAS', flush=True)\n"
+        "sys.exit(2 if failure == 'exit' else 0)\n"
+    )
+    ros2.chmod(0o700)
+    vendor = root / "readiness-vendor"
+    vendor.mkdir()
+    setup = vendor / "setup'; touch injected #.bash"
+    setup.write_text("export PATH=" + shlex.quote(str(probes)) + ":/usr/bin:/bin\n")
+    xml = vendor / "discovery.xml"
+    xml.write_text("<profiles><address>10.0.0.1</address><address>10.0.0.2</address></profiles>")
+    profiles = root / "profiles"
+    profiles.mkdir()
+    source = (Path(__file__).parents[1] / "profiles/r1lite.toml").read_text()
+    source = source.replace(
+        json.dumps("/opt/ros/humble/setup.bash"), json.dumps(str(setup))
+    ).replace(json.dumps("/opt/galaxea/find_server/super_client_profile.xml"), json.dumps(str(xml)))
+    (profiles / "r1lite.toml").write_text(source)
     program = fake_ssh(root, "")
     program.write_text(
         "#!/usr/bin/python3\nimport sys, os, subprocess, json\nfrom pathlib import Path\n"
@@ -75,9 +112,10 @@ def readiness_ssh(root: Path, *, missing: str, process_text: str = "HDAS/HDAS") 
         "script = sys.stdin.read()\n"
         f"Path({str(root / 'received-script')!r}).write_text(script)\n"
         f"Path({str(root / 'received-argv')!r}).write_text(json.dumps(a))\n"
-        f"env = dict(os.environ, PATH={str(probes)!r} + ':/usr/bin:/bin')\n"
+        f"env = dict(os.environ, HOME={str(home)!r}, USER='tester', "
+        f"PATH={str(probes)!r} + ':/usr/bin:/bin', ROS_DOMAIN_ID='99')\n"
         "sys.exit(subprocess.run(['/bin/bash', '-s'], input=script, text=True, "
-        "env=env, timeout=3, check=False).returncode)\n"
+        "env=env, cwd=env['HOME'], timeout=25, check=False).returncode)\n"
     )
     return program
 

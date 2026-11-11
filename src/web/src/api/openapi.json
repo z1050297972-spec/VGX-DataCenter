@@ -7025,13 +7025,14 @@
       },
       "ReadinessCondition": {
         "additionalProperties": false,
-        "description": "加入 ROS 图前的事实条件，不在读取时执行检查。\n\nAttributes:\n    check: 平台封闭的只读检查类型；run_on_robot 仅作说明，不执行检查。\n    value: address_present 为 IP 文本；udp_port_listening 为 1 至 65535 的整数端口号；\n        process_running 为命令行中的固定文本；run_on_robot 不提供值。\n    level: 不满足时的级别，error（默认）或 warning；说明性条件不影响结果。\n    reason: 条件的原因和下一步，非空文本；不能包含凭据，仅展示而不作为命令执行。",
+        "description": "加入 ROS 图前的事实条件，不在读取时执行检查。\n\nAttributes:\n    check: 平台封闭的只读检查类型；run_on_robot 仅作说明，不执行检查。\n    value: address_present 为 IP 文本；udp_port_listening 为 1 至 65535 的整数端口号；\n        process_running 为命令行中的固定文本；ros_node_visible 为完整节点名，\n        匹配 ^/[A-Za-z0-9_/]+$；run_on_robot 不提供值。\n    level: 不满足时的级别，error（默认）或 warning；说明性条件不影响结果。\n    reason: 条件的原因和下一步，非空文本；不能包含凭据，仅展示而不作为命令执行。",
         "properties": {
           "check": {
             "enum": [
               "address_present",
               "udp_port_listening",
               "process_running",
+              "ros_node_visible",
               "run_on_robot"
             ],
             "title": "Check",
@@ -7680,7 +7681,7 @@
       },
       "RosGraph": {
         "additionalProperties": false,
-        "description": "ROS 图的加入方式，仅保存事实，不执行 shell 或连接 DDS。\n\nAttributes:\n    distro: ROS 发行版，非空文本。\n    rmw: RMW 实现名称，非空文本。\n    domain_id: DDS 域编号，非负整数；省略表示未知。\n    discovery: 发现方式，非空文本。\n    discovery_server: 发现服务器地址；该方式不用服务器时省略。\n    participant: 参与者类型；发现方式未指定时省略。\n    qos_subscribe: 订阅可靠性，BEST_EFFORT 或 RELIABLE。\n    readiness: 按文件顺序检查的就绪条件，可为空。\n    join: 新参与者环境；缺省表示尚不支持开启预览。",
+        "description": "ROS 图的加入方式，仅保存事实，不执行 shell 或连接 DDS。\n\nAttributes:\n    distro: ROS 发行版，非空文本。\n    rmw: RMW 实现名称，非空文本。\n    domain_id: DDS 域编号，非负整数；省略表示未知。\n    discovery: 发现方式，非空文本。\n    discovery_server: 发现服务器地址；该方式不用服务器时省略。\n    participant: 参与者类型；发现方式未指定时省略。\n    qos_subscribe: 订阅可靠性，BEST_EFFORT 或 RELIABLE。\n    readiness: 按文件顺序检查的就绪条件，可为空。\n    join: 新参与者环境；缺省表示尚不支持开启预览或检查节点可见性。",
         "properties": {
           "discovery": {
             "$ref": "#/components/schemas/ProfileText"
