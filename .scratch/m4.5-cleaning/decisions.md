@@ -53,6 +53,7 @@ mcap2lerobot 的清洗只做时间对齐，不检查数值。源码：`src/sync.
 - **文件级**：会让整次转换失败的文件（话题缺失、没有 Header、B 帧、H.265、基准有效 stamp 不足 2 个、解析失败、没有任何保留帧）默认剔除，不交给工具；用户也可以手动剔除整个文件。全部文件都被剔除时不能转换。
 - **episode 级**：数值类问题只能整个 episode 留或删（工具不收剔除列表；`delete_episodes` 只能删整段）。逐帧裁切以后再说。
 - 时间对齐类问题（坏帧、断点、短段）由工具转换时自己裁切，预览只是如实展示，与工具结果一致。
+- 2026-11-10 第 07 张：episode 剔除重编码使用转换所用登记配置，逐项照工具 `config.rs` 换算编码器和参数（R1 Lite 为 GPU 的 hevc_nvenc），仅删除调用期间替换 LeRobot 编码器工厂；`info.json` 编码信息不改，实际参数写入回执 `cleaning.encoder`，没有剔除时为 `null`。
 
 ### 5. 数值检查（工具没有的，负责人"可以补上"）
 
@@ -76,7 +77,7 @@ mcap2lerobot 的清洗只做时间对齐，不检查数值。源码：`src/sync.
 ### 6. LeRobot 库：直接用 conda 环境 `lerobot`
 
 - 环境：`/home/shawn/miniconda3/envs/lerobot`，LeRobot 0.6.2，以可编辑方式安装自 `~/桌面/lerobot`（`v0.6.1-24-g6adf5151`，3 个本地改动在电机、录制、键盘输入，与数据集无关）；torch 2.10（cu126），PyAV 15.1，编码器有 `hevc_nvenc`、`h264_nvenc`、`libx265`、`libx264`、`libsvtav1`。`lerobot_v2` 目录是残留（没有解释器，conda 不认），不用也不动。
-- 平台只调用它的 `lerobot.datasets.dataset_tools.delete_episodes`（v3.0 多个 episode 合在一个视频文件里，删其中一段时会按 `info.json` 里的编码参数重新编码混合的视频文件）。
+- 平台只调用它的 `lerobot.datasets.dataset_tools.delete_episodes`（v3.0 多个 episode 合在一个视频文件里，删其中一段时会用转换工具的编码器和参数重新编码混合的视频文件；只含保留段的文件原样复制）。
 - 只读运行：和 M4 工具一样放进 bwrap，环境目录和源码目录只读绑定，只有本作业暂存目录可写，断网、`HF_HUB_OFFLINE=1`。平台不往这个环境里装任何东西。
 - 指纹：平台登记包 `tools/lerobot/` 记下版本和平台依赖的源码（`lerobot/datasets/`、`lerobot/configs/`、`lerobot/utils/` 下全部 `.py` 合成一个 sha256）。每次运行前在沙箱里用该解释器探测实际导入的版本、位置和指纹，不符就拒绝运行，诊断"LeRobot 环境已变化，需要重新登记"。部署位置（解释器、源码目录）写在平台配置里，没配置时"有剔除的转换"不可用，没有剔除的转换不受影响。
 - 环境指纹的状态显示在"工具库"页面。
