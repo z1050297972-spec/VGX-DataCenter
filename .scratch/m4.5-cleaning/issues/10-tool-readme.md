@@ -36,3 +36,4 @@ Status: done（评审、截图通过；在分支 t/m4.5-10-tool-readme，未合�
 - 2026-11-11 执行线写 README：`/mnt/datasets/工具/mcap2lerobot/README.md`（负责人选"放工具本体目录"；对照工具源码 main.rs/convert.rs/verify.rs/config.rs/h264.rs 和 configs/r1lite.toml；工具目录其他文件未动，未在工具目录跑 git）。
 - 派工 Codex（rdp-m45-10）：`registry.read_tool_readme`（工具目录约束、不跟随越界软链接、O_NOATIME、1 MiB、UTF-8）、`GET /api/tools/{name}/readme`、摘要 `readme_available`；前端"说明"按钮 + Drawer + react-markdown/remark-gfm（不渲染原始 HTML）。执行线 `make api-types` 后 resume 一轮换成生成类型、删临时契约文件。
 - 检查：`make check` 全绿，后端 2971、前端 434，0 skipped。演练状态目录起网页读真实 README（4301 字符），1440/390 宽截图无横向溢出（`assets/10-tool-readme/`）。
+- 2026-11-11 负责人贴出工具详情的程序 SHA-256、源码提交、源码状态说明三项，说"delete it,and merge update"：Codex 删掉这三项显示（2c3b91b，后端不动，诊断里的 sha256 保留）；合进 main 77b0f18（main 已含 M5 第 10、11 张），api-types 无差异，m15-19 工作树改为独立 node_modules（主仓 node_modules 在别的分支上，pnpm 拒绝经软链接安装），全量检查后端 2981、前端 435 全绿；部署 0.1.0 (f832aeb) → 0.1.0 (77b0f18)，无新迁移。未推送。
