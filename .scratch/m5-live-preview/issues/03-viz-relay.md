@@ -115,3 +115,9 @@ Status: ready-for-agent
 
 - 2026-11-10 开票（执行线），与第 09 张并行。
 - 2026-11-10 19:11 派工（执行线）：工作目录 `robot-data-platform.wt/m5-03-relay`（分支 `t/m5-03-relay`），Codex gpt-6-astra high，systemd 单元 `rdp-m5-03`，日志 `~/.cache/rdp-dispatch/m5-03/`；与第 09 张并行。
+- 2026-11-10 19:36 交回（约 25 分钟，Codex 后端 2894；前端因共用的 node_modules 在沙箱里只读没跑起来，Codex 单独补跑 418 全过）。运行日志 41 条命令无违规。评审：
+  - 转发逻辑在只用标准库的 `core.py`/`video.py`/`config.py`，rclpy 和 SDK 只在 `_ros.py`、`_sdk.py`，pyright 豁免逐条列规则；CDR 自行解析、SPS 清 set5、Lichtblick 算法复现都与原型一致。
+  - 执行线在沙箱外跑全量：后端 2894、前端 418 全绿。变异抽查 3 处都被抓到：不清 set5、服务器能力非空、无人看也订阅。
+  - **离线端到端**：程序文件像装到机器人上那样单独拷出，用录制回放替换 ROS 层（原型 `relay_e2e.py`），平台为 R1 Lite 生成的布局在 Lichtblick 1.30.0 里 3 路画面和 5 张曲线都正常（`shots/relay-e2e-try.png`）；只有被订阅的通道建了订阅，关节约 50 Hz。
+  - **真机演练**（负责人"可以演练"）：见 0014 末节。自检、启动、只读、按需订阅、停止都正常；当天厂商节点没在本机发现服务器报到，没有测到真实数据下的画面、带宽和 CPU，等负责人接通 eth1 并重启厂商栈后补测。
+

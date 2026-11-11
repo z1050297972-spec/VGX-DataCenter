@@ -165,3 +165,5 @@ localhost_only = false  # 厂商进程环境 ROS_LOCALHOST_ONLY=0
 
 - 2026-11-10 开票（执行线），与第 03 张并行。两张都合并后，派 Codex 补一个交叉测试：本票生成的 R1 Lite 配置能通过第 03 张的配置校验。
 - 2026-11-10 19:11 派工（执行线）：工作目录 `robot-data-platform.wt/m5-09-start-stop`（分支 `t/m5-09-start-stop`），Codex gpt-6-astra high，systemd 单元 `rdp-m5-09`，日志 `~/.cache/rdp-dispatch/m5-09/`；与第 03 张并行。机器人用的 wheel 已下载到 `~/.cache/rdp-m5-offline/wheels/`，sha256 与 PyPI 一致。
+- 2026-11-10 真机演练发现机器人没有 `ensurepip`（0014 末节）。**修复轮范围补充**：不建 venv、不用 pip，把核对过 sha256 的 wheel 用 `python3 -m zipfile -e` 解到临时目录再改名为 `~/rdp_viz/site/`，运行时 `PYTHONPATH=~/rdp_viz/site:<ROS 的 PYTHONPATH>`，用系统 `python3`；验收 1 相应改为"解压安装、没有 venv 和 pip"。
+
