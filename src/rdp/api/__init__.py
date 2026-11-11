@@ -43,6 +43,7 @@ from rdp.api.health import HealthResponse, get_health
 from rdp.api.jobs import router as jobs_router
 from rdp.api.jobs import worker_router
 from rdp.api.lichtblick import router as lichtblick_router
+from rdp.api.lichtblick import with_lichtblick_cache_control
 from rdp.api.lineage import router as lineage_router
 from rdp.api.monitoring import ResourceSampler
 from rdp.api.monitoring import router as monitoring_router
@@ -140,8 +141,11 @@ class _RequestContextApp(FastAPI):
         """返回 RequestIdMiddleware 包装的父类中间件栈；构建时不绑定编号或改变路由。"""
         # 依赖 Starlette 的 build_middleware_stack 包含错误处理中间件这一行为。
         # 升级 FastAPI/Starlette 时重看此方法，并重跑框架 500 的响应头契约测试。
+        # M5-10：缓存策略包住错误边界，让认证失败、404 和 304 也要求重验证。
         return RequestIdMiddleware(
-            ErrorBoundary(RequestBodyLimit(super().build_middleware_stack()))
+            with_lichtblick_cache_control(
+                ErrorBoundary(RequestBodyLimit(super().build_middleware_stack()))
+            )
         )
 
 
