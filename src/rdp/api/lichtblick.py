@@ -1,4 +1,4 @@
-"""Lichtblick 同源托管（Web 入口层，M5-04），只读本地状态目录中的已安装网页。
+"""Lichtblick 同源托管（Web 入口层，M5-04/10），只读本地状态目录中的已安装网页。
 
 认证沿用账号边界，路径隔离与文件传输复用 StaticFiles；不代理机器人或外网资源。
 HTML 提取与 CSP 摘要使用标准库 HTMLParser、hashlib、base64，不执行包内脚本。
@@ -16,6 +16,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
+from rdp.api._asgi import ASGIApp, ASGIMessage, Receive, Send
 from rdp.api.robot_profiles import AuthenticatedContext
 from rdp.infra.diagnostics import (
     Diagnostic,
@@ -45,6 +46,47 @@ class _ViewerNotInstalledError(InputError):
     """本地网页未安装，给出可执行安装命令。"""
 
     http_status = HTTPStatus.NOT_FOUND
+
+
+def with_lichtblick_cache_control(app: ASGIApp) -> ASGIApp:
+    """为 Lichtblick 的所有 HTTP 响应启用浏览器缓存重验证。
+
+    Args:
+        app: 完整的下游 ASGI 应用，须包含错误响应边界；无单位。
+
+    Returns:
+        包装后的 ASGI 应用；仅 /lichtblick/ 下的响应统一带 Cache-Control: no-cache。
+        其他路径、WebSocket 和 lifespan 原样传递，保留 ETag 等已有验证头。
+
+    Raises:
+        BaseException: 下游应用或收发回调抛出的异常原样传播，不在此转换错误。
+
+    Side Effects:
+        仅复制并修改 HTTP 响应起始消息的缓存头，不读写文件或保存请求状态。
+
+    Time Semantics:
+        无计时或等待；浏览器每次使用缓存前需向服务端验证资源是否变化。
+    """
+
+    async def wrapped(scope: ASGIMessage, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or not scope.get("path", "").startswith("/lichtblick/"):
+            await app(scope, receive, send)
+            return
+
+        async def send_with_cache_control(message: ASGIMessage) -> None:
+            if message["type"] == "http.response.start":
+                headers = [
+                    (key, value)
+                    for key, value in message.get("headers", [])
+                    if key.lower() != b"cache-control"
+                ]
+                headers.append((b"cache-control", b"no-cache"))
+                message = dict(message, headers=headers)
+            await send(message)
+
+        await app(scope, receive, send_with_cache_control)
+
+    return wrapped
 
 
 def configure_lichtblick(app: FastAPI, *, state_dir: Path) -> None:
