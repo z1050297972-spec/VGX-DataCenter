@@ -2,79 +2,133 @@
 
 机器人数据管理平台，面向工作站与 NAS 上的数据管理，通过 Web 界面逐步整合数据集浏览、开源数据下载、机器人登记、格式转换、实时预览和采集录制。
 
-**当前阶段（2026-11-10）：M0 基础平台、M1 数据集管理、M1.5 第 01–19 张、M2 开源下载、M3 机器人与采集登记、M4 工具库与格式转换、M4.5 转换前数据清洗，以及 M5 的机器人连接检查和 R1 Lite 实时预览已合并至主分支。** MCAP 转换必须先做清洗预览，从报告选择保留或剔除的文件与 episode，再进行转换、检查和入库；转换与下载均支持空间估算参数。M5 支持平台公钥、网络/登录/就绪检查、自托管 Lichtblick，以及手动开启和停止预览，已有 R1 Lite 真机画面和按钮启停演练记录，但不代表 M5 整体验收完成。数据流检查第 4 层、AutoLife 接入、M6 采集录制仍待后续；本地备份与恢复尚未开工，M2 真实下载与入库仍待实测。
+**已支持**：数据集管理、开源下载、机器人登记、MCAP 清洗转换与入库、R1 Lite 实时预览。采集录制仍在规划中。
 
-文档中的功能以主分支代码为准。2026-11-10 核对本机部署代码为 `3250fab`，包含 M4.5 和上述 M5 功能；此项核对不等同于重新执行运行验收。下方截图保留 2026-11-08 的 `80a9b03` 版本，尚未覆盖机器人、工具库、清洗转换、入库和实时预览页面。其他安装实例仍需自行升级，拉取或推送源码不会自动更新正在运行的服务。
+Python + React，原生运行于 Linux；Python 包、运维命令和服务名沿用 `rdp`。
 
-第一次接触仓库，可先看 [Read First：目录与阅读指南](Read_First_What%27re_Files_Meaning%3F.md)，再按需要阅读安装说明或使用手册。
+[首次阅读](Read_First_What%27re_Files_Meaning%3F.md) · [系统截图](#系统截图与终端示例) · [安装](#环境安装) · [功能与路线](#功能介绍) · [运行与升级](#代码运行方式) · [使用示例](#使用示例) · [使用手册](docs/manual/使用手册.md)
 
-想先了解系统长什么样，可直接查看下面的[系统截图与终端示例](#系统截图与终端示例)。
-
-项目采用 Python + React，原生运行于 Linux。Python 包、运维命令和服务名沿用 `rdp`。
-
-## 系统截图与终端示例
-
-> 采集于 2026-11-08，本机运行版本为 `0.1.0 (80a9b03)`。前端图片为实际页面的局部截图；终端图片由实际命令输出排版生成，并非终端窗口截屏。数据集数量、大小、时间和作业状态仅代表采集时刻，不是安装后的预置数据或性能承诺。
-
-### 前端：从浏览数据集到查看运行状态
-
-**数据集浏览**：按型号、FPS、来源、场景和任务筛选，通过按格式、按任务或按场景的目录定位数据集。
-
-![数据集浏览：筛选条件、格式目录与统计大小](docs/manual/images/dataset-browser.png)
+> 点击下方带箭头的标题展开或收起；长篇说明默认折叠，不删减操作步骤与已知限制。
 
 <details>
-<summary>展开查看：数据集详情与后台作业调度</summary>
+<summary>当前进度、验收边界与部署版本（2026-11-10）</summary>
 
-**数据集详情**：在同一页查看型号、FPS、来源、场景、任务及 14 项说明；图中展示部分信息项，数据大小由平台统计。编辑入口与查看内容相邻，截图过程未提交任何修改。
+**当前阶段（2026-11-10）：M0 基础平台、M1 数据集管理、M1.5 第 01–19 张、M2 开源下载、M3 机器人与采集登记、M4 工具库与格式转换、M4.5 转换前数据清洗，以及 M5 的机器人连接检查和 R1 Lite 实时预览已合并至主分支。** MCAP 转换必须先做清洗预览，从报告选择保留或剔除的文件与 episode，再进行转换、检查和入库；转换与下载均支持空间估算参数。M5 支持平台公钥、网络/登录/就绪检查、自托管 Lichtblick，以及手动开启和停止预览，已有 R1 Lite 真机画面和按钮启停演练记录，但不代表 M5 整体验收完成。数据流检查第 4 层、AutoLife 接入、M6 采集录制仍待后续；本地备份与恢复尚未开工，M2 真实下载与入库仍待实测。
 
-![数据集详情：结构化信息与部分数据集说明](docs/manual/images/dataset-detail.png)
-
-**作业调度**：查看各类作业的并发上限及正在运行的数量。需要了解作业排队原因时，再结合页面下方的 GPU 名额和导航层写锁信息排查。
-
-![后台调度：作业类型、并发上限与运行数量](docs/manual/images/scheduling.png)
+文档中的功能以主分支代码为准。2026-11-10 核对本机部署代码为 `3250fab`，包含 M4.5 和上述 M5 功能；此项核对不等同于重新执行运行验收。下方新增 M4.5、M5 已有演练截图，各图注明来源；旧版数据集与终端截图保留在历史折叠区。其他安装实例仍需自行升级，拉取或推送源码不会自动更新正在运行的服务。
 
 </details>
 
-### 终端：确认版本与服务是否可用
+## 系统截图与终端示例
 
-下图来自默认安装路径下的实际只读检查，没有执行安装、迁移、重启或重建索引。
+本节使用仓库已保存的真实截图，**不是本次重新采集，也不是界面示意图**。新增展示覆盖 M4.5 清洗转换和 M5 真机预览；正常桌面宽度为 1440 或 1920 像素，长页面单独折叠。图片保持原始内容和比例，页面按宽度缩放，点击图片可查看原图。数量、路径、耗时和状态仅代表各自的采集时刻。
 
-![终端使用示例：版本查询、Web 和 worker 服务状态、Web 健康检查](docs/manual/images/terminal-health.png)
+### R1 Lite 实时预览
 
-可直接复制的命令：
+**2026-11-10 真机演练**：头部左目、左右手腕画面，以及关节观测/目标曲线布局。图中是 Lichtblick 查看器，不是带平台“开启预览 / 停止预览”按钮的外层页面；静态截图也不代表所有目标通道都有数据。来源：[M5 第 03 张演练记录](.scratch/m5-live-preview/issues/03-viz-relay.md)，原图 1920 × 1200。
 
-```bash
-# 查看部署版本，而不是当前源码目录的版本
-~/.local/opt/rdp/.venv/bin/rdp --version
-
-# 分别确认 Web 和 worker 服务处于运行状态
-systemctl --user is-active rdp-web
-systemctl --user is-active rdp-worker
-
-# 本机健康检查绕过代理，避免 VPN/代理干扰 localhost 请求
-curl --noproxy '*' -fsS http://127.0.0.1:8600/api/health
-```
-
-`active` 表示对应 systemd 服务正在运行；`{"status":"ok"}` 只说明 Web 可以响应，不代表 worker 作业或存储根都正常。worker 是否持续工作还应结合网页心跳、作业进度和日志判断。非默认安装需替换部署路径或监听地址；前台模式不适用上述 systemd 检查。
+![R1 Lite 真机实时预览：三路相机与关节曲线，2026-11-10](.scratch/m5-live-preview/assets/03-relay/robot-live.png)
 
 <details>
-<summary>展开查看：运维命令帮助</summary>
+<summary>工具库：转换工具与 LeRobot 环境（1440 × 900）</summary>
 
-帮助命令不执行其中列出的操作，可以先了解入口和参数，再按[运维手册](docs/manual/运维手册.md)操作。
+**2026-11-09 M4.5 副本环境演练**：工具状态、支持型号、清洗规则与 LeRobot 环境版本/指纹。截图时测试 worker 已停止，因此保留了“worker 没在运行”的提示；这不是当前部署的运行状态。
 
-![终端使用示例：rdp 运维命令及帮助说明](docs/manual/images/terminal-cli.png)
+![M4.5 工具库：mcap2lerobot 与 LeRobot 环境](.scratch/m4.5-cleaning/assets/05-drill/tools.png)
+
+</details>
+
+<details>
+<summary>清洗报告：质量检查、episode 选择与转换入口（完整长页）</summary>
+
+**2026-11-09 M4.5 副本环境演练**：先查看文件和 episode 的对齐/质量问题，再选择保留或剔除，从报告底部发起转换。原图 1440 × 1960，是完整页面而非单屏截图；顶部测试 worker 提示和底部未知构建号保留原样。来源：[M4.5 第 05 张演练记录](.scratch/m4.5-cleaning/issues/05-drill-docs.md)。
+
+![M4.5 清洗报告：文件质量、episode 与转换参数](.scratch/m4.5-cleaning/assets/05-drill/report.png)
+
+</details>
+
+<details>
+<summary>转换作业：六阶段进度、产物摘要与诊断（完整长页）</summary>
+
+**2026-11-09 M4.5 副本环境演练**：转换完成后生成 4 个 episode、1290 帧的样本产物。原图 1440 × 1873；图中的进度解析警告来自当时缺少 `TERM` 的已知问题，后续第 06 张已修复；日志中的 x265 是第 07 张编码器修复前的行为，不代表当前 R1 Lite 的 GPU 编码配置。保留原图用于说明作业页结构，不作为最新运行验收。
+
+![M4.5 转换作业：六阶段、产物摘要、日志与历史诊断](.scratch/m4.5-cleaning/assets/05-drill/convert-job.png)
+
+</details>
+
+<details>
+<summary>终端示例：当前版本、服务状态与预览组件命令</summary>
+
+以下为 **2026-11-10 本机只读检查的实际文本输出**，不是终端截图；未执行安装、迁移、重启、重建索引或机器人连接。非默认安装需替换部署路径或监听地址。
+
+```console
+$ ~/.local/opt/rdp/.venv/bin/rdp --version
+0.1.0 (3250fab)
+
+$ systemctl --user is-active rdp-web
+active
+
+$ systemctl --user is-active rdp-worker
+active
+
+$ curl --noproxy '*' -fsS http://127.0.0.1:8600/api/health
+{"status":"ok"}
+```
+
+`active` 表示对应 systemd 服务正在运行；`{"status":"ok"}` 只说明 Web 可以响应，不代表 worker 作业、机器人数据流或存储根都正常。worker 是否持续工作还需结合网页心跳、作业进度和日志判断；前台模式不适用上述 systemd 检查。
+
+查看运维命令及新预览组件安装命令的帮助（只显示说明，不执行安装）：
 
 ```bash
 ~/.local/opt/rdp/.venv/bin/rdp --help
 ~/.local/opt/rdp/.venv/bin/rdp status --help
+~/.local/opt/rdp/.venv/bin/rdp install-lichtblick --help
+~/.local/opt/rdp/.venv/bin/rdp install-viz-relay-wheel --help
 ```
 
-迁移数据库、重建索引和重置密码不是日常只读检查，请先阅读各自的操作前提，不要仅根据帮助截图直接执行。
+实际 `rdp --help` 中新增的命令节选：
+
+```text
+    install-lichtblick  从本地 tar.gz 校验并安装 Lichtblick 网页
+    install-viz-relay-wheel
+                        从本地 whl 校验并存放机器人预览依赖
+```
+
+准备组件和首次授权的完整流程见下方“使用示例”。迁移数据库、重建索引和重置密码不是日常只读检查，请先阅读[运维手册](docs/manual/运维手册.md)。
+
+</details>
+
+<details>
+<summary>历史截图：数据集浏览、详情、调度与终端（2026-11-08）</summary>
+
+以下保留 `0.1.0 (80a9b03)` 版本的已有截图，**未重新采集**。前端为窄视口局部截图，不是新的桌面全屏图；终端图片由当时实际命令输出排版生成，并非终端窗口截屏。旧图中的版本、数量和状态不能用于判断当前部署。
+
+**数据集浏览**：按型号、FPS、来源、场景和任务筛选，通过格式、任务或场景目录定位数据集。
+
+![历史数据集浏览：筛选条件与目录](docs/manual/images/dataset-browser.png)
+
+**数据集详情**：结构化字段与部分 14 项说明，数据大小由平台统计。
+
+![历史数据集详情：结构化信息与说明](docs/manual/images/dataset-detail.png)
+
+**后台调度**：作业类型、并发上限与运行数量。
+
+![历史后台调度：并发与运行状态](docs/manual/images/scheduling.png)
+
+**终端输出排版图**：当时的版本、健康检查与运维帮助；最新文本示例见上方折叠区。
+
+![历史终端示例：版本与服务健康检查](docs/manual/images/terminal-health.png)
+
+![历史终端示例：运维命令帮助](docs/manual/images/terminal-cli.png)
 
 </details>
 
 ## 更新（features、bugs）
 
+<details>
+<summary>展开更新记录：功能、修复与历史变更</summary>
+
+- **[2026-11-10]** README 增加已有 M4.5 清洗转换、M5 真机预览截图及当前终端检查文本；按主题折叠详细说明，旧截图标注来源日期保留。
 - **[2026-11-10]** M5 第 01–04、08、09 张已合并：RobotProfile 正式配置、平台 SSH 公钥和三层连接检查、自托管 Lichtblick 1.30.0、机器人侧 `viz_relay`，以及网页“开启预览”“停止预览”按钮。默认显示 R1 Lite 头部左目、左右手腕三路画面和关节曲线；不提供机器人控制或采集录制。
 - **[2026-11-10]** R1 Lite 已有真实画面、带宽/CPU 和平台按钮启停记录：开启时在普通用户目录 `~/rdp_viz/` 安装转发程序，停止后核对进程和端口释放。为兼容机器人没有 `ensurepip` 的环境，依赖以校验过的 wheel 解压安装，不创建 venv、不调用 pip、不使用 sudo。数据流检查第 4 层与 AutoLife 仍未完成。
 - **[2026-11-10]** M4.5 转换前数据清洗合并并升级：数据集详情的“转换”改为“清洗预览”，只读检查 MCAP 的对齐切段（照搬 mcap2lerobot 的规则，真实样本与工具 verify 62 项一致）和段内数值、画面问题，生成报告；报告里按文件和 episode 选择保留或剔除，底部“进行转换”。有剔除时用 LeRobot 0.6.2 的 `delete_episodes` 删段，重新编码沿用工具的编码器和参数（R1 Lite 为 GPU 的 hevc_nvenc）。新增迁移 0022 和依赖 mcap、zstandard、lz4、Pillow。
@@ -100,7 +154,12 @@ curl --noproxy '*' -fsS http://127.0.0.1:8600/api/health
 - **[2026-10-29]** M0 基础平台完成：账号与登录、操作日志与登录日志、后台作业、GPU 与并发调度、存储根检查、运维命令及 systemd 用户服务；使用手册和运维手册定稿，M1 数据集板块开始开发。
 - **[2026-10-28]** 完善安装和升级流程，加入问答式一键部署；修复服务停止收尾、状态目录并发初始化、systemd 路径处理等问题。
 
+</details>
+
 ## 环境安装
+
+<details>
+<summary>展开安装说明：环境要求、一键安装与默认目录</summary>
 
 ### 运行环境
 
@@ -148,7 +207,12 @@ bash scripts/setup.sh
 
 详细安装、配置与故障排查见[运维手册](docs/manual/运维手册.md)。
 
+</details>
+
 ## 功能介绍
+
+<details>
+<summary>展开功能与路线：已实现能力、M0–M6 进度及已知限制</summary>
 
 ### 已实现：M0 基础平台
 
@@ -321,7 +385,12 @@ bash scripts/setup.sh
 
 当前使用 HTTP，默认监听 `0.0.0.0:8600`；请部署在可信网络中。仅本机使用时，可在安装问答中选择 `127.0.0.1`。相关限制见[运维手册](docs/manual/运维手册.md)。
 
+</details>
+
 ## 代码运行方式
+
+<details>
+<summary>展开运行说明：服务管理、前台运行与升级</summary>
 
 ### 已安装的服务
 
@@ -375,7 +444,12 @@ bash scripts/upgrade.sh
 
 升级脚本默认部署本地 `main`，也可用 `--commit <提交或Tag>` 指定版本。源码更新不会自动改变正在运行的部署。升级前需处理完运行中或正在取消的作业；升级失败时保留现场和数据库迁移备份，按脚本输出及运维手册排查。
 
+</details>
+
 ## 使用示例
+
+<details>
+<summary>展开操作指南：数据集、机器人预览、清洗转换与空间参数</summary>
 
 ### 浏览数据集并查看作业
 
@@ -463,7 +537,12 @@ bash scripts/upgrade.sh
 
 更多操作见[使用手册](docs/manual/使用手册.md)。
 
+</details>
+
 ## 参考代码、文献
+
+<details>
+<summary>展开参考资料：需求、架构决策、调研与术语</summary>
 
 项目的设计依据、技术调研及来源集中保存在仓库中：
 
@@ -479,8 +558,12 @@ bash scripts/upgrade.sh
 | 接口文档 | 待补充 |
 | 全部文档分类 | [文档地图](docs/README.md) |
 
+</details>
 
 ## 开发与版本管理
+
+<details>
+<summary>展开开发说明：协作约定、贡献者、检查链与项目结构</summary>
 
 - 负责人（王广聪）负责需求、验收和交付确认；开发人员负责代码实现、测试和日常维护。
 - 现阶段开发人员可直接维护 `main` 分支，提交和合并代码无需负责人逐次审核。
@@ -557,3 +640,5 @@ GLOSSARY.md       统一术语
 ```
 
 查看已实现范围可从 [M1 数据集计划](.scratch/m1-datasets/spec.md)、[M1.5 决定记录](.scratch/m1.5-edit-view-classify/decisions.md)、[M2 下载计划](.scratch/m2-downloads/spec.md)、[M3 决定记录](.scratch/m3-robots-collection/decisions.md)、[M4 决定记录](.scratch/m4-tools-conversion/decisions.md)、[M4.5 决定记录](.scratch/m4.5-cleaning/decisions.md)和 [M5 地图](.scratch/m5-live-preview/map.md)开始；具体任务和进度以对应工单的 `Status:` 为准。
+
+</details>
