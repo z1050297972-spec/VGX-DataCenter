@@ -13,6 +13,105 @@ from rdp.api.tools import configure_tools
 from rdp.infra.config import ToolsConfig, load_config
 
 
+def test_member_reads_tool_readme(tmp_path: Path) -> None:
+    """M4.5-10：登录成员能读取工具目录的 README，保留 UTF-8 内容和换行。"""
+    files = tool_files(tmp_path)
+    content = "# 工具说明\n\n| 参数 | 含义 |\n| --- | --- |\n| input | 输入 |\n"
+    (files.library / "mcap2lerobot/README.md").write_text(content, encoding="utf-8")
+    with api_case(tmp_path / "state") as case:
+        configure_tools(
+            case.app, settings=ToolsConfig(registry_dir=files.registry, library_root=files.library)
+        )
+        add_actor(case)
+        assert case.login("member", SecretStr("member-updated-value")).status_code == 200
+        response = case.client.get("/api/tools/mcap2lerobot/readme")
+        assert response.status_code == 200
+        assert response.json() == {"name": "mcap2lerobot", "content": content}
+
+
+def test_missing_readme_returns_not_found(tmp_path: Path) -> None:
+    """M4.5-10：README 缺失返回 404，诊断指出工具身份和缺失文件。"""
+    files = tool_files(tmp_path)
+    with api_case(tmp_path / "state") as case:
+        configure_tools(
+            case.app, settings=ToolsConfig(registry_dir=files.registry, library_root=files.library)
+        )
+        assert case.login().status_code == 200
+        response = case.client.get("/api/tools/mcap2lerobot/readme")
+        assert response.status_code == 404
+        diagnostic = response.json()["diagnostics"][0]
+        assert {"key": "tool", "value": "mcap2lerobot"} in diagnostic["objects"]
+        assert diagnostic["actual"] == "该工具目录里没有 README.md"
+        assert diagnostic["consequence"] == "无法查看工具说明"
+
+
+def test_readme_symlink_outside_tool_directory_is_rejected(tmp_path: Path) -> None:
+    """M4.5-10：即使目标仍在工具库内，README 越出本工具目录的软链接也拒绝。"""
+    files = tool_files(tmp_path)
+    outside = files.library / "outside.md"
+    outside.write_text("不能泄露的其他工具内容", encoding="utf-8")
+    (files.library / "mcap2lerobot/README.md").symlink_to(outside)
+    with api_case(tmp_path / "state") as case:
+        configure_tools(
+            case.app, settings=ToolsConfig(registry_dir=files.registry, library_root=files.library)
+        )
+        assert case.login().status_code == 200
+        response = case.client.get("/api/tools/mcap2lerobot/readme")
+        assert response.status_code == 400
+        diagnostic = response.json()["diagnostics"][0]
+        assert diagnostic["rule"] == "tools.readme_invalid"
+        assert "越出登记边界" in diagnostic["actual"]
+        assert diagnostic["consequence"] == "无法查看工具说明"
+        assert "不能泄露的其他工具内容" not in response.text
+
+
+@pytest.mark.parametrize("size_bytes, status", [(1024 * 1024, 200), (1024 * 1024 + 1, 400)])
+def test_readme_size_limit(tmp_path: Path, size_bytes: int, status: int) -> None:
+    """M4.5-10：1 MiB 恰好可读，多一个字节即返回输入诊断，不截断后冒充完整内容。"""
+    files = tool_files(tmp_path)
+    (files.library / "mcap2lerobot/README.md").write_bytes(b"a" * size_bytes)
+    with api_case(tmp_path / "state") as case:
+        configure_tools(
+            case.app, settings=ToolsConfig(registry_dir=files.registry, library_root=files.library)
+        )
+        assert case.login().status_code == 200
+        response = case.client.get("/api/tools/mcap2lerobot/readme")
+        assert response.status_code == status
+        if status == 200:
+            assert len(response.json()["content"]) == size_bytes
+        else:
+            diagnostic = response.json()["diagnostics"][0]
+            assert diagnostic["rule"] == "tools.readme_invalid"
+            assert "1 MiB" in diagnostic["actual"]
+            assert diagnostic["consequence"] == "无法查看工具说明"
+
+
+@pytest.mark.parametrize("state", ["present", "missing", "outside", "invalid_manifest"])
+def test_readme_availability_in_list_and_detail(tmp_path: Path, state: str) -> None:
+    """M4.5-10：摘要只把有效清单、目录内存在的普通 README 标为可用，详情与列表一致。"""
+    files = tool_files(tmp_path)
+    readme = files.library / "mcap2lerobot/README.md"
+    if state in {"present", "invalid_manifest"}:
+        readme.write_text("# 使用说明", encoding="utf-8")
+    elif state == "outside":
+        outside = files.library / "outside.md"
+        outside.write_text("其他工具", encoding="utf-8")
+        readme.symlink_to(outside)
+    if state == "invalid_manifest":
+        (files.package / "tool.toml").write_text("invalid", encoding="utf-8")
+    with api_case(tmp_path / "state") as case:
+        configure_tools(
+            case.app, settings=ToolsConfig(registry_dir=files.registry, library_root=files.library)
+        )
+        assert case.login().status_code == 200
+        response = case.client.get("/api/tools")
+        assert response.status_code == 200
+        assert response.json()["items"][0]["readme_available"] is (state == "present")
+        response = case.client.get("/api/tools/mcap2lerobot")
+        assert response.status_code == 200
+        assert response.json()["readme_available"] is (state == "present")
+
+
 def test_member_reads_list_and_configuration_detail(tmp_path: Path) -> None:
     """验收 4：成员可看列表和详情；配置全文、原始字节哈希、命令和源码说明均返回。"""
     files = tool_files(tmp_path)

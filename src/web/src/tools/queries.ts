@@ -2,7 +2,7 @@
 import type { ToolList } from "../api/tools";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
-import { getTool, getTools, type ToolDetail } from "../api/tools";
+import { getTool, getTools, getToolReadme, type ToolDetail, type ToolReadme } from "../api/tools";
 
 // 工具登记可在部署时改变，每次进入都重新读取；毫秒值 0 表示立即陈旧及离页清理。
 const TOOL_STALE_TIME_MS = 0;
@@ -49,5 +49,24 @@ export function useTool(name: string): UseQueryResult<ToolDetail> {
     queryKey: ["tools", identity.data?.account_id, name],
     enabled: !!identity.data && !identity.data.must_change_password,
     queryFn: ({ signal }) => getTool({ client, signal, payload: name }),
+  });
+}
+
+/**
+ * 在说明抽屉打开时读取工具 README。
+ * @param name - 列表中的非空登记名称。
+ * @returns README 查询状态，失败交给统一诊断组件。
+ * @throws Error 缺少账号 Provider；请求错误保留在 query.error。
+ * @sideEffects 请求指定工具说明，缓存按账号、工具名和说明用途隔离，不改 URL。
+ * @timeSemantics 每次打开重新读取；关闭即取消并清理缓存，无轮询或自动重试。
+ */
+export function useToolReadme(name: string): UseQueryResult<ToolReadme> {
+  const client = useAccountClient();
+  const identity = useCurrentAccount();
+  return useQuery({
+    ...queryOptions,
+    queryKey: ["tools", identity.data?.account_id, name, "readme"],
+    enabled: !!identity.data && !identity.data.must_change_password,
+    queryFn: ({ signal }) => getToolReadme({ client, signal, payload: name }),
   });
 }

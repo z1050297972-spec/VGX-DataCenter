@@ -8541,6 +8541,10 @@
             ],
             "title": "Program Path"
           },
+          "readme_available": {
+            "title": "Readme Available",
+            "type": "boolean"
+          },
           "robot_models": {
             "items": {
               "type": "string"
@@ -8621,6 +8625,7 @@
           "diagnostics",
           "program_path",
           "sha256_prefix",
+          "readme_available",
           "configurations",
           "command",
           "source_commit",
@@ -8651,6 +8656,26 @@
         "title": "ToolListResponse",
         "type": "object"
       },
+      "ToolReadmeResponse": {
+        "additionalProperties": false,
+        "description": "工具本体目录的只读使用说明。\n\nAttributes:\n    name: 登记包目录名，与工具列表中的名称一致。\n    content: README 的完整 UTF-8 文本，原始字节不超过 1 MiB，保留换行。",
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "content"
+        ],
+        "title": "ToolReadmeResponse",
+        "type": "object"
+      },
       "ToolStatus": {
         "enum": [
           "可用",
@@ -8662,7 +8687,7 @@
       },
       "ToolSummaryResponse": {
         "additionalProperties": false,
-        "description": "工具列表中的一条状态。\n\nAttributes:\n    name: 登记包目录名。\n    version: 程序版本；清单无效时为 None。\n    summary: 工具用途；清单无效时为 None。\n    input_format: 输入格式；清单无效时为 None。\n    output_format: 输出格式；清单无效时为 None。\n    output_versions: 按清单顺序的输出版本；清单无效时为空。\n    robot_models: 按清单顺序的适用型号字符串；清单无效时为空。\n    cleaning_models: 按清单顺序的有清洗规则型号；清单无效时为空。\n    needs_gpu: 是否必须分配 GPU；清单无效时为 None。\n    status: 四种工具状态之一。\n    diagnostics: 统一五段诊断，可用时为空。\n    program_path: 已核对边界的程序绝对路径；清单无效时为 None。\n    sha256_prefix: 登记的程序 SHA-256 前 12 位；清单无效时为 None。",
+        "description": "工具列表中的一条状态。\n\nAttributes:\n    name: 登记包目录名。\n    version: 程序版本；清单无效时为 None。\n    summary: 工具用途；清单无效时为 None。\n    input_format: 输入格式；清单无效时为 None。\n    output_format: 输出格式；清单无效时为 None。\n    output_versions: 按清单顺序的输出版本；清单无效时为空。\n    robot_models: 按清单顺序的适用型号字符串；清单无效时为空。\n    cleaning_models: 按清单顺序的有清洗规则型号；清单无效时为空。\n    needs_gpu: 是否必须分配 GPU；清单无效时为 None。\n    status: 四种工具状态之一。\n    diagnostics: 统一五段诊断，可用时为空。\n    program_path: 已核对边界的程序绝对路径；清单无效时为 None。\n    sha256_prefix: 登记的程序 SHA-256 前 12 位；清单无效时为 None。\n    readme_available: 工具目录内是否存在普通 README.md；清单无效或路径越界时为 False。",
         "properties": {
           "cleaning_models": {
             "items": {
@@ -8733,6 +8758,10 @@
             ],
             "title": "Program Path"
           },
+          "readme_available": {
+            "title": "Readme Available",
+            "type": "boolean"
+          },
           "robot_models": {
             "items": {
               "type": "string"
@@ -8790,7 +8819,8 @@
           "status",
           "diagnostics",
           "program_path",
-          "sha256_prefix"
+          "sha256_prefix",
+          "readme_available"
         ],
         "title": "ToolSummaryResponse",
         "type": "object"
@@ -24970,6 +25000,144 @@
           }
         ],
         "summary": "Get Tool",
+        "tags": [
+          "tools"
+        ]
+      }
+    },
+    "/api/tools/{name}/readme": {
+      "get": {
+        "description": "向登录成员返回已登记工具的 README 正文。\n\nArgs:\n    name: 工具列表中的登记名称，只在已认证的登记快照中查找。\n    request: 当前请求，仅使用服务端装配的工具库路径。\n    registry: 经过与工具详情相同认证依赖加载的登记快照。\n\nReturns:\n    工具名称和原始 UTF-8 正文，最多 1 MiB，不转换 Markdown 或 HTML。\n\nRaises:\n    _ToolNotFoundError: 工具未登记或 README 不存在，统一返回 404。\n    InputError: 清单无效、README 越界、非普通文件、超限或编码错误，统一返回 400。\n    ExternalError: 登记根目录或 README 无法读取，统一返回 502。\n\nSide Effects:\n    只读登记包、程序指纹和 README；README 的 O_NOATIME 因 EPERM 回退时可能更新访问时间。\n\nTime Semantics:\n    使用本次请求的登记快照定位文件，同步有界读取本地正文；无缓存、轮询或重试。",
+        "operationId": "get_tool_readme",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolReadmeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Tool Readme",
         "tags": [
           "tools"
         ]

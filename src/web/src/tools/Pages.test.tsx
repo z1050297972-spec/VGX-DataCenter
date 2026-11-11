@@ -1,7 +1,7 @@
 // M4-01 验收 5：真实页面和路由只替换 HTTP 传输，验证不可用工具的可见状态和诊断。
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
-import type { ToolList, LeRobotEnvironment } from "../api/tools";
+import type { ToolDetail, ToolList, LeRobotEnvironment } from "../api/tools";
 import { cleaningTools } from "../cleaning/testSupport";
 import { mountPage, pageFetch } from "../scheduling/pageTestSupport";
 
@@ -19,6 +19,7 @@ it("工具库中的指纹不符显示红色状态，展开后显示五段诊断"
         robot_models: ["Galaxea R1 Lite"],
         cleaning_models: ["Galaxea R1 Lite"],
         needs_gpu: true,
+        readme_available: false,
         status: "指纹不符",
         program_path: "/tmp/tools/mcap2lerobot",
         sha256_prefix: "f09daa6af5d4",
@@ -59,6 +60,120 @@ it("工具库中的指纹不符显示红色状态，展开后显示五段诊断"
       screen.getByText(/实际：sha256 0123456789ab，16 字节；期望：sha256 f09daa6af5d4/),
     ).toBeTruthy();
     expect(screen.getByText(/后果：不能用于转换/)).toBeTruthy();
+  } finally {
+    page.close();
+  }
+});
+
+// 负责人要求：详情加载成功后不显示程序指纹和源码说明，接口仍可返回这些字段。
+it("工具详情不显示程序 SHA-256、源码提交和源码状态说明", async () => {
+  const detail: ToolDetail = {
+    name: "mcap2lerobot",
+    version: "1",
+    summary: "转换工具",
+    input_format: "mcap",
+    output_format: "lerobot",
+    output_versions: ["v3.0"],
+    robot_models: ["R1"],
+    cleaning_models: ["R1"],
+    needs_gpu: true,
+    readme_available: false,
+    status: "可用",
+    program_path: "/tmp/tools/mcap2lerobot",
+    sha256_prefix: "f09daa6af5d4",
+    source_commit: "commit-for-display-only",
+    source_note: "源码状态测试说明",
+    diagnostics: [],
+    configurations: [],
+    command: null,
+  };
+  const fallback = pageFetch();
+  const page = mountPage("/tools", (request) => {
+    const path = new URL(request.url).pathname;
+    if (path === "/api/tools") return Promise.resolve(Response.json(cleaningTools));
+    if (path === "/api/tools/mcap2lerobot") return Promise.resolve(Response.json(detail));
+    return fallback(request);
+  });
+  try {
+    fireEvent.click(await screen.findByRole("button", { name: "mcap2lerobot" }));
+    const drawer = await screen.findByRole("dialog", { name: "mcap2lerobot · 工具详情" });
+    expect(await within(drawer).findByText("/tmp/tools/mcap2lerobot")).toBeTruthy();
+    expect(drawer.textContent).not.toContain("程序 SHA-256（前 12 位）");
+    expect(drawer.textContent).not.toContain("源码提交（仅说明）");
+    expect(drawer.textContent).not.toContain("源码状态说明");
+    expect(drawer.textContent).not.toContain("f09daa6af5d4");
+    expect(drawer.textContent).not.toContain("commit-for-display-only");
+    expect(drawer.textContent).not.toContain("源码状态测试说明");
+  } finally {
+    page.close();
+  }
+});
+
+// M4.5-10：可用按钮打开说明并按 GFM 渲染标题和表格；原始 HTML 不进入页面。
+it("点击说明后显示 Markdown 标题与表格，并忽略原始 HTML", async () => {
+  const fallback = pageFetch();
+  const page = mountPage("/tools", (request) => {
+    const path = new URL(request.url).pathname;
+    if (path === "/api/tools")
+      return Promise.resolve(
+        Response.json({
+          ...cleaningTools,
+          items: cleaningTools.items.map((tool) => ({ ...tool, readme_available: true })),
+        }),
+      );
+    if (path === "/api/tools/mcap2lerobot/readme")
+      return Promise.resolve(
+        Response.json({
+          name: "mcap2lerobot",
+          content:
+            '# 使用说明\n\n| 参数 | 含义 |\n| --- | --- |\n| input | 输入文件 |\n\n[文档](https://example.com)\n\n<script>alert("unsafe")</script>\n\n<div data-testid="raw-html">原始 HTML 内容</div>',
+        }),
+      );
+    return fallback(request);
+  });
+  try {
+    const button = await screen.findByRole("button", { name: "说明" });
+    expect(button.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(button);
+    const drawer = await screen.findByRole("dialog", { name: "mcap2lerobot 说明" });
+    expect(await within(drawer).findByRole("heading", { name: "使用说明" })).toBeTruthy();
+    const table = within(drawer).getByRole("table");
+    expect(within(table).getByRole("columnheader", { name: "参数" })).toBeTruthy();
+    expect(within(table).getByRole("cell", { name: "输入文件" })).toBeTruthy();
+    expect(within(drawer).getByRole("link", { name: "文档" }).getAttribute("target")).toBe(
+      "_blank",
+    );
+    expect(within(drawer).getByRole("link", { name: "文档" }).getAttribute("rel")).toBe(
+      "noreferrer",
+    );
+    expect(drawer.querySelector("script")).toBeNull();
+    expect(within(drawer).queryByTestId("raw-html")).toBeNull();
+    expect(within(drawer).queryByText('alert("unsafe")')).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "mcap2lerobot · 工具详情" })).toBeNull();
+  } finally {
+    page.close();
+  }
+});
+
+// M4.5-10：缺少 README 时按钮禁用且给出原因，不允许打开空说明。
+it("没有 README 时说明按钮禁用并提示原因", async () => {
+  const fallback = pageFetch();
+  const page = mountPage("/tools", (request) =>
+    new URL(request.url).pathname === "/api/tools"
+      ? Promise.resolve(
+          Response.json({
+            ...cleaningTools,
+            items: cleaningTools.items.map((tool) => ({ ...tool, readme_available: false })),
+          }),
+        )
+      : fallback(request),
+  );
+  try {
+    expect((await screen.findByRole("button", { name: "说明" })).hasAttribute("disabled")).toBe(
+      true,
+    );
+    expect(screen.getByText("工具目录里没有 README.md")).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "mcap2lerobot 说明" })).toBeNull();
   } finally {
     page.close();
   }

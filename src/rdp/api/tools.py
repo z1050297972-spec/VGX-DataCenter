@@ -1,6 +1,6 @@
-"""工具库 HTTP 入口（M4-01），成员只读；状态及诊断均由工具领域生成。
+"""工具库 HTTP 入口（M4-01、M4.5-10），成员只读；投影登记状态并转换 README 读取诊断。
 
-ADR 0006 的例外仅允许读登记包与工具程序的 stat/指纹，不访问其他存储根文件。
+ADR 0006 的例外与 M4.5-10 允许读登记包、工具程序指纹和 README，不访问其他存储根文件。
 不执行转换工具、不写工具库或数据库；列表请求可只读探测 LeRobot 环境。
 应用装配和 OpenAPI 导出不触发工具文件读取或环境探测。
 """
@@ -11,7 +11,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, FastAPI, Request
 
 from rdp.api.account_auth import AccountRequestContext, get_authenticated_context
-from rdp.api.tool_schemas import ToolDetailResponse, ToolListResponse, ToolSummaryResponse
+from rdp.api.tool_schemas import (
+    ToolDetailResponse,
+    ToolListResponse,
+    ToolReadmeResponse,
+    ToolSummaryResponse,
+)
 from rdp.infra.config import ToolsConfig
 from rdp.infra.diagnostics import (
     DefectError,
@@ -23,7 +28,7 @@ from rdp.infra.diagnostics import (
     InputError,
 )
 from rdp.jobs.conversion.lerobot import inspect_environment
-from rdp.tools.registry import RegisteredTool, ToolRegistry, load_tool_registry
+from rdp.tools.registry import RegisteredTool, ToolRegistry, load_tool_registry, read_tool_readme
 
 router = APIRouter(prefix="/api/tools", tags=["tools"])
 AuthenticatedContext = Annotated[AccountRequestContext, Depends(get_authenticated_context)]
@@ -133,6 +138,88 @@ def get_tool(name: str, registry: RegistryDependency) -> ToolDetailResponse:
     Time Semantics:
         详情沿用本次请求的登记快照；不自动重试，不解释源码提交时间。
     """
+    item = _find_tool(name, registry)
+    manifest = item.manifest
+    return ToolDetailResponse(
+        **_summary(item).model_dump(),
+        configurations=item.configurations,
+        command=manifest.command if manifest else None,
+        source_commit=manifest.tool.source_commit if manifest else None,
+        source_note=manifest.tool.source_note if manifest else None,
+    )
+
+
+@router.get("/{name}/readme", response_model=ToolReadmeResponse, operation_id="get_tool_readme")
+def get_tool_readme(
+    name: str, request: Request, registry: RegistryDependency
+) -> ToolReadmeResponse:
+    """向登录成员返回已登记工具的 README 正文。
+
+    Args:
+        name: 工具列表中的登记名称，只在已认证的登记快照中查找。
+        request: 当前请求，仅使用服务端装配的工具库路径。
+        registry: 经过与工具详情相同认证依赖加载的登记快照。
+
+    Returns:
+        工具名称和原始 UTF-8 正文，最多 1 MiB，不转换 Markdown 或 HTML。
+
+    Raises:
+        _ToolNotFoundError: 工具未登记或 README 不存在，统一返回 404。
+        InputError: 清单无效、README 越界、非普通文件、超限或编码错误，统一返回 400。
+        ExternalError: 登记根目录或 README 无法读取，统一返回 502。
+
+    Side Effects:
+        只读登记包、程序指纹和 README；README 的 O_NOATIME 因 EPERM 回退时可能更新访问时间。
+
+    Time Semantics:
+        使用本次请求的登记快照定位文件，同步有界读取本地正文；无缓存、轮询或重试。
+    """
+    item = _find_tool(name, registry)
+    try:
+        content = read_tool_readme(item, request.app.state.tools_config.library_root)
+    except FileNotFoundError as error:
+        raise _ToolNotFoundError(
+            (_readme_diagnostic(name, "tools.readme_missing", "该工具目录里没有 README.md"),)
+        ) from error
+    except ValueError as error:
+        raise InputError((_readme_diagnostic(name, "tools.readme_invalid", str(error)),)) from error
+    except OSError as error:
+        raise ExternalError(
+            (
+                _readme_diagnostic(
+                    name,
+                    "tools.readme_read",
+                    f"README.md 无法读取（{type(error).__name__}）",
+                    category=DiagnosticCategory.EXTERNAL,
+                ),
+            )
+        ) from error
+    return ToolReadmeResponse(name=item.name, content=content)
+
+
+def _readme_diagnostic(
+    name: str, rule: str, actual: str, *, category: DiagnosticCategory = DiagnosticCategory.INPUT
+) -> Diagnostic:
+    """给说明读取失败附上工具和文件身份，复用统一诊断展示。"""
+    return Diagnostic(
+        level=DiagnosticLevel.ERROR,
+        category=category,
+        stage="工具说明",
+        source="平台",
+        objects=(
+            DiagnosticObject(key="tool", value=name),
+            DiagnosticObject(key="file", value="README.md"),
+        ),
+        rule=rule,
+        actual=actual,
+        expected="工具目录内可读的 UTF-8 README.md，大小不超过 1 MiB",
+        consequence="无法查看工具说明",
+        next_step="请执行线检查工具目录里的 README.md 和读取权限，然后重新打开说明",
+    )
+
+
+def _find_tool(name: str, registry: ToolRegistry) -> RegisteredTool:
+    """只按快照中的登记名称查找，避免把请求参数当作目录路径。"""
     item = next((item for item in registry.items if item.name == name), None)
     if item is None:
         raise _ToolNotFoundError(
@@ -151,14 +238,7 @@ def get_tool(name: str, registry: RegistryDependency) -> ToolDetailResponse:
                 ),
             )
         )
-    manifest = item.manifest
-    return ToolDetailResponse(
-        **_summary(item).model_dump(),
-        configurations=item.configurations,
-        command=manifest.command if manifest else None,
-        source_commit=manifest.tool.source_commit if manifest else None,
-        source_note=manifest.tool.source_note if manifest else None,
-    )
+    return item
 
 
 def _summary(item: RegisteredTool) -> ToolSummaryResponse:
@@ -174,6 +254,7 @@ def _summary(item: RegisteredTool) -> ToolSummaryResponse:
         robot_models=tuple(manifest.models) if manifest else (),
         cleaning_models=tuple(manifest.cleaning) if manifest else (),
         needs_gpu=manifest.runtime.needs_gpu if manifest else None,
+        readme_available=item.readme_available,
         status=item.status,
         diagnostics=item.diagnostics,
         program_path=str(item.program_path) if item.program_path else None,

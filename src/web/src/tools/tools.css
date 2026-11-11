@@ -18,3 +18,54 @@
 .tools-loading {
   padding: var(--rdp-space-6);
 }
+
+.tools-readme {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--rdp-text);
+}
+
+.tools-readme-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-block: var(--rdp-space-4);
+}
+
+.tools-readme-table {
+  border-collapse: collapse;
+  color: var(--rdp-text);
+  background: var(--rdp-surface);
+}
+
+/* 单元格由 react-markdown 的 GFM 表格生成，按标签补主题样式，不重建表格语义。 */
+.tools-readme-table th,
+.tools-readme-table td {
+  padding: var(--rdp-space-2) var(--rdp-space-3);
+  border: var(--rdp-line) solid var(--rdp-border);
+}
+
+.tools-readme-table th {
+  font-family: var(--rdp-mono);
+  background: var(--rdp-subtle);
+}
+
+/* 提高到与 Typography 默认 pre 规则一致的优先级，确保长代码横向滚动而非强制换行。 */
+.tools-readme .tools-readme-code {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: var(--rdp-space-4);
+  border: var(--rdp-line) solid var(--rdp-border);
+  border-radius: var(--rdp-radius-small);
+  font-family: var(--rdp-mono);
+  white-space: pre;
+  overflow-wrap: normal;
+  color: var(--rdp-text);
+  background: var(--rdp-subtle);
+}
+
+/* antd Typography 的默认 pre/code 样式需要随主题覆盖；正文结构由 Markdown 生成。 */
+.tools-readme code {
+  font-family: var(--rdp-mono);
+  color: var(--rdp-text);
+  background: var(--rdp-subtle);
+}

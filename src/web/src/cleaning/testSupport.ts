@@ -150,6 +150,7 @@ export const cleaningTools: ToolList = {
       diagnostics: [],
       program_path: "/tmp/tool",
       sha256_prefix: "binary",
+      readme_available: false,
     },
   ],
   lerobot_environment: {

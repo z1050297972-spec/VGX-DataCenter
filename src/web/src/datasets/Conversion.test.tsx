@@ -53,6 +53,7 @@ it("只列有清洗规则的型号，提交预览参数后跳到作业详情", a
         diagnostics: [],
         program_path: "/tmp/library/mcap2lerobot",
         sha256_prefix: "123456789abc",
+        readme_available: false,
       },
     ],
   };
