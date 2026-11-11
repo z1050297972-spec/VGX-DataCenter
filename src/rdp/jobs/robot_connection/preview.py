@@ -20,6 +20,7 @@ from rdp.infra.diagnostics import (
 )
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.registry import JobDefinition
+from rdp.jobs.robot_connection import _preview_dataflow as dataflow
 from rdp.jobs.robot_connection import _preview_scripts as scripts
 from rdp.jobs.robot_connection._process import run
 from rdp.jobs.robot_connection._session import ConnectionDependencies, ConnectionParameters, connect
@@ -139,10 +140,9 @@ def _start(
                 ),
             )
         )
+    config = build_relay_config(profile, address)
     try:
-        package_id, archive = scripts.bundle(
-            dependencies.relay_source, build_relay_config(profile, address)
-        )
+        package_id, archive = scripts.bundle(dependencies.relay_source, config)
     except OSError as error:
         raise DefectError(
             (
@@ -167,7 +167,7 @@ def _start(
         )
     has_wheel, has_site, has_package = (s == "1" for s in states[1:])
     prefix = "网络：通过；登录：通过；就绪：" + ("有警告" if warnings else "通过")
-    _progress(context, prefix + "；安装：进行中", done=3, total=5, warnings=warnings)
+    _progress(context, prefix + "；安装：进行中", done=3, total=6, warnings=warnings)
     try:
         wheel_data = None if has_wheel else wheel.read_bytes()
     except OSError as error:
@@ -185,7 +185,7 @@ def _start(
     )
     installed = "已是最新" if has_wheel and has_site and has_package else "已安装"
     _progress(
-        context, prefix + f"；安装：{installed}；启动：进行中", done=4, total=5, warnings=warnings
+        context, prefix + f"；安装：{installed}；启动：进行中", done=4, total=6, warnings=warnings
     )
     result = _remote(
         context,
@@ -208,13 +208,30 @@ def _start(
         )
     state = "已开启" if result == "RDP_CONTROL started" else "已在运行"
     host = f"[{address}]" if ":" in address else address
-    _progress(
+    prefix += f"；安装：{installed}；启动：{state}"
+    _progress(context, prefix + "；数据流：进行中", done=5, total=6, warnings=warnings)
+    # 必须在启动确认后检查；无数据只影响作业结果，不回滚已开启的服务。
+    summary, diagnostics = dataflow.check(context, ssh, package_id, profile, config["routes"])
+    _finish_dataflow(
         context,
-        prefix + f"；安装：{installed}；启动：{state}；ws://{host}:{PREVIEW_CHANNELS['port']}",
-        done=5,
-        total=5,
-        warnings=warnings,
+        prefix + f"；数据流：{summary}；ws://{host}:{PREVIEW_CHANNELS['port']}",
+        diagnostics,
+        warnings,
     )
+
+
+def _finish_dataflow(
+    context: ExecutionContext, summary: str, diagnostics: tuple[Diagnostic, ...], warnings: int
+) -> None:
+    """先保存完整摘要和警告，再让执行器记录失败；不回收已启动的预览。"""
+    errors = tuple(d for d in diagnostics if d.level == DiagnosticLevel.ERROR)
+    for diagnostic in diagnostics:
+        if diagnostic.level == DiagnosticLevel.WARNING:
+            context.reporter.diagnostic(diagnostic)
+            warnings += 1
+    _progress(context, summary, done=6, total=6, warnings=warnings)
+    if errors:
+        raise ExternalError(errors)
 
 
 def _remote(

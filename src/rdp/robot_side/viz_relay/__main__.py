@@ -2,6 +2,7 @@
 
 import argparse
 import importlib
+import json
 import logging
 import sys
 import time
@@ -13,6 +14,7 @@ from . import _sdk
 from ._lifecycle import shutdown_signals
 from .config import Config, load_config
 from .core import Relay
+from .probe import run_probe
 
 logger = logging.getLogger(__name__)
 
@@ -101,29 +103,49 @@ def _serve(config: Config) -> None:
                 last_report_s = now_s
 
 
+def _probe(config: Config) -> None:
+    """只建探测节点；先回收所有 ROS 资源，再输出完整结果，停止时不报结果。"""
+    try:
+        from ._ros import RosSource
+    except (ImportError, OSError) as error:
+        raise _StartupError("import_failed", "无法导入 ROS 探测依赖") from error
+
+    with shutdown_signals() as stopped:
+        with ExitStack() as resources:
+            source = RosSource(config.qos_reliability, node_name="rdp_viz_probe")
+            resources.callback(source.close)
+            result = run_probe(config.routes, source, time.monotonic, stopped.is_set)
+        if result is not None and not stopped.is_set():
+            payload = {"window_s": result.window_s, "counts": result.counts}
+            _line("RDP_VIZ_PROBE " + json.dumps(payload, ensure_ascii=False, sort_keys=True))
+
+
 def main(argv: list[str] | None = None) -> int:
-    """执行配置自检或启动机器人只读转发服务，输出第 09 张约定的单行协议。
+    """执行配置自检、数据流探测或只读转发，输出第 09/12 张约定的单行协议。
 
     Args:
         argv: 不含程序名的参数列表；None 使用进程参数。必须提供 --config 路径。
 
     Returns:
-        自检成功或收到停止信号返回 0；配置、依赖导入或启动失败返回 2。
+        自检、探测成功或收到停止信号返回 0；配置、依赖导入或启动失败返回 2。
 
     Raises:
         SystemExit: argparse 在 --help 时按标准命令行行为退出 0。
 
     Side Effects:
-        读取配置，写 stdout/stderr；非自检模式建立 ROS 节点和只读 WebSocket，
+        读取配置，写 stdout/stderr；探测只建 ROS 节点和订阅，服务另建只读 WebSocket，
         退出时回收。程序不写文件；ROS 日志位置由外部 ROS_LOG_DIR 决定。
 
     Time Semantics:
         自检不建节点、不开端口；服务持续到 SIGINT/SIGTERM，停止期限为 3 秒。
-        接收限频用单调纳秒，视频时刻保留源 header，统计每 60 秒输出。
+        探测按单调秒预热 2 秒再计数 5 秒；服务接收限频用单调纳秒，
+        视频时刻保留源 header，服务统计每 60 秒输出。
     """
     parser = _Parser(description="R1 Lite 只读预览转发")
     parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--self-test", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--self-test", action="store_true")
+    mode.add_argument("--probe", action="store_true")
     try:
         args = parser.parse_args(argv)
         config = load_config(Path(args.config))
@@ -131,7 +153,10 @@ def main(argv: list[str] | None = None) -> int:
         _line("RDP_VIZ_ERROR config_invalid 配置文件或命令行不符合约定")
         return 2
     try:
-        for module in ("foxglove", "rclpy", "sensor_msgs.msg"):
+        modules = ("rclpy", "sensor_msgs.msg")
+        if not args.probe:
+            modules = ("foxglove", *modules)
+        for module in modules:
             importlib.import_module(module)
     except (ImportError, OSError):
         _line("RDP_VIZ_ERROR import_failed 无法导入 Foxglove 或 ROS 消息依赖")
@@ -140,10 +165,15 @@ def main(argv: list[str] | None = None) -> int:
         _line("RDP_VIZ_SELFTEST ok")
         return 0
     logging.basicConfig(
-        level=logging.INFO, stream=sys.stdout, format="%(levelname)s %(name)s %(message)s"
+        level=logging.INFO,
+        stream=sys.stderr if args.probe else sys.stdout,
+        format="%(levelname)s %(name)s %(message)s",
     )
     try:
-        _serve(config)
+        if args.probe:
+            _probe(config)
+        else:
+            _serve(config)
     except _StartupError as error:
         _line(f"RDP_VIZ_ERROR {error.code} {error}")
         logger.exception("转发启动失败 code=%s", error.code)
