@@ -1,7 +1,7 @@
 // M4-01 验收 5：真实页面和路由只替换 HTTP 传输，验证不可用工具的可见状态和诊断。
 import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
-import type { ToolList, LeRobotEnvironment } from "../api/tools";
+import type { ToolDetail, ToolList, LeRobotEnvironment } from "../api/tools";
 import { cleaningTools } from "../cleaning/testSupport";
 import { mountPage, pageFetch } from "../scheduling/pageTestSupport";
 
@@ -60,6 +60,50 @@ it("工具库中的指纹不符显示红色状态，展开后显示五段诊断"
       screen.getByText(/实际：sha256 0123456789ab，16 字节；期望：sha256 f09daa6af5d4/),
     ).toBeTruthy();
     expect(screen.getByText(/后果：不能用于转换/)).toBeTruthy();
+  } finally {
+    page.close();
+  }
+});
+
+// 负责人要求：详情加载成功后不显示程序指纹和源码说明，接口仍可返回这些字段。
+it("工具详情不显示程序 SHA-256、源码提交和源码状态说明", async () => {
+  const detail: ToolDetail = {
+    name: "mcap2lerobot",
+    version: "1",
+    summary: "转换工具",
+    input_format: "mcap",
+    output_format: "lerobot",
+    output_versions: ["v3.0"],
+    robot_models: ["R1"],
+    cleaning_models: ["R1"],
+    needs_gpu: true,
+    readme_available: false,
+    status: "可用",
+    program_path: "/tmp/tools/mcap2lerobot",
+    sha256_prefix: "f09daa6af5d4",
+    source_commit: "commit-for-display-only",
+    source_note: "源码状态测试说明",
+    diagnostics: [],
+    configurations: [],
+    command: null,
+  };
+  const fallback = pageFetch();
+  const page = mountPage("/tools", (request) => {
+    const path = new URL(request.url).pathname;
+    if (path === "/api/tools") return Promise.resolve(Response.json(cleaningTools));
+    if (path === "/api/tools/mcap2lerobot") return Promise.resolve(Response.json(detail));
+    return fallback(request);
+  });
+  try {
+    fireEvent.click(await screen.findByRole("button", { name: "mcap2lerobot" }));
+    const drawer = await screen.findByRole("dialog", { name: "mcap2lerobot · 工具详情" });
+    expect(await within(drawer).findByText("/tmp/tools/mcap2lerobot")).toBeTruthy();
+    expect(drawer.textContent).not.toContain("程序 SHA-256（前 12 位）");
+    expect(drawer.textContent).not.toContain("源码提交（仅说明）");
+    expect(drawer.textContent).not.toContain("源码状态说明");
+    expect(drawer.textContent).not.toContain("f09daa6af5d4");
+    expect(drawer.textContent).not.toContain("commit-for-display-only");
+    expect(drawer.textContent).not.toContain("源码状态测试说明");
   } finally {
     page.close();
   }

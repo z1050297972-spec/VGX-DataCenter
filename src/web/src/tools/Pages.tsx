@@ -293,13 +293,6 @@ function ToolFacts({ tool }: { tool: ToolDetail }): ReactElement {
           children: <Tag color={tool.status === "可用" ? "green" : "red"}>{tool.status}</Tag>,
         },
         { key: "path", label: "程序路径", children: displayText(tool.program_path) },
-        {
-          key: "sha256",
-          label: "程序 SHA-256（前 12 位）",
-          children: <Typography.Text code>{tool.sha256_prefix ?? "—"}</Typography.Text>,
-        },
-        { key: "commit", label: "源码提交（仅说明）", children: displayText(tool.source_commit) },
-        { key: "note", label: "源码状态说明", children: displayText(tool.source_note) },
       ]}
     />
   );
