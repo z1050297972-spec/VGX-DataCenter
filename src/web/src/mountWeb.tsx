@@ -9,12 +9,14 @@ import { appQueryClient, router } from "./router";
 // 媒体查询是浏览器外部状态；没有 matchMedia 时（例如部分测试环境）使用浅色。
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
-// antd 预计算派生色必须使用字面量种子；以下值与 shell.css 的 --rdp-* 同步（ui-style 08）。
+// antd 预计算派生色必须使用字面量种子；以下值与 shell.css 的 --rdp-* 同步
+// （结构沿用 ui-style 08；浅色取值为 ui-style 09「暖色有机」，深色仍是 08）。
 // 字体、圆角和动效为两种主题共用；CSS 变量继续承担系统偏好与 plain 的即时降级。
+// 圆角对应 --rdp-radius-control / -small / -popup；卡片和弹窗的 24px 在组件 token 里单独给。
 const STUDIO_THEME_TOKEN = {
-  borderRadius: 8,
-  borderRadiusSM: 4,
-  borderRadiusLG: 14,
+  borderRadius: 12,
+  borderRadiusSM: 6,
+  borderRadiusLG: 16,
   fontFamily:
     '"Inter Tight", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif',
   fontFamilyCode: '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace',
@@ -32,29 +34,31 @@ const STUDIO_THEME_TOKEN = {
 };
 const LIGHT_THEME_TOKEN = {
   ...STUDIO_THEME_TOKEN,
-  colorPrimary: "#2a45c9",
-  colorPrimaryHover: "#1f37a8",
-  colorPrimaryActive: "#182b85",
-  colorPrimaryBg: "#eceffb",
-  colorPrimaryBgHover: "#dfe4f8",
-  colorPrimaryBorder: "#b9c3ef",
-  colorPrimaryBorderHover: "#8f9fe4",
-  colorPrimaryText: "#2a45c9",
-  colorPrimaryTextHover: "#1f37a8",
-  colorPrimaryTextActive: "#182b85",
-  colorLink: "#2a45c9",
-  colorLinkHover: "#1f37a8",
-  colorLinkActive: "#182b85",
+  // 强调色是深橙；珊瑚红只用于停靠菜单和背景色块，不进 antd 种子（和危险红分不开）。
+  colorPrimary: "#a64b08",
+  colorPrimaryHover: "#8f3f05",
+  colorPrimaryActive: "#783403",
+  colorPrimaryBg: "#ffe9d6",
+  colorPrimaryBgHover: "#ffdcc0",
+  colorPrimaryBorder: "#f3c39c",
+  colorPrimaryBorderHover: "#e9a56f",
+  colorPrimaryText: "#a64b08",
+  colorPrimaryTextHover: "#8f3f05",
+  colorPrimaryTextActive: "#783403",
+  colorLink: "#a64b08",
+  colorLinkHover: "#8f3f05",
+  colorLinkActive: "#783403",
   colorBgContainer: "#ffffff",
   colorBgElevated: "#ffffff",
-  colorBgLayout: "#f5f5f3",
-  colorText: "#161616",
-  colorTextHeading: "#161616",
-  colorTextSecondary: "#6e6e6a",
-  colorBorder: "#cfcfca",
-  colorBorderSecondary: "#e2e2de",
-  colorSplit: "#e2e2de",
+  colorBgLayout: "#fffaf4",
+  colorText: "#33272a",
+  colorTextHeading: "#33272a",
+  colorTextSecondary: "#6b5b57",
+  colorBorder: "#ebc5ac",
+  colorBorderSecondary: "#f3dccb",
+  colorSplit: "#f3dccb",
 };
+// 深色保持 ui-style 08 的取值，工单 09 只换浅色。
 const DARK_THEME_TOKEN = {
   ...STUDIO_THEME_TOKEN,
   // 仅文本强调色固定；复选框、开关及禁用态由 darkAlgorithm 推导。
@@ -93,7 +97,9 @@ const STUDIO_COMPONENTS: ThemeConfig["components"] = {
     primaryShadow: "none",
     dangerShadow: "none",
   },
-  Card: { headerFontSize: 12, headerFontSizeSM: 12 },
+  // 卡片和弹窗用 --rdp-radius-card 的 24px；全局 borderRadiusLG 留给下拉、气泡等弹层。
+  Card: { headerFontSize: 12, headerFontSizeSM: 12, borderRadiusLG: 24 },
+  Modal: { borderRadiusLG: 24 },
   // 状态徽章仅去掉填充，Success/Error/Warning 的文字和边框 token 保持不变。
   Tag: {
     defaultBg: "transparent",
@@ -121,13 +127,24 @@ const STUDIO_COMPONENTS: ThemeConfig["components"] = {
     cellPaddingBlockMD: 13,
     cellPaddingBlockSM: 13,
   },
-  Segmented: { trackBg: "var(--rdp-subtle)" },
+  // 选中项：表面色滑块加强调色文字；未选项用次要色，在次级表面上仍有 5.66:1。
+  Segmented: {
+    trackBg: "var(--rdp-subtle)",
+    itemColor: "var(--rdp-muted)",
+    itemHoverColor: "var(--rdp-text)",
+    itemSelectedBg: "var(--rdp-elevated)",
+    itemSelectedColor: "var(--rdp-accent)",
+  },
+  // 墨条用强调色；选中页签仍是正文色加粗，不只靠颜色区分。
   Tabs: {
-    inkBarColor: "var(--rdp-text)",
+    inkBarColor: "var(--rdp-accent)",
     itemSelectedColor: "var(--rdp-text)",
     itemHoverColor: "var(--rdp-text)",
   },
-  Tree: { nodeSelectedBg: "var(--rdp-accent-soft)" },
+  Tree: {
+    nodeSelectedBg: "var(--rdp-accent-soft)",
+    nodeSelectedColor: "var(--rdp-accent-on-soft)",
+  },
   Progress: { remainingColor: "var(--rdp-subtle)" },
 };
 
