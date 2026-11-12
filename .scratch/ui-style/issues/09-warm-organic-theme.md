@@ -108,3 +108,5 @@ Status: in-progress
 
 - 负责人 2026-11-12 点名开工，范围由执行线定（见依据）。范围定为：浅色加深色，只改样式文件和 `mountWeb.tsx` 的主题配置，不动功能代码和测试。
 - 原型是在隔离的临时预览实例上用变体样式套出来的，没有动仓库和真实部署。
+- 工作目录 `~/桌面/robot-data-platform.wt/ui-09-warm-theme`，分支 `t/ui-09-warm-theme`（从 main 7237ad6 开）。依赖独立安装（`uv sync --frozen`、`pnpm install --frozen-lockfile`）。基线 `make check` 全绿：后端 2989 passed，前端 51 文件 436 passed。
+- 派工 A：Codex gpt-6-astra high，单元 `rdp-codex-ui-09`，会话 `01a1cdf4-603a-7572-894f-0f8720cd8597`，日志 `~/.cache/rdp-dispatch/ui-09/`，提示 `assets/09/prompt-A.md`。
