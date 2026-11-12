@@ -1,0 +1,32 @@
+
+html:root{
+ --rdp-page:#FFFAF4; --rdp-surface:#FFFFFF; --rdp-elevated:#FFFFFF; --rdp-subtle:#FFEDE0;
+ --rdp-text:#33272A; --rdp-muted:#6B5B57;
+ --rdp-accent:#C8402B; --rdp-accent-fill:#C8402B; --rdp-accent-fill-hover:#B03622; --rdp-accent-fill-active:#962C1B;
+ --rdp-accent-hover:#B03622; --rdp-accent-active:#962C1B; --rdp-accent-soft:#FFE6E2; --rdp-accent-soft-hover:#FFD9D2;
+ --rdp-accent-border:#F3B9A8; --rdp-accent-border-hover:#E99680;
+ --rdp-button-bg:#C8402B; --rdp-button-hover:#B03622; --rdp-button-active:#962C1B;
+ --rdp-border:#F3DCCB; --rdp-border-strong:#EBC5AC;
+ --rdp-glass:rgb(255 250 244 / 80%); --rdp-hover:rgb(200 64 43 / 6%);
+ --rdp-shadow:0 10px 36px rgb(200 64 43 / 8%);
+ --rdp-dock-bg:rgb(200 64 43 / 94%); --rdp-dock-opaque:#C8402B; --rdp-dock-text:rgb(255 248 242 / 86%);
+ --rdp-dock-hover:rgb(255 255 255 / 16%); --rdp-dock-border:rgb(255 255 255 / 18%);
+ --rdp-dock-active-bg:#FFF8F2; --rdp-dock-active-text:#C8402B; --rdp-dock-shadow:0 12px 40px rgb(200 64 43 / 28%);
+ --rdp-warning-bg:#FFF3DC; --rdp-warning-border:#F6D9A0;
+ --rdp-radius-card:28px; --rdp-radius-control:12px; --rdp-radius-login:36px; --rdp-radius-tree:12px;
+}
+.css-var-root{
+ --ant-color-primary:#C8402B; --ant-color-primary-hover:#B03622; --ant-color-primary-active:#962C1B;
+ --ant-color-primary-bg:#FFE6E2; --ant-color-primary-bg-hover:#FFD9D2; --ant-color-primary-border:#F3B9A8;
+ --ant-color-primary-border-hover:#E99680; --ant-color-primary-text:#C8402B; --ant-color-primary-text-hover:#B03622;
+ --ant-color-primary-text-active:#962C1B; --ant-color-link:#C8402B; --ant-color-link-hover:#B03622;
+ --ant-color-bg-layout:transparent; --ant-color-border:#F3DCCB; --ant-color-border-secondary:#F6E3D5;
+ --ant-color-text:#33272A; --ant-color-fill-alter:#FFF3EA; --ant-color-fill-secondary:#FFEDE0;
+ --ant-border-radius:12px; --ant-border-radius-lg:28px; --ant-control-item-bg-active:#FFE6E2;
+}
+html, body{ background-color:#FFFAF4 !important; }
+body{ background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20520%20300%22%20preserveAspectRatio%3D%22xMaxYMin%20meet%22%3E%3Cpath%20d%3D%22M520%200H80C130%2096%20240%2058%20306%20124C372%20190%20452%20152%20520%20236Z%22%20fill%3D%22%23FFA62B%22/%3E%3Cpath%20d%3D%22M520%200H316C334%2070%20406%2058%20442%20120C468%20164%20500%20160%20520%20184Z%22%20fill%3D%22%23FF5A5F%22/%3E%3Cpath%20d%3D%22M156%200C200%20122%20364%2092%20520%20268%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%223%22/%3E%3Ccircle%20cx%3D%2252%22%20cy%3D%2266%22%20r%3D%2216%22%20fill%3D%22%23FF5A5F%22/%3E%3Ccircle%20cx%3D%22190%22%20cy%3D%22196%22%20r%3D%228%22%20fill%3D%22%23FFA62B%22/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20460%20200%22%20preserveAspectRatio%3D%22xMinYMax%20meet%22%3E%3Cpath%20d%3D%22M0%20200V40C82%2020%20142%2082%20222%2092C322%20104%20402%20150%20444%20200Z%22%20fill%3D%22%23FFDCC0%22/%3E%3Cpath%20d%3D%22M0%20200V120C60%20112%20110%20150%20170%20162C220%20172%20250%20186%20270%20200Z%22%20fill%3D%22%23FF5A5F%22/%3E%3Ccircle%20cx%3D%22330%22%20cy%3D%2270%22%20r%3D%2212%22%20fill%3D%22%23FFA62B%22/%3E%3C/svg%3E") !important; background-repeat:no-repeat !important;
+ background-position:right top, left bottom !important; background-size:520px 300px, 460px 200px !important;
+ background-attachment:fixed !important; }
+#root, .ant-layout, .ant-app{ background:transparent !important; }
+h1, h2{ font-family:"Noto Serif CJK SC","Noto Serif SC","Source Han Serif SC","Songti SC",serif !important; letter-spacing:.04em; }
