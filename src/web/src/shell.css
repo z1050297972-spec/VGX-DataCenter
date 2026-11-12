@@ -1,56 +1,66 @@
-/* Studio 全站视觉层：只管理主题、部件外观和降级，不改变业务结构与交互。
- * 取值依据 ui-style 08；antd 种子与组件数值同步维护于 mountWeb.tsx。 */
+/* 全站视觉层「暖色有机」：只管理主题、部件外观和降级，不改变业务结构与交互。
+ * 结构沿用 ui-style 08，取值依据 ui-style 09；antd 种子与组件数值同步维护于 mountWeb.tsx。 */
 :root {
   color-scheme: light dark;
 
-  --rdp-page: #f5f5f3;
+  --rdp-page: #fffaf4;
   --rdp-surface: #fff;
   --rdp-elevated: #fff;
-  --rdp-subtle: #ededea;
-  --rdp-text: #161616;
-  --rdp-muted: #6e6e6a;
-  /* 强调色用于链接、焦点与选中；按钮反色仅映射到 Button 组件 token。 */
-  --rdp-accent: #2a45c9;
-  --rdp-accent-fill: #2a45c9;
-  --rdp-accent-fill-hover: #1f37a8;
-  --rdp-accent-fill-active: #182b85;
+  --rdp-subtle: #ffede0;
+  --rdp-text: #33272a;
+  --rdp-muted: #6b5b57;
+  /* 强调色深橙用于链接、焦点与选中；珊瑚红与危险红太近，不承担操作语义。
+   * 按钮反色仅映射到 Button 组件 token。 */
+  --rdp-accent: #a64b08;
+  --rdp-accent-fill: #a64b08;
+  --rdp-accent-fill-hover: #8f3f05;
+  --rdp-accent-fill-active: #783403;
   --rdp-on-accent: #fff;
-  --rdp-accent-hover: #1f37a8;
-  --rdp-accent-active: #182b85;
-  --rdp-accent-soft: #eceffb;
-  --rdp-accent-soft-hover: #dfe4f8;
-  --rdp-accent-border: #b9c3ef;
-  --rdp-accent-border-hover: #8f9fe4;
-  --rdp-button-bg: #161616;
-  --rdp-button-hover: #2e2e2e;
-  --rdp-button-active: #000;
-  --rdp-button-text: #fff;
-  --rdp-border: #e2e2de;
-  --rdp-border-strong: #cfcfca;
-  --rdp-glass: rgb(245 245 243 / 78%);
+  --rdp-accent-hover: #8f3f05;
+  --rdp-accent-active: #783403;
+  --rdp-accent-soft: #ffe9d6;
+  --rdp-accent-soft-hover: #ffdcc0;
+  --rdp-accent-border: #f3c39c;
+  --rdp-accent-border-hover: #e9a56f;
+  /* 强调色浅底上的文字：#a64b08 在 #ffdcc0 上只有 4.48:1，选中项文字统一用加深一档的悬停色。 */
+  --rdp-accent-on-soft: var(--rdp-accent-hover);
+  --rdp-button-bg: #33272a;
+  --rdp-button-hover: #4a3a3e;
+  --rdp-button-active: #221a1c;
+  --rdp-button-text: #fff8f2;
+  --rdp-border: #f3dccb;
+  --rdp-border-strong: #ebc5ac;
+  --rdp-glass: rgb(255 250 244 / 80%);
   --rdp-glass-opaque: var(--rdp-page);
   --rdp-blur: 20px;
   --rdp-saturation: 160%;
-  --rdp-hover: rgb(0 0 0 / 4.5%);
+  --rdp-hover: rgb(166 75 8 / 6%);
   --rdp-shadow: none;
-  /* 停靠栏独立于顶栏的透明底色，降级后仍保留白字对比度。 */
-  --rdp-dock-bg: rgb(22 22 22 / 88%);
-  --rdp-dock-opaque: #161616;
-  --rdp-dock-text: rgb(255 255 255 / 72%);
-  --rdp-dock-hover: rgb(255 255 255 / 10%);
-  --rdp-dock-border: rgb(255 255 255 / 8%);
-  --rdp-dock-active-bg: #fff;
-  --rdp-dock-active-text: #161616;
-  --rdp-dock-shadow: 0 12px 40px rgb(0 0 0 / 22%);
+  /* 停靠栏独立于顶栏的透明底色，降级后仍保留浅字对比度。
+   * 工单给的字色 rgb(255 248 242 / 86%) 在珊瑚红底上只有 3.6:1，浅色下改用不透明白字（4.54:1）；
+   * 悬停用墨色叠层压暗底色，不用白色叠层，免得对比度再降。 */
+  --rdp-dock-bg: rgb(200 64 43 / 94%);
+  --rdp-dock-opaque: #c8402b;
+  --rdp-dock-text: #fff;
+  --rdp-dock-hover: rgb(51 39 42 / 16%);
+  --rdp-dock-border: rgb(255 255 255 / 18%);
+  --rdp-dock-active-bg: #fff8f2;
+  --rdp-dock-active-text: #c8402b;
+  --rdp-dock-shadow: 0 12px 36px rgb(200 64 43 / 24%);
   /* 全局警告保留原有文字与图标，错误语义色由 antd 管理。 */
-  --rdp-warning-bg: #fbf5e4;
-  --rdp-warning-border: #ecdcae;
-  --rdp-radius-card: 14px;
-  --rdp-radius-control: 8px;
-  --rdp-radius-small: 4px;
-  --rdp-radius-tree: 6px;
-  --rdp-radius-login: 18px;
+  --rdp-warning-bg: #fff3dc;
+  --rdp-warning-border: #f6d9a0;
+  /* 卡片标题前的圆点，纯装饰。 */
+  --rdp-marker: #ffa62b;
+  --rdp-radius-card: 24px;
+  --rdp-radius-control: 12px;
+  --rdp-radius-small: 6px;
+  --rdp-radius-tree: 10px;
+  --rdp-radius-login: 32px;
   --rdp-radius-pill: 999px;
+  /* 下拉、气泡等弹层的圆角：内边距只有 4px，用卡片的 24px 会切到选项，取 16px。
+   * 由 mountWeb.tsx 的 borderRadiusLG 消费。 */
+  --rdp-radius-popup: 16px;
   --rdp-shell-gutter: var(--rdp-space-5);
   --rdp-line: 1px;
   --rdp-space-1: 4px;
@@ -84,6 +94,8 @@
   --rdp-z-dock: 20;
   /* 玻璃层放在 sticky 顶栏自身层叠上下文的底层，不能遮住 order 为负的字标。 */
   --rdp-z-header-glass: -1;
+  /* 装饰色块在根层叠上下文的最底层：高于画布底色，低于所有内容。 */
+  --rdp-z-blob: -1;
   /* 作业卡片宽 360px，位于 antd 抽屉之上，留出底部停靠栏。 */
   --rdp-width-job-card: 360px;
   --rdp-z-job-cards: 1010;
@@ -92,19 +104,29 @@
     "Inter Tight", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", system-ui,
     sans-serif;
   --rdp-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  /* 工单 08 的字级、字距、行高与装饰尺寸。 */
+  /* 页面大标题和登录标题用系统自带的中文衬线字体，不打包新字体。
+   * 末尾接无衬线栈而不写通用族 serif：没装衬线字体的机器落回现在的字体，不落到系统默认宋体。 */
+  --rdp-font-display:
+    "Noto Serif CJK SC", "Source Han Serif SC", "Songti SC", "STSong", var(--rdp-font);
+  /* 工单 08 的字级、行高与装饰尺寸；标题字距和标题圆点按工单 09 调整。 */
   --rdp-font-title: 36px;
   --rdp-font-brand: 13px;
+  --rdp-font-login-title: 24px;
   --rdp-font-caption: 12px;
   --rdp-font-label: 11.5px;
   --rdp-font-table: 11px;
   --rdp-font-code: 12.5px;
-  --rdp-tracking-title: -0.025em;
+  --rdp-tracking-title: 0.02em;
   --rdp-tracking-label: 0.06em;
   --rdp-tracking-brand: 0.08em;
   --rdp-title-line-height: 1.15;
   --rdp-code-line-height: 1.7;
-  --rdp-title-marker: 6px;
+  --rdp-title-marker: 8px;
+  /* 卡片标题默认是等宽小字；登录卡片在自己的标题栏里重定义这四项。 */
+  --rdp-card-title-font: var(--rdp-mono);
+  --rdp-card-title-size: var(--rdp-font-caption);
+  --rdp-card-title-weight: 500;
+  --rdp-card-title-tracking: var(--rdp-tracking-label);
   --rdp-tab-line: 1.5px;
   --rdp-focus-width: 2px;
   --rdp-login-width: 440px;
@@ -121,9 +143,29 @@
   --rdp-enter-step: 50ms;
   --rdp-enter-distance: 10px;
   --rdp-progress-duration: 600ms;
+  /* 背景色块（工单 09）：两张 SVG 背景图，纯装饰。色值写在数据 URI 里：橙 #ffa62b、珊瑚红 #ff5a5f、
+   * 浅桃 #ffdcc0、描线 #fff8f2。右上图 280×220，y<50 的部分整幅铺在顶栏毛玻璃之下，
+   * 往下的部分只在最右 120px（reach）以内；左下图 140×280，全部在 reach 以内。 */
+  --rdp-blob-top: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 280 220'%3E%3Cpath d='M0 0H280V214C240 214 196 196 174 160C156 130 170 104 164 80C158 56 130 46 96 38C56 30 24 22 0 0Z' fill='%23ffa62b'/%3E%3Cpath d='M280 0H150C176 8 196 22 204 44C212 70 196 96 208 124C220 150 250 168 280 172Z' fill='%23ff5a5f'/%3E%3Cpath d='M58 0C92 34 150 22 180 60C200 86 182 118 192 146C204 180 244 196 280 198' fill='none' stroke='%23fff8f2' stroke-width='1.5'/%3E%3Ccircle cx='190' cy='202' r='6' fill='%23ff5a5f'/%3E%3C/svg%3E");
+  --rdp-blob-bottom: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 280'%3E%3Cpath d='M0 60C58 52 126 88 136 156C144 208 112 250 92 280H0Z' fill='%23ffdcc0'/%3E%3Cpath d='M0 172C40 168 84 190 96 234C102 256 97 270 92 280H0Z' fill='%23ff5a5f'/%3E%3Ccircle cx='112' cy='34' r='6' fill='%23ffa62b'/%3E%3C/svg%3E");
+  --rdp-blob-top-size: 280px 220px;
+  --rdp-blob-bottom-size: 140px 280px;
+  --rdp-blob-top-reach: 120px;
+  --rdp-blob-bottom-reach: 140px;
+  /* 色块可以探进视口的宽度：内容区外侧留白减去 16px 余量（留白的一半用 100vw 估算，
+   * 有滚动条时会多算约 8px），最少 12px（窄于内容宽度时留白固定为 24px）。
+   * 图片按 reach 减去这个宽度移出视口，所以色块只落在留白里，不压内容区的按钮、输入框和文字。 */
+  --rdp-blob-peek: max(
+    var(--rdp-space-3),
+    calc((100vw - var(--rdp-content-width)) / 2 - var(--rdp-space-4))
+  );
+  --rdp-blob-display: block;
+  --rdp-blob-opacity: 1;
 }
 
-/* 深色填充强调色由 mountWeb.tsx 中种子 #5b74f0 经 antd 深色算法推导。 */
+/* 深色保持 ui-style 08 的取值（工单 09 只换浅色）；填充强调色由 mountWeb.tsx 中种子 #5b74f0
+ * 经 antd 深色算法推导。浅色里改过、08 深色原先靠继承的几项在这里写回 08 的值；
+ * 背景色块深色下不显示。 */
 @media (prefers-color-scheme: dark) {
   :root {
     --rdp-page: #0b0b0c;
@@ -156,6 +198,10 @@
     --rdp-dock-active-text: #0b0b0c;
     --rdp-hover: rgb(255 255 255 / 5%);
     --rdp-dock-shadow: 0 12px 40px rgb(0 0 0 / 60%);
+    --rdp-dock-text: rgb(255 255 255 / 72%);
+    --rdp-dock-hover: rgb(255 255 255 / 10%);
+    --rdp-marker: var(--rdp-text);
+    --rdp-blob-display: none;
     --rdp-warning-bg: #221c0c;
     --rdp-warning-border: #4a3d16;
   }
@@ -207,12 +253,46 @@
     U+FFFD;
 }
 
-/* 外壳：登录与已登录页面共用底色和字体。 */
+/* 外壳：登录与已登录页面共用底色和字体。
+ * 页面底色只画在这一层（html 没有背景，body 的背景会铺到整个画布），外壳和内容容器都不画底色，
+ * 色块才能从卡片之间透出来。 */
 body {
   margin: 0;
   background: var(--rdp-page);
   color: var(--rdp-text);
   font-family: var(--rdp-font);
+}
+/* 背景色块：固定在视口右上、左下两角，不随内容滚动，不接收指针事件，没有动画。
+ * 用伪元素而不是 body 的背景图，是为了能用变量整体开关和调透明度。 */
+body::before {
+  content: "";
+  position: fixed;
+  z-index: var(--rdp-z-blob);
+  inset: 0;
+  display: var(--rdp-blob-display);
+  pointer-events: none;
+  background-image: var(--rdp-blob-top), var(--rdp-blob-bottom);
+  background-repeat: no-repeat;
+  background-position:
+    right calc(-1 * max(0px, var(--rdp-blob-top-reach) - var(--rdp-blob-peek))) top 0,
+    left calc(-1 * max(0px, var(--rdp-blob-bottom-reach) - var(--rdp-blob-peek))) bottom 0;
+  background-size: var(--rdp-blob-top-size), var(--rdp-blob-bottom-size);
+  opacity: var(--rdp-blob-opacity);
+}
+/* 登录页只有居中的登录卡片（入口容器的直接子卡片，既有结构没有类名），
+ * 留白按卡片宽度算，色块可以完整露出，并放大到 1.5 倍。 */
+body:has(> [id="root"] > .ant-card) {
+  --rdp-blob-peek: calc((100vw - var(--rdp-login-width)) / 2 - var(--rdp-space-5));
+  --rdp-blob-top-size: 420px 330px;
+  --rdp-blob-bottom-size: 210px 420px;
+  --rdp-blob-top-reach: 180px;
+  --rdp-blob-bottom-reach: 210px;
+}
+/* 窄于 1100px 时两侧留白放不下色块，直接不显示。 */
+@media (max-width: 1099px) {
+  :root {
+    --rdp-blob-display: none;
+  }
 }
 /* 普通链接也遵循主题色；停靠菜单以更高优先级保留自身样式。 */
 a {
@@ -390,6 +470,14 @@ a:hover {
   display: block;
   padding: var(--rdp-space-5) var(--rdp-space-5) 0;
 }
+/* 登录卡片的标题来自 antd Card 的 title，没有业务类名；只在它自己的标题栏里把卡片标题
+ * 换成衬线标题字（圆点保留），卡片正文里嵌套的卡片不受影响。 */
+[id="root"] > .ant-card > .ant-card-head {
+  --rdp-card-title-font: var(--rdp-font-display);
+  --rdp-card-title-size: var(--rdp-font-login-title);
+  --rdp-card-title-weight: 600;
+  --rdp-card-title-tracking: var(--rdp-tracking-title);
+}
 
 /* 页头保留标题的语义级别，面包屑内部链接使用 antd 组件类定位。 */
 .app-page-header {
@@ -409,6 +497,7 @@ a:hover {
 .app-page-title.ant-typography,
 .browser-page-title.ant-typography,
 .jobs-title.ant-typography {
+  font-family: var(--rdp-font-display);
   font-size: var(--rdp-font-title);
   font-weight: 600;
   letter-spacing: var(--rdp-tracking-title);
@@ -428,10 +517,10 @@ a:hover {
 }
 .ant-card .ant-card-head-title,
 .app-card-heading.ant-typography {
-  font-family: var(--rdp-mono);
-  font-size: var(--rdp-font-caption);
-  font-weight: 500;
-  letter-spacing: var(--rdp-tracking-label);
+  font-family: var(--rdp-card-title-font);
+  font-size: var(--rdp-card-title-size);
+  font-weight: var(--rdp-card-title-weight);
+  letter-spacing: var(--rdp-card-title-tracking);
   color: var(--rdp-text);
 }
 .app-card-heading.ant-typography {
@@ -444,7 +533,8 @@ a:hover {
   width: var(--rdp-title-marker);
   height: var(--rdp-title-marker);
   margin-right: var(--rdp-space-2);
-  background: var(--rdp-text);
+  border-radius: var(--rdp-radius-pill);
+  background: var(--rdp-marker);
   vertical-align: middle;
 }
 
@@ -565,6 +655,7 @@ a:hover {
     --rdp-dock-bg: var(--rdp-dock-opaque);
     --rdp-blur: 0px;
     --rdp-saturation: 100%;
+    --rdp-blob-display: none;
   }
 }
 @media (prefers-reduced-motion: reduce),
@@ -599,6 +690,7 @@ html[data-rdp-plain] {
   --rdp-shadow: none;
   --rdp-dock-shadow: none;
   --rdp-hover: var(--rdp-subtle);
+  --rdp-blob-display: none;
 }
 /* antd 和现存内联样式可能直接声明动画，保留 plain 开关的强制兜底。 */
 html[data-rdp-plain] *,
