@@ -1,6 +1,6 @@
 # AgiBot 转换接入：从预览发起，工具在沙箱里只转保留的集
 
-Status: blocked（依赖第 01、02 张）
+Status: ready-for-agent
 
 分级：直做。与第 03、05 张并行（本票只动 `src/rdp/jobs/conversion/` 和 `src/rdp/api/cleaning_previews.py`；第 03 张只动 `src/rdp/jobs/cleaning/`）。决定见 `../decisions.md` 第 1、5、6 条。报告的 AgiBot 形状见第 01 张第 4 节，本票的测试自己构造这种报告，不依赖第 03 张。
 

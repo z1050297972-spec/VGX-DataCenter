@@ -1,6 +1,6 @@
 # 前端：AgiBot 的预览入口、报告页和工具库展示
 
-Status: blocked（依赖第 01 张的接口形状；执行线在第 01 张合并后生成好类型再派）
+Status: ready-for-agent
 
 分级：直做。与第 03、04 张并行（只动 `src/web/`）。只用 antd。
 
@@ -36,3 +36,5 @@ Status: blocked（依赖第 01 张的接口形状；执行线在第 01 张合并
 `make check` 前端部分全绿。
 
 ## Comments
+
+- 2026-11-15 执行线：第 01 张合并后，`make check` 的 tsc 有 11 处报错（`Process.tsx`、`Rules.tsx` 里 `sync` 可能为 null；`testSupport.ts`、`Conversion.test.tsx`、`tools/Pages.test.tsx` 的假数据缺新字段 `source_format`、`default_space_ratio_percent`、`preview_by_tool`、`source_tree_sha256`）。本票先把这些修好。类型已生成（`src/web/src/api/schema.d.ts`），不要再跑 make api-types。

@@ -1,6 +1,6 @@
 # AgiBot 清洗预览：在沙箱里跑工具，生成报告
 
-Status: blocked（依赖第 01、02 张）
+Status: ready-for-agent
 
 分级：直做。与第 04、05 张并行。决定见 `../decisions.md` 第 1、4、5、7 条和「工具的事实」（预览结果文件的格式在那里）。
 
