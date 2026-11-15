@@ -138,12 +138,16 @@ class ConversionExecutor:
         if manifest is None or tool.program_path is None:
             raise DefectError()
         try:
-            parameters = tool_parameters(manifest).model_validate(context.parameters.model_dump())
+            parameters = tool_parameters(manifest).model_validate(
+                context.parameters.model_dump(exclude_unset=True)
+            )
         except ValidationError as error:
             raise InputError((_diagnostic("型号或输出版本不再适用于当前工具清单"),)) from error
         _stage(context, 2)
         preview, selection = preview_selection(deps.engine, parameters, tool, deps.tools)
-        inputs, stage = _prepare_paths(context, deps, parameters, selection)
+        inputs, stage = _prepare_paths(
+            context, deps, parameters, selection, input_format=manifest.io.input_format
+        )
         context.reporter.artifact(str(stage))
         configuration = next(
             item for item in tool.configurations if item.robot_model == parameters.robot_model
@@ -204,7 +208,7 @@ class ConversionExecutor:
             "tool": {
                 "name": tool.name,
                 "version": manifest.tool.version,
-                "binary_sha256": manifest.program.sha256,
+                "binary_sha256": tool.fingerprint,
                 "source_commit": manifest.tool.source_commit,
                 "source_note": manifest.tool.source_note,
             },
@@ -254,11 +258,17 @@ def _prepare_paths(
     deps: ConversionDependencies,
     parameters: ConversionParameters,
     selection: Selection,
+    *,
+    input_format: str,
 ) -> tuple[tuple[Path, ...], Path]:
     """重读选中输入并约束路径，在线与空间预检通过后才新建暂存目录。"""
     with session_scope(deps.engine, read_only=True) as session:
         sources = dict(
-            zip(parameters.source_ids, selected_inputs(session, parameters), strict=True)
+            zip(
+                parameters.source_ids,
+                selected_inputs(session, parameters, input_format=input_format),
+                strict=True,
+            )
         )
     if any(
         item.source_id not in sources or not Path(item.path).is_relative_to(sources[item.source_id])

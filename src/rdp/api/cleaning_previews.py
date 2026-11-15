@@ -127,11 +127,14 @@ def convert_from_cleaning_preview(
             "source_ids": original.parameters["source_ids"],
             "robot_model": preview.robot_model,
             "cleaning_preview_job_id": preview.job_id,
-            **body.model_dump(),
+            # 保留省略状态，让工具参数模型采用清单默认空间百分比。
+            **body.model_dump(exclude_unset=True),
         }
     )
     request = JobRequest(identity(context.account), context.account.now, context.account.audit)
     record = context.service.submit(
-        request, conversion_type_name(preview.tool_name), parameters.model_dump(mode="json")
+        request,
+        conversion_type_name(preview.tool_name),
+        parameters.model_dump(mode="json", exclude_unset=True),
     )
     return response(record, role=identity(context.account).account.role)

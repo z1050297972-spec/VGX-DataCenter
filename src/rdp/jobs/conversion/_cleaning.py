@@ -74,7 +74,7 @@ def preview_selection(
         (preview.dataset_id, preview.robot_model, preview.tool_name)
         != (parameters.dataset_id, parameters.robot_model, tool.name)
         or original.parameters.get("source_ids") != parameters.source_ids
-        or preview.binary_sha256 != manifest.program.sha256
+        or preview.binary_sha256 != tool.fingerprint
         or configuration is None
         or preview.config_sha256 != configuration.sha256
         or preview.rules_sha256 != rules_sha

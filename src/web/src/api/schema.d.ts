@@ -4614,26 +4614,26 @@ export interface components {
          *         static_feature: 静止检查使用的向量特征名。
          *         long_static_s: 连续静止最短时长，单位秒。
          *         jump_feature: 跳变检查使用的向量特征名。
-         *         frozen_s: 相机冻结最短时长，单位秒。
-         *         sample_interval_s: 亮度抽样间隔，单位秒。
-         *         dark_below: 黑屏亮度阈值，0 至 255，严格小于时命中。
-         *         bright_above: 过曝亮度阈值，0 至 255，严格大于时命中。
+         *         frozen_s: 相机冻结最短时长，单位秒；AgiBot 不检查图像，为 None。
+         *         sample_interval_s: 亮度抽样间隔，单位秒；AgiBot 为 None。
+         *         dark_below: 黑屏亮度阈值，0 至 255，严格小于时命中；AgiBot 为 None。
+         *         bright_above: 过曝亮度阈值，0 至 255，严格大于时命中；AgiBot 为 None。
          *         sources: 按清洗规则原顺序的来源阈值，可为空。
          *         severe_checks: 默认剔除 episode 的严重检查规则码，顺序由检查模块定义。
          */
         CleaningCheckRules: {
             /** Bright Above */
-            bright_above: number;
+            bright_above: number | null;
             /** Dark Below */
-            dark_below: number;
+            dark_below: number | null;
             /** Frozen S */
-            frozen_s: number;
+            frozen_s: number | null;
             /** Jump Feature */
             jump_feature: string;
             /** Long Static S */
             long_static_s: number;
             /** Sample Interval S */
-            sample_interval_s: number;
+            sample_interval_s: number | null;
             /** Severe Checks */
             severe_checks: string[];
             /** Sources */
@@ -4691,7 +4691,7 @@ export interface components {
             /** Fps */
             fps: number;
             /** Reference Topic */
-            reference_topic: string;
+            reference_topic: string | null;
             rules: components["schemas"]["CleaningRuleSnapshot"];
             /** Rules Sha256 */
             rules_sha256: string;
@@ -4701,6 +4701,12 @@ export interface components {
              * @constant
              */
             schema_version: 1;
+            /**
+             * Source Format
+             * @default mcap
+             * @enum {string}
+             */
+            source_format: "mcap" | "agibot_native";
             summary: components["schemas"]["CleaningSummary"];
             /** Tool Config Sha256 */
             tool_config_sha256: string;
@@ -4716,7 +4722,7 @@ export interface components {
          */
         CleaningRuleSnapshot: {
             checks: components["schemas"]["CleaningCheckRules"];
-            sync: components["schemas"]["CleaningSyncRules"];
+            sync: components["schemas"]["CleaningSyncRules"] | null;
         };
         /**
          * CleaningSourceRules
@@ -6102,13 +6108,15 @@ export interface components {
         };
         /**
          * FileReport
-         * @description 展开顺序中的一个文件；元数据无法读取时大小、mtime_ns 为 None。
+         * @description 一个 MCAP 文件或 AgiBot 集；后者用 episode_id 标识，元数据读取失败时为 None。
          */
         FileReport: {
             /** Bad Frames */
             bad_frames: number;
             /** Default Excluded */
             default_excluded: boolean;
+            /** Episode Id */
+            episode_id?: string | null;
             /** Fatal Issues */
             fatal_issues: components["schemas"]["Diagnostic"][];
             /** File Index */
@@ -8218,10 +8226,13 @@ export interface components {
          *     Attributes:
          *         verify: 预检参数元组，须含 config 和 inputs 占位符。
          *         convert: 转换参数元组，config、output、format、inputs 各出现一次，禁用 --force。
+         *         preview: 可选预览模板，config、rules、cache、result、inputs 各出现一次。
          */
         ToolCommands: {
             /** Convert */
             convert: string[];
+            /** Preview */
+            preview?: string[] | null;
             /** Verify */
             verify: string[];
         };
@@ -8251,7 +8262,7 @@ export interface components {
          *
          *     Attributes:
          *         configurations: 每个型号的文件名、配置全文与完整 SHA-256；清单无效时为空。
-         *         command: 两条命令模板；清单无效时为 None。
+         *         command: 预检、转换与可选预览命令模板；清单无效时为 None。
          *         source_commit: 登记时的提交说明；未填写或清单无效时为 None。
          *         source_note: 登记时源码状态说明；未填写或清单无效时为 None。
          */
@@ -8261,6 +8272,8 @@ export interface components {
             command: components["schemas"]["ToolCommands"] | null;
             /** Configurations */
             configurations: components["schemas"]["ToolConfiguration"][];
+            /** Default Space Ratio Percent */
+            default_space_ratio_percent: number;
             /** Diagnostics */
             diagnostics: components["schemas"]["Diagnostic"][];
             /** Input Format */
@@ -8273,6 +8286,8 @@ export interface components {
             output_format: string | null;
             /** Output Versions */
             output_versions: string[];
+            /** Preview By Tool */
+            preview_by_tool: boolean;
             /** Program Path */
             program_path: string | null;
             /** Readme Available */
@@ -8285,6 +8300,8 @@ export interface components {
             source_commit: string | null;
             /** Source Note */
             source_note: string | null;
+            /** Source Tree Sha256 */
+            source_tree_sha256: string | null;
             status: components["schemas"]["ToolStatus"];
             /** Summary */
             summary: string | null;
@@ -8334,6 +8351,9 @@ export interface components {
          *         robot_models: 按清单顺序的适用型号字符串；清单无效时为空。
          *         cleaning_models: 按清单顺序的有清洗规则型号；清单无效时为空。
          *         needs_gpu: 是否必须分配 GPU；清单无效时为 None。
+         *         preview_by_tool: 是否由工具命令生成预览；清单无效时为 False。
+         *         default_space_ratio_percent: 默认空间百分比，0 至 1000；清单无效时为 25。
+         *         source_tree_sha256: 登记的源码目录 SHA-256；未登记或清单无效时为 None。
          *         status: 四种工具状态之一。
          *         diagnostics: 统一五段诊断，可用时为空。
          *         program_path: 已核对边界的程序绝对路径；清单无效时为 None。
@@ -8343,6 +8363,8 @@ export interface components {
         ToolSummaryResponse: {
             /** Cleaning Models */
             cleaning_models: string[];
+            /** Default Space Ratio Percent */
+            default_space_ratio_percent: number;
             /** Diagnostics */
             diagnostics: components["schemas"]["Diagnostic"][];
             /** Input Format */
@@ -8355,6 +8377,8 @@ export interface components {
             output_format: string | null;
             /** Output Versions */
             output_versions: string[];
+            /** Preview By Tool */
+            preview_by_tool: boolean;
             /** Program Path */
             program_path: string | null;
             /** Readme Available */
@@ -8363,6 +8387,8 @@ export interface components {
             robot_models: string[];
             /** Sha256 Prefix */
             sha256_prefix: string | null;
+            /** Source Tree Sha256 */
+            source_tree_sha256: string | null;
             status: components["schemas"]["ToolStatus"];
             /** Summary */
             summary: string | null;

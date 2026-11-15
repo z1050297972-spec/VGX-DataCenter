@@ -97,7 +97,8 @@ class CleaningPreviewExecutor:
         _stage(context, 1)
         tool = _checked_tool(self.tool_name, deps.tools)
         manifest = tool.manifest
-        if manifest is None:
+        fingerprint = tool.fingerprint
+        if manifest is None or fingerprint is None:
             raise DefectError()
         try:
             parameters = tool_parameters(manifest).model_validate(context.parameters.model_dump())
@@ -106,7 +107,7 @@ class CleaningPreviewExecutor:
                 invalid_field("robot_model", "当前工具已登记的清洗型号").diagnostics
             ) from error
         _stage(context, 2)
-        inputs = _prepare_paths(context, deps, parameters)
+        inputs = _prepare_paths(context, deps, parameters, input_format=manifest.io.input_format)
         files, warnings = collect_inputs(inputs, context.reporter.check_cancelled)
         # 目录内文件软链接也必须检查，否则仅约束顶层目录仍能读出登记根。
         input_roots = {_root_for(path, deps.roots).name for _, path in inputs}
@@ -139,7 +140,7 @@ class CleaningPreviewExecutor:
             dataset_id=parameters.dataset_id,
             tool_name=tool.name,
             robot_model=parameters.robot_model,
-            binary_sha256=manifest.program.sha256,
+            binary_sha256=fingerprint,
             config_sha256=report.tool_config_sha256,
             rules_sha256=report.rules_sha256,
             created_at=ensure_utc(context.clock.now()),
@@ -200,11 +201,15 @@ def _root_for(path: Path, roots: tuple[StorageRootConfig, ...]) -> StorageRootCo
 
 
 def _prepare_paths(
-    context: ExecutionContext, deps: CleaningDependencies, parameters: CleaningPreviewParameters
+    context: ExecutionContext,
+    deps: CleaningDependencies,
+    parameters: CleaningPreviewParameters,
+    *,
+    input_format: str,
 ) -> tuple[tuple[str, Path], ...]:
     """重读索引后仅检查所选根，不要求可写根或预留空间。"""
     with session_scope(deps.engine, read_only=True) as session:
-        inputs = selected_inputs(session, parameters)
+        inputs = selected_inputs(session, parameters, input_format=input_format)
     names = {_root_for(path, deps.roots).name for path in inputs}
     check_storage_before_job(
         tuple(StorageUse(root.name) for root in deps.roots if root.name in names),

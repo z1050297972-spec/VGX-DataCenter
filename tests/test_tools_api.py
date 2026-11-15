@@ -133,6 +133,9 @@ def test_member_reads_list_and_configuration_detail(tmp_path: Path) -> None:
         assert item["robot_models"] == ["Galaxea R1 Lite"]
         assert item["needs_gpu"] is True
         assert item["program_path"] == str(files.program)
+        assert item["preview_by_tool"] is False
+        assert item["default_space_ratio_percent"] == 25
+        assert item["source_tree_sha256"] is None
         response = case.client.get("/api/tools/mcap2lerobot")
         assert response.status_code == 200
         detail = response.json()
@@ -148,6 +151,35 @@ def test_member_reads_list_and_configuration_detail(tmp_path: Path) -> None:
         assert "{output}" in detail["command"]["convert"]
         assert detail["source_commit"] == "4027d15"
         assert "3 行未提交改动" in detail["source_note"]
+
+
+@pytest.mark.parametrize("valid", [True, False])
+def test_list_exposes_source_tree_and_preview_defaults(tmp_path: Path, valid: bool) -> None:
+    """M4.6：列表投影工具预览、空间默认和源码指纹；坏清单使用 false、25、null。"""
+    files = tool_files(tmp_path)
+    source = files.package / "tool.toml"
+    source.write_text(
+        source.read_text()
+        .replace("[program]", '[program]\ntree = "source"\ntree_sha256 = "' + "a" * 64 + '"')
+        .replace("[runtime]", "[runtime]\nspace_ratio_percent = 130")
+        .replace(
+            "[command]",
+            '[command]\npreview = ["{config}", "{rules}", "{cache}", "{result}", "{inputs}"]',
+        )
+        if valid
+        else "invalid"
+    )
+    with api_case(tmp_path / "state") as case:
+        configure_tools(
+            case.app, settings=ToolsConfig(registry_dir=files.registry, library_root=files.library)
+        )
+        assert case.login().status_code == 200
+        response = case.client.get("/api/tools")
+        assert response.status_code == 200
+        item = response.json()["items"][0]
+        assert item["preview_by_tool"] is valid
+        assert item["default_space_ratio_percent"] == (130 if valid else 25)
+        assert item["source_tree_sha256"] == ("a" * 64 if valid else None)
 
 
 def test_missing_tool_returns_not_found(tmp_path: Path) -> None:

@@ -1,8 +1,8 @@
 """清洗预览的持久化报告；只描述事实和默认处理，不执行转换或写数据库。"""
 
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from rdp.infra.diagnostics import Diagnostic
 
@@ -71,7 +71,7 @@ class EpisodeReport(_FrozenModel):
 
 
 class FileReport(_FrozenModel):
-    """展开顺序中的一个文件；元数据无法读取时大小、mtime_ns 为 None。"""
+    """一个 MCAP 文件或 AgiBot 集；后者用 episode_id 标识，元数据读取失败时为 None。"""
 
     file_index: int
     source_id: str
@@ -88,6 +88,7 @@ class FileReport(_FrozenModel):
     short_frames: int
     topics: tuple[TopicAlignment, ...]
     default_excluded: bool
+    episode_id: str | None = None
 
 
 class CleaningSummary(_FrozenModel):
@@ -140,10 +141,10 @@ class CleaningCheckRules(_FrozenModel):
         static_feature: 静止检查使用的向量特征名。
         long_static_s: 连续静止最短时长，单位秒。
         jump_feature: 跳变检查使用的向量特征名。
-        frozen_s: 相机冻结最短时长，单位秒。
-        sample_interval_s: 亮度抽样间隔，单位秒。
-        dark_below: 黑屏亮度阈值，0 至 255，严格小于时命中。
-        bright_above: 过曝亮度阈值，0 至 255，严格大于时命中。
+        frozen_s: 相机冻结最短时长，单位秒；AgiBot 不检查图像，为 None。
+        sample_interval_s: 亮度抽样间隔，单位秒；AgiBot 为 None。
+        dark_below: 黑屏亮度阈值，0 至 255，严格小于时命中；AgiBot 为 None。
+        bright_above: 过曝亮度阈值，0 至 255，严格大于时命中；AgiBot 为 None。
         sources: 按清洗规则原顺序的来源阈值，可为空。
         severe_checks: 默认剔除 episode 的严重检查规则码，顺序由检查模块定义。
     """
@@ -151,10 +152,10 @@ class CleaningCheckRules(_FrozenModel):
     static_feature: str
     long_static_s: float
     jump_feature: str
-    frozen_s: float
-    sample_interval_s: float
-    dark_below: float
-    bright_above: float
+    frozen_s: float | None
+    sample_interval_s: float | None
+    dark_below: float | None
+    bright_above: float | None
     sources: tuple[CleaningSourceRules, ...]
     severe_checks: tuple[str, ...]
 
@@ -162,7 +163,7 @@ class CleaningCheckRules(_FrozenModel):
 class CleaningRuleSnapshot(_FrozenModel):
     """完整规则说明快照；fps 和 reference_topic 只保留在报告顶层。"""
 
-    sync: CleaningSyncRules
+    sync: CleaningSyncRules | None
     checks: CleaningCheckRules
 
 
@@ -170,13 +171,38 @@ class CleaningReport(_FrozenModel):
     """版本一报告；Pydantic 的 JSON 方法用于存库，规则指纹取文件原始字节。"""
 
     schema_version: Literal[1] = 1
+    source_format: Literal["mcap", "agibot_native"] = "mcap"
     tool_config_sha256: str
     rules_sha256: str
     fps: int
-    reference_topic: str
+    reference_topic: str | None
     rules: CleaningRuleSnapshot
     files: tuple[FileReport, ...]
     episodes: tuple[EpisodeReport, ...]
     summary: CleaningSummary
     # 目录软链接等展开警告不属于某个文件，不能在展开后悄悄丢失。
     warnings: tuple[Diagnostic, ...] = ()
+
+    @model_validator(mode="after")
+    def _source_shape(self) -> Self:
+        """格式决定报告中哪些事实存在，禁止把 AgiBot 缺失的图像或同步结果伪装成 MCAP。"""
+        checks = self.rules.checks
+        nullable = (
+            self.reference_topic,
+            self.rules.sync,
+            checks.frozen_s,
+            checks.sample_interval_s,
+            checks.dark_below,
+            checks.bright_above,
+        )
+        if self.source_format == "mcap":
+            if any(value is None for value in nullable):
+                raise ValueError("MCAP 报告必须包含基准话题、同步规则及四项图像规则")
+            if any(file.episode_id is not None for file in self.files):
+                raise ValueError("MCAP 文件不能包含 episode_id")
+        else:
+            if any(value is not None for value in nullable):
+                raise ValueError("AgiBot 报告的基准话题、同步规则及四项图像规则必须为空")
+            if any(not file.episode_id or file.topics for file in self.files):
+                raise ValueError("AgiBot 每个文件必须有非空 episode_id 且 topics 为空")
+        return self

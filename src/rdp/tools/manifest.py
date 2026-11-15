@@ -63,11 +63,22 @@ class ToolProgram(_ManifestModel):
         path: 相对工具目录的程序文件路径，不含 ..。
         size: 登记时程序大小，字节，严格正整数。
         sha256: 登记时程序 SHA-256，64 位小写十六进制。
+        tree: 相对工具目录的源码目录；与 tree_sha256 同时给出或省略。
+        tree_sha256: 源码目录 SHA-256，64 位小写十六进制；未登记时为 None。
     """
 
     path: RelativePath
     size: int = Field(gt=0, strict=True)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    tree: RelativePath | None = None
+    tree_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def _tree_pair(self) -> Self:
+        """目录与期望指纹缺一就无法核对，不能把半份登记当成无源码工具。"""
+        if (self.tree is None) != (self.tree_sha256 is None):
+            raise ValueError("program.tree 与 tree_sha256 必须同时给出或省略")
+        return self
 
 
 class ToolIO(_ManifestModel):
@@ -97,13 +108,15 @@ class ToolRuntime(_ManifestModel):
 
     Attributes:
         needs_gpu: 是否必须分配 GPU，布尔值。
-        progress: 已知进度解析器名，当前只支持 mcap2lerobot-pty。
+        progress: 已知进度解析器名，支持 MCAP 终端或 AgiBot 事件。
         external_programs: 工具运行时依赖的系统程序名，按清单顺序，可为空。
+        space_ratio_percent: 产物空间估算默认百分比，严格整数 0 至 1000，默认 25。
     """
 
     needs_gpu: bool = Field(strict=True)
-    progress: Literal["mcap2lerobot-pty"]
+    progress: Literal["mcap2lerobot-pty", "agibot2lerobot-events"]
     external_programs: tuple[str, ...]
+    space_ratio_percent: int = Field(default=25, strict=True, ge=0, le=1000)
 
 
 class ToolCommands(_ManifestModel):
@@ -112,10 +125,12 @@ class ToolCommands(_ManifestModel):
     Attributes:
         verify: 预检参数元组，须含 config 和 inputs 占位符。
         convert: 转换参数元组，config、output、format、inputs 各出现一次，禁用 --force。
+        preview: 可选预览模板，config、rules、cache、result、inputs 各出现一次。
     """
 
     verify: tuple[str, ...]
     convert: tuple[str, ...]
+    preview: tuple[str, ...] | None = None
 
     @model_validator(mode="after")
     def _templates(self) -> Self:
@@ -128,6 +143,17 @@ class ToolCommands(_ManifestModel):
         if any(arg == "--force" or arg.startswith("--force=") for arg in self.convert):
             raise ValueError("command.convert 不允许 --force")
         for command in (self.verify, self.convert):
+            if sum(arg.count("{cache}") for arg in command) > 1:
+                raise ValueError("{cache} 至多出现一次")
+        commands = (self.verify, self.convert)
+        if self.preview is not None:
+            required_preview = ("{config}", "{rules}", "{cache}", "{result}", "{inputs}")
+            if any(sum(arg.count(key) for arg in self.preview) != 1 for key in required_preview):
+                raise ValueError(
+                    "command.preview 必须含 config、rules、cache、result、inputs 各一次"
+                )
+            commands = (*commands, self.preview)
+        for command in commands:
             if any("{inputs}" in arg and arg != "{inputs}" for arg in command):
                 raise ValueError("{inputs} 必须单独作为一个参数")
         return self
@@ -161,6 +187,8 @@ class ToolManifest(_ManifestModel):
         """提供登记包上下文时核对目录名和每个配置的真实位置。"""
         if not self.cleaning.keys() <= self.models.keys():
             raise ValueError("cleaning 的型号必须全部在 models 中")
+        if self.command.preview is not None and not self.cleaning:
+            raise ValueError("command.preview 必须登记 cleaning 规则")
         if info.context is None:
             return self
         package = Path(info.context["package_dir"])
