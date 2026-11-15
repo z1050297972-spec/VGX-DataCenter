@@ -210,12 +210,17 @@ class ToolsConfig(BaseModel):
         library_root: 工具库绝对路径，默认导航层下的工具目录；不含 NUL 或 ..。
         lerobot_python: 可选 LeRobot 解释器绝对路径；None 表示未配置。
         registry_dir: 登记包绝对根目录，默认平台安装目录下 tools/；不含 NUL 或 ..。
+        cache_root: 工具缓存绝对根目录，不含 NUL 或 ..；load_config 默认取 state_dir/tool-cache。
+            独立无参构造时取当前用户默认状态目录下的 tool-cache，不创建目录。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
     library_root: Path = DEFAULT_NAV_ROOT / "工具"
     registry_dir: Path = Field(default_factory=_default_tool_registry)
     lerobot_python: Path | None = None
+    cache_root: Path = Field(
+        default_factory=lambda: Path.home() / _DEFAULT_STATE_DIR_RELATIVE / "tool-cache"
+    )
 
     @field_validator("lerobot_python")
     @classmethod
@@ -223,7 +228,7 @@ class ToolsConfig(BaseModel):
         """解释器来自部署配置，不接受相对路径，不在配置加载时执行。"""
         return None if value is None else PlatformConfig.validate_state_dir(value)
 
-    @field_validator("library_root", "registry_dir")
+    @field_validator("library_root", "registry_dir", "cache_root")
     @classmethod
     def _absolute_location(cls, value: Path) -> Path:
         """复用配置路径契约；不解析工具库软链接或要求路径当前存在。"""
@@ -368,6 +373,7 @@ def load_config(*, environ: Mapping[str, str], home: Path) -> LoadedConfig:
         仅后者不存在时 used_defaults=True，所有项取默认值（C1）；
         文件存在时用 tomllib 读取 UTF-8 TOML，缺项补默认值，再由 pydantic 严格校验。
         state_dir 字符串先按上述规则展开成 Path；空表、空文件也合法。
+        tools.cache_root 未指定时取最终 state_dir 下的 tool-cache，显式配置须为绝对路径。
         nav_root 同样由注入 home 展开；storage_roots 的 TOML 数组转不可变元组，
         每项 path 字符串转 Path 但不展开 ~；全部未知字段仍拒绝。
         不转换字符串端口、不把 bool 当整数、不忽略任意层级的未知项。
@@ -416,8 +422,13 @@ def load_config(*, environ: Mapping[str, str], home: Path) -> LoadedConfig:
     except FileNotFoundError:
         if selected:
             raise
+        state_dir = home / _DEFAULT_STATE_DIR_RELATIVE
         return LoadedConfig(
-            PlatformConfig(state_dir=home / _DEFAULT_STATE_DIR_RELATIVE), source, True
+            PlatformConfig(
+                state_dir=state_dir, tools=ToolsConfig(cache_root=state_dir / "tool-cache")
+            ),
+            source,
+            True,
         )
     original = dict(data)
     nav_value = data.get("nav_root")
@@ -427,6 +438,11 @@ def load_config(*, environ: Mapping[str, str], home: Path) -> LoadedConfig:
     data["state_dir"] = (
         _expand_path(state_value, home) if isinstance(state_value, str) else state_value
     )
+    tools_value = data.setdefault("tools", {})
+    if isinstance(tools_value, dict) and isinstance(data["state_dir"], Path):
+        # 只有加载器知道本次注入 home 和最终 state_dir；不能沿用独立 ToolsConfig 的默认 home。
+        tools_data = cast(dict[str, object], tools_value)
+        data["tools"] = {"cache_root": data["state_dir"] / "tool-cache", **tools_data}
     if isinstance(data.get("storage_roots"), list):
         # TOML数组转不可变集合；只转换已知路径叶子，其他坏值交模型提供来源诊断。
         data["storage_roots"] = tuple(_root_path(item) for item in data["storage_roots"])

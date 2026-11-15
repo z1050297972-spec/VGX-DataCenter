@@ -1,6 +1,7 @@
 """工具伪终端解析器登记入口（领域层，M4-02）；不依赖工具库模块或启动工具。"""
 
 from rdp.infra.diagnostics import DefectError
+from rdp.jobs.terminal._agibot2lerobot import Agibot2LerobotParser
 from rdp.jobs.terminal._mcap2lerobot import Mcap2LerobotParser
 from rdp.jobs.terminal.types import TerminalParser, TerminalUpdate
 
@@ -11,7 +12,7 @@ def create_terminal_parser(name: str, *, stage_count: int, first_stage: int) -> 
     """按工具清单的 runtime.progress 名称创建独立解析器。
 
     Args:
-        name: 已登记的解析器名，当前为 mcap2lerobot-pty。
+        name: 已登记的解析器名，mcap2lerobot-pty 或 agibot2lerobot-events。
         stage_count: 作业总阶段数，严格整数，须容纳扫描和转换两个阶段。
         first_stage: 扫描阶段序号，严格整数且至少1，first_stage + 1不得超过stage_count；
             转换阶段紧随其后，由调用方为工具运行前的核对阶段预留序号。
@@ -29,11 +30,14 @@ def create_terminal_parser(name: str, *, stage_count: int, first_stage: int) -> 
         同步构造；调用方按到达顺序送入字节。
     """
     if (
-        name != "mcap2lerobot-pty"
-        or type(stage_count) is not int
+        type(stage_count) is not int
         or type(first_stage) is not int
         or first_stage < 1
         or first_stage + 1 > stage_count
     ):
         raise DefectError()
-    return Mcap2LerobotParser(stage_count, first_stage)
+    if name == "mcap2lerobot-pty":
+        return Mcap2LerobotParser(stage_count, first_stage)
+    if name == "agibot2lerobot-events":
+        return Agibot2LerobotParser(stage_count, first_stage)
+    raise DefectError()
