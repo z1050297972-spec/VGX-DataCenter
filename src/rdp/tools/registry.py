@@ -1,6 +1,7 @@
 """只读工具登记（领域层，M4-01、decisions 1/2），不执行程序或访问数据集。
 
 TOML、SHA-256、lru_cache 和文件访问复用标准库；工具状态和五段诊断是本票业务规则。
+源码遍历用 os.scandir/dir_fd；pathlib 递归无法为每个目录打开附加 O_NOATIME 和 O_NOFOLLOW。
 README 打开沿用 worker 的 O_NOATIME/EPERM 规则，在此局部实现以避免只读工具领域依赖 worker。
 ADR 0006 的 Web 例外及 M4.5-10 仅限登记包、工具程序与 README：禁止读取其他存储根内容。
 工具库位于本地系统盘；只接受普通文件，分块读取设总预算，不创建线程或子进程。
@@ -12,6 +13,8 @@ import os
 import stat
 import time
 import tomllib
+from collections.abc import Generator
+from contextlib import closing
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -29,6 +32,10 @@ _HASH_TIMEOUT_S = 10.0
 _FINGERPRINT_CACHE_LIMIT = 128
 # M4.5-10 将 README 限制为 1 MiB，按原始字节计数，不能按解码后的字符数判断。
 _MAX_README_BYTES = 1024 * 1024
+# M4.6-01 的源码读取预算：至多 2000 个 Python 文件、合计 64 MiB 原始内容。
+_MAX_TREE_FILES = 2000
+_MAX_TREE_BYTES = 64 * 1024 * 1024
+_TREE_READ_FLAGS = os.O_RDONLY | os.O_NOATIME | os.O_NOFOLLOW | os.O_NONBLOCK
 
 
 @dataclass(frozen=True)
@@ -86,6 +93,29 @@ class RegisteredTool:
     configurations: tuple[ToolConfiguration, ...]
     readme_available: bool = False
 
+    @property
+    def fingerprint(self) -> str | None:
+        """返回预览及转换回执使用的登记指纹。
+
+        Args:
+            无。
+
+        Returns:
+            源码目录优先、否则程序的 64 位小写 SHA-256；清单无效时为 None。
+
+        Raises:
+            无。
+
+        Side Effects:
+            无；只读取当前清单快照。
+
+        Time Semantics:
+            不重新读取文件，不代表调用时重新核对了工具可用性。
+        """
+        if self.manifest is None:
+            return None
+        return self.manifest.program.tree_sha256 or self.manifest.program.sha256
+
 
 @dataclass(frozen=True)
 class ToolRegistry:
@@ -107,7 +137,7 @@ def load_tool_registry(registry_dir: Path, library_root: Path) -> ToolRegistry:
 
     Returns:
         按目录名排序的快照；坏清单仅标记该工具无效，不阻止其他登记。
-        程序不存在或无法读取为程序找不到，大小或 SHA-256 不匹配为指纹不符。
+        程序或源码目录不存在、无法读取或超限为程序找不到，大小或 SHA-256 不匹配为指纹不符。
 
     Raises:
         OSError: 无法列举登记目录；不把部署读取故障当成空工具库。
@@ -115,12 +145,13 @@ def load_tool_registry(registry_dir: Path, library_root: Path) -> ToolRegistry:
 
     Side Effects:
         无磁盘写入；只读登记包和程序，对 README 只做路径与普通文件检查。
-        程序以 O_RDONLY | O_NOATIME 打开，失败不退回普通读取。
+        程序和源码目录以 O_RDONLY | O_NOATIME | O_NOFOLLOW 打开，失败不退回普通读取。
+        源码目录只读至多 2000 个 .py、合计 64 MiB，不跟随符号链接，不缓存目录摘要。
         进程内缓存文件身份对应的 SHA-256，最多保留 128 项；不启动线程或子进程。
 
     Time Semantics:
         每次读取清单和配置；指纹按 (st_dev, st_ino, st_size, st_mtime_ns) 复用。
-        本地普通文件同步读取，哈希分块间检查十秒单调时间预算，无重试；不使用墙钟。
+        本地普通文件同步读取，程序与源码共用十秒单调时间预算，列举及分块间检查，无重试。
     """
     if not registry_dir.is_absolute() or not library_root.is_absolute():
         raise ValueError("登记包与工具库必须使用绝对路径")
@@ -249,7 +280,14 @@ def _load_valid_tool(package: Path, registry_dir: Path, library_root: Path) -> R
     )
     directory = _contained_path(library_root, manifest.tool.directory)
     program = _contained_path(directory, manifest.program.path)
+    deadline = time.monotonic() + _HASH_TIMEOUT_S
     status, diagnostics = _program_status(manifest, program)
+    # 启动器先通过再读源码，避免给损坏程序继续做无意义的目录遍历。
+    tree, tree_sha256 = manifest.program.tree, manifest.program.tree_sha256
+    if status == "可用" and tree is not None and tree_sha256 is not None:
+        status, diagnostics = _tree_status(
+            manifest.tool.name, directory, tree, tree_sha256, deadline
+        )
     return RegisteredTool(
         package.name,
         manifest,
@@ -324,6 +362,104 @@ def _fingerprint(program: _ProgramFile) -> str:
 def _file_identity(metadata: os.stat_result) -> tuple[int, int, int, int]:
     """集中指纹缓存的文件身份，修改时间使用文件系统的纳秒整数而非浮点秒。"""
     return metadata.st_dev, metadata.st_ino, metadata.st_size, metadata.st_mtime_ns
+
+
+def _tree_status(
+    name: str, directory: Path, tree: str, expected_digest: str, deadline: float
+) -> tuple[ToolStatus, tuple[Diagnostic, ...]]:
+    """源码读取失败与摘要不符分别报告，诊断标明目录身份及期望、实际指纹。"""
+    expected = f"源码目录 sha256 {expected_digest[:12]}"
+    try:
+        digest = _tree_fingerprint(directory, tree, deadline)
+    except OSError as error:
+        status: ToolStatus = "程序找不到"
+        actual = f"源码目录不存在或无法读取（{error}）"
+    else:
+        if digest == expected_digest:
+            return "可用", ()
+        status = "指纹不符"
+        actual = f"源码目录 sha256 {digest[:12]}"
+    return status, (
+        _diagnostic(name, directory / tree, actual=actual, expected=expected, status=status),
+    )
+
+
+def _tree_fingerprint(directory: Path, tree: str, deadline: float) -> str:
+    """以目录描述符逐层打开，防止源码路径中间分量的软链接跳出工具目录。"""
+    descriptor = os.open(directory, _TREE_READ_FLAGS | os.O_DIRECTORY)
+    try:
+        for part in Path(tree).parts:
+            child = os.open(part, _TREE_READ_FLAGS | os.O_DIRECTORY, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+        records: list[tuple[str, str]] = []
+        total_bytes = 0
+        # 中途超限也要显式关闭生成器，立即释放尚在遍历的所有子目录描述符。
+        with closing(_source_files(descriptor, "", deadline)) as sources:
+            for relative, parent, name in sources:
+                if len(records) >= _MAX_TREE_FILES:
+                    raise OSError("源码目录超过 2000 个 Python 文件")
+                digest, size = _source_digest(parent, name, _MAX_TREE_BYTES - total_bytes, deadline)
+                total_bytes += size
+                records.append((relative, digest))
+        _check_tree_deadline(deadline)
+        result = hashlib.sha256()
+        for relative, digest in sorted(records):
+            result.update(relative.encode("utf-8") + b"\0" + digest.encode("ascii") + b"\n")
+        return result.hexdigest()
+    finally:
+        os.close(descriptor)
+
+
+def _source_files(descriptor: int, prefix: str, deadline: float) -> Generator[tuple[str, int, str]]:
+    """流式遍历已用 NOATIME 打开的目录；不跟随目录链接，Python 文件链接交打开时拒绝。"""
+    _check_tree_deadline(deadline)
+    with os.scandir(descriptor) as entries:
+        for entry in entries:
+            _check_tree_deadline(deadline)
+            if entry.name == "__pycache__":
+                continue
+            relative = prefix + entry.name
+            if entry.is_dir(follow_symlinks=False):
+                child = os.open(entry.name, _TREE_READ_FLAGS | os.O_DIRECTORY, dir_fd=descriptor)
+                try:
+                    yield from _source_files(child, relative + "/", deadline)
+                finally:
+                    os.close(child)
+            elif entry.name.endswith(".py"):
+                yield relative, descriptor, entry.name
+
+
+def _source_digest(
+    parent: int, name: str, remaining_bytes: int, deadline: float
+) -> tuple[str, int]:
+    """按实际读取量限制剩余预算，拒绝链接、特殊文件及读取期间变化的源码。"""
+    _check_tree_deadline(deadline)
+    descriptor = os.open(name, _TREE_READ_FLAGS, dir_fd=parent)
+    with os.fdopen(descriptor, "rb") as stream:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise OSError("源码必须是普通文件")
+        if metadata.st_size > remaining_bytes:
+            raise OSError("源码目录超过 64 MiB")
+        digest = hashlib.sha256()
+        size = 0
+        # 多读一个判界字节，文件在 stat 后增长也不能突破总读取预算。
+        while chunk := stream.read(min(_HASH_CHUNK_BYTES, remaining_bytes - size + 1)):
+            _check_tree_deadline(deadline)
+            size += len(chunk)
+            if size > remaining_bytes:
+                raise OSError("源码目录超过 64 MiB")
+            digest.update(chunk)
+        if _file_identity(metadata) != _file_identity(os.fstat(descriptor)):
+            raise OSError("源码在读取期间变化")
+    return digest.hexdigest(), size
+
+
+def _check_tree_deadline(deadline: float) -> None:
+    """整个目录共享单调时钟预算，不能为每个文件重新获得十秒。"""
+    if time.monotonic() >= deadline:
+        raise TimeoutError("源码目录指纹读取超时")
 
 
 def _diagnostic(

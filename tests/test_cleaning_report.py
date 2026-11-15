@@ -1,11 +1,39 @@
 """只用现场生成的小 MCAP 验证工单的对齐报告和五项数值检查。"""
 
+import json
 from pathlib import Path
 
 import pytest
 from cleaning_support import configs, ignore_progress, noop, write_scene
+from pydantic import ValidationError
 
 from rdp.jobs.cleaning import CleaningReport, build_cleaning_report
+
+
+def test_report_formats_roundtrip_and_legacy_mcap(tmp_path: Path) -> None:
+    """M4.6：旧 MCAP JSON 缺省格式仍可读；AgiBot 可往返，但不能伪造基准话题。"""
+    tool, rules = configs(tmp_path)
+    source = tmp_path / "sample.mcap"
+    write_scene(source, "normal", 120)
+    report = build_cleaning_report(
+        [("source", source)], tool, rules, checkpoint=noop, progress=ignore_progress
+    )
+    old = report.model_dump(mode="json", exclude={"source_format"})
+    for file in old["files"]:
+        file.pop("episode_id", None)
+    assert CleaningReport.model_validate_json(json.dumps(old)).source_format == "mcap"
+    native = report.model_dump(mode="json")
+    native.update(source_format="agibot_native", reference_topic=None)
+    native["rules"]["sync"] = None
+    for field in ("frozen_s", "sample_interval_s", "dark_below", "bright_above"):
+        native["rules"]["checks"][field] = None
+    native["files"][0].update(episode_id="42", topics=[])
+    parsed = CleaningReport.model_validate(native)
+    assert parsed.files[0].episode_id == "42"
+    assert CleaningReport.model_validate_json(parsed.model_dump_json()) == parsed
+    native["reference_topic"] = "/camera"
+    with pytest.raises(ValidationError):
+        CleaningReport.model_validate(native)
 
 
 def test_alignment_segments_and_file_failure_isolation(tmp_path: Path) -> None:
@@ -55,6 +83,7 @@ def test_alignment_segments_and_file_failure_isolation(tmp_path: Path) -> None:
         checkpoint=noop,
         progress=ignore_progress,
     )
+    assert r1lite.rules.sync is not None
     assert r1lite.rules.sync.max_frame_gap_ms == pytest.approx(53.333333333333336)
     assert r1lite.rules.sync.min_episode_frames == 90
     assert r1lite.rules.checks.model_dump(mode="json")["severe_checks"] == [

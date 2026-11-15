@@ -279,13 +279,17 @@ def test_unusable_lerobot_refuses_deletion(
 
 
 @pytest.mark.parametrize(
-    "choice", ["fatal", "all", "all_episodes", "foreign", "redundant", "valid"]
+    "choice", ["fatal", "all", "all_episodes", "foreign", "redundant", "valid", "explicit_ratio"]
 )
 def test_preview_convert_validates_final_selection(
     tmp_path: Path, fake_nav: FakeNavigation, choice: str
 ) -> None:
-    """范围6：HTTP拒绝致命文件未剔除、全部剔除、越界与冗余身份；合法选择原样保存。"""
+    """HTTP 拒绝非法剔除；合法选择原样保存，空间百分比省略取清单、显式 25 不覆盖。"""
     files = fake_converter(tmp_path / "tool")
+    manifest = files.package / "tool.toml"
+    manifest.write_text(
+        manifest.read_text().replace("[runtime]", "[runtime]\nspace_ratio_percent = 130")
+    )
     registry = production_registry()
     register_conversion_jobs(registry, settings(files), fake_nav.storage_roots, None)
     with browser_case(tmp_path / "state", fake_nav, registry=registry) as api:
@@ -323,14 +327,18 @@ def test_preview_convert_validates_final_selection(
             )
         else:
             payload["excluded_files"] = [0]
+            if choice == "explicit_ratio":
+                payload["space_ratio_percent"] = 25
         response = api.client.post("/api/cleaning-previews/59/convert", json=payload)
-        assert response.status_code == (201 if choice == "valid" else 422), response.text
-        if choice == "valid":
+        valid = choice in {"valid", "explicit_ratio"}
+        assert response.status_code == (201 if valid else 422), response.text
+        if valid:
             actual = response.json()["parameters"]
             assert actual["cleaning_preview_job_id"] == 59
             assert actual["excluded_files"] == [0]
             assert actual["excluded_episodes"] == []
             assert actual["output_format"] == "v3.0"
+            assert actual["space_ratio_percent"] == (25 if choice == "explicit_ratio" else 130)
         assert api.client.post("/api/jobs/convert/mcap2lerobot", json={}).status_code == 404
 
 
