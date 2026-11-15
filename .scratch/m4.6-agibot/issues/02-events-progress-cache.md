@@ -1,6 +1,6 @@
 # 事件进度解析与工具缓存目录
 
-Status: ready-for-agent
+Status: done（2026-11-15 合进集成分支）
 
 分级：直做。与第 01 张并行，文件不重叠（本票不动 `src/rdp/tools/`、`src/rdp/jobs/conversion/parameters.py`、`src/rdp/jobs/cleaning/models.py`、`src/rdp/api/tools.py`）。决定见 `../decisions.md` 第 3、5、6 条和「工具的事实」。
 
@@ -70,3 +70,5 @@ AgiBot 工具把进度写成 stderr 上的 JSON 行，并需要一个可写的�
 测试通过；`PYTHONPATH=$PWD/src make check` 全绿。
 
 ## Comments
+
+- 2026-11-15 Codex（rdp-m46-02）交付；执行线在沙箱外跑全量 make check 通过（后端 3019、前端 436），变异抽查（去掉阶段只进不退、去掉 O_NOFOLLOW）都被测试抓到。合进集成分支。
