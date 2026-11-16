@@ -1,0 +1,16 @@
+schema_version = 1
+robot_type = "g2a"
+fps = 30
+
+[output]
+data_file_size_in_mb = 100
+video_file_size_in_mb = 500
+chunks_size = 1000
+
+[preview]
+# 缓存原始 parquet 字节等待后置的 meta，超限才重扫，避免正常归档读两遍。
+parquet_cache_size_in_mb = 4096
+
+[statistics]
+# 占位视频统计才补算，限制采样帧数以控制解码后统计的工作量。
+video_sample_frames = 100

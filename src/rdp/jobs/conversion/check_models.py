@@ -1,12 +1,23 @@
 """入库检查值契约（领域层，M4-04）；只描述四层结论，不访问存储或决定入库。"""
 
-from typing import Literal
+from typing import Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    TypeAdapter,
+    model_validator,
+)
 
 from rdp.infra.diagnostics import Diagnostic
 
 type CheckResult = Literal["通过", "有警告", "不通过"]
+
+# 双字段必须分别经过相同的值校验，不能由别名优先级吞掉非法的另一份声明。
+_VIDEO_INFO = TypeAdapter(dict[str, JsonValue])
 
 
 class CheckLayer(BaseModel):
@@ -26,11 +37,35 @@ class CheckReport(BaseModel):
 
 
 class FeatureInfo(BaseModel):
-    """只解释检查需要的特征声明，保留工具自带的其他信息。"""
+    """特征声明兼容旧 video_info；双字段同名键必须一致，互补键合并，额外特征字段保留。"""
 
+    model_config = ConfigDict(extra="allow")
     dtype: str
     shape: tuple[int, ...]
-    info: dict[str, JsonValue] = {}
+    info: dict[str, JsonValue] = Field(
+        default_factory=dict, validation_alias=AliasChoices("info", "video_info")
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _consistent_video_info(cls, value: Any) -> Any:
+        """旧转换产物可能同时留两份声明；先拒绝冲突，再交给统一的 info 字段校验。"""
+        if not isinstance(value, dict):
+            return value
+        payload = cast(dict[str, Any], value)
+        if "info" not in payload or "video_info" not in payload:
+            return payload
+        current = _VIDEO_INFO.validate_python(payload["info"])
+        legacy = _VIDEO_INFO.validate_python(payload["video_info"])
+        conflicts = sorted(
+            key for key in current.keys() & legacy.keys() if current[key] != legacy[key]
+        )
+        if conflicts:
+            raise ValueError(f"info 与 video_info 字段冲突：{', '.join(conflicts)}")
+        # 只规范化内存模型，不改源 JSON；移除旧键避免序列化时重新产生两份声明。
+        return {key: item for key, item in payload.items() if key != "video_info"} | {
+            "info": legacy | current
+        }
 
 
 class LeRobotInfo(BaseModel):

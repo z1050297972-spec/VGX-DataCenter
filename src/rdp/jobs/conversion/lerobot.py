@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from rdp.infra.config import ToolsConfig
 from rdp.jobs.conversion._process import run_bounded
 from rdp.jobs.sandbox import SandboxSpec, sandbox_argv
+from rdp.jobs.tool_environment import offline_tool_argv
 
 # 探测只导入顶层包并读版本，15 秒是列表请求和执行前共用的有界预算。
 PROBE_TIMEOUT_S = 15.0
@@ -157,16 +158,7 @@ def environment_argv(python: Path, scratch: Path, arguments: tuple[str, ...]) ->
         无时钟依赖，超时由调用方受管进程提供。
     """
     # -I 会忽略 PYTHON* 环境变量，额外 -B 才能真正禁止写 pyc。
-    return (
-        "/usr/bin/env",
-        "HF_HUB_OFFLINE=1",
-        "PYTHONDONTWRITEBYTECODE=1",
-        f"HF_HOME={scratch / 'hf-home'}",
-        str(python),
-        "-I",
-        "-B",
-        *arguments,
-    )
+    return offline_tool_argv(scratch, (str(python), "-I", "-B", *arguments))
 
 
 def _run_probe(

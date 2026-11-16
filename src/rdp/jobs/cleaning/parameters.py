@@ -1,7 +1,7 @@
 """清洗作业参数（领域层，M4.5-02）；共用转换输入规则，不包含输出与空间选项。"""
 
 import re
-from typing import Self
+from typing import ClassVar, Self
 
 from pydantic import model_validator
 
@@ -54,7 +54,9 @@ def tool_parameters(manifest: ToolManifest) -> type[CleaningPreviewParameters]:
     """
 
     class _ToolParameters(CleaningPreviewParameters):
-        """每个工具独立保存可选型号。"""
+        """每个工具独立保存可选型号和输入格式，不接受请求覆盖格式。"""
+
+        input_format: ClassVar[str] = manifest.io.input_format
 
         @model_validator(mode="after")
         def _cleaning_model(self) -> Self:

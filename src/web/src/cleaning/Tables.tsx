@@ -9,6 +9,7 @@ import type {
   TopicAlignment,
 } from "../api/cleaning";
 import { formatNumber } from "./formatNumber";
+import { formatBytes } from "../datasets/formatBytes";
 import { DiagnosticEntries } from "../DiagnosticCard";
 
 interface FileTableProps {
@@ -17,21 +18,23 @@ interface FileTableProps {
   /** 修改非致命文件选择，参数为报告下标。 */ toggleFile: (index: number) => void;
 }
 /**
- * 展示文件质量与可展开的话题对齐统计。
+ * 按来源格式展示文件质量或 AgiBot 集的体检和数值问题。
  * @param props - 报告事实及当前文件选择。
- * @returns 文件表；致命文件固定剔除并直接显示诊断原因。
+ * @returns MCAP 文件对齐表或 AgiBot Episode 表；体检失败项固定剔除。
  * @throws 无。
  * @sideEffects 用户切换调用选择回调，不发请求、不持久化。
  * @timeSemantics 同步展示；对齐时间差单位为毫秒，空统计保持未知。
  */
 export function FileTable(props: FileTableProps): ReactElement {
+  if (props.report.source_format === "agibot_native") return <NativeEpisodeTable {...props} />;
+  const g2 = props.report.source_format === "agibot_lerobot21";
   return (
     <Table<FileReport>
       rowKey="file_index"
       dataSource={props.report.files}
       pagination={false}
       scroll={{ x: "max-content" }}
-      expandable={{ expandedRowRender: (file) => <FileDetails file={file} /> }}
+      expandable={{ expandedRowRender: (file) => <FileDetails file={file} g2={g2} /> }}
       columns={[
         {
           title: "处理",
@@ -51,10 +54,13 @@ export function FileTable(props: FileTableProps): ReactElement {
             </Space>
           ),
         },
-        { title: "文件", render: (_, file) => <FileName path={file.path} /> },
+        { title: g2 ? "归档" : "文件", render: (_, file) => <FileName path={file.path} /> },
         {
-          title: "保留帧 / 基准帧",
-          render: (_, file) => `${String(file.kept_frames)} / ${String(file.reference_frames)}`,
+          title: g2 ? "归档帧数" : "保留帧 / 基准帧",
+          render: (_, file) =>
+            g2
+              ? String(file.reference_frames)
+              : `${String(file.kept_frames)} / ${String(file.reference_frames)}`,
         },
         {
           title: "episode 数",
@@ -62,16 +68,83 @@ export function FileTable(props: FileTableProps): ReactElement {
             props.report.episodes.filter((episode) => episode.file_index === file.file_index)
               .length,
         },
-        { title: "坏帧", dataIndex: "bad_frames" },
-        { title: "断点", dataIndex: "gaps" },
-        {
-          title: "过短丢弃",
-          render: (_, file) =>
-            `${String(file.short_segments)} 段 / ${String(file.short_frames)} 帧`,
-        },
+        ...(!g2
+          ? [
+              { title: "坏帧", dataIndex: "bad_frames" },
+              { title: "断点", dataIndex: "gaps" },
+              {
+                title: "过短丢弃",
+                render: (_: unknown, file: FileReport) =>
+                  `${String(file.short_segments)} 段 / ${String(file.short_frames)} 帧`,
+              },
+            ]
+          : []),
         {
           title: "致命问题和警告",
           render: (_, file) => <FileIssues file={file} />,
+        },
+      ]}
+    />
+  );
+}
+
+// 原生格式一集就是一个文件；以文件为主表，体检失败而没有段记录的集也必须可见。
+function NativeEpisodeTable(props: FileTableProps): ReactElement {
+  const episodes = new Map(props.report.episodes.map((episode) => [episode.file_index, episode]));
+  return (
+    <Table<FileReport>
+      rowKey="file_index"
+      dataSource={props.report.files}
+      pagination={false}
+      scroll={{ x: "max-content" }}
+      columns={[
+        { title: "episode ID", dataIndex: "episode_id" },
+        { title: "帧数", dataIndex: "reference_frames" },
+        {
+          title: "时长",
+          render: (_, file) => formatNumber(file.reference_frames / props.report.fps, "seconds"),
+        },
+        { title: "大小", render: (_, file) => formatBytes(file.size_bytes) },
+        {
+          title: "体检问题",
+          render: (_, file) => (
+            <Space orientation="vertical">
+              {file.fatal_issues.map((issue, index) => (
+                <Typography.Text type="danger" key={index}>
+                  {issue.actual}
+                </Typography.Text>
+              ))}
+            </Space>
+          ),
+        },
+        {
+          title: "数值问题",
+          render: (_, file) => (
+            <Space wrap>
+              {episodes.get(file.file_index)?.issues.map((issue, index) => (
+                <Tooltip key={index} title={issue.message}>
+                  <Tag color={issue.severity === "severe" ? "red" : "orange"}>
+                    {issue.severity === "severe" ? "严重" : "提示"} · {issue.check}
+                  </Tag>
+                </Tooltip>
+              ))}
+            </Space>
+          ),
+        },
+        {
+          title: "处理",
+          render: (_, file) => (
+            <Switch
+              aria-label={`Episode ${file.episode_id ?? file.path} 保留`}
+              checked={file.fatal_issues.length === 0 && !props.excludedFiles.has(file.file_index)}
+              disabled={file.fatal_issues.length > 0}
+              checkedChildren="保留"
+              unCheckedChildren="剔除"
+              onChange={() => {
+                props.toggleFile(file.file_index);
+              }}
+            />
+          ),
         },
       ]}
     />
@@ -113,14 +186,18 @@ function FileIssues({ file }: { file: FileReport }): ReactElement {
 }
 
 // 五段诊断保留完整内容，按需展开；与对齐统计一起使用卡片内可收缩的网格。
-function FileDetails({ file }: { file: FileReport }): ReactElement {
+function FileDetails({ file, g2 }: { file: FileReport; g2: boolean }): ReactElement {
   return (
     <div className="cleaning-file-details">
       <Typography.Title level={5}>致命问题与警告明细</Typography.Title>
       <DiagnosticEntries diagnostics={file.fatal_issues} />
       <DiagnosticEntries diagnostics={file.warnings} />
-      <Typography.Title level={5}>话题对齐统计</Typography.Title>
-      <TopicTable topics={file.topics} />
+      {!g2 && (
+        <>
+          <Typography.Title level={5}>话题对齐统计</Typography.Title>
+          <TopicTable topics={file.topics} />
+        </>
+      )}
     </div>
   );
 }
@@ -180,12 +257,14 @@ interface EpisodeTableProps extends FileTableProps {
  * @timeSemantics 时长取恒定帧率 duration_s；原始 stamp 跨度单独标明，问题时间相对段首。
  */
 export function EpisodeTable(props: EpisodeTableProps): ReactElement {
+  const g2 = props.report.source_format === "agibot_lerobot21";
   const files = new Map(props.report.files.map((file) => [file.file_index, file]));
   return (
     <Table<EpisodeReport>
       rowKey={(episode) => episodeKey(episode)}
       dataSource={props.report.episodes.filter(
-        (episode) => !props.onlyIssues || episode.issues.length > 0,
+        (episode) =>
+          !props.onlyIssues || episode.issues.length > 0 || episode.fatal_issues.length > 0,
       )}
       pagination={false}
       scroll={{ x: "max-content" }}
@@ -202,9 +281,12 @@ export function EpisodeTable(props: EpisodeTableProps): ReactElement {
                 aria-label={`文件 ${String(episode.file_index)} 段 ${String(episode.segment_index)} 保留`}
                 checked={
                   !props.excludedFiles.has(episode.file_index) &&
+                  !episode.fatal_issues.length &&
                   !props.excludedEpisodes.has(episodeKey(episode))
                 }
-                disabled={props.excludedFiles.has(episode.file_index)}
+                disabled={
+                  props.excludedFiles.has(episode.file_index) || episode.fatal_issues.length > 0
+                }
                 checkedChildren="保留"
                 unCheckedChildren="剔除"
                 onChange={() => {
@@ -225,21 +307,24 @@ export function EpisodeTable(props: EpisodeTableProps): ReactElement {
           title: "文件",
           render: (_, episode) => <FileName path={files.get(episode.file_index)?.path} />,
         },
-        { title: "段下标", dataIndex: "segment_index" },
+        { title: g2 ? "源 episode_index" : "段下标", dataIndex: "segment_index" },
         { title: "帧数", dataIndex: "frame_count" },
         { title: "时长", render: (_, episode) => formatNumber(episode.duration_s, "seconds") },
         {
-          title: "原始时间跨度",
-          render: (_, episode) => formatNumber(episode.stamp_span_s, "span"),
+          title: g2 ? "采集时间跨度（未知）" : "原始时间跨度",
+          render: (_, episode) =>
+            episode.stamp_span_s === null ? "未知" : formatNumber(episode.stamp_span_s, "span"),
         },
         {
           title: "开始时间（原始 stamp）",
-          render: (_, episode) => formatNumber(episode.start_time_s, "seconds"),
+          render: (_, episode) =>
+            episode.start_time_s === null ? "未知" : formatNumber(episode.start_time_s, "seconds"),
         },
         {
           title: "问题",
           render: (_, episode) => (
             <Space orientation="vertical" className="cleaning-issues">
+              <DiagnosticEntries diagnostics={episode.fatal_issues} />
               {episode.issues.map((issue, index) => (
                 <Issue key={index} issue={issue} />
               ))}

@@ -15,12 +15,11 @@ interface Props {
   /** 当前报告快照；编号由路由原文传递，避免数值转换丢精度。 */ preview: CleaningPreview;
   /** 预览作业编号文本。 */ jobId: string;
   /** 当前文件剔除列表，含固定剔除文件。 */ excludedFiles: number[];
-  /** 仅包含未剔除文件内的段选择。 */ excludedEpisodes: ExcludedEpisode[];
+  /** 仅包含未剔除文件内的段选择；AgiBot 提交时固定为空数组。 */ excludedEpisodes: ExcludedEpisode[];
   /** 交给工具的文件数，非负整数。 */ fileCount: number;
   /** 最终保留的 episode 数，非负整数。 */ episodeCount: number;
 }
-// 工单约定空间默认值；百分比、GiB 单位与已有转换参数保持一致。
-const DEFAULT_SPACE_RATIO_PERCENT = 25;
+// 预留偏置沿用 M4.5 的 1 GiB，百分比由当前工具清单提供。
 const DEFAULT_SPACE_RESERVE_GIB = 1;
 type FormValues = Pick<
   CleaningConversionInput,
@@ -54,10 +53,12 @@ function ConversionForm(props: Props): ReactElement {
 }
 
 function ReadyConversionForm(
-  props: Props & { /** 当前登记工具，只取输出版本及可用状态。 */ tool: ToolSummary },
+  props: Props & { /** 当前登记工具，提供输出版本和默认空间百分比。 */ tool: ToolSummary },
 ): ReactElement {
   const client = useAccountClient();
   const tool = props.tool;
+  const native = props.preview.report.source_format === "agibot_native";
+  const remux = props.preview.report.source_format !== "mcap";
   const [form] = Form.useForm<FormValues>();
   const [pending, setPending] = useState<CleaningConversionInput | null>(null);
   const submit = useJobAction(
@@ -72,21 +73,23 @@ function ReadyConversionForm(
         ? "没有保留的 episode，无法转换。"
         : null;
   const hasExclusions = props.excludedFiles.length > 0 || props.excludedEpisodes.length > 0;
+  const confirmation = remux
+    ? `将只转换保留的 ${String(props.episodeCount)} 个 Episode，视频不重新编码，产出清洗后的 LeRobot 数据集`
+    : `将把 ${String(props.fileCount)} 个文件交给工具，转换后剔除 ${String(props.excludedEpisodes.length)} 个 episode，产出清洗后的 LeRobot 数据集`;
   return (
     <>
-      <Typography.Paragraph>空间检查按输入大小的百分比加偏置估算。</Typography.Paragraph>
-      {hasExclusions && <Alert type="info" title="产物按两倍估算" />}
       <Typography.Paragraph>
-        将把 {props.fileCount} 个文件交给工具，转换后剔除 {props.excludedEpisodes.length} 个
-        episode，产出清洗后的 LeRobot 数据集
+        空间检查按输入大小的百分比加偏置估算，不保证转换途中空间足够。
       </Typography.Paragraph>
+      {!remux && hasExclusions && <Alert type="info" title="产物按两倍估算" />}
+      <Typography.Paragraph>{confirmation}</Typography.Paragraph>
       {reason && <Alert type="warning" title={reason} />}
       <Form
         form={form}
         layout="vertical"
         initialValues={{
           output_format: tool.output_versions[0],
-          space_ratio_percent: DEFAULT_SPACE_RATIO_PERCENT,
+          space_ratio_percent: tool.default_space_ratio_percent,
           space_reserve_gib: DEFAULT_SPACE_RESERVE_GIB,
         }}
         onFinish={(values) => {
@@ -95,7 +98,8 @@ function ReadyConversionForm(
             ...values,
             output_format: values.output_format,
             excluded_files: props.excludedFiles,
-            excluded_episodes: props.excludedEpisodes,
+            // AgiBot 一集一文件，绝不能走转换后删段、重新编码的视频流程。
+            excluded_episodes: native ? [] : props.excludedEpisodes,
           });
         }}
       >
@@ -142,10 +146,7 @@ function ReadyConversionForm(
           }
         }}
       >
-        <Typography.Paragraph>
-          将把 {props.fileCount} 个文件交给工具，转换后剔除 {props.excludedEpisodes.length} 个
-          episode，产出清洗后的 LeRobot 数据集。
-        </Typography.Paragraph>
+        <Typography.Paragraph>{confirmation}。</Typography.Paragraph>
       </Modal>
     </>
   );

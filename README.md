@@ -4,6 +4,8 @@
 
 **已支持**：数据集管理、开源下载、机器人登记、MCAP 清洗转换与入库、R1 Lite 实时预览。采集录制仍在规划中。
 
+**M4.6 AgiBot 接入**：已完成 Alpha 原生数据和 G2 v2.1 归档的工具登记、清洗预览、整集剔除、v3.0 转换与入库接入。G2 按同任务归档合并，不落完整解压副本；保留附加标注，无效统计按实际加载口径补算。最终检查：后端 3120、前端 441 项通过；两条真实工具沙箱入库演练通过。运行实例需按运维流程升级后才能使用；验收证据见 [.scratch/m4.6-agibot/assets/verification-results.md](.scratch/m4.6-agibot/assets/verification-results.md)，操作见使用手册 11.4。
+
 Python + React，原生运行于 Linux；Python 包、运维命令和服务名沿用 `rdp`。
 
 [首次阅读](Read_First_What%27re_Files_Meaning%3F.md) · [系统截图](#系统截图与终端示例) · [安装](#环境安装) · [功能与路线](#功能介绍) · [运行与升级](#代码运行方式) · [使用示例](#使用示例) · [使用手册](docs/manual/使用手册.md)

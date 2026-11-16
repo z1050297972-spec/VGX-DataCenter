@@ -15,6 +15,9 @@ from rdp.jobs.conversion.check_models import FeatureInfo, LeRobotInfo
 # 单文件探测最多15秒；ffprobe的秒文本有舍入，1微秒以内不作为业务警告。
 PROBE_TIMEOUT_S = 15.0
 DURATION_ROUNDING_S = 0.000001
+# G2 的旧 LeRobot 声明记录 AV1 解码器 libdav1d，ffprobe 返回编码名 av1。
+# 只接受已确认的这一项对应关系，不把未知 lib* 名称猜成编码。
+_CODEC_ALIASES = {"libdav1d": "av1"}
 
 
 def _reference(root: Path, info: LeRobotInfo, key: str, row: dict[str, Any]) -> Path:
@@ -56,8 +59,11 @@ def _probe(path: Path, feature: FeatureInfo, frames: int, fps: float) -> str | N
     )
     payload = json.loads(result.stdout)
     stream = payload["streams"][0]
+    expected_codec = feature.info.get("video.codec")
+    if isinstance(expected_codec, str):
+        expected_codec = _CODEC_ALIASES.get(expected_codec, expected_codec)
     if (
-        stream["codec_name"] != feature.info.get("video.codec")
+        stream["codec_name"] != expected_codec
         or (stream["height"], stream["width"]) != feature.shape[:2]
     ):
         raise ValueError(f"视频编码或尺寸与info不一致：{path.name}")

@@ -33,7 +33,7 @@ def seed_preview(
 ) -> ConversionParameters:
     """已合并预览工单的边界快照；帧数由测试明确给出，不调用转换逻辑生成期望。"""
     with session_scope(engine) as session:
-        inputs = selected_inputs(session, parameters)
+        inputs = selected_inputs(session, parameters, input_format="mcap")
         paths: list[tuple[str, Path]] = []
         for source_id, path in zip(parameters.source_ids, inputs, strict=True):
             if path.is_dir():

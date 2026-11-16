@@ -26,6 +26,7 @@ const episode: EpisodeReport = {
   stamp_span_s: 9.9,
   start_time_s: 1000,
   issues: [],
+  fatal_issues: [],
   default_action: "keep",
 };
 export const preview: CleaningPreview = {
@@ -39,6 +40,7 @@ export const preview: CleaningPreview = {
   created_at: "2026-11-09T12:00:00Z",
   report: {
     schema_version: 1,
+    source_format: "mcap",
     tool_config_sha256: "config",
     rules_sha256: "rules",
     fps: 10,
@@ -146,6 +148,9 @@ export const cleaningTools: ToolList = {
       robot_models: ["R1", "未登记规则"],
       cleaning_models: ["R1"],
       needs_gpu: true,
+      preview_by_tool: false,
+      default_space_ratio_percent: 25,
+      source_tree_sha256: null,
       status: "可用",
       diagnostics: [],
       program_path: "/tmp/tool",
@@ -160,5 +165,107 @@ export const cleaningTools: ToolList = {
     expected_fingerprint: "expected",
     actual_fingerprint: "expected",
     message: null,
+  },
+};
+
+// M4.6：工具与报告均为内存事实，目录文本只用于显示，不访问文件系统。
+export const agibotTools: ToolList = {
+  ...cleaningTools,
+  items: cleaningTools.items.map((tool) => ({
+    ...tool,
+    name: "agibot2lerobot",
+    input_format: "agibot_native",
+    robot_models: ["AgiBot G1 灵巧手", "AgiBot G1"],
+    cleaning_models: ["AgiBot G1 灵巧手", "AgiBot G1"],
+    preview_by_tool: true,
+    default_space_ratio_percent: 137,
+    needs_gpu: false,
+  })),
+};
+
+export const agibotPreview: CleaningPreview = {
+  ...preview,
+  tool_name: "agibot2lerobot",
+  robot_model: "AgiBot G1",
+  report: {
+    ...preview.report,
+    source_format: "agibot_native",
+    reference_topic: null,
+    rules: {
+      sync: null,
+      checks: {
+        ...preview.report.rules.checks,
+        frozen_s: null,
+        sample_interval_s: null,
+        dark_below: null,
+        bright_above: null,
+      },
+    },
+    summary: {
+      files: 3,
+      excluded_files: 1,
+      episodes: 2,
+      excluded_episodes: 1,
+      reference_frames: 200,
+      kept_frames: 200,
+    },
+    files: preview.report.files.map((file) => ({
+      ...file,
+      episode_id: String(101 + file.file_index),
+      path: `/tmp/agibot/observations/327/${String(101 + file.file_index)}`,
+      reference_frames: 100,
+      kept_frames: 100,
+      topics: [],
+      fatal_issues: file.file_index === 0 ? [{ ...fatal, actual: "缺少深度图" }] : [],
+      // 体检结果在文件层，严重数值问题在段层；页面必须将两者合并为整集选择。
+      default_excluded: file.file_index === 0,
+    })),
+    episodes: [
+      {
+        ...episode,
+        default_action: "exclude",
+        issues: preview.report.episodes.flatMap((item) => item.issues),
+      },
+      { ...episode, file_index: 2 },
+    ],
+  },
+};
+
+// G2 平台报告沿用真实适配形状：归档一级、非连续源集号、致命集和可调整数值问题分开。
+export const g2Tools: ToolList = {
+  ...agibotTools,
+  items: agibotTools.items.slice(0, 1).map((tool) => ({
+    ...tool,
+    name: "agibot2lerobot-g2",
+    default_space_ratio_percent: 130,
+    input_format: "archives",
+    robot_models: ["AgiBot G2（g2a）"],
+    cleaning_models: ["AgiBot G2（g2a）"],
+  })),
+};
+export const g2Preview: CleaningPreview = {
+  ...preview,
+  tool_name: "agibot2lerobot-g2",
+  robot_model: "AgiBot G2（g2a）",
+  report: {
+    ...preview.report,
+    source_format: "agibot_lerobot21",
+    reference_topic: null,
+    rules: agibotPreview.report.rules,
+    files: preview.report.files.map((file) => ({
+      ...file,
+      path: `/tmp/task_42/${String(file.file_index)}.tar.gz`,
+      episode_id: null,
+      topics: [],
+    })),
+    episodes: preview.report.episodes.map((episode, index) => ({
+      ...episode,
+      segment_index: index === 1 ? 7 : 0,
+      stamp_span_s: null,
+      start_time_s: null,
+      fatal_issues: index === 0 ? [{ ...fatal, actual: "缺视频或视频为空" }] : [],
+      issues: [],
+      default_action: index === 0 ? "exclude" : "keep",
+    })),
   },
 };

@@ -96,7 +96,7 @@ def convert_from_cleaning_preview(
 
     Args:
         job_id: 1 至 2^63-1 的预览作业编号，十进制字符串。
-        body: 输出版本、空间百分比和 GiB 预留，以及报告内的最终剔除身份列表。
+        body: 输出版本、空间百分比和 GiB 预留，以及报告内的最终剔除身份列表；Alpha 只允许 excluded_files，G2 可按源集剔除。
         context: 已认证管理员、作业服务及请求唯一 UTC 时刻。
         session: 只读数据库事务，仅用于读取预览和原作业输入。
 
@@ -104,7 +104,7 @@ def convert_from_cleaning_preview(
         HTTP 201 的新排队转换作业，输出版本省略时取工具清单首项。
 
     Raises:
-        JobInputError: 预览不存在、选择非法、无剩余文件或 episode，返回 422。
+        JobInputError: 预览不存在、选择非法、Alpha 指定段剔除、无剩余文件或 episode，返回 422。
         AuthorizationError: 非管理员，返回 403。
         ExternalError: 数据库或审计写入失败，返回 502。
         ConflictError: 作业提交写锁竞争，返回 409。
@@ -127,11 +127,14 @@ def convert_from_cleaning_preview(
             "source_ids": original.parameters["source_ids"],
             "robot_model": preview.robot_model,
             "cleaning_preview_job_id": preview.job_id,
-            **body.model_dump(),
+            # 保留省略状态，让工具参数模型采用清单默认空间百分比。
+            **body.model_dump(exclude_unset=True),
         }
     )
     request = JobRequest(identity(context.account), context.account.now, context.account.audit)
     record = context.service.submit(
-        request, conversion_type_name(preview.tool_name), parameters.model_dump(mode="json")
+        request,
+        conversion_type_name(preview.tool_name),
+        parameters.model_dump(mode="json", exclude_unset=True),
     )
     return response(record, role=identity(context.account).account.role)

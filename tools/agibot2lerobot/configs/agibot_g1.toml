@@ -1,0 +1,116 @@
+# AgiBot World Alpha（AgiBot G1，双臂 + 夹爪）→ LeRobot v3.0 的映射配置
+#
+# 每个 [[feature]] 对应 LeRobot 数据集中的一列：
+#   type = "video"  : 一路相机，file 是相对 episode 观测目录的视频文件；只换封装、不重新编码
+#   type = "depth"  : 深度图序列，dir 下按 pattern 连续编号；乘 unit_m 换成米，存成 float32 图像
+#   type = "vector" : 按 sources 顺序拼接 proprio_stats.h5 里的数据集，得到一个 float32 向量
+#                     dataset 是 h5 内的路径；多维的（如 [N, 2, 3]）按行展平
+#                     names 是每一维的名字，个数必须等于展平后的维度，否则这一集体检不通过
+#
+# 单位（来自 AgiBot World 官方说明，并在全部 36 个任务上抽样核对过）：
+#   关节角 rad；头 yaw/pitch rad；腰部 pitch rad、lift m；底盘速度 x m/s、yaw rad/s。
+#   夹爪 state 单位 mm，实测约 35（张开）~ 120（闭合），数值越大越闭合；
+#   夹爪 action 是 0（全开）~ 1（全闭），state 比 action 滞后约 0.7~1 秒。
+# 注意：源数据里 action/joint/position 与 state/joint/position 逐值相同（记录的是同一时刻的关节角，
+#   不是下发的目标值）；action 里真正独立的指令只有夹爪、头、腰和底盘速度。这里照原样转，不做平移。
+# 适用任务：Alpha 的 36 个任务里除 475 以外的 35 个。475（Ironing Clothes）是灵巧手，
+#   用 agibot_g1_dexhand.toml；拿这份去转会在体检时报维度不符，不会转错。
+
+robot_type = "a2d"   # 沿用 AgiBot 官方转换脚本写的值，已有训练配置可以直接用
+fps = 30
+# 任务描述：可用 {task_name}、{init_scene_text}（来自 task_info）。与官方脚本的拼法一致（句号后不加空格）
+task = "{task_name}.{init_scene_text}"
+
+# 输出参数，都可以省略（取下面的默认值）
+[output]
+stats_frames = 100            # 图像统计每集均匀抽多少帧；数值特征总是全量统计
+skip_depth = false            # true 时不转深度图（产物小很多）
+data_file_size_in_mb = 100
+video_file_size_in_mb = 500
+# workers = 8                 # 并行进程数；不写时取 CPU 核数的一半，最多 8
+
+# ---------- 相机 ----------
+
+[[feature]]
+name = "observation.images.top_head"
+type = "video"
+file = "videos/head_color.mp4"
+
+[[feature]]
+name = "observation.images.hand_left"
+type = "video"
+file = "videos/hand_left_color.mp4"
+
+[[feature]]
+name = "observation.images.hand_right"
+type = "video"
+file = "videos/hand_right_color.mp4"
+
+[[feature]]
+name = "observation.images.head_center_fisheye"
+type = "video"
+file = "videos/head_center_fisheye_color.mp4"
+
+[[feature]]
+name = "observation.images.head_left_fisheye"
+type = "video"
+file = "videos/head_left_fisheye_color.mp4"
+
+[[feature]]
+name = "observation.images.head_right_fisheye"
+type = "video"
+file = "videos/head_right_fisheye_color.mp4"
+
+[[feature]]
+name = "observation.images.back_left_fisheye"
+type = "video"
+file = "videos/back_left_fisheye_color.mp4"
+
+[[feature]]
+name = "observation.images.back_right_fisheye"
+type = "video"
+file = "videos/back_right_fisheye_color.mp4"
+
+# ---------- 深度 ----------
+
+[[feature]]
+name = "observation.images.cam_top_depth"
+type = "depth"
+dir = "depth"
+pattern = "head_depth_{frame:06d}.png"   # uint16 PNG，单位毫米
+unit_m = 0.001
+
+# ---------- 状态 ----------
+
+[[feature]]
+name = "observation.state"
+type = "vector"
+sources = [
+    { dataset = "state/joint/position", names = [
+        "left_arm_joint_1", "left_arm_joint_2", "left_arm_joint_3", "left_arm_joint_4",
+        "left_arm_joint_5", "left_arm_joint_6", "left_arm_joint_7",
+        "right_arm_joint_1", "right_arm_joint_2", "right_arm_joint_3", "right_arm_joint_4",
+        "right_arm_joint_5", "right_arm_joint_6", "right_arm_joint_7",
+    ] },
+    { dataset = "state/effector/position", names = ["left_gripper", "right_gripper"] },
+    { dataset = "state/head/position", names = ["head_yaw", "head_pitch"] },
+    { dataset = "state/waist/position", names = ["waist_pitch", "waist_lift"] },
+]
+
+# ---------- 动作 ----------
+
+[[feature]]
+name = "action"
+type = "vector"
+sources = [
+    { dataset = "action/joint/position", names = [
+        "left_arm_joint_1", "left_arm_joint_2", "left_arm_joint_3", "left_arm_joint_4",
+        "left_arm_joint_5", "left_arm_joint_6", "left_arm_joint_7",
+        "right_arm_joint_1", "right_arm_joint_2", "right_arm_joint_3", "right_arm_joint_4",
+        "right_arm_joint_5", "right_arm_joint_6", "right_arm_joint_7",
+    ] },
+    { dataset = "action/effector/position", names = ["left_gripper", "right_gripper"] },
+    { dataset = "action/head/position", names = ["head_yaw", "head_pitch"] },
+    { dataset = "action/waist/position", names = ["waist_pitch", "waist_lift"] },
+    { dataset = "action/robot/velocity", names = ["base_velocity_x", "base_velocity_yaw"] },
+]

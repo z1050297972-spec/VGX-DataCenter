@@ -21,6 +21,9 @@ class ToolSummaryResponse(BaseModel):
         robot_models: 按清单顺序的适用型号字符串；清单无效时为空。
         cleaning_models: 按清单顺序的有清洗规则型号；清单无效时为空。
         needs_gpu: 是否必须分配 GPU；清单无效时为 None。
+        preview_by_tool: 是否由工具命令生成预览；清单无效时为 False。
+        default_space_ratio_percent: 默认空间百分比，0 至 1000；清单无效时为 25。
+        source_tree_sha256: 登记的源码目录 SHA-256；未登记或清单无效时为 None。
         status: 四种工具状态之一。
         diagnostics: 统一五段诊断，可用时为空。
         program_path: 已核对边界的程序绝对路径；清单无效时为 None。
@@ -38,6 +41,9 @@ class ToolSummaryResponse(BaseModel):
     robot_models: tuple[str, ...]
     cleaning_models: tuple[str, ...]
     needs_gpu: bool | None
+    preview_by_tool: bool
+    default_space_ratio_percent: int
+    source_tree_sha256: str | None
     status: ToolStatus
     diagnostics: tuple[Diagnostic, ...]
     program_path: str | None
@@ -76,7 +82,7 @@ class ToolDetailResponse(ToolSummaryResponse):
 
     Attributes:
         configurations: 每个型号的文件名、配置全文与完整 SHA-256；清单无效时为空。
-        command: 两条命令模板；清单无效时为 None。
+        command: 预检、转换与可选预览命令模板；清单无效时为 None。
         source_commit: 登记时的提交说明；未填写或清单无效时为 None。
         source_note: 登记时源码状态说明；未填写或清单无效时为 None。
     """

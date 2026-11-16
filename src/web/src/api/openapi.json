@@ -568,19 +568,40 @@
       },
       "CleaningCheckRules": {
         "additionalProperties": false,
-        "description": "报告生成时生效的质量检查规则，不依赖前端维护默认数值。\n\nAttributes:\n    static_feature: 静止检查使用的向量特征名。\n    long_static_s: 连续静止最短时长，单位秒。\n    jump_feature: 跳变检查使用的向量特征名。\n    frozen_s: 相机冻结最短时长，单位秒。\n    sample_interval_s: 亮度抽样间隔，单位秒。\n    dark_below: 黑屏亮度阈值，0 至 255，严格小于时命中。\n    bright_above: 过曝亮度阈值，0 至 255，严格大于时命中。\n    sources: 按清洗规则原顺序的来源阈值，可为空。\n    severe_checks: 默认剔除 episode 的严重检查规则码，顺序由检查模块定义。",
+        "description": "报告生成时生效的质量检查规则，不依赖前端维护默认数值。\n\nAttributes:\n    static_feature: 静止检查使用的向量特征名。\n    long_static_s: 连续静止最短时长，单位秒。\n    jump_feature: 跳变检查使用的向量特征名。\n    frozen_s: 相机冻结最短时长，单位秒；AgiBot 不检查图像，为 None。\n    sample_interval_s: 亮度抽样间隔，单位秒；AgiBot 为 None。\n    dark_below: 黑屏亮度阈值，0 至 255，严格小于时命中；AgiBot 为 None。\n    bright_above: 过曝亮度阈值，0 至 255，严格大于时命中；AgiBot 为 None。\n    sources: 按清洗规则原顺序的来源阈值，可为空。\n    severe_checks: 默认剔除 episode 的严重检查规则码，顺序由检查模块定义。",
         "properties": {
           "bright_above": {
-            "title": "Bright Above",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bright Above"
           },
           "dark_below": {
-            "title": "Dark Below",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dark Below"
           },
           "frozen_s": {
-            "title": "Frozen S",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frozen S"
           },
           "jump_feature": {
             "title": "Jump Feature",
@@ -591,8 +612,15 @@
             "type": "number"
           },
           "sample_interval_s": {
-            "title": "Sample Interval S",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample Interval S"
           },
           "severe_checks": {
             "items": {
@@ -739,8 +767,15 @@
             "type": "integer"
           },
           "reference_topic": {
-            "title": "Reference Topic",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Topic"
           },
           "rules": {
             "$ref": "#/components/schemas/CleaningRuleSnapshot"
@@ -754,6 +789,16 @@
             "default": 1,
             "title": "Schema Version",
             "type": "integer"
+          },
+          "source_format": {
+            "default": "mcap",
+            "enum": [
+              "mcap",
+              "agibot_native",
+              "agibot_lerobot21"
+            ],
+            "title": "Source Format",
+            "type": "string"
           },
           "summary": {
             "$ref": "#/components/schemas/CleaningSummary"
@@ -792,7 +837,14 @@
             "$ref": "#/components/schemas/CleaningCheckRules"
           },
           "sync": {
-            "$ref": "#/components/schemas/CleaningSyncRules"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CleaningSyncRules"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -3520,6 +3572,14 @@
             "title": "End Frame",
             "type": "integer"
           },
+          "fatal_issues": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "title": "Fatal Issues",
+            "type": "array"
+          },
           "file_index": {
             "title": "File Index",
             "type": "integer"
@@ -3540,16 +3600,30 @@
             "type": "integer"
           },
           "stamp_span_s": {
-            "title": "Stamp Span S",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stamp Span S"
           },
           "start_frame": {
             "title": "Start Frame",
             "type": "integer"
           },
           "start_time_s": {
-            "title": "Start Time S",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time S"
           }
         },
         "required": [
@@ -3840,8 +3914,22 @@
       },
       "FileReport": {
         "additionalProperties": false,
-        "description": "展开顺序中的一个文件；元数据无法读取时大小、mtime_ns 为 None。",
+        "description": "一个 MCAP 文件、Alpha 集或 G2 归档；仅 Alpha 使用 episode_id，未知元信息为 None。",
         "properties": {
+          "alpha_input_snapshot": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/InputFileSnapshot"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpha Input Snapshot"
+          },
           "bad_frames": {
             "title": "Bad Frames",
             "type": "integer"
@@ -3849,6 +3937,17 @@
           "default_excluded": {
             "title": "Default Excluded",
             "type": "boolean"
+          },
+          "episode_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode Id"
           },
           "fatal_issues": {
             "items": {
@@ -4492,6 +4591,47 @@
           "notices"
         ],
         "title": "IngestPreviewView",
+        "type": "object"
+      },
+      "InputFileSnapshot": {
+        "additionalProperties": false,
+        "description": "Alpha 文件路径与 stat 快照；双空表示预览时缺失的候选文件，不读取内容。",
+        "properties": {
+          "mtime_ns": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mtime Ns"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          }
+        },
+        "required": [
+          "path",
+          "size_bytes",
+          "mtime_ns"
+        ],
+        "title": "InputFileSnapshot",
         "type": "object"
       },
       "InterfaceRate": {
@@ -8397,7 +8537,7 @@
       },
       "ToolCommands": {
         "additionalProperties": false,
-        "description": "不经过 shell 的参数模板，不包含程序路径本身。\n\nAttributes:\n    verify: 预检参数元组，须含 config 和 inputs 占位符。\n    convert: 转换参数元组，config、output、format、inputs 各出现一次，禁用 --force。",
+        "description": "不经过 shell 的参数模板，不包含程序路径本身。\n\nAttributes:\n    verify: 预检参数元组，须含 config 和 inputs 占位符。\n    convert: 转换参数元组，config、output、format、inputs 各一次，exclude 至多一次，禁用 --force。\n    preview: 可选预览模板，config、rules、result、inputs 各一次；Alpha 必须含 cache，G2 可省略。",
         "properties": {
           "convert": {
             "items": {
@@ -8405,6 +8545,20 @@
             },
             "title": "Convert",
             "type": "array"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview"
           },
           "verify": {
             "items": {
@@ -8453,7 +8607,7 @@
       },
       "ToolDetailResponse": {
         "additionalProperties": false,
-        "description": "列表摘要之外的登记详情，不读取工具源码或工具目录的配置。\n\nAttributes:\n    configurations: 每个型号的文件名、配置全文与完整 SHA-256；清单无效时为空。\n    command: 两条命令模板；清单无效时为 None。\n    source_commit: 登记时的提交说明；未填写或清单无效时为 None。\n    source_note: 登记时源码状态说明；未填写或清单无效时为 None。",
+        "description": "列表摘要之外的登记详情，不读取工具源码或工具目录的配置。\n\nAttributes:\n    configurations: 每个型号的文件名、配置全文与完整 SHA-256；清单无效时为空。\n    command: 预检、转换与可选预览命令模板；清单无效时为 None。\n    source_commit: 登记时的提交说明；未填写或清单无效时为 None。\n    source_note: 登记时源码状态说明；未填写或清单无效时为 None。",
         "properties": {
           "cleaning_models": {
             "items": {
@@ -8478,6 +8632,10 @@
             },
             "title": "Configurations",
             "type": "array"
+          },
+          "default_space_ratio_percent": {
+            "title": "Default Space Ratio Percent",
+            "type": "integer"
           },
           "diagnostics": {
             "items": {
@@ -8529,6 +8687,10 @@
             },
             "title": "Output Versions",
             "type": "array"
+          },
+          "preview_by_tool": {
+            "title": "Preview By Tool",
+            "type": "boolean"
           },
           "program_path": {
             "anyOf": [
@@ -8585,6 +8747,17 @@
             ],
             "title": "Source Note"
           },
+          "source_tree_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Tree Sha256"
+          },
           "status": {
             "$ref": "#/components/schemas/ToolStatus"
           },
@@ -8621,6 +8794,9 @@
           "robot_models",
           "cleaning_models",
           "needs_gpu",
+          "preview_by_tool",
+          "default_space_ratio_percent",
+          "source_tree_sha256",
           "status",
           "diagnostics",
           "program_path",
@@ -8687,7 +8863,7 @@
       },
       "ToolSummaryResponse": {
         "additionalProperties": false,
-        "description": "工具列表中的一条状态。\n\nAttributes:\n    name: 登记包目录名。\n    version: 程序版本；清单无效时为 None。\n    summary: 工具用途；清单无效时为 None。\n    input_format: 输入格式；清单无效时为 None。\n    output_format: 输出格式；清单无效时为 None。\n    output_versions: 按清单顺序的输出版本；清单无效时为空。\n    robot_models: 按清单顺序的适用型号字符串；清单无效时为空。\n    cleaning_models: 按清单顺序的有清洗规则型号；清单无效时为空。\n    needs_gpu: 是否必须分配 GPU；清单无效时为 None。\n    status: 四种工具状态之一。\n    diagnostics: 统一五段诊断，可用时为空。\n    program_path: 已核对边界的程序绝对路径；清单无效时为 None。\n    sha256_prefix: 登记的程序 SHA-256 前 12 位；清单无效时为 None。\n    readme_available: 工具目录内是否存在普通 README.md；清单无效或路径越界时为 False。",
+        "description": "工具列表中的一条状态。\n\nAttributes:\n    name: 登记包目录名。\n    version: 程序版本；清单无效时为 None。\n    summary: 工具用途；清单无效时为 None。\n    input_format: 输入格式；清单无效时为 None。\n    output_format: 输出格式；清单无效时为 None。\n    output_versions: 按清单顺序的输出版本；清单无效时为空。\n    robot_models: 按清单顺序的适用型号字符串；清单无效时为空。\n    cleaning_models: 按清单顺序的有清洗规则型号；清单无效时为空。\n    needs_gpu: 是否必须分配 GPU；清单无效时为 None。\n    preview_by_tool: 是否由工具命令生成预览；清单无效时为 False。\n    default_space_ratio_percent: 默认空间百分比，0 至 1000；清单无效时为 25。\n    source_tree_sha256: 登记的源码目录 SHA-256；未登记或清单无效时为 None。\n    status: 四种工具状态之一。\n    diagnostics: 统一五段诊断，可用时为空。\n    program_path: 已核对边界的程序绝对路径；清单无效时为 None。\n    sha256_prefix: 登记的程序 SHA-256 前 12 位；清单无效时为 None。\n    readme_available: 工具目录内是否存在普通 README.md；清单无效或路径越界时为 False。",
         "properties": {
           "cleaning_models": {
             "items": {
@@ -8695,6 +8871,10 @@
             },
             "title": "Cleaning Models",
             "type": "array"
+          },
+          "default_space_ratio_percent": {
+            "title": "Default Space Ratio Percent",
+            "type": "integer"
           },
           "diagnostics": {
             "items": {
@@ -8747,6 +8927,10 @@
             "title": "Output Versions",
             "type": "array"
           },
+          "preview_by_tool": {
+            "title": "Preview By Tool",
+            "type": "boolean"
+          },
           "program_path": {
             "anyOf": [
               {
@@ -8779,6 +8963,17 @@
               }
             ],
             "title": "Sha256 Prefix"
+          },
+          "source_tree_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Tree Sha256"
           },
           "status": {
             "$ref": "#/components/schemas/ToolStatus"
@@ -8816,6 +9011,9 @@
           "robot_models",
           "cleaning_models",
           "needs_gpu",
+          "preview_by_tool",
+          "default_space_ratio_percent",
+          "source_tree_sha256",
           "status",
           "diagnostics",
           "program_path",
@@ -11714,7 +11912,7 @@
     },
     "/api/cleaning-previews/{job_id}/convert": {
       "post": {
-        "description": "按管理员的最终选择从成功清洗预览提交转换。\n\nArgs:\n    job_id: 1 至 2^63-1 的预览作业编号，十进制字符串。\n    body: 输出版本、空间百分比和 GiB 预留，以及报告内的最终剔除身份列表。\n    context: 已认证管理员、作业服务及请求唯一 UTC 时刻。\n    session: 只读数据库事务，仅用于读取预览和原作业输入。\n\nReturns:\n    HTTP 201 的新排队转换作业，输出版本省略时取工具清单首项。\n\nRaises:\n    JobInputError: 预览不存在、选择非法、无剩余文件或 episode，返回 422。\n    AuthorizationError: 非管理员，返回 403。\n    ExternalError: 数据库或审计写入失败，返回 502。\n    ConflictError: 作业提交写锁竞争，返回 409。\n\nSide Effects:\n    保存新作业及审计，不读取工具程序或存储根；剔除列表原样保存。\n\nTime Semantics:\n    使用成功预览的永久快照；排队后由 worker 重新核对指纹和输入元数据。",
+        "description": "按管理员的最终选择从成功清洗预览提交转换。\n\nArgs:\n    job_id: 1 至 2^63-1 的预览作业编号，十进制字符串。\n    body: 输出版本、空间百分比和 GiB 预留，以及报告内的最终剔除身份列表；Alpha 只允许 excluded_files，G2 可按源集剔除。\n    context: 已认证管理员、作业服务及请求唯一 UTC 时刻。\n    session: 只读数据库事务，仅用于读取预览和原作业输入。\n\nReturns:\n    HTTP 201 的新排队转换作业，输出版本省略时取工具清单首项。\n\nRaises:\n    JobInputError: 预览不存在、选择非法、Alpha 指定段剔除、无剩余文件或 episode，返回 422。\n    AuthorizationError: 非管理员，返回 403。\n    ExternalError: 数据库或审计写入失败，返回 502。\n    ConflictError: 作业提交写锁竞争，返回 409。\n\nSide Effects:\n    保存新作业及审计，不读取工具程序或存储根；剔除列表原样保存。\n\nTime Semantics:\n    使用成功预览的永久快照；排队后由 worker 重新核对指纹和输入元数据。",
         "operationId": "convert_from_cleaning_preview",
         "parameters": [
           {

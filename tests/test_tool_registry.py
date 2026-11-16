@@ -6,11 +6,32 @@ import tomllib
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 from tool_registry_support import isolated_tool_cache as isolated_tool_cache
 from tool_registry_support import tool_files
 
 from rdp.tools.manifest import ToolManifest
 from rdp.tools.registry import load_tool_registry
+
+
+@pytest.mark.parametrize("missing", ["tree", "tree_sha256", "preview_inputs", "cleaning"])
+def test_manifest_rejects_incomplete_tree_or_preview(tmp_path: Path, missing: str) -> None:
+    """M4.6：目录指纹必须成对登记，预览必须有全部占位符及清洗规则。"""
+    files = tool_files(tmp_path)
+    data = tomllib.loads((files.package / "tool.toml").read_text())
+    data["program"].update(tree="source", tree_sha256="a" * 64)
+    data["command"]["preview"] = ["{config}", "{rules}", "{cache}", "{result}", "{inputs}"]
+    # 先确认完整扩展可读，避免测试因不认识新增字段而误判为成功。
+    manifest = ToolManifest.model_validate(data)
+    assert manifest.program.tree == "source"
+    if missing in {"tree", "tree_sha256"}:
+        del data["program"][missing]
+    elif missing == "preview_inputs":
+        data["command"]["preview"].remove("{inputs}")
+    else:
+        data["cleaning"] = {}
+    with pytest.raises(ValidationError):
+        ToolManifest.model_validate(data)
 
 
 def test_real_manifest_is_valid() -> None:
@@ -31,6 +52,7 @@ def test_program_changes_and_removal_change_status(tmp_path: Path) -> None:
     registry = load_tool_registry(files.registry, files.library)
     assert registry.items[0].status == "可用"
     assert registry.items[0].diagnostics == ()
+    assert registry.items[0].fingerprint == hashlib.sha256(b"test program v1\n").hexdigest()
 
     changed = b"test program v2\n"
     files.program.write_bytes(changed)
@@ -48,6 +70,55 @@ def test_program_changes_and_removal_change_status(tmp_path: Path) -> None:
     assert diagnostic.next_step == "工具程序已变化，需要执行线重新登记"
 
     files.program.unlink()
+    assert load_tool_registry(files.registry, files.library).items[0].status == "程序找不到"
+
+
+def test_source_tree_fingerprint_tracks_python_sources(tmp_path: Path) -> None:
+    """M4.6：源码改写或增加即失配，缓存目录不参与，源码目录丢失时不可用。"""
+    files = tool_files(tmp_path)
+    tree = files.library / "mcap2lerobot/source"
+    (tree / "nested").mkdir(parents=True)
+    (tree / "z.py").write_bytes(b"last = 1\n")
+    first = tree / "nested/a.py"
+    first.write_bytes(b"first = 2\n")
+    # 独立参考实现直接拼接协议字节，生产实现不得复用这份期望计算。
+    records = [
+        path.relative_to(tree).as_posix().encode()
+        + b"\0"
+        + hashlib.sha256(path.read_bytes()).hexdigest().encode()
+        + b"\n"
+        for path in sorted(tree.rglob("*.py"))
+    ]
+    expected = hashlib.sha256(b"".join(records)).hexdigest()
+    manifest_path = files.package / "tool.toml"
+    manifest_path.write_text(
+        manifest_path.read_text().replace(
+            "[program]", f'[program]\ntree = "source"\ntree_sha256 = "{expected}"'
+        )
+    )
+    item = load_tool_registry(files.registry, files.library).items[0]
+    assert item.status == "可用"
+    program = tomllib.loads(manifest_path.read_text())["program"]
+    identity = (
+        f"launcher+tree-v1\0{program['path']}\0{program['size']}\0"
+        f"{program['sha256']}\0source\0{expected}"
+    )
+    assert item.fingerprint == hashlib.sha256(identity.encode()).hexdigest()
+    cache = tree / "__pycache__"
+    cache.mkdir()
+    (cache / "x.pyc").write_bytes(b"ignored")
+    assert load_tool_registry(files.registry, files.library).items[0].status == "可用"
+    shutil.rmtree(cache)
+    assert load_tool_registry(files.registry, files.library).items[0].status == "可用"
+    first.write_bytes(b"changed = 3\n")
+    item = load_tool_registry(files.registry, files.library).items[0]
+    assert item.status == "指纹不符"
+    assert "源码目录" in item.diagnostics[0].actual
+    assert expected[:12] in (item.diagnostics[0].expected or "")
+    first.write_bytes(b"first = 2\n")
+    (tree / "new.py").write_bytes(b"new = 4\n")
+    assert load_tool_registry(files.registry, files.library).items[0].status == "指纹不符"
+    shutil.rmtree(tree)
     assert load_tool_registry(files.registry, files.library).items[0].status == "程序找不到"
 
 

@@ -63,18 +63,35 @@ export function CleaningReportPage(): ReactElement {
 
 function Report({ preview, jobId }: { preview: CleaningPreview; jobId: string }): ReactElement {
   const report = preview.report;
+  const native = report.source_format === "agibot_native";
   const [excludedFiles, setExcludedFiles] = useState(
     () =>
-      new Set(
-        report.files
+      new Set([
+        ...report.files
           .filter((file) => file.default_excluded || file.fatal_issues.length > 0)
           .map((file) => file.file_index),
-      ),
+        // 原生格式的严重数值问题也归到整集开关，避免恢复后仍被隐藏的段选择排除。
+        ...(native
+          ? report.episodes
+              .filter(
+                (episode) =>
+                  episode.default_action === "exclude" || episode.fatal_issues.length > 0,
+              )
+              .map((episode) => episode.file_index)
+          : []),
+      ]),
   );
   const [excludedEpisodes, setExcludedEpisodes] = useState(
     () =>
       new Set(
-        report.episodes.filter((episode) => episode.default_action === "exclude").map(episodeKey),
+        native
+          ? []
+          : report.episodes
+              .filter(
+                (episode) =>
+                  episode.default_action === "exclude" || episode.fatal_issues.length > 0,
+              )
+              .map(episodeKey),
       ),
   );
   const search = route.useSearch();
@@ -125,18 +142,26 @@ function Report({ preview, jobId }: { preview: CleaningPreview; jobId: string })
             },
             {
               key: "files",
-              label: "文件数 / 默认剔除",
-              children: `${String(report.summary.files)} / ${String(report.summary.excluded_files)}`,
+              label: native ? "Episode 数 / 默认剔除" : "文件数 / 默认剔除",
+              children: `${String(report.summary.files)} / ${String(
+                report.summary.excluded_files + (native ? report.summary.excluded_episodes : 0),
+              )}`,
             },
-            {
-              key: "episodes",
-              label: "episode 数 / 默认剔除",
-              children: `${String(report.summary.episodes)} / ${String(report.summary.excluded_episodes)}`,
-            },
+            ...(!native
+              ? [
+                  {
+                    key: "episodes",
+                    label: "episode 数 / 默认剔除",
+                    children: `${String(report.summary.episodes)} / ${String(report.summary.excluded_episodes)}`,
+                  },
+                ]
+              : []),
             {
               key: "frames",
-              label: "对齐保留帧 / 基准帧",
-              children: `${String(report.summary.kept_frames)} / ${String(report.summary.reference_frames)}`,
+              label: native ? "可转帧数" : "对齐保留帧 / 基准帧",
+              children: native
+                ? String(report.summary.kept_frames)
+                : `${String(report.summary.kept_frames)} / ${String(report.summary.reference_frames)}`,
             },
           ]}
         />
@@ -147,34 +172,49 @@ function Report({ preview, jobId }: { preview: CleaningPreview; jobId: string })
         className="cleaning-section"
         items={[{ key: "rules", label: "规则说明", children: <ReportRules report={report} /> }]}
       />
-      <Card className="cleaning-section" title="文件">
+      <Card
+        className="cleaning-section"
+        title={native ? "Episode" : report.source_format === "agibot_lerobot21" ? "归档" : "文件"}
+      >
         <FileTable report={report} excludedFiles={excludedFiles} toggleFile={toggleFile} />
+        {native && (
+          <Typography.Paragraph>
+            当前保留：{keptEpisodes.length} 个 Episode，
+            {keptEpisodes.reduce((sum, episode) => sum + episode.frame_count, 0)} 帧
+          </Typography.Paragraph>
+        )}
       </Card>
-      <Card className="cleaning-section" title="episode">
-        <Checkbox
-          checked={search.onlyIssues}
-          onChange={(event) => {
-            void navigate({ search: { onlyIssues: event.target.checked }, replace: true });
-          }}
-        >
-          只看有问题的 episode
-        </Checkbox>
-        <Typography.Paragraph>
-          当前保留：{fileCount} 个文件，{keptEpisodes.length} 个 episode，
-          {keptEpisodes.reduce((sum, episode) => sum + episode.frame_count, 0)} 帧
-        </Typography.Paragraph>
-        <EpisodeTable
-          report={report}
-          excludedFiles={excludedFiles}
-          toggleFile={toggleFile}
-          excludedEpisodes={excludedEpisodes}
-          numbers={numbers}
-          onlyIssues={search.onlyIssues}
-          toggleEpisode={(key) => {
-            setExcludedEpisodes((previous) => toggled(previous, key));
-          }}
-        />
-      </Card>
+      {!native && (
+        <Card className="cleaning-section" title="episode">
+          <Checkbox
+            checked={search.onlyIssues}
+            onChange={(event) => {
+              void navigate({ search: { onlyIssues: event.target.checked }, replace: true });
+            }}
+          >
+            只看有问题的 episode
+          </Checkbox>
+          <Typography.Paragraph>
+            当前保留：{fileCount} 个文件，{keptEpisodes.length} 个 episode，
+            {keptEpisodes.reduce((sum, episode) => sum + episode.frame_count, 0)} 帧
+          </Typography.Paragraph>
+          <EpisodeTable
+            report={report}
+            excludedFiles={excludedFiles}
+            toggleFile={toggleFile}
+            excludedEpisodes={excludedEpisodes}
+            numbers={numbers}
+            onlyIssues={search.onlyIssues}
+            toggleEpisode={(key) => {
+              if (
+                report.episodes.find((episode) => episodeKey(episode) === key)?.fatal_issues.length
+              )
+                return;
+              setExcludedEpisodes((previous) => toggled(previous, key));
+            }}
+          />
+        </Card>
+      )}
       <Card className="cleaning-section" title="进行转换">
         <ConvertFromReport
           preview={preview}

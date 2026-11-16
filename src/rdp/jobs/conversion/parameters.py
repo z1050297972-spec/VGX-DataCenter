@@ -5,13 +5,14 @@
 
 import re
 from pathlib import Path
-from typing import Annotated, Self
+from typing import Annotated, ClassVar, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from rdp.infra.db.validation import invalid_field
+from rdp.jobs.cleaning._g2 import validate_paths
 from rdp.jobs.datasets.models import DatasetRow, SourceRow
 from rdp.jobs.errors import JobInputError
 from rdp.tools.manifest import ToolManifest
@@ -27,9 +28,11 @@ class InputSelection(BaseModel):
         dataset_id: 唯一规范入口的数据集编号，非空。
         source_ids: 按用户顺序的 1 至 200 个不同数据块编号。
         robot_model: 登记工具的型号键，非空。
+        input_format: 工具参数类保存的清单输入格式，不接受请求传入、不写入作业 JSON。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
+    input_format: ClassVar[str]
     dataset_id: str = Field(min_length=1)
     source_ids: list[str] = Field(min_length=1, max_length=MAX_CONVERSION_SOURCES)
     robot_model: str = Field(min_length=1)
@@ -55,7 +58,7 @@ class ConversionOptions(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
     output_format: str | None = None
-    # M4-07 实测产物/输入约为 0.13，默认25%配1 GiB余量；剔除时再按两份产物预估。
+    # 25% 是 MCAP 历史默认；工具模型按清单补齐省略值，显式给出的 25 不能被覆盖。
     space_ratio_percent: int = Field(default=25, strict=True, ge=0, le=1000)
     space_reserve_gib: float = Field(default=1, ge=0, le=1024)
     excluded_files: list[Annotated[int, Field(strict=True, ge=0)]] = Field(default_factory=list)
@@ -70,7 +73,7 @@ class ConversionParameters(InputSelection, ConversionOptions):
         excluded_files: 最终剔除的 file_index 列表，空列表全部保留。
         excluded_episodes: 最终剔除段的稳定预览身份，空列表全部保留。
         output_format: 输出版本；None 由工具模型替换成清单首项。
-        space_ratio_percent: 空间估算百分比，整数 0 至 1000，默认 25。
+        space_ratio_percent: 空间估算百分比，整数 0 至 1000，省略时取清单默认值。
         space_reserve_gib: 空间预留偏置，0 至 1024 GiB，默认 1。
     """
 
@@ -79,13 +82,13 @@ class ConversionParameters(InputSelection, ConversionOptions):
 
 
 def tool_parameters(manifest: ToolManifest) -> type[ConversionParameters]:
-    """为一个工具建立带型号与默认输出版本约束的参数模型。
+    """为一个工具建立带型号、默认输出版本和空间百分比的参数模型。
 
     Args:
         manifest: 启动时已校验的工具清单。
 
     Returns:
-        独立模型类；输出版本省略时取清单首项。
+        独立模型类；输出版本省略时取清单首项，空间百分比省略时取 runtime 默认值。
 
     Raises:
         无；调用返回模型时，非法型号或版本由Pydantic报告ValidationError。
@@ -100,6 +103,8 @@ def tool_parameters(manifest: ToolManifest) -> type[ConversionParameters]:
     class _ToolParameters(ConversionParameters):
         """闭包保存单工具约束，不使用可变全局登记。"""
 
+        input_format: ClassVar[str] = manifest.io.input_format
+
         @model_validator(mode="after")
         def _tool_choices(self) -> Self:
             """先补默认版本，再验证最终生效的两项选择。"""
@@ -111,23 +116,32 @@ def tool_parameters(manifest: ToolManifest) -> type[ConversionParameters]:
                 or version not in manifest.io.output_versions
             ):
                 raise ValueError("型号或输出版本不在工具清单中")
-            return self.model_copy(update={"output_format": version})
+            # fields_set 区分请求省略和显式给 25，不能拿数值是否等于旧默认来判断。
+            ratio = (
+                self.space_ratio_percent
+                if "space_ratio_percent" in self.model_fields_set
+                else manifest.runtime.space_ratio_percent
+            )
+            return self.model_copy(update={"output_format": version, "space_ratio_percent": ratio})
 
     return _ToolParameters
 
 
-def selected_inputs(session: Session, parameters: InputSelection) -> tuple[Path, ...]:
-    """按用户顺序读取同一规范入口下的mcap数据块位置。
+def selected_inputs(
+    session: Session, parameters: InputSelection, *, input_format: str
+) -> tuple[Path, ...]:
+    """按用户顺序读取同一规范入口下符合工具输入格式的数据块位置。
 
     Args:
         session: 调用方管理的短数据库事务。
         parameters: 已通过结构校验的转换或清洗输入选择，数据块至多200项。
+        input_format: 已校验清单声明的非空格式名，如 mcap 或 agibot_native。
 
     Returns:
         与source_ids逐项对应的绝对路径元组；仅为索引值，不表示文件在线。
 
     Raises:
-        JobInputError: 数据集无唯一规范入口，数据块不属于它、重复登记或格式不是mcap。
+        JobInputError: 数据集无唯一规范入口，数据块不属于它、重复登记或格式与 input_format 不符。
         ExternalError: 数据库访问失败，由受管会话边界转换。
 
     Side Effects:
@@ -151,12 +165,17 @@ def selected_inputs(session: Session, parameters: InputSelection) -> tuple[Path,
     if (
         len(rows) != len(parameters.source_ids)
         or len(by_id) != len(rows)
-        or any(row.format != "mcap" for row in rows)
+        or any(row.format != input_format for row in rows)
     ):
         raise JobInputError(
-            invalid_field("source_ids", "全部属于该数据集且格式为mcap的数据块").diagnostics
+            invalid_field(
+                "source_ids", f"全部属于该数据集且格式为{input_format}的数据块"
+            ).diagnostics
         )
-    return tuple(Path(by_id[identifier].direct_path) for identifier in parameters.source_ids)
+    paths = tuple(Path(by_id[identifier].direct_path) for identifier in parameters.source_ids)
+    if input_format == "archives":
+        validate_paths(paths)
+    return paths
 
 
 def conversion_type_name(tool_name: str) -> str:

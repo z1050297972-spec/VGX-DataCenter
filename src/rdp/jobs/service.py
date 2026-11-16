@@ -143,7 +143,11 @@ class JobService:
                     # 管理员权限由类型声明统一重验；占用检查与插入同事务，避免并发绕过。
                     _download_cleanup.check_busy(session, checked)
                 if issubclass(definition.parameters_model, InputSelection):
-                    selected_inputs(session, definition.parameters_model.model_validate(checked))
+                    selected_inputs(
+                        session,
+                        definition.parameters_model.model_validate(checked),
+                        input_format=definition.parameters_model.input_format,
+                    )
                 attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
                 record = insert_job(session, NewJob(definition, checked, actor, request.now, None))
                 _audit.finish(session, attempted, record)
@@ -431,7 +435,9 @@ class JobService:
                     _download_cleanup.check_busy(session, original.parameters)
                 if issubclass(definition.parameters_model, InputSelection):
                     selected_inputs(
-                        session, definition.parameters_model.model_validate(original.parameters)
+                        session,
+                        definition.parameters_model.model_validate(original.parameters),
+                        input_format=definition.parameters_model.input_format,
                     )
                 attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
                 record = insert_job(

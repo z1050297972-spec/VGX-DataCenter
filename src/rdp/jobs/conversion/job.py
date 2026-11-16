@@ -1,6 +1,6 @@
 """转换执行（领域层，M4-03）；复用工具登记、bwrap和受管进程，只写新暂存目录。
 
-本模块只编排六阶段，不实现MCAP/LeRobot转换算法，也不负责入库。
+本模块只编排六阶段，不实现 MCAP/AgiBot 到 LeRobot 的转换算法，也不负责入库。
 """
 
 import json
@@ -27,7 +27,8 @@ from rdp.infra.diagnostics import (
 )
 from rdp.infra.storage import StorageAccessChecker
 from rdp.infra.timeutil import ensure_utc
-from rdp.jobs.cleaning._config import load_configs
+from rdp.jobs.cleaning._g2 import validate_paths
+from rdp.jobs.conversion._check_data import safe
 from rdp.jobs.conversion._cleaning import (
     CleaningRuntime,
     check_files,
@@ -43,6 +44,8 @@ from rdp.jobs.registry import StorageUse
 from rdp.jobs.sandbox import SandboxSpec, sandbox_argv
 from rdp.jobs.storage import check_storage_before_job
 from rdp.jobs.terminal import create_terminal_parser
+from rdp.jobs.tool_cache import tool_cache_dir
+from rdp.jobs.tool_environment import offline_tool_argv
 from rdp.jobs.types import ConversionResult, JobProgress
 from rdp.tools.registry import RegisteredTool, load_tool_registry
 
@@ -103,7 +106,7 @@ class ConversionExecutor:
         """核对工具和输入后转换到新暂存区，并保存回执与产物摘要。
 
         Args:
-            context: 当前已领取作业，参数为ConversionParameters，GPU由调度器分配。
+            context: 当前已领取作业，参数为ConversionParameters；GPU由调度器按清单分配，不需要时为None。
 
         Returns:
             无；进度、episode/帧数、版本和产物位置通过reporter保存。
@@ -111,14 +114,14 @@ class ConversionExecutor:
         Raises:
             DefectError: 缺少worker依赖或参数类型不正确。
             InputError: 工具不可用、参数失效、缺少预览、预览指纹或输入已变、环境未登记或变化、路径越界。
-            ExternalError: 无可写根、输入大小统计失败、空间不足、子进程失败或超时，
+            ExternalError: 无可写根、输入大小统计失败、空间不足、工具缓存准备失败、子进程失败或超时，
                 或产物/回执读写失败；空间不足诊断包含输入、估算产物、预留和可用字节。
             JobCancelledError: 取消后进程组已回收，暂存目录保留。
             WorkerStoppingError: worker停止，交框架在重启时标记中断。
 
         Side Effects:
-            只在首个登记可写根新建暂存/转换/作业编号，沙箱只允许写该目录。
-            输出 out；需要剔除时另产出 cleaned，成功结果指向最终产物并写转换回执.json；失败、取消或中断保留已有产物，不写导航层。
+            在首个登记可写根新建暂存/转换/作业编号；模板需要缓存时另准备工具专属缓存目录，沙箱只允许写这两处。
+            输出 out；需要剔除时另产出 cleaned，成功结果指向最终产物并写转换回执.json；失败、取消或中断保留已有产物和缓存，不写导航层。
             空间预检只读输入元数据和可写根容量；不足时不建暂存目录、不启动工具。
 
         Time Semantics:
@@ -138,12 +141,16 @@ class ConversionExecutor:
         if manifest is None or tool.program_path is None:
             raise DefectError()
         try:
-            parameters = tool_parameters(manifest).model_validate(context.parameters.model_dump())
+            parameters = tool_parameters(manifest).model_validate(
+                context.parameters.model_dump(exclude_unset=True)
+            )
         except ValidationError as error:
             raise InputError((_diagnostic("型号或输出版本不再适用于当前工具清单"),)) from error
         _stage(context, 2)
         preview, selection = preview_selection(deps.engine, parameters, tool, deps.tools)
-        inputs, stage = _prepare_paths(context, deps, parameters, selection)
+        inputs, stage = _prepare_paths(
+            context, deps, parameters, selection, input_format=manifest.io.input_format
+        )
         context.reporter.artifact(str(stage))
         configuration = next(
             item for item in tool.configurations if item.robot_model == parameters.robot_model
@@ -154,10 +161,10 @@ class ConversionExecutor:
             "output": str(stage / "out"),
             "format": parameters.output_format or manifest.io.output_versions[0],
         }
-        verify = _command(tool, manifest.command.verify, inputs, substitutions)
-        convert = _command(tool, manifest.command.convert, inputs, substitutions)
+        if selection.source_format == "agibot_lerobot21":
+            substitutions["exclude"] = str(_write_exclusions(stage, selection))
+        verify, convert, spec = _commands(tool, inputs, substitutions, stage, deps.tools)
         readonly = tuple(root.path for root in deps.roots if not root.writable)
-        spec = SandboxSpec((stage,))
         context.run_process(
             ToolCommand(
                 tool.name,
@@ -184,19 +191,37 @@ class ConversionExecutor:
         progress = context.reporter.snapshot().progress
         if progress is None or progress.stage_index < 4:
             _stage(context, 4)
+        g2 = selection.source_format == "agibot_lerobot21"
+        expected_episodes = tuple(
+            item
+            for index, item in enumerate(selection.episodes)
+            if not g2 or index not in selection.excluded_indices
+        )
+        paths = {item.file_index: Path(item.path) for item in selection.files}
         check_output(
-            context, stage, stage / "out", tuple(item.frame_count for item in selection.episodes)
+            context,
+            stage,
+            stage / "out",
+            tuple(item.frame_count for item in expected_episodes),
+            source_episodes=tuple(
+                (paths[item.file_index].name, item.segment_index) for item in expected_episodes
+            )
+            if g2
+            else None,
         )
         _stage(context, 5)
-        tool_config, _, _, _ = load_configs(
-            config, deps.tools.registry_dir / tool.name / manifest.cleaning[parameters.robot_model]
-        )
         output, cleaning = finish_cleaning(
             context,
             stage,
             preview,
             selection,
-            CleaningRuntime(deps.tools, deps.sandbox, readonly, tool_config),
+            CleaningRuntime(
+                deps.tools,
+                deps.sandbox,
+                readonly,
+                config,
+                deps.tools.registry_dir / tool.name / manifest.cleaning[parameters.robot_model],
+            ),
         )
         _stage(context, 6)
         receipt: dict[str, object] = {
@@ -204,7 +229,9 @@ class ConversionExecutor:
             "tool": {
                 "name": tool.name,
                 "version": manifest.tool.version,
-                "binary_sha256": manifest.program.sha256,
+                "binary_sha256": tool.fingerprint,
+                "source_tree_sha256": manifest.program.tree_sha256,
+                "launcher_sha256": manifest.program.sha256,
                 "source_commit": manifest.tool.source_commit,
                 "source_note": manifest.tool.source_note,
             },
@@ -254,11 +281,17 @@ def _prepare_paths(
     deps: ConversionDependencies,
     parameters: ConversionParameters,
     selection: Selection,
+    *,
+    input_format: str,
 ) -> tuple[tuple[Path, ...], Path]:
     """重读选中输入并约束路径，在线与空间预检通过后才新建暂存目录。"""
     with session_scope(deps.engine, read_only=True) as session:
         sources = dict(
-            zip(parameters.source_ids, selected_inputs(session, parameters), strict=True)
+            zip(
+                parameters.source_ids,
+                selected_inputs(session, parameters, input_format=input_format),
+                strict=True,
+            )
         )
     if any(
         item.source_id not in sources or not Path(item.path).is_relative_to(sources[item.source_id])
@@ -306,6 +339,8 @@ def _prepare_paths(
 
     def access(path: Path) -> None:
         try:
+            if selection.source_format == "agibot_lerobot21":
+                validate_paths(inputs, filesystem=True)
             check_files(selection, abandoned.is_set)
         except InputError as error:
             # 存储边界把未知异常归缺陷；输入快照差异由主线程按原始输入类别报告。
@@ -326,7 +361,10 @@ def _prepare_paths(
         deps.storage,
         writable,
         sum(item.size_bytes or 0 for item in selection.files),
-        parameters,
+        # G2 原生跳过，不产生 LeRobot 删段副本；仅对空间计算移除剔除段标记。
+        parameters.model_copy(update={"excluded_episodes": []})
+        if selection.source_format == "agibot_lerobot21"
+        else parameters,
     )
     stage = _new_staging(writable.path, context.job_id)
     return inputs, stage
@@ -487,6 +525,56 @@ def _new_staging(root: Path, job_id: int) -> Path:
         raise ExternalError(
             (_diagnostic(f"无法新建转换暂存目录：{error}", DiagnosticCategory.EXTERNAL),)
         ) from error
+
+
+def _write_exclusions(stage: Path, selection: Selection) -> Path:
+    """只在作业内新建剔除文件；客户端不能提供路径，条目使用真实 CLI 的源归档+源集号。"""
+    paths = {item.file_index: item.path for item in selection.files}
+    target = safe(stage, "exclude.json")
+    try:
+        with target.open("x", encoding="utf-8") as stream:
+            json.dump(
+                [
+                    {
+                        "archive": paths[selection.episodes[index].file_index],
+                        "episode_index": selection.episodes[index].segment_index,
+                    }
+                    for index in selection.excluded_indices
+                ],
+                stream,
+                ensure_ascii=False,
+            )
+    except OSError as error:
+        raise ExternalError(
+            (_diagnostic(f"剔除文件准备失败：{error}", DiagnosticCategory.EXTERNAL),)
+        ) from error
+    return target
+
+
+def _commands(
+    tool: RegisteredTool,
+    inputs: tuple[Path, ...],
+    substitutions: dict[str, str],
+    stage: Path,
+    settings: ToolsConfig,
+) -> tuple[tuple[str, ...], tuple[str, ...], SandboxSpec]:
+    """一起准备命令和沙箱可写范围，保证模板缓存与实际挂载一致。"""
+    manifest = tool.manifest
+    if manifest is None:
+        raise DefectError()
+    writable_paths = (stage,)
+    if any(
+        "{cache}" in argument for argument in (*manifest.command.verify, *manifest.command.convert)
+    ):
+        cache = tool_cache_dir(settings, tool.name)
+        substitutions = substitutions | {"cache": str(cache)}
+        writable_paths += (cache,)
+    verify = _command(tool, manifest.command.verify, inputs, substitutions)
+    convert = _command(tool, manifest.command.convert, inputs, substitutions)
+    if manifest.runtime.progress in ("agibot2lerobot-events", "agibot2lerobot-g2-events"):
+        verify = offline_tool_argv(stage, verify)
+        convert = offline_tool_argv(stage, convert)
+    return verify, convert, SandboxSpec(writable_paths)
 
 
 def _command(
