@@ -444,6 +444,8 @@ def _check_task_directory(inputs: tuple[Path, ...], roots: tuple[StorageRootConf
 def _stage(context: ExecutionContext, index: int, *, files: int = 0) -> None:
     """阶段边界先响应取消，文件质量问题保留在报告，不误作预览执行失败。"""
     context.reporter.check_cancelled()
+    # 阶段局部进度可以归零，作业累计事实必须承接工具退出前的最新值。
+    previous = context.reporter.snapshot().progress
     context.reporter.report(
         JobProgress(
             stage_index=index,
@@ -452,9 +454,9 @@ def _stage(context: ExecutionContext, index: int, *, files: int = 0) -> None:
             done=0,
             total=None,
             unit="项",
-            warning_count=0,
-            failed_items=0,
-            total_items=files,
+            warning_count=0 if previous is None else previous.warning_count,
+            failed_items=0 if previous is None else previous.failed_items,
+            total_items=max(files, 0 if previous is None else previous.total_items),
         )
     )
 
@@ -478,6 +480,8 @@ class _ReadingProgress:
         self.done = done
         if self.total is not None and done > self.total:
             self.total = None
+        # 字节和文件分项不代表作业累计条目，逐次承接快照以保留读取期间新增的事实。
+        previous = self.context.reporter.snapshot().progress
         self.context.reporter.report(
             JobProgress(
                 stage_index=3,
@@ -486,9 +490,9 @@ class _ReadingProgress:
                 done=done,
                 total=self.total,
                 unit="字节",
-                warning_count=0,
-                failed_items=0,
-                total_items=0,
+                warning_count=0 if previous is None else previous.warning_count,
+                failed_items=0 if previous is None else previous.failed_items,
+                total_items=0 if previous is None else previous.total_items,
                 parts=(
                     ProgressPart(
                         name=f"第 {self.index}/{self.count} 个文件",
