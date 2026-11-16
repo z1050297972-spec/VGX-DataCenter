@@ -68,6 +68,7 @@ class AgibotPreviewCase:
         source_ids: tuple[str, ...] = ("source-preview",),
         *,
         cancel_after_result: bool = False,
+        clock: JobClock | None = None,
     ) -> JobRecord:
         """领取并同步执行真实作业，全部线程由执行器回收。"""
         with session_scope(self.engine) as session:
@@ -105,7 +106,7 @@ class AgibotPreviewCase:
                 self.engine,
                 self.registry,
                 self.paths,
-                JobClock(lambda: NOW, monotonic),
+                clock or JobClock(lambda: NOW, monotonic),
                 resources=None,
                 storage=None,
             ),
