@@ -1,0 +1,30 @@
+schema_version = 1
+[tool]
+name = "agibot2lerobot-g2"
+version = "0.1.0"
+summary = "AgiBot G2（g2a）同任务 v2.1 归档预览、原生剔除与 v3.0 合并；不重新编码视频"
+directory = "agibot2lerobot-g2"
+source_note = "按当前真实 CLI 登记；preview --report-only，报告仅检查视频成员存在且非空"
+[program]
+path = "bin/agibot2lerobot-g2"
+size = 356
+sha256 = "cb9f3ea4012398073927c72d616cfc4b2914f76954483ba05965da49a1911396"
+tree = "agibot2lerobot_g2"
+tree_sha256 = "cd0cbc2d3b3a4bdeb18dee1255222e1d37ac112fc7f078aa4fd9b62745728535"
+[io]
+input_format = "archives"
+output_format = "lerobot"
+output_versions = ["v3.0"]
+[models]
+"AgiBot G2（g2a）" = "configs/agibot_g2.toml"
+[cleaning]
+"AgiBot G2（g2a）" = "cleaning/agibot_g2.toml"
+[runtime]
+needs_gpu = false
+progress = "agibot2lerobot-g2-events"
+external_programs = []
+space_ratio_percent = 130
+[command]
+verify = ["--events", "/dev/stderr", "check-archives", "-c", "{config}", "{inputs}"]
+preview = ["--events", "/dev/stderr", "preview", "--report-only", "-c", "{config}", "--rules", "{rules}", "--result", "{result}", "{inputs}"]
+convert = ["--events", "/dev/stderr", "convert-archives", "-c", "{config}", "-o", "{output}", "--format", "{format}", "--exclude", "{exclude}", "{inputs}"]

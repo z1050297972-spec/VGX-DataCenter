@@ -12,7 +12,7 @@ interface Props {
 /**
  * 展示清洗预览实际使用的对齐和质量检查规则。
  * @param props - 含 sync、checks 及来源阈值的报告快照。
- * @returns 对齐参数、质量检查阈值、严重检查列表和逐来源阈值表。
+ * @returns 质量阈值、严重检查列表和逐来源阈值表；MCAP 另展示对齐和画面规则。
  * @throws 无。
  * @sideEffects 只渲染文本，不改报告、选择或 URL，不发请求。
  * @timeSemantics 时间阈值按字段单位显示；断点毫秒值直接使用报告，避免前端重新计算漂移。
@@ -20,35 +20,44 @@ interface Props {
 export function ReportRules(props: Props): ReactElement {
   const { report } = props;
   const { sync, checks } = report.rules;
+  const native = report.source_format !== "mcap";
+
   return (
     <>
-      <Typography.Title level={4}>对齐规则</Typography.Title>
-      <Descriptions
-        items={[
-          { key: "reference", label: "基准话题", children: report.reference_topic },
-          { key: "fps", label: "帧率", children: <>{report.fps} 帧/秒</> },
-          {
-            key: "tolerance",
-            label: "默认容差",
-            children: formatNumber(sync.default_tolerance_ms, "milliseconds"),
-          },
-          {
-            key: "gap",
-            label: "断点（相邻基准帧间隔超过）",
-            children: (
-              <>
-                {formatNumber(sync.max_frame_gap)} 倍 /{" "}
-                {formatNumber(sync.max_frame_gap_ms, "milliseconds")}
-              </>
-            ),
-          },
-          { key: "minimum", label: "最短段", children: <>{sync.min_episode_frames} 帧</> },
-          { key: "config", label: "配置指纹", children: report.tool_config_sha256 },
-          { key: "rules", label: "规则指纹", children: report.rules_sha256 },
-        ]}
-      />
-      <Typography.Paragraph>各话题实际使用的容差见文件展开项。</Typography.Paragraph>
-      <Typography.Title level={4}>数值和画面检查规则</Typography.Title>
+      {!native && sync && (
+        <>
+          <Typography.Title level={4}>对齐规则</Typography.Title>
+          <Descriptions
+            items={[
+              { key: "reference", label: "基准话题", children: report.reference_topic },
+              { key: "fps", label: "帧率", children: <>{report.fps} 帧/秒</> },
+              {
+                key: "tolerance",
+                label: "默认容差",
+                children: formatNumber(sync.default_tolerance_ms, "milliseconds"),
+              },
+              {
+                key: "gap",
+                label: "断点（相邻基准帧间隔超过）",
+                children: (
+                  <>
+                    {formatNumber(sync.max_frame_gap)} 倍 /{" "}
+                    {formatNumber(sync.max_frame_gap_ms, "milliseconds")}
+                  </>
+                ),
+              },
+              { key: "minimum", label: "最短段", children: <>{sync.min_episode_frames} 帧</> },
+              { key: "config", label: "配置指纹", children: report.tool_config_sha256 },
+              { key: "rules", label: "规则指纹", children: report.rules_sha256 },
+            ]}
+          />
+          <Typography.Paragraph>各话题实际使用的容差见文件展开项。</Typography.Paragraph>
+        </>
+      )}
+      {native && <ArchiveCheckNote report={report} />}
+      <Typography.Title level={4}>
+        {native ? "数值检查规则" : "数值和画面检查规则"}
+      </Typography.Title>
       <Descriptions
         items={[
           { key: "static-feature", label: "静止检查特征", children: checks.static_feature },
@@ -58,26 +67,30 @@ export function ReportRules(props: Props): ReactElement {
             children: formatNumber(checks.long_static_s, "seconds"),
           },
           { key: "jump-feature", label: "跳变检查特征", children: checks.jump_feature },
-          {
-            key: "frozen",
-            label: "相机冻结最短时长",
-            children: formatNumber(checks.frozen_s, "seconds"),
-          },
-          {
-            key: "sample",
-            label: "亮度抽样间隔",
-            children: formatNumber(checks.sample_interval_s, "seconds"),
-          },
-          {
-            key: "dark",
-            label: "黑屏阈值",
-            children: <>平均亮度 &lt; {formatNumber(checks.dark_below)}</>,
-          },
-          {
-            key: "bright",
-            label: "过曝阈值",
-            children: <>平均亮度 &gt; {formatNumber(checks.bright_above)}</>,
-          },
+          ...(!native
+            ? [
+                {
+                  key: "frozen",
+                  label: "相机冻结最短时长",
+                  children: formatNumber(checks.frozen_s, "seconds"),
+                },
+                {
+                  key: "sample",
+                  label: "亮度抽样间隔",
+                  children: formatNumber(checks.sample_interval_s, "seconds"),
+                },
+                {
+                  key: "dark",
+                  label: "黑屏阈值",
+                  children: <>平均亮度 &lt; {formatNumber(checks.dark_below)}</>,
+                },
+                {
+                  key: "bright",
+                  label: "过曝阈值",
+                  children: <>平均亮度 &gt; {formatNumber(checks.bright_above)}</>,
+                },
+              ]
+            : []),
           {
             key: "severe",
             label: "严重检查（默认剔除）",
@@ -92,8 +105,9 @@ export function ReportRules(props: Props): ReactElement {
         ]}
       />
       <Typography.Paragraph>
-        严重检查项取自本报告；其他检查作为提示。段的初始处理以报告默认选择为准，可以手动修改。H.264
-        话题画面未检查。
+        严重检查项取自本报告；其他检查作为提示。{native ? "集" : "段"}
+        的初始处理以报告默认选择为准，可以手动修改。
+        {!native && "H.264 话题画面未检查。"}
       </Typography.Paragraph>
       <Typography.Title level={4}>每个来源的阈值</Typography.Title>
       <Typography.Paragraph>
@@ -107,7 +121,7 @@ export function ReportRules(props: Props): ReactElement {
         scroll={{ x: "max-content" }}
         locale={{ emptyText: "没有配置来源阈值" }}
         columns={[
-          { title: "来源话题", dataIndex: "topic" },
+          { title: native ? "来源" : "来源话题", dataIndex: "topic" },
           {
             title: "静止阈值",
             render: (_, source) =>
@@ -131,5 +145,17 @@ export function ReportRules(props: Props): ReactElement {
         ]}
       />
     </>
+  );
+}
+
+// 说明区别来自报告格式，不从工具名猜测已执行的检查。
+function ArchiveCheckNote({ report }: Props): ReactElement {
+  return (
+    <Typography.Paragraph>
+      {report.source_format === "agibot_lerobot21"
+        ? "核对归档版本、机器人标签、FPS、特征和集元数据；视频只检查成员存在且非空，未执行图像检查。致命归档或集固定剔除。"
+        : "先体检视频、深度图和本体感知的完整性、帧数及维度，不过的集固定剔除。"}
+      数值检查后人工确认保留或剔除；只转换保留的集，视频不重新编码，再核对每集帧数并进行入库检查。
+    </Typography.Paragraph>
   );
 }

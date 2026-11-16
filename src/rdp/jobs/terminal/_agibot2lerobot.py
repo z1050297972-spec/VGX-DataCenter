@@ -19,8 +19,9 @@ _PARTS = (("stage", "逐集处理", "集"), ("data", "数据分片", "个"), ("v
 class Agibot2LerobotParser:
     """按到达顺序消费混合日志，扫描和转换阶段只进不退。"""
 
-    def __init__(self, stage_count: int, first_stage: int) -> None:
+    def __init__(self, stage_count: int, first_stage: int, *, g2: bool = False) -> None:
         """保存已由工厂校验的阶段安排，每次工具执行独占一个实例。"""
+        self.g2 = g2
         self.stage_count = stage_count
         self.first_stage = first_stage
         self.pending = bytearray()
@@ -28,7 +29,9 @@ class Agibot2LerobotParser:
         self.converting = False
         self.parts = {
             stage: ProgressPart(name=name, done=0, total=None, unit=unit)
-            for stage, name, unit in _PARTS
+            for stage, name, unit in (
+                (("archives", "归档合并", "归档"), ("video", "视频成员", "个")) if g2 else _PARTS
+            )
         }
         self.latest: JobProgress | None = None
 
@@ -81,7 +84,10 @@ class Agibot2LerobotParser:
         if (
             event.get("event") != "progress"
             or not isinstance(stage, str)
-            or stage not in ("preview", "probe", *self.parts)
+            or stage
+            not in (
+                ("preview", "meta", *self.parts) if self.g2 else ("preview", "probe", *self.parts)
+            )
             or type(done) is not int
             or type(total) is not int
             or not 0 <= done <= total
@@ -99,14 +105,14 @@ class Agibot2LerobotParser:
             )
         elif self.converting:
             return False
-        main = self.parts["stage"]
+        main = self.parts["archives" if self.g2 else "stage"]
         self.latest = JobProgress(
             stage_index=self.first_stage + int(self.converting),
             stage_count=self.stage_count,
             stage_name="转换" if self.converting else "扫描",
             done=main.done if self.converting else done,
             total=main.total if self.converting else total,
-            unit="集",
+            unit="归档" if self.g2 else "集",
             warning_count=0,
             failed_items=0,
             total_items=0,

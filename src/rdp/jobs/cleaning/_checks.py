@@ -8,6 +8,7 @@ import math
 from array import array
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 from rdp.infra.diagnostics import DIAGNOSTIC_SAMPLE_LIMIT, Diagnostic, DiagnosticObject
 from rdp.jobs.cleaning._config import (
@@ -24,6 +25,14 @@ from rdp.jobs.cleaning.models import EpisodeIssue, IssueDetails, TimeRange
 
 # 决定记录第 5 节：仅非有限值和整段静止默认剔除；报告说明与判严重共用此顺序。
 SEVERE_CHECKS = ("non_finite", "entire_static")
+# M4.6-03：MCAP 检查和外部预览共用文案，避免同一规则因数据格式产生不同解释。
+CHECK_MESSAGES = {
+    "non_finite": "向量特征存在 NaN 或无穷值",
+    "action_jump": "动作相邻帧变化超过来源阈值",
+    "joint_limit": "关节数值超出配置限位",
+    "entire_static": "整段所有受检状态维度的极差均小于静止阈值",
+    "long_static": "状态连续静止达到配置时长",
+}
 
 
 @dataclass(frozen=True)
@@ -141,15 +150,10 @@ def _vector_events(
                 counts[check] += 1
                 first.setdefault(check, context.seconds(frame))
         previous = values
-    descriptions = {
-        "non_finite": "向量特征存在 NaN 或无穷值",
-        "action_jump": "动作相邻帧变化超过来源阈值",
-        "joint_limit": "关节数值超出配置限位",
-    }
     return [
         _issue(
             check,
-            descriptions[check],
+            CHECK_MESSAGES[check],
             IssueDetails(count=count, first_time_s=first[check], feature=feature),
             context,
         )
@@ -224,7 +228,7 @@ def _static(
         issues.append(
             _issue(
                 "entire_static",
-                "整段所有受检状态维度的极差均小于静止阈值",
+                CHECK_MESSAGES["entire_static"],
                 IssueDetails(
                     count=len(context.segment), first_time_s=0, feature=rules.static.feature
                 ),
@@ -235,7 +239,7 @@ def _static(
         issues.append(
             _issue(
                 "long_static",
-                "状态连续静止达到配置时长",
+                CHECK_MESSAGES["long_static"],
                 IssueDetails(
                     count=count,
                     first_time_s=runs[0].start_s,
@@ -331,16 +335,23 @@ def _brightness_issues(
 def _issue(
     check: str, message: str, details: IssueDetails, context: SegmentContext
 ) -> EpisodeIssue:
+    """从 MCAP 段上下文提取身份，质量诊断与外部预览共用同一规则。"""
+    return quality_issue(check, message, details, context.scan.path, context.segment.start)
+
+
+def quality_issue(
+    check: str, message: str, details: IssueDetails, path: Path, start_frame: int
+) -> EpisodeIssue:
     """质量问题仍使用平台 Diagnostic；严重只剔除当前段，不误报整文件失败。"""
     severe = check in SEVERE_CHECKS
     base = diagnostic(
         f"cleaning.{check}",
         f"{message}，共 {details.count} 次",
-        path=context.scan.path,
+        path=path,
         topic=details.topic,
         fatal=severe,
     )
-    extra = (DiagnosticObject(key="start_frame", value=str(context.segment.start)),)
+    extra = (DiagnosticObject(key="start_frame", value=str(start_frame)),)
     if details.feature is not None:
         extra += (DiagnosticObject(key="feature", value=details.feature),)
     detail = Diagnostic(

@@ -1,6 +1,6 @@
 # 前端：AgiBot 的预览入口、报告页和工具库展示
 
-Status: ready-for-agent
+Status: done（实现及验收完成；负责人已授权合并、升级、推送）
 
 分级：直做。与第 03、04 张并行（只动 `src/web/`）。只用 antd。
 
@@ -38,3 +38,5 @@ Status: ready-for-agent
 ## Comments
 
 - 2026-11-15 执行线：第 01 张合并后，`make check` 的 tsc 有 11 处报错（`Process.tsx`、`Rules.tsx` 里 `sync` 可能为 null；`testSupport.ts`、`Conversion.test.tsx`、`tools/Pages.test.tsx` 的假数据缺新字段 `source_format`、`default_space_ratio_percent`、`preview_by_tool`、`source_tree_sha256`）。本票先把这些修好。类型已生成（`src/web/src/api/schema.d.ts`），不要再跑 make api-types。
+
+- 执行线收尾：最终后端3120、前端441全绿；Alpha真实本地样本全链路3 passed、G2合成归档真实bwrap全链路1 passed、G2真实task_3405归档13集30681帧四层检查通过。详见 `../assets/verification-results.md`。没有生产部署或推送。

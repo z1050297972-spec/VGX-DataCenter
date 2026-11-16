@@ -2,7 +2,7 @@
 
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from rdp.infra.diagnostics import Diagnostic
 
@@ -64,14 +64,23 @@ class EpisodeReport(_FrozenModel):
     frame_count: int
     # 转换后的恒定帧率时长，与原始 stamp 跨度分别记录，避免混淆。
     duration_s: float
-    stamp_span_s: float
-    start_time_s: float
+    stamp_span_s: float | None
+    start_time_s: float | None
     issues: tuple[EpisodeIssue, ...]
     default_action: Literal["keep", "exclude"]
+    fatal_issues: tuple[Diagnostic, ...] = ()
+
+
+class InputFileSnapshot(_FrozenModel):
+    """Alpha 文件路径与 stat 快照；双空表示预览时缺失的候选文件，不读取内容。"""
+
+    path: str
+    size_bytes: int | None = Field(ge=0)
+    mtime_ns: int | None = Field(ge=0)
 
 
 class FileReport(_FrozenModel):
-    """一个 MCAP 文件或 AgiBot 集；后者用 episode_id 标识，元数据读取失败时为 None。"""
+    """一个 MCAP 文件、Alpha 集或 G2 归档；仅 Alpha 使用 episode_id，未知元信息为 None。"""
 
     file_index: int
     source_id: str
@@ -89,6 +98,8 @@ class FileReport(_FrozenModel):
     topics: tuple[TopicAlignment, ...]
     default_excluded: bool
     episode_id: str | None = None
+    # 历史报告缺此字段仍可读取；Alpha 转换必须重新预览补齐。
+    alpha_input_snapshot: tuple[InputFileSnapshot, ...] | None = None
 
 
 class CleaningSummary(_FrozenModel):
@@ -171,7 +182,7 @@ class CleaningReport(_FrozenModel):
     """版本一报告；Pydantic 的 JSON 方法用于存库，规则指纹取文件原始字节。"""
 
     schema_version: Literal[1] = 1
-    source_format: Literal["mcap", "agibot_native"] = "mcap"
+    source_format: Literal["mcap", "agibot_native", "agibot_lerobot21"] = "mcap"
     tool_config_sha256: str
     rules_sha256: str
     fps: int
@@ -203,6 +214,10 @@ class CleaningReport(_FrozenModel):
         else:
             if any(value is not None for value in nullable):
                 raise ValueError("AgiBot 报告的基准话题、同步规则及四项图像规则必须为空")
-            if any(not file.episode_id or file.topics for file in self.files):
+            if any(file.topics for file in self.files):
+                raise ValueError("AgiBot 报告不包含话题对齐统计")
+            if self.source_format == "agibot_native" and any(
+                not file.episode_id for file in self.files
+            ):
                 raise ValueError("AgiBot 每个文件必须有非空 episode_id 且 topics 为空")
         return self

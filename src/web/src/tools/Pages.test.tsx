@@ -19,6 +19,9 @@ it("工具库中的指纹不符显示红色状态，展开后显示五段诊断"
         robot_models: ["Galaxea R1 Lite"],
         cleaning_models: ["Galaxea R1 Lite"],
         needs_gpu: true,
+        preview_by_tool: false,
+        default_space_ratio_percent: 25,
+        source_tree_sha256: null,
         readme_available: false,
         status: "指纹不符",
         program_path: "/tmp/tools/mcap2lerobot",
@@ -65,7 +68,7 @@ it("工具库中的指纹不符显示红色状态，展开后显示五段诊断"
   }
 });
 
-// 负责人要求：详情加载成功后不显示程序指纹和源码说明，接口仍可返回这些字段。
+// 负责人要求：详情加载成功后不显示指纹和源码说明，接口仍可返回这些字段。
 it("工具详情不显示程序 SHA-256、源码提交和源码状态说明", async () => {
   const detail: ToolDetail = {
     name: "mcap2lerobot",
@@ -77,6 +80,9 @@ it("工具详情不显示程序 SHA-256、源码提交和源码状态说明", as
     robot_models: ["R1"],
     cleaning_models: ["R1"],
     needs_gpu: true,
+    preview_by_tool: false,
+    default_space_ratio_percent: 25,
+    source_tree_sha256: null,
     readme_available: false,
     status: "可用",
     program_path: "/tmp/tools/mcap2lerobot",
@@ -84,7 +90,14 @@ it("工具详情不显示程序 SHA-256、源码提交和源码状态说明", as
     source_commit: "commit-for-display-only",
     source_note: "源码状态测试说明",
     diagnostics: [],
-    configurations: [],
+    configurations: [
+      {
+        robot_model: "R1",
+        filename: "r1.toml",
+        content: "name = 'R1'",
+        sha256: "config-hidden-hash",
+      },
+    ],
     command: null,
   };
   const fallback = pageFetch();
@@ -104,6 +117,10 @@ it("工具详情不显示程序 SHA-256、源码提交和源码状态说明", as
     expect(drawer.textContent).not.toContain("f09daa6af5d4");
     expect(drawer.textContent).not.toContain("commit-for-display-only");
     expect(drawer.textContent).not.toContain("源码状态测试说明");
+    expect(drawer.textContent).not.toContain("config-hidden-hash");
+    expect(drawer.textContent).not.toContain("SHA-256");
+    expect(within(drawer).getByText("平台解析")).toBeTruthy();
+    expect(within(drawer).getByText("25%")).toBeTruthy();
   } finally {
     page.close();
   }

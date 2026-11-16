@@ -98,7 +98,12 @@ def test_source_tree_fingerprint_tracks_python_sources(tmp_path: Path) -> None:
     )
     item = load_tool_registry(files.registry, files.library).items[0]
     assert item.status == "可用"
-    assert item.fingerprint == expected
+    program = tomllib.loads(manifest_path.read_text())["program"]
+    identity = (
+        f"launcher+tree-v1\0{program['path']}\0{program['size']}\0"
+        f"{program['sha256']}\0source\0{expected}"
+    )
+    assert item.fingerprint == hashlib.sha256(identity.encode()).hexdigest()
     cache = tree / "__pycache__"
     cache.mkdir()
     (cache / "x.pyc").write_bytes(b"ignored")

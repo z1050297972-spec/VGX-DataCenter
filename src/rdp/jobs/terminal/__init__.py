@@ -38,6 +38,8 @@ def create_terminal_parser(name: str, *, stage_count: int, first_stage: int) -> 
         raise DefectError()
     if name == "mcap2lerobot-pty":
         return Mcap2LerobotParser(stage_count, first_stage)
+    if name == "agibot2lerobot-g2-events":
+        return Agibot2LerobotParser(stage_count, first_stage, g2=True)
     if name == "agibot2lerobot-events":
         return Agibot2LerobotParser(stage_count, first_stage)
     raise DefectError()

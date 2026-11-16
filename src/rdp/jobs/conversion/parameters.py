@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from rdp.infra.db.validation import invalid_field
+from rdp.jobs.cleaning._g2 import validate_paths
 from rdp.jobs.datasets.models import DatasetRow, SourceRow
 from rdp.jobs.errors import JobInputError
 from rdp.tools.manifest import ToolManifest
@@ -171,7 +172,10 @@ def selected_inputs(
                 "source_ids", f"全部属于该数据集且格式为{input_format}的数据块"
             ).diagnostics
         )
-    return tuple(Path(by_id[identifier].direct_path) for identifier in parameters.source_ids)
+    paths = tuple(Path(by_id[identifier].direct_path) for identifier in parameters.source_ids)
+    if input_format == "archives":
+        validate_paths(paths)
+    return paths
 
 
 def conversion_type_name(tool_name: str) -> str:

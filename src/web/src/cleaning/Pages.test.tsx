@@ -5,7 +5,14 @@ import { mountPage, pageFetch } from "../scheduling/pageTestSupport";
 import { account } from "../accounts/testSupport";
 import { job } from "../jobs/testSupport";
 import type { CleaningPreview } from "../api/cleaning";
-import { preview, cleaningTools } from "./testSupport";
+import {
+  preview,
+  cleaningTools,
+  agibotPreview,
+  agibotTools,
+  g2Preview,
+  g2Tools,
+} from "./testSupport";
 
 function mountReport(member = false, snapshot: CleaningPreview = preview) {
   const requests: Request[] = [];
@@ -16,7 +23,16 @@ function mountReport(member = false, snapshot: CleaningPreview = preview) {
   const page = mountPage("/cleaning/42", (request) => {
     const path = new URL(request.url).pathname;
     if (path === "/api/cleaning-previews/42") return Promise.resolve(Response.json(snapshot));
-    if (path === "/api/tools") return Promise.resolve(Response.json(cleaningTools));
+    if (path === "/api/tools")
+      return Promise.resolve(
+        Response.json(
+          snapshot.report.source_format === "agibot_native"
+            ? agibotTools
+            : snapshot.report.source_format === "agibot_lerobot21"
+              ? g2Tools
+              : cleaningTools,
+        ),
+      );
     if (path === "/api/cleaning-previews/42/convert") {
       requests.push(request.clone());
       return Promise.resolve(Response.json(job, { status: 201 }));
@@ -200,3 +216,82 @@ it.each([{ severe_checks: ["non_finite", "frozen_image"] }, { severe_checks: [] 
     }
   },
 );
+
+it("AgiBot 报告按整集处理，体检失败固定剔除且转换只提交文件排除", async () => {
+  // 用真实报告页面验证体检、严重数值问题和人工选择最终落入同一个 excluded_files。
+  const page = mountReport(false, agibotPreview);
+  try {
+    const fatalSwitch = await screen.findByRole("switch", { name: "Episode 101 保留" });
+    expect(fatalSwitch.hasAttribute("disabled")).toBe(true);
+    expect(fatalSwitch.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("缺少深度图")).toBeTruthy();
+    expect(screen.getByText("可转帧数")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "episode ID" })).toBeTruthy();
+    const severeSwitch = screen.getByRole("switch", { name: "Episode 102 保留" });
+    expect(severeSwitch.hasAttribute("disabled")).toBe(false);
+    expect(severeSwitch.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("严重 · non_finite")).toBeTruthy();
+    fireEvent.click(severeSwitch);
+    fireEvent.click(screen.getByRole("switch", { name: "Episode 103 保留" }));
+    expect(screen.getByText("当前保留：1 个 Episode，100 帧")).toBeTruthy();
+    const process = screen.getByRole("region", { name: "清洗流程" });
+    for (const title of ["体检", "数值检查", "人工确认", "转换", "帧数核对", "入库检查"]) {
+      expect(within(process).getByText(title)).toBeTruthy();
+    }
+    expect(within(process).getByText(/连续静止至少 4.50 秒/)).toBeTruthy();
+    expect(within(process).getByText(/视频不重新编码/)).toBeTruthy();
+    fireEvent.click(screen.getByText("规则说明"));
+    expect(await screen.findByText("数值检查规则")).toBeTruthy();
+    expect(screen.getByText("4.50 秒")).toBeTruthy();
+    expect(screen.queryByText("话题对齐统计")).toBeNull();
+    expect(screen.queryByText("基准话题")).toBeNull();
+    expect(screen.queryByText("对齐规则")).toBeNull();
+    expect(screen.queryByText("相机冻结最短时长")).toBeNull();
+    // 非常见默认值证明来自工具清单，而非前端写死 25 或 130。
+    expect(await screen.findByLabelText("百分比（%）")).toHaveProperty("value", "137");
+    expect(screen.queryByText("产物按两倍估算")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "进行转换" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "确认转换" }));
+    await waitFor(() => {
+      expect(page.router.state.location.pathname).toBe(`/jobs/${job.job_id}`);
+    });
+    expect(await page.requests[0]?.json()).toEqual({
+      output_format: "v3.0",
+      space_ratio_percent: 137,
+      space_reserve_gib: 1,
+      excluded_files: [0, 2],
+      excluded_episodes: [],
+    });
+  } finally {
+    page.close();
+  }
+});
+
+it("G2 致命集不能恢复，按归档和源集身份提交原生剔除", async () => {
+  // 源集号7不能被显示编号替代；整归档剔除不再提交它的集，且不出现删段倍增提示。
+  const page = mountReport(false, g2Preview);
+  try {
+    const fatalEpisode = await screen.findByRole("switch", { name: "文件 1 段 0 保留" });
+    expect(fatalEpisode.hasAttribute("disabled")).toBe(true);
+    expect(fatalEpisode.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByRole("columnheader", { name: "源 episode_index" })).toBeTruthy();
+    expect(screen.getByText(/实际：缺视频或视频为空/)).toBeTruthy();
+    expect(screen.queryByText("产物按两倍估算")).toBeNull();
+    expect(screen.queryByText("话题对齐统计")).toBeNull();
+    expect(screen.getByText(/视频只检查成员存在且非空/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("switch", { name: "文件 /tmp/task_42/2.tar.gz 保留" }));
+    fireEvent.click(await screen.findByRole("button", { name: "进行转换" }));
+    fireEvent.click(await screen.findByRole("button", { name: "确认转换" }));
+    await waitFor(() => {
+      expect(page.requests).toHaveLength(1);
+    });
+    expect(await page.requests[0]?.json()).toMatchObject({
+      excluded_files: [0, 2],
+      excluded_episodes: [{ file_index: 1, segment_index: 0 }],
+      space_ratio_percent: 130,
+    });
+  } finally {
+    page.close();
+  }
+});

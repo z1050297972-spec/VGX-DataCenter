@@ -26,13 +26,15 @@ const CHECK_NAMES: Record<string, string> = {
  * 按六步解释本次清洗预览及后续选择、转换流程。
  * @param props - 包含文件、基准话题、帧率及规则快照的报告。
  * @returns 默认展开的清洗流程卡片，数值取自报告，未知总大小明确标注。
- * @throws 无。
+ * @throws Error MCAP 报告缺少对齐规则时表示报告契约缺陷。
  * @sideEffects 只渲染说明，不发请求、不修改选择、报告或 URL。
  * @timeSemantics 容差与断点按报告毫秒值显示，质量检查时长按报告秒值显示；不估算耗时。
  */
 export function CleaningProcess(props: Props): ReactElement {
   const { report } = props;
   const { sync, checks } = report.rules;
+  if (report.source_format !== "mcap") return <NativeProcess report={report} />;
+  if (!sync) throw new Error("MCAP 报告缺少对齐规则");
   // 任一文件无法取得大小时，总量也未知，不能把缺失元数据当成零字节。
   const totalBytes = report.files.some((file) => file.size_bytes === null)
     ? null
@@ -178,6 +180,70 @@ export function CleaningProcess(props: Props): ReactElement {
                 </Flex>
               </Flex>
             ),
+          },
+        ]}
+      />
+    </Card>
+  );
+}
+
+// AgiBot 的六步流程按整集处理；只解释报告快照，不套用 MCAP 对齐、删段或 GPU 编码步骤。
+function NativeProcess({ report }: Props): ReactElement {
+  const g2 = report.source_format === "agibot_lerobot21";
+  const checks = report.rules.checks;
+  const severe = checks.severe_checks.map((check) => CHECK_NAMES[check] ?? check).join("、");
+  return (
+    <Card className="cleaning-section" title="清洗流程" role="region" aria-label="清洗流程">
+      <Steps
+        orientation="vertical"
+        size="small"
+        current={-1}
+        classNames={{
+          itemSection: "cleaning-process-content",
+          itemContent: "cleaning-process-content",
+        }}
+        items={[
+          {
+            title: "体检",
+            content: g2
+              ? "检查 v2.1、g2a、FPS、特征和 parquet；视频只检查成员存在且非空，未执行图像质量检查。坏归档或致命集必须剔除。"
+              : "检查视频、深度图、本体感知是否齐全，帧数是否一致，维度是否与配置相符；体检不过的集不能转换。",
+          },
+          {
+            title: "数值检查",
+            content: (
+              <Flex vertical gap="small">
+                <Typography.Text>
+                  默认剔除（严重）：{severe || "本报告未配置默认剔除的严重检查"}。
+                </Typography.Text>
+                <Typography.Text>
+                  只提示：连续静止至少 {formatNumber(checks.long_static_s, "seconds")}
+                  、动作跳变、关节超限。 静止、跳变和逐维限位取本报告的来源阈值，见规则说明。
+                </Typography.Text>
+              </Flex>
+            ),
+          },
+          {
+            title: "人工确认",
+            content: g2
+              ? "按归档和源 episode_index 选择；致命问题固定剔除，数值问题可人工调整。时长按帧数/FPS 展示，原始采集跨度未知。"
+              : "在 Episode 表中确认保留或剔除；体检失败的集固定剔除，数值问题可人工调整。",
+          },
+          {
+            title: "转换",
+            content: g2
+              ? "复核归档 size/mtime 和完整工具身份，按预览归档顺序原生跳过剔除集；视频不重新编码，不使用 LeRobot 删除。"
+              : "复核标注、本体感知、视频及深度文件集合与 size/mtime 快照；只转换保留的集，视频不重新编码。",
+          },
+          {
+            title: "帧数核对",
+            content: g2
+              ? "核对每集帧数、归档和源集映射与报告一致。"
+              : "转换完成后，核对每集帧数与报告一致。",
+          },
+          {
+            title: "入库检查",
+            content: "进行结构、计数、视频和内容检查，通过后入库并记录本次清洗血缘。",
           },
         ]}
       />

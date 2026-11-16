@@ -1,6 +1,6 @@
 # AgiBot 转换接入：从预览发起，工具在沙箱里只转保留的集
 
-Status: ready-for-agent
+Status: done（实现及验收完成；负责人已授权合并、升级、推送）
 
 分级：直做。与第 03、05 张并行（本票只动 `src/rdp/jobs/conversion/` 和 `src/rdp/api/cleaning_previews.py`；第 03 张只动 `src/rdp/jobs/cleaning/`）。决定见 `../decisions.md` 第 1、5、6 条。报告的 AgiBot 形状见第 01 张第 4 节，本票的测试自己构造这种报告，不依赖第 03 张。
 
@@ -37,3 +37,5 @@ Status: ready-for-agent
 测试通过；`PYTHONPATH=$PWD/src make check` 全绿（OpenAPI 快照除外）。
 
 ## Comments
+
+- 执行线收尾：最终后端3120、前端441全绿；Alpha真实本地样本全链路3 passed、G2合成归档真实bwrap全链路1 passed、G2真实task_3405归档13集30681帧四层检查通过。详见 `../assets/verification-results.md`。没有生产部署或推送。

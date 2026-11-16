@@ -1,6 +1,7 @@
-"""M4.5 转换选择规则（领域层）；只消费成功预览快照，不访问数据盘或套默认选择。"""
+"""MCAP/AgiBot 转换选择规则（领域层，M4.5/M4.6）；只消费预览快照，不访问数据盘或套默认选择。"""
 
 from dataclasses import dataclass
+from typing import Literal
 
 from rdp.infra.db.validation import invalid_field
 from rdp.jobs.cleaning.models import EpisodeReport, FileReport
@@ -16,17 +17,25 @@ class Selection:
     Attributes:
         files: 未剔除文件，按 file_index 升序。
         episodes: 这些文件的全部保留段，按文件和段升序，尚未扣除手工剔除。
-        excluded_indices: 需要 LeRobot 删除的产物 episode 编号，升序。
+        excluded_indices: 需剔除的报告顺序下标，升序；MCAP 对应产物编号，G2 另映射为源集身份。
+        source_format: 预览输入格式，决定文件元数据的核对规则。
     """
 
     files: tuple[FileReport, ...]
     episodes: tuple[EpisodeReport, ...]
     excluded_indices: tuple[int, ...]
+    source_format: Literal["mcap", "agibot_native", "agibot_lerobot21"]
 
 
 def select(preview: CleaningPreview, options: ConversionOptions) -> Selection:
     """统一校验最终选择并换算编号；HTTP 与执行器都使用这条规则。"""
     report = preview.report
+    if report.source_format == "agibot_native" and options.excluded_episodes:
+        raise JobInputError(
+            invalid_field(
+                "excluded_episodes", "AgiBot 数据按集剔除，请使用 excluded_files"
+            ).diagnostics
+        )
     files = {item.file_index: item for item in report.files}
     episodes = {(item.file_index, item.segment_index): item for item in report.episodes}
     excluded_files = set(options.excluded_files)
@@ -37,6 +46,10 @@ def select(preview: CleaningPreview, options: ConversionOptions) -> Selection:
         not excluded_files <= files.keys()
         or not excluded_episodes <= episodes.keys()
         or any(item.fatal_issues and key not in excluded_files for key, item in files.items())
+        or any(
+            item.fatal_issues and key[0] not in excluded_files and key not in excluded_episodes
+            for key, item in episodes.items()
+        )
         or any(key[0] in excluded_files for key in excluded_episodes)
         or len(excluded_files) != len(options.excluded_files)
         or len(excluded_episodes) != len(options.excluded_episodes)
@@ -44,7 +57,7 @@ def select(preview: CleaningPreview, options: ConversionOptions) -> Selection:
         raise JobInputError(
             invalid_field(
                 "excluded_files/excluded_episodes",
-                "报告内不重复的身份，致命文件必须剔除，段不得属于已剔除文件",
+                "报告内不重复的身份，致命文件和集必须剔除，段不得属于已剔除文件",
             ).diagnostics
         )
     kept_files = tuple(files[key] for key in sorted(files) if key not in excluded_files)
@@ -63,4 +76,5 @@ def select(preview: CleaningPreview, options: ConversionOptions) -> Selection:
             for index, episode in enumerate(kept_episodes)
             if (episode.file_index, episode.segment_index) in excluded_episodes
         ),
+        report.source_format,
     )

@@ -19,13 +19,13 @@ export type CleaningSourceRules = components["schemas"]["CleaningSourceRules"];
 export interface CleaningPreviewSubmission {
   /** 已登记工具名称，不接受程序路径。 */
   tool: operations["submit_cleaning_preview_job"]["parameters"]["path"]["tool_name"];
-  /** 数据集、MCAP 数据块和有清洗规则的型号。 */
+  /** 数据集、同输入格式的数据块和有清洗规则的型号。 */
   parameters: CleaningPreviewInput;
 }
 
 /**
  * 提交只读清洗预览作业。
- * @param input - 登记工具、数据集、1 至 200 个 MCAP 数据块、型号及取消信号。
+ * @param input - 登记工具、数据集、1 至 200 个 MCAP 数据块或恰好一个 AgiBot 任务数据块、型号及取消信号。
  * @returns 服务端创建的作业，字段沿用已有 Job 类型。
  * @throws Error 权限、输入、网络或超时失败，交统一诊断显示。
  * @sideEffects POST /api/jobs/cleaning-preview/{tool_name}；不直接访问数据文件。

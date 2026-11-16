@@ -1,0 +1,33 @@
+# AgiBot G1（双臂 + 灵巧手）清洗规则，配 agibot_g1_dexhand.toml 用。阈值照数据中心 M4.5 的 MCAP 清洗规则。
+#
+# 检查项（工具只报事实，哪些默认剔除由数据中心定；M4.5 的约定是前两项默认剔除，其余只提示）：
+#   non_finite     任一向量特征出现 NaN/Inf
+#   entire_static  [static].feature 里配了 static_threshold 的维度，整段极差都小于阈值（整段没动）
+#   long_static    这些维度相邻帧变化都小于阈值，连续达到 long_static_s 秒
+#   action_jump    [jump].feature 里配了 jump_threshold 的维度，相邻帧变化超过阈值
+#   joint_limit    配了 limits 的维度超出上下限（目前没有确认的关节限位，不写）
+schema_version = 1
+
+[static]
+feature = "observation.state"
+long_static_s = 3.0
+
+[jump]
+feature = "action"
+
+# 手臂关节，单位 rad
+[[source]]
+field = "state/joint/position"
+static_threshold = 0.001
+
+# 灵巧手关节角 state，单位 rad
+[[source]]
+field = "state/effector/position"
+static_threshold = 0.001
+
+# 源数据里 action 的关节值与 state 相同，这里查的其实是关节角的突变（30 fps 下 0.5 rad/帧 = 15 rad/s，正常运动到不了）
+[[source]]
+field = "action/joint/position"
+jump_threshold = 0.5
+
+# 灵巧手 action 暂不查跳变；头、腰很少动，不参与静止判断。

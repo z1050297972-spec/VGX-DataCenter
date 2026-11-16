@@ -26,7 +26,7 @@ import type { LeRobotEnvironment } from "../api/tools";
 import "./tools.css";
 
 /**
- * 显示工具清单、指纹状态及可打开的登记详情。
+ * 显示工具清单、可用状态及可打开的登记详情。
  * @returns 工具表格、只读详情与说明抽屉；不可用状态为红色，可展开五段诊断。
  * @throws 无；加载失败交给 DiagnosticCard。
  * @sideEffects 读取工具列表，点击行时请求详情，点击说明时请求 README；重新检查刷新列表，不写登记包或 URL。
@@ -253,14 +253,7 @@ function ToolDetails({ name }: { name: string }): ReactElement {
           <Typography.Title level={4}>{configuration.robot_model}</Typography.Title>
           <Descriptions
             column={1}
-            items={[
-              { key: "file", label: "配置文件", children: configuration.filename },
-              {
-                key: "sha256",
-                label: "配置 SHA-256",
-                children: <Typography.Text code>{configuration.sha256}</Typography.Text>,
-              },
-            ]}
+            items={[{ key: "file", label: "配置文件", children: configuration.filename }]}
           />
           <pre className="tools-code" aria-label={`${configuration.robot_model} 配置全文`}>
             {configuration.content}
@@ -287,6 +280,16 @@ function ToolFacts({ tool }: { tool: ToolDetail }): ReactElement {
         { key: "versions", label: "输出版本", children: tool.output_versions.join("、") || "—" },
         { key: "models", label: "适用型号", children: tool.robot_models.join("、") || "—" },
         { key: "gpu", label: "需要 GPU", children: gpuLabel(tool.needs_gpu) },
+        {
+          key: "preview",
+          label: "预览方式",
+          children: tool.preview_by_tool ? "工具执行" : "平台解析",
+        },
+        {
+          key: "space",
+          label: "默认空间百分比",
+          children: `${String(tool.default_space_ratio_percent)}%`,
+        },
         {
           key: "status",
           label: "状态",

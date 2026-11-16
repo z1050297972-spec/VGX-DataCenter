@@ -1,0 +1,31 @@
+schema_version = 1
+[tool]
+name = "agibot2lerobot"
+version = "0.2.0"
+summary = "AgiBot World Alpha 原生数据转 LeRobot v3.0"
+directory = "agibot2lerobot"
+[program]
+path = "bin/agibot2lerobot"
+size = 480
+sha256 = "638728b071c01a34137c50c414223bc3f78f3acf7d3bb9c3aea40725914fe1fb"
+tree = "agibot2lerobot"
+tree_sha256 = "dd098862c3b6d6a5d4b9c35245c97725dd0bf34fddf6f49eb3050af3ed8382f1"
+[io]
+input_format = "agibot_native"
+output_format = "lerobot"
+output_versions = ["v3.0"]
+[models]
+"AgiBot G1" = "configs/agibot_g1.toml"
+"AgiBot G1 灵巧手" = "configs/agibot_g1_dexhand.toml"
+[cleaning]
+"AgiBot G1" = "cleaning/agibot_g1.toml"
+"AgiBot G1 灵巧手" = "cleaning/agibot_g1_dexhand.toml"
+[runtime]
+needs_gpu = false
+progress = "agibot2lerobot-events"
+external_programs = []
+space_ratio_percent = 130
+[command]
+preview = ["--events", "/dev/stderr", "preview", "-c", "{config}", "--rules", "{rules}", "--index-cache", "{cache}", "--result", "{result}", "--task-dir", "{inputs}"]
+verify = ["check-episodes", "-c", "{config}", "--index-cache", "{cache}", "{inputs}"]
+convert = ["--events", "/dev/stderr", "convert-episodes", "-c", "{config}", "-o", "{output}", "--format", "{format}", "--index-cache", "{cache}", "{inputs}"]

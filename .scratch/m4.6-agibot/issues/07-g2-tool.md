@@ -1,6 +1,6 @@
 # 新工具 agibot2lerobot-g2：AgiBot World 2026 的 LeRobot v2.1 归档 → 合并的 v3.0（不落中间产物）
 
-Status: ready-for-agent
+Status: done（实现及验收完成；负责人已授权合并、升级、推送）
 
 分级：直做（负责人 2026-11-15："同样挂载到工具库中"；按任务合并、保留官方附加信息都同意；"官方是转成了2.1，lerobot提供了2.1-3.0的脚本，可以把他们直接合并到一起吗？我不想要中间产物"）。与第 01–05 张并行：本票只在工具目录里写，不碰平台仓库。
 
@@ -62,3 +62,5 @@ Status: ready-for-agent
 2. 执行线用一个真实的 5 GB 归档（task_3405）跑 preview 和 convert-archives，与官方转换对照、LeRobot 能加载、两块数据盘写入扇区不变。
 
 ## Comments
+
+- 执行线收尾：最终后端3120、前端441全绿；Alpha真实本地样本全链路3 passed、G2合成归档真实bwrap全链路1 passed、G2真实task_3405归档13集30681帧四层检查通过。详见 `../assets/verification-results.md`。没有生产部署或推送。

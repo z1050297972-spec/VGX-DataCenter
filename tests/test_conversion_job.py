@@ -92,7 +92,10 @@ def test_conversion_success(tmp_path: Path, fake_nav: FakeNavigation) -> None:
             receipt = json.loads((stage / "转换回执.json").read_text())
             assert receipt["tool"]["name"] == "mcap2lerobot"
             assert receipt["tool"]["version"] == "0.1.0"
-            assert len(receipt["tool"]["binary_sha256"]) == 64
+            assert (
+                len(receipt["tool"]["binary_sha256"]) == 64
+                and receipt["tool"]["source_tree_sha256"] is None
+            )
             assert receipt["configuration"]["filename"] == "configs/r1lite.toml"
             assert len(receipt["configuration"]["sha256"]) == 64
             assert receipt["commands"]["verify"][1] == "verify"

@@ -114,7 +114,7 @@ class ToolRuntime(_ManifestModel):
     """
 
     needs_gpu: bool = Field(strict=True)
-    progress: Literal["mcap2lerobot-pty", "agibot2lerobot-events"]
+    progress: Literal["mcap2lerobot-pty", "agibot2lerobot-events", "agibot2lerobot-g2-events"]
     external_programs: tuple[str, ...]
     space_ratio_percent: int = Field(default=25, strict=True, ge=0, le=1000)
 
@@ -124,8 +124,8 @@ class ToolCommands(_ManifestModel):
 
     Attributes:
         verify: 预检参数元组，须含 config 和 inputs 占位符。
-        convert: 转换参数元组，config、output、format、inputs 各出现一次，禁用 --force。
-        preview: 可选预览模板，config、rules、cache、result、inputs 各出现一次。
+        convert: 转换参数元组，config、output、format、inputs 各一次，exclude 至多一次，禁用 --force。
+        preview: 可选预览模板，config、rules、result、inputs 各一次；Alpha 必须含 cache，G2 可省略。
     """
 
     verify: tuple[str, ...]
@@ -142,18 +142,17 @@ class ToolCommands(_ManifestModel):
             raise ValueError("command.verify 必须含 config、inputs")
         if any(arg == "--force" or arg.startswith("--force=") for arg in self.convert):
             raise ValueError("command.convert 不允许 --force")
-        for command in (self.verify, self.convert):
-            if sum(arg.count("{cache}") for arg in command) > 1:
-                raise ValueError("{cache} 至多出现一次")
         commands = (self.verify, self.convert)
         if self.preview is not None:
-            required_preview = ("{config}", "{rules}", "{cache}", "{result}", "{inputs}")
+            required_preview = ("{config}", "{rules}", "{result}", "{inputs}")
             if any(sum(arg.count(key) for arg in self.preview) != 1 for key in required_preview):
-                raise ValueError(
-                    "command.preview 必须含 config、rules、cache、result、inputs 各一次"
-                )
+                raise ValueError("command.preview 必须含 config、rules、result、inputs 各一次")
             commands = (*commands, self.preview)
+        if sum(arg.count("{exclude}") for arg in self.convert) > 1:
+            raise ValueError("{exclude} 至多出现一次")
         for command in commands:
+            if sum(arg.count("{cache}") for arg in command) > 1:
+                raise ValueError("{cache} 至多出现一次")
             if any("{inputs}" in arg and arg != "{inputs}" for arg in command):
                 raise ValueError("{inputs} 必须单独作为一个参数")
         return self
@@ -181,6 +180,17 @@ class ToolManifest(_ManifestModel):
     cleaning: dict[str, RelativePath] = Field(default_factory=dict)
     runtime: ToolRuntime
     command: ToolCommands
+
+    @model_validator(mode="after")
+    def _preview_contract(self) -> Self:
+        """G2 不需要索引缓存；Alpha 预览仍保持原来的强制缓存契约。"""
+        if self.command.preview is not None:
+            if self.runtime.progress == "agibot2lerobot-g2-events":
+                if self.io.input_format != "archives":
+                    raise ValueError("G2 预览只支持 archives")
+            elif sum(arg.count("{cache}") for arg in self.command.preview) != 1:
+                raise ValueError("Alpha command.preview 必须含 cache 一次")
+        return self
 
     @model_validator(mode="after")
     def _package(self, info: ValidationInfo) -> Self:

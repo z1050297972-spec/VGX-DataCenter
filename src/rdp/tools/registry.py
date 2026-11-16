@@ -101,7 +101,7 @@ class RegisteredTool:
             无。
 
         Returns:
-            源码目录优先、否则程序的 64 位小写 SHA-256；清单无效时为 None。
+            启动器与源码目录组合、无源码时程序的 64 位小写 SHA-256；清单无效时为 None。
 
         Raises:
             无。
@@ -114,7 +114,12 @@ class RegisteredTool:
         """
         if self.manifest is None:
             return None
-        return self.manifest.program.tree_sha256 or self.manifest.program.sha256
+        program = self.manifest.program
+        if program.tree_sha256 is None:
+            return program.sha256
+        # 分隔符及版本前缀固定组合身份，更新并重新登记启动器仍使旧预览失效。
+        identity = f"launcher+tree-v1\0{program.path}\0{program.size}\0{program.sha256}\0{program.tree}\0{program.tree_sha256}"
+        return hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True)

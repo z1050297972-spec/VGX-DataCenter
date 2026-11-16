@@ -113,3 +113,16 @@ def test_long_line_is_discarded_until_newline() -> None:
     assert update.progress is not None and update.progress.done == 2
     assert parser.finish().lines == ("尾部",)
     assert parser.finish().lines == ()
+
+
+def test_g2_events_use_real_archive_video_stages() -> None:
+    """G2 明确注册 meta/video/archives 阶段，忽略 result 成败，不把 Alpha stage 当成转换进度。"""
+    parser = create_terminal_parser("agibot2lerobot-g2-events", stage_count=6, first_stage=3)
+    initial = parser.feed(b'{"event":"progress","stage":"meta","done":1,"total":2}\n')
+    assert initial.progress is not None and initial.progress.stage_index == 3
+    assert initial.progress.unit == "归档"
+    video = parser.feed(b'{"event":"progress","stage":"video","done":1,"total":4}\n')
+    assert video.progress is not None and video.progress.stage_index == 4
+    done = parser.feed(b'{"event":"progress","stage":"archives","done":2,"total":2}\n')
+    assert done.progress is not None and done.progress.done == 2
+    assert parser.feed(b'{"event":"result","ok":true,"exit_code":0}\n').progress is None

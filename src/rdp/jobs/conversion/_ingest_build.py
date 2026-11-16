@@ -66,6 +66,10 @@ def lineage(value: Conversion, facts: JsonObject, stamp: ActorStamp) -> LineageR
                 for key, item in record.parameters.items()
             },
             **_cleaning_parameters(receipt),
+            # 保留完整来源路径与剔除原因，兼容旧字段；血缘参数使用既有 JSON 文本编码。
+            "conversion_inputs": json.dumps(receipt["inputs"], ensure_ascii=False),
+            "tool_launcher_sha256": cast(str | None, tool.get("launcher_sha256")),
+            "tool_source_tree_sha256": cast(str | None, tool.get("source_tree_sha256")),
         },
         job_id=record.job_id,
         started_at=record.started_at.strftime("%Y-%m-%dT%H:%M:%SZ") if record.started_at else None,
@@ -216,6 +220,7 @@ def _cleaning_parameters(receipt: JsonObject) -> dict[str, str | int | float | b
         "cleaning_rules_sha256": str(cleaning["rules_sha256"]),
         "cleaning_excluded_files": len(files),
         "cleaning_excluded_episodes": ",".join(str(item["episode_index"]) for item in excluded),
+        "cleaning_details": json.dumps(cleaning, ensure_ascii=False),
         "lerobot_version": cast(str | None, cleaning["lerobot_version"]),
         "lerobot_fingerprint": cast(str | None, cleaning["lerobot_fingerprint"]),
     }

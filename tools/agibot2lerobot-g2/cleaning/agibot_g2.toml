@@ -1,0 +1,26 @@
+schema_version = 1
+
+[static]
+feature = "observation.state"
+long_static_s = 3.0
+
+[jump]
+feature = "action"
+
+[[source]]
+field = "state/joint/position"
+static_threshold = 0.001
+
+# fixture 中夹爪约为 -0.91～0，使用原始量纲的 0.001，避免套用 G1 的毫米阈值。
+[[source]]
+field = "state/left_effector/position"
+static_threshold = 0.001
+
+[[source]]
+field = "state/right_effector/position"
+static_threshold = 0.001
+
+# 只检查关节位置，夹爪指令的开合突变属于正常行为。
+[[source]]
+field = "action/joint/position"
+jump_threshold = 0.5

@@ -1,6 +1,6 @@
 # AgiBot 清洗预览：在沙箱里跑工具，生成报告
 
-Status: ready-for-agent
+Status: done（实现及验收完成；负责人已授权合并、升级、推送）
 
 分级：直做。与第 04、05 张并行。决定见 `../decisions.md` 第 1、4、5、7 条和「工具的事实」（预览结果文件的格式在那里）。
 
@@ -35,3 +35,5 @@ Status: ready-for-agent
 测试通过；`PYTHONPATH=$PWD/src make check` 全绿（OpenAPI 快照除外）。执行线另用真实工具在样本上跑一次（第 06 张）。
 
 ## Comments
+
+- 执行线收尾：最终后端3120、前端441全绿；Alpha真实本地样本全链路3 passed、G2合成归档真实bwrap全链路1 passed、G2真实task_3405归档13集30681帧四层检查通过。详见 `../assets/verification-results.md`。没有生产部署或推送。
