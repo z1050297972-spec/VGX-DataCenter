@@ -63,3 +63,27 @@ export function getCleaningPreview(input: AccountCall<string>): Promise<Cleaning
     return response.data as CleaningPreview;
   });
 }
+
+/** 预计位置扩展存储根摘要，所有路径由后端生成。 */
+export type ConversionDestinations = components["schemas"]["ConversionDestinationsResponse"];
+
+/**
+ * 读取成功清洗预览的输出根和预计位置。
+ * @param input - 当前账号客户端、预览编号文本及取消信号。
+ * @returns 挂载快照和未预留的预计路径，不包含容量。
+ * @throws Error 预览不存在、挂载检查或传输失败，交统一诊断。
+ * @sideEffects GET /api/cleaning-previews/{job_id}/destinations，不访问返回路径。
+ * @timeSemantics 请求至多十秒；快照不保证执行时可达。
+ */
+export function getConversionDestinations(
+  input: AccountCall<string>,
+): Promise<ConversionDestinations> {
+  return boundedRequest(input.signal, JOB_REQUEST_TIMEOUT_MS, async (signal) => {
+    const response = await input.client.GET("/api/cleaning-previews/{job_id}/destinations", {
+      params: { path: { job_id: input.payload } },
+      signal,
+    });
+    if (!response.data) throw new Error("请求失败", { cause: toFailureView(null) });
+    return response.data;
+  });
+}

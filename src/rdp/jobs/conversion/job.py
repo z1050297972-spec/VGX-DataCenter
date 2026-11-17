@@ -37,6 +37,7 @@ from rdp.jobs.conversion._cleaning import (
     preview_selection,
 )
 from rdp.jobs.conversion._cleaning_selection import Selection
+from rdp.jobs.conversion._output_storage import select_root
 from rdp.jobs.conversion.parameters import ConversionParameters, selected_inputs, tool_parameters
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.processes import ToolCommand, run_terminal_process
@@ -69,7 +70,7 @@ class ConversionDependencies:
     Attributes:
         engine: 受管数据库引擎，读取成功预览并重新核对输入索引。
         tools: 登记包和工具库绝对路径。
-        roots: 已登记存储根，按配置顺序选第一个可写根。
+        roots: 已登记存储根，按提交时固化的名称选择输出根。
         sandbox: 生产默认为bwrap；测试可注入不隔离的假工具执行边界。
         storage: worker的有界存储检查器；清理仅依赖类型声明时可为None。
     """
@@ -120,7 +121,7 @@ class ConversionExecutor:
             WorkerStoppingError: worker停止，交框架在重启时标记中断。
 
         Side Effects:
-            在首个登记可写根新建暂存/转换/作业编号；模板需要缓存时另准备工具专属缓存目录，沙箱只允许写这两处。
+            在选定登记可写根新建暂存/转换/作业编号；模板需要缓存时另准备工具专属缓存目录，沙箱只允许写这两处。
             输出 out；需要剔除时另产出 cleaned，成功结果指向最终产物并写转换回执.json；失败、取消或中断保留已有产物和缓存，不写导航层。
             空间预检只读输入元数据和可写根容量；不足时不建暂存目录、不启动工具。
 
@@ -141,7 +142,7 @@ class ConversionExecutor:
         if manifest is None or tool.program_path is None:
             raise DefectError()
         try:
-            parameters = tool_parameters(manifest).model_validate(
+            parameters = tool_parameters(manifest, deps.roots).model_validate(
                 context.parameters.model_dump(exclude_unset=True)
             )
         except ValidationError as error:
@@ -226,6 +227,10 @@ class ConversionExecutor:
         _stage(context, 6)
         receipt: dict[str, object] = {
             "job_id": context.job_id,
+            "output_root": {
+                "name": parameters.output_root,
+                "path": str(stage.parent.parent.parent),
+            },
             "tool": {
                 "name": tool.name,
                 "version": manifest.tool.version,
@@ -314,15 +319,7 @@ def _prepare_paths(
         if root is None:
             raise InputError((_diagnostic("输入路径越出已登记存储根"),))
         selected_roots.add(root.name)
-    writable = next((root for root in deps.roots if root.writable), None)
-    if writable is None:
-        raise ExternalError(
-            (
-                _diagnostic("没有登记可写存储根", DiagnosticCategory.EXTERNAL).model_copy(
-                    update={"next_step": "管理员在配置文件登记可写存储根（NAS 平台区）后重新提交"}
-                ),
-            )
-        )
+    writable = select_root(deps.roots, parameters.output_root)
     uses = tuple(
         StorageUse(root.name, write=root.name == writable.name)
         for root in deps.roots

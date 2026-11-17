@@ -26,6 +26,7 @@ export const job: Job = {
   },
   progress_at: "2026-10-26T12:00:02Z",
   elapsed_s: 2,
+  artifacts: [],
   log_path: "logs/示例：数数/2026-10-26_120000_000.log",
   summary: null,
   diagnostics: [],

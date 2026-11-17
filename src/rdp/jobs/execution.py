@@ -34,9 +34,12 @@ from rdp.infra.logging import log_context
 from rdp.infra.state import StatePaths
 from rdp.infra.storage import StorageAccessChecker
 from rdp.jobs import _diagnostics, _storage, policy
+from rdp.jobs.conversion._output_storage import record_root
+from rdp.jobs.conversion.parameters import ConversionParameters
 from rdp.jobs.errors import JobCancelledError, WorkerStoppingError
 from rdp.jobs.gpu import verify_gpu
 from rdp.jobs.logs import JobLog, JobLogMetadata, open_job_log
+from rdp.jobs.models import JobRow
 from rdp.jobs.outcome import JobOutcome
 from rdp.jobs.policy import OUTPUT_JOIN_TIMEOUT_S
 from rdp.jobs.processes import ToolCommand, run_external_process
@@ -46,6 +49,7 @@ from rdp.jobs.registry import (
     EXAMPLE_GPU_TYPE,
     EXAMPLE_NAVIGATION_TYPE,
     MAINTENANCE_JOB_TYPES,
+    JobDefinition,
     JobRegistry,
 )
 from rdp.jobs.resources import save_resource_display
@@ -416,8 +420,9 @@ class _ExecutionRun:
         definition = dependencies.registry.lookup(record.type_name)
         if definition is None:
             raise InputError((_execution_diagnostic(record, "当前登记表已无此作业类型"),))
+        payload = _conversion_parameters(record, definition, dependencies.engine)
         try:
-            parameters = definition.parameters_model.model_validate(record.parameters)
+            parameters = definition.parameters_model.model_validate(payload)
         except ValidationError:
             raise InputError(
                 (_execution_diagnostic(record, "历史参数不满足当前类型模型"),)
@@ -694,3 +699,26 @@ def _with_job_identity(job_id: int, diagnostic: Diagnostic) -> Diagnostic:
         return diagnostic
     objects = (DiagnosticObject(key="job_id", value=str(job_id)),) + diagnostic.objects
     return Diagnostic.model_validate(diagnostic.model_dump() | {"objects": objects})
+
+
+def _conversion_parameters(
+    record: JobRecord, definition: JobDefinition, engine: Engine
+) -> dict[str, object]:
+    """执行前校验真实产物归属；历史无产物记录先固化输出根再允许访问存储。"""
+    payload = record.parameters
+    if not issubclass(definition.parameters_model, ConversionParameters):
+        return payload
+    roots = definition.parameters_model.output_roots
+    if roots is None:
+        return payload
+    root = record_root(
+        roots, record, allow_default=record.progress is None and record.tool_exit_code is None
+    )
+    payload = {**payload, "output_root": root.name}
+    if payload != record.parameters:
+        with session_scope(engine) as session:
+            row = session.get(JobRow, record.job_id)
+            if row is None:
+                raise DefectError()
+            row.parameters = payload
+    return payload

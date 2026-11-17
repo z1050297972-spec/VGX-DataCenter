@@ -1013,3 +1013,22 @@ it("失败的转换作业详情不显示检查并入库", async () => {
     view.close();
   }
 });
+
+it("转换运行中立即展示后台记录的暂存路径", async () => {
+  // 当前配置不参与旧路径显示，尚无 conversion 成功结果时也能看到真实位置。
+  const current: Job = {
+    ...job,
+    type_name: "convert_mcap2lerobot",
+    artifacts: ["/tmp/old-b/暂存/转换/60"],
+  };
+  const page = mountPage(
+    `/jobs/${job.job_id}`,
+    detailFetch(() => current),
+  );
+  try {
+    expect(await screen.findByText("/tmp/old-b/暂存/转换/60")).toBeTruthy();
+    expect(screen.getByText("实际暂存及产物位置（后台已记录）")).toBeTruthy();
+  } finally {
+    page.close();
+  }
+});

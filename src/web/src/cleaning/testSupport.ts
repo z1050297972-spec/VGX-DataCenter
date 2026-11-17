@@ -1,6 +1,6 @@
 // 清洗页面测试事实：三个文件、三个段，编号和汇总均手算，不读取真实数据。
 import type { ToolList } from "../api/tools";
-import type { CleaningPreview, EpisodeReport } from "../api/cleaning";
+import type { CleaningPreview, EpisodeReport, ConversionDestinations } from "../api/cleaning";
 import type { components } from "../api/schema";
 
 export const fatal: components["schemas"]["Diagnostic"] = {
@@ -268,4 +268,17 @@ export const g2Preview: CleaningPreview = {
       default_action: index === 0 ? "exclude" : "keep",
     })),
   },
+};
+
+export const destinations: ConversionDestinations = {
+  items: ["a", "b"].map((name) => ({
+    name,
+    path: `/tmp/${name}`,
+    writable: true,
+    online: true,
+    reason: null,
+    checked_at: "2026-11-16T12:00:00Z",
+    staging_template: `/tmp/${name}/暂存/转换/{job_id}/out`,
+    expected_output_path: `/tmp/${name}/转换/sample_lerobot`,
+  })),
 };

@@ -22,7 +22,9 @@ from rdp.accounts.types import Credentials, NewAccount, Role
 from rdp.api import create_app
 from rdp.api.datasets import configure_datasets
 from rdp.api.jobs import configure_jobs
+from rdp.api.storage import configure_storage
 from rdp.audit.types import OPS_AUDIT_CONTEXT
+from rdp.infra.storage import MountInspector
 from rdp.jobs.dataset_browser.service import DatasetBrowserService
 from rdp.jobs.registry import JobRegistry, production_registry
 
@@ -36,6 +38,7 @@ def browser_case(
     nav: FakeNavigation,
     *,
     registry: JobRegistry | None = None,
+    inspector: MountInspector | None = None,
 ) -> Generator[ApiCase]:
     """以真实公开扫描接口准备索引和浏览服务，不访问真实数据盘。"""
     with dataset_case(root, nav) as scan:
@@ -51,6 +54,8 @@ def browser_case(
         clock = Clock()
         app = create_app(None, database=scan.engine, clock=clock)
         app.state.account_service = accounts
+        if inspector is not None:
+            configure_storage(app, inspector=inspector)
         configured_registry = production_registry() if registry is None else registry
         configure_jobs(
             app, scan.paths, configured_registry, scheduling=catalog_fixture(configured_registry)

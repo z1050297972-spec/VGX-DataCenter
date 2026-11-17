@@ -9,10 +9,13 @@ from sqlalchemy import or_, select
 
 from rdp.infra.db.connection import session_scope
 from rdp.infra.diagnostics import DefectError
+from rdp.jobs.conversion._output_storage import record_root
 from rdp.jobs.conversion.job import ConversionDependencies
+from rdp.jobs.downloads._ingest_access import check_root
 from rdp.jobs.execution import ExecutionContext
 from rdp.jobs.models import JobRow
 from rdp.jobs.processes import ToolCommand
+from rdp.jobs.records import find_job
 from rdp.jobs.types import JobProgress
 
 # ADR0008、M4-03：失败产物保留7天；成功产物等待入库，不按年龄删除。
@@ -51,6 +54,7 @@ class ConversionCleanup:
 
         Raises:
             DefectError: worker依赖缺失。
+            JobInputError: 历史产物归属不明、路径矛盾或所选根不再可写。
             ExternalError: 数据库查询、子进程删除失败或超过预算。
             JobCancelledError: 清理取消，保留尚未处理的目录。
             WorkerStoppingError: worker停止，已删除目录不恢复。
@@ -90,22 +94,35 @@ class ConversionCleanup:
                 )
             if not identifiers:
                 return
+            with session_scope(deps.engine, read_only=True) as session:
+                records = tuple(find_job(session, identifier) for identifier in identifiers)
+            grouped: dict[str, list[int]] = {}
+            for record in records:
+                # 未开始且无产物的旧作业没有可删对象；其余缺失/矛盾证据必须拒绝。
+                if record.started_at is None and not record.artifacts and record.progress is None:
+                    continue
+                root = record_root(deps.roots, record)
+                grouped.setdefault(root.name, []).append(record.job_id)
             for root in deps.roots:
-                if root.writable:
-                    context.run_process(
-                        ToolCommand(
-                            CLEANUP_NAME,
-                            (
-                                sys.executable,
-                                "-m",
-                                "rdp.jobs.conversion._cleanup_child",
-                                str(root.path),
-                                *(str(identifier) for identifier in identifiers),
-                            ),
-                            deps.tools.registry_dir,
-                            CLEANUP_TIMEOUT_S,
-                        )
+                if root.name not in grouped:
+                    continue
+                if deps.storage is None:
+                    raise DefectError()
+                check_root(root, deps.storage, context.reporter.check_cancelled)
+                context.run_process(
+                    ToolCommand(
+                        CLEANUP_NAME,
+                        (
+                            sys.executable,
+                            "-m",
+                            "rdp.jobs.conversion._cleanup_child",
+                            str(root.path),
+                            *(str(identifier) for identifier in grouped[root.name]),
+                        ),
+                        deps.tools.registry_dir,
+                        CLEANUP_TIMEOUT_S,
                     )
+                )
             completed += len(identifiers)
             last_id = identifiers[-1]
             context.reporter.report(

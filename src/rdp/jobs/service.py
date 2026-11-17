@@ -26,7 +26,8 @@ from rdp.infra.db.connection import session_scope, session_scope_with_lock_timeo
 from rdp.infra.diagnostics import ConflictError, DefectError, DiagnosticCategory
 from rdp.jobs import _audit, _download_cleanup, _pagination, _storage, _views, policy
 from rdp.jobs._parameters import validate as validate_parameters
-from rdp.jobs.conversion.parameters import InputSelection, selected_inputs
+from rdp.jobs.conversion._output_storage import record_root
+from rdp.jobs.conversion.parameters import ConversionParameters, InputSelection, selected_inputs
 from rdp.jobs.models import JobRow, WorkerHeartbeatRow
 from rdp.jobs.records import NewJob, StateChange, find_job, insert_job, transition_job
 from rdp.jobs.registry import JobDefinition, JobRegistry
@@ -394,7 +395,7 @@ class JobService:
             DefectError: 时钟、上下文或映射错误。
 
         Side Effects:
-            当前模型只验证兼容性，不向原参数补默认值或改写原值；成功复制原 JSON 新增一行。
+            当前模型验证兼容性；转换额外固定输出根，其他类型复制原 JSON；旧记录不变。
             操作类型仍为提交作业，明细 after 加 resubmitted_from，页面显示“重新提交自 #N”。
             参数不入审计；权限、参数、非终态拒绝不记日志；执行失败回滚并按提交规则补记。
 
@@ -429,7 +430,20 @@ class JobService:
                     admin=definition is not None
                     and definition.submission_role is Role.ADMINISTRATOR,
                 )
-                definition, _ = _parameters(self.registry, original.type_name, original.parameters)
+                copied = original.parameters
+                if definition is not None and issubclass(
+                    definition.parameters_model, ConversionParameters
+                ):
+                    roots = definition.parameters_model.output_roots
+                    if roots is not None:
+                        root = record_root(
+                            roots, original, allow_default=original.started_at is None
+                        )
+                        copied = {**copied, "output_root": root.name}
+                definition, checked = _parameters(self.registry, original.type_name, copied)
+                # 其他类型保持原 JSON；转换需持久化本次已验证的输出选择。
+                if issubclass(definition.parameters_model, ConversionParameters):
+                    copied = checked
                 if original.type_name == _download_cleanup.DELETE_TYPE:
                     # 重提仍按类型声明校验管理员，并与首次提交共用事务内占用检查。
                     _download_cleanup.check_busy(session, original.parameters)
@@ -440,9 +454,7 @@ class JobService:
                         input_format=definition.parameters_model.input_format,
                     )
                 attempted = _audit.event(request, actor, OperationType.SUBMIT_JOB, None)
-                record = insert_job(
-                    session, NewJob(definition, original.parameters, actor, request.now, job_id)
-                )
+                record = insert_job(session, NewJob(definition, copied, actor, request.now, job_id))
                 _audit.finish(session, attempted, record)
             return record
         except Exception as error:

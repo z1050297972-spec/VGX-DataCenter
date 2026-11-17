@@ -286,6 +286,7 @@ function JobProgressView({ job, timing }: { job: Job; timing: JobTiming }): Reac
             percent={progress.total === 0 ? 0 : Math.round((100 * progress.done) / progress.total)}
           />
         ))}
+      <ConversionArtifacts job={job} />
       <ConversionProgress progress={progress} />
       <Flex gap="large" wrap>
         {progress && (
@@ -410,5 +411,18 @@ function CleaningLinks({ job }: { job: Job }): ReactElement | null {
         </Link>
       )}
     </Card>
+  );
+}
+
+// 只展示服务端已记录路径，禁止按当前存储配置重建历史位置。
+function ConversionArtifacts({ job }: { job: Job }): ReactElement | null {
+  if (!job.type_name.startsWith("convert_") || job.artifacts.length === 0) return null;
+  return (
+    <div aria-label="已记录转换路径">
+      <Typography.Text>实际暂存及产物位置（后台已记录）</Typography.Text>
+      {job.artifacts.map((path) => (
+        <div key={path}>{path}</div>
+      ))}
+    </div>
   );
 }

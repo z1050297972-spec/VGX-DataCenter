@@ -101,6 +101,7 @@ def conversion_case(
             row = job_row(JobState.COMPLETED, job_id=CONVERSION_ID)
             row.type_name = "convert_mcap2lerobot"
             row.parameters = parameters
+            row.artifacts = [str(stage.parent), str(stage), str(stage.parent / "转换回执.json")]
             row.outcome = "succeeded"
             row.failed_items = row.warning_count = 0
             assert row.progress is not None and row.summary is not None
@@ -122,6 +123,7 @@ def conversion_case(
                 "failed_items": 0,
                 "warning_count": 0,
                 "progress": row.progress,
+                "artifacts": row.artifacts,
             }
             session.add(row)
         yield api, deps, stage

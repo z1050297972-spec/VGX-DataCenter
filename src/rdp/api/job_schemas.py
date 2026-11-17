@@ -65,6 +65,7 @@ class JobResponse(JobPayload):
         progress: 最后进度或 None，未知 total 返回 null。
         progress_at: 最后进度 UTC 时刻或 None。
         elapsed_s: 有限非负秒数，存储的已运行时长；页面可据本地单调样本增量显示。
+        artifacts: 已记录暂存/产物路径，运行中也返回；不根据当前配置重算。
         log_path: 状态目录相对路径或 None，浏览器不据此直接访问文件。
         summary: 终态冻结摘要或 None，只有 completed 内 outcome 非空。
         diagnostics: 有界诊断组，真实总数与前 N 样例分别展示。
@@ -89,6 +90,7 @@ class JobResponse(JobPayload):
     progress: JobProgress | None
     progress_at: AwareDatetime | None
     elapsed_s: float = Field(ge=0, allow_inf_nan=False)
+    artifacts: tuple[str, ...]
     log_path: str | None
     summary: JobSummary | None
     diagnostics: tuple[DiagnosticGroup, ...]

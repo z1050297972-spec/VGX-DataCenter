@@ -11,10 +11,11 @@ from typing import cast
 from rdp.infra.config import StorageRootConfig
 from rdp.infra.db.connection import session_scope
 from rdp.infra.diagnostics import DefectError
+from rdp.jobs.conversion._output_storage import record_root
 from rdp.jobs.conversion._process import run_bounded
 from rdp.jobs.datasets.models import DatasetRow
 from rdp.jobs.datasets.types import JsonObject
-from rdp.jobs.navwrite.errors import Advice, nav_external_error, nav_input_error
+from rdp.jobs.navwrite.errors import nav_external_error, nav_input_error
 from rdp.jobs.navwrite.pipeline import NavWriteDependencies
 from rdp.jobs.outcome import JobOutcome
 from rdp.jobs.records import find_job
@@ -27,7 +28,7 @@ class Conversion:
 
     Attributes:
         record: 原转换作业和实际起止时间。
-        root: 首个登记可写根，与转换执行器选择一致。
+        root: 由参数及实际产物精确定位的登记可写根。
         input_name: 输入数据集的当前名称。
         input_entry: 输入规范入口的导航相对路径。
     """
@@ -48,27 +49,27 @@ def conversion(deps: NavWriteDependencies, identifier: int) -> Conversion:
         if dataset is None or dataset.canonical_entry_path is None:
             raise nav_input_error("CONVERSION_INGEST", "输入数据集没有唯一规范入口")
         name, entry = dataset.name, dataset.canonical_entry_path
-    root = next((item for item in deps.rescan.roots if item.writable), None)
-    if root is None:
-        raise nav_external_error(
-            "CONVERSION_INGEST",
-            "没有已登记的可写存储根",
-            advice=Advice(
-                "未开始转换入库",
-                "管理员在配置文件登记可写存储根（NAS 平台区）后重新提交",
-            ),
-        )
+    root = record_root(deps.rescan.roots, record)
     if deps.rescan.storage is None:
         raise DefectError()
     return Conversion(record, root, name, entry)
 
 
 def output_name(value: Conversion) -> str:
-    """结果路径只能是本作业 out 或 cleaned；旧记录缺摘要时兼容 out。"""
+    """优先使用结果或唯一产物记录；只有清洗前历史作业仅记 stage 时兼容 out。"""
     progress = value.record.progress
     result = progress.conversion if progress is not None else None
     stage = value.root.path / "暂存/转换" / str(value.record.job_id)
     if result is None:
+        recorded = {
+            path.name
+            for path in (stage / "out", stage / "cleaned")
+            if str(path) in value.record.artifacts
+        }
+        if len(recorded) == 1:
+            return recorded.pop()
+        if len(recorded) > 1:
+            raise nav_input_error("CONVERSION_INGEST", "历史记录包含多个产物，无法确定最终位置")
         if value.record.parameters.get("cleaning_preview_job_id") is not None:
             raise nav_input_error("CONVERSION_INGEST", "转换缺少产物结果")
         return "out"

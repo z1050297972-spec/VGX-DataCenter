@@ -3,7 +3,7 @@
 from datetime import timedelta
 from pathlib import Path
 
-from conversion_support import fake_converter, settings
+from conversion_support import fake_converter, settings, storage_checker
 from jobs_execution_support import execution_case
 from jobs_storage_support import NOW, job_row
 
@@ -25,16 +25,23 @@ def test_cleanup_only_expired_unsuccessful_staging(tmp_path: Path) -> None:
         path.mkdir(parents=True)
         (path / "partial").write_text("keep until expiry")
 
+    other = tmp_path / "other/暂存/转换/101"
+    other.mkdir(parents=True)
+    (other / "keep").write_text("另一根的同名目录不能删")
+    roots = (
+        StorageRootConfig(
+            name="other", path=tmp_path / "other", nfs_export="nas:/other", writable=True
+        ),
+        StorageRootConfig(name="platform", path=root, nfs_export="server:/platform", writable=True),
+    )
+
     def execute(context: ExecutionContext) -> None:
         ConversionCleanup(
             ConversionDependencies(
                 deps.engine,
                 settings(files),
-                (
-                    StorageRootConfig(
-                        name="platform", path=root, nfs_export="server:/platform", writable=True
-                    ),
-                ),
+                roots,
+                storage=storage_checker(roots),
             )
         ).execute(context)
 
@@ -51,13 +58,17 @@ def test_cleanup_only_expired_unsuccessful_staging(tmp_path: Path) -> None:
             ):
                 row = job_row(JobState.COMPLETED, job_id=number)
                 row.type_name = "convert_mcap2lerobot"
+                row.artifacts = [str(root / "暂存/转换" / str(number))]
                 row.submitted_at = row.started_at = row.ended_at = NOW - timedelta(days=days)
                 row.outcome = outcome
+                assert row.summary is not None
+                row.summary = {**row.summary, "outcome": outcome, "artifacts": row.artifacts}
                 session.add(row)
         result = execute_job(work, deps, signals)
         assert result is not None and result.summary is not None
         assert result.summary.outcome is JobOutcome.SUCCEEDED
         assert not (root / "暂存/转换/101").exists()
+        assert (other / "keep").read_text() == "另一根的同名目录不能删"
         assert (root / "暂存/转换/102/partial").is_file()
         assert (root / "暂存/转换/103/partial").is_file()
         assert all(not thread.is_alive() for thread in signals.monitor.threads)

@@ -35,7 +35,7 @@ def test_insufficient_space_fails_without_staging_or_tool(
         return SimpleNamespace(free=536870918)
 
     monkeypatch.setattr(shutil, "disk_usage", disk_usage)
-    result = _convert(tmp_path, fake_nav, files, space_ratio_percent=50, space_reserve_gib=0.5)
+    result = _convert(tmp_path, fake_nav, files, space=(50, 0.5))
     assert result.summary is not None and result.summary.outcome is JobOutcome.FAILED
     diagnostic = next(
         sample
@@ -97,28 +97,42 @@ def _convert(
     fake: FakeNavigation,
     files: ToolFiles,
     *,
-    space_ratio_percent: int = 25,
-    space_reserve_gib: float = 1,
+    space: tuple[int, float] = (25, 1),
+    output_status: str = "online",
 ) -> JobRecord:
     """复用真实索引和执行器，所有工具、输入、存储及状态路径都在tmp。"""
     output = root / "output"
     output.mkdir()
+    other = root / "other"
+    other.mkdir()
     roots = (
         *fake.storage_roots,
+        StorageRootConfig(name="other", path=other, nfs_export="server:/other", writable=True),
         StorageRootConfig(name="output", path=output, nfs_export="server:/output", writable=True),
     )
+    if output_status == "readonly":
+        roots = (*roots[:-1], roots[-1].model_copy(update={"writable": False}))
+    elif output_status == "missing":
+        roots = roots[:-1]
+    checker = storage_checker(roots)
+    if output_status == "offline":
+        mounted = storage_checker(roots[:-1]).mounts
+        checker = replace(
+            checker, mounts=replace(checker.mounts, read_mountinfo=mounted.read_mountinfo)
+        )
     with dataset_case(root / "index", fake) as scan:
         scan.run()
         dependencies = ConversionDependencies(
-            scan.engine, settings(files), roots, no_sandbox, storage=storage_checker(roots)
+            scan.engine, settings(files), roots, no_sandbox, storage=checker
         )
         parameters = ConversionParameters(
             dataset_id="dataset-35",
             source_ids=["src_01e0bc7e9cc8", "src_d5edab567d18"],
             robot_model="Galaxea R1 Lite",
             output_format="v3.0",
-            space_ratio_percent=space_ratio_percent,
-            space_reserve_gib=space_reserve_gib,
+            output_root="output",
+            space_ratio_percent=space[0],
+            space_reserve_gib=space[1],
         )
 
         parameters = seed_preview(scan.engine, files, parameters)
@@ -136,3 +150,17 @@ def _convert(
             result = execute_job(work, deps, signals)
             assert result is not None
             return result
+
+
+@pytest.mark.parametrize("status", ["readonly", "missing", "offline"])
+def test_queued_root_becomes_unavailable_without_fallback(
+    tmp_path: Path, fake_nav: FakeNavigation, status: str
+) -> None:
+    """已选 B 排队后只读、移除或离线，worker 明确失败，不在 A 建暂存或运行工具。"""
+    files = fake_converter(tmp_path / "tool")
+    result = _convert(tmp_path, fake_nav, files, output_status=status)
+    assert result.summary is not None and result.summary.outcome is JobOutcome.FAILED
+    assert result.diagnostics
+    assert not (tmp_path / "output/暂存").exists()
+    assert not (tmp_path / "other/暂存").exists()
+    assert not files.program.with_suffix(".calls").exists()

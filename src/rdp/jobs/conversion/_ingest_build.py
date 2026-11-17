@@ -6,6 +6,7 @@ from dataclasses import replace
 from typing import cast
 
 from rdp.jobs.conversion._ingest_read import Conversion, output_name
+from rdp.jobs.conversion._output_storage import default_dataset_name
 from rdp.jobs.conversion.check_models import CheckReport
 from rdp.jobs.conversion.ingest_models import ConversionIngestParameters
 from rdp.jobs.datasets.types import JsonObject
@@ -89,7 +90,7 @@ def build(
     """组装已检查事实的创建计划；以追加转换编号后的最终默认值判断占用。"""
     metadata = cast(JsonObject, facts["metadata"])
     version = str(metadata["codebase_version"]).removeprefix("v")
-    name = parameters.dataset_name or value.input_name.removesuffix("_mcap") + "_lerobot"
+    name = parameters.dataset_name or default_dataset_name(value.input_name)
     entry = deps.rescan.nav_root / "按任务" / name
     occupied = entry.exists() or entry.is_symlink()
     if occupied and parameters.dataset_name is None:
