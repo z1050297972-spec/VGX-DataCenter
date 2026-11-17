@@ -7,6 +7,7 @@ from conversion_support import fake_converter, settings
 from dataset_api_support import browser_case
 from nav_manifest import FakeNavigation
 
+from rdp.infra.config import StorageRootConfig
 from rdp.jobs.conversion.registration import register_conversion_jobs
 from rdp.jobs.registry import production_registry
 
@@ -25,7 +26,12 @@ def test_submission_rejects_invalid_selection(
     """验收4：异集数据块、非mcap和未登记型号分别返回422。"""
     files = fake_converter(tmp_path / "tool")
     registry = production_registry()
-    register_conversion_jobs(registry, settings(files), fake_nav.storage_roots, None)
+    register_conversion_jobs(
+        registry,
+        settings(files),
+        tuple(root.model_copy(update={"writable": True}) for root in fake_nav.storage_roots),
+        None,
+    )
     with browser_case(tmp_path / "state", fake_nav, registry=registry) as case:
         payload: dict[str, object] = {
             "dataset_id": "dataset-35",
@@ -48,7 +54,16 @@ def test_gpu_requirement_follows_manifest(tmp_path: Path, needs_gpu: bool) -> No
         manifest.read_text().replace("needs_gpu = true", f"needs_gpu = {str(needs_gpu).lower()}")
     )
     registry = production_registry()
-    register_conversion_jobs(registry, settings(files), (), None)
+    register_conversion_jobs(
+        registry,
+        settings(files),
+        (
+            StorageRootConfig(
+                name="output", path=tmp_path / "output", nfs_export="nas:/output", writable=True
+            ),
+        ),
+        None,
+    )
     definition = registry.lookup("convert_mcap2lerobot")
     assert definition is not None
     assert definition.requires_gpu is needs_gpu

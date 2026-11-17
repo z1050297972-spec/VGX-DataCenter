@@ -686,6 +686,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cleaning-previews/{job_id}/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Conversion Destinations
+         * @description 返回成功预览可选输出根的挂载快照及未预留的预计位置。
+         *
+         *     Args:
+         *         job_id: 成功清洗预览的正整数编号文本。
+         *         inspector: 已登录请求的挂载元信息检查器，不持有存储目录访问能力。
+         *         session: 当前只读数据库事务，读取预览与输入数据集名称。
+         *
+         *     Returns:
+         *         所有登记根及 UTC checked_at；暂存模板保留未来转换编号占位符。
+         *
+         *     Raises:
+         *         JobNotFoundError: 预览不存在或未成功，返回 404。
+         *         JobInputError: 输入数据集索引缺失，返回 422。
+         *         AuthenticationError: 未登录，返回 401。
+         *         ExternalError: 数据库或挂载元信息读取失败，返回 502。
+         *         DefectError: 挂载检查依赖或时钟非法，返回 500。
+         *
+         *     Side Effects:
+         *         无（只读数据库、挂载表和设备元信息）；不 stat/listdir 存储根，不读取容量或预留位置。
+         *
+         *     Time Semantics:
+         *         每次请求重新核对挂载；实际可达性和容量由 worker 执行前有界检查。
+         */
+        get: operations["get_conversion_destinations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/collection-vocabulary": {
         parameters: {
             query?: never;
@@ -4873,6 +4914,38 @@ export interface components {
             preview_job_id: string;
         };
         /**
+         * ConversionDestinationResponse
+         * @description 挂载快照与预计位置；模板中的 {job_id} 是未来转换编号，不是预览编号。
+         */
+        ConversionDestinationResponse: {
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+            /** Expected Output Path */
+            expected_output_path: string;
+            /** Name */
+            name: string;
+            /** Online */
+            online: boolean;
+            /** Path */
+            path: string;
+            reason: components["schemas"]["OfflineReason"] | null;
+            /** Staging Template */
+            staging_template: string;
+            /** Writable */
+            writable: boolean;
+        };
+        /**
+         * ConversionDestinationsResponse
+         * @description 未预留、未检查占用的预计输出位置，顺序沿用登记根。
+         */
+        ConversionDestinationsResponse: {
+            /** Items */
+            items: components["schemas"]["ConversionDestinationResponse"][];
+        };
+        /**
          * ConversionIngestParameters
          * @description 检查与预览参数；automatic 仅由 worker 的成功收尾触发器填写。
          */
@@ -4922,6 +4995,8 @@ export interface components {
             excluded_files?: number[];
             /** Output Format */
             output_format?: string | null;
+            /** Output Root */
+            output_root?: string | null;
             /**
              * Space Ratio Percent
              * @default 25
@@ -6551,6 +6626,7 @@ export interface components {
          *         progress: 最后进度或 None，未知 total 返回 null。
          *         progress_at: 最后进度 UTC 时刻或 None。
          *         elapsed_s: 有限非负秒数，存储的已运行时长；页面可据本地单调样本增量显示。
+         *         artifacts: 已记录暂存/产物路径，运行中也返回；不根据当前配置重算。
          *         log_path: 状态目录相对路径或 None，浏览器不据此直接访问文件。
          *         summary: 终态冻结摘要或 None，只有 completed 内 outcome 非空。
          *         diagnostics: 有界诊断组，真实总数与前 N 样例分别展示。
@@ -6562,6 +6638,8 @@ export interface components {
          *         platform_version: 最近实际领取的平台版本文字，1-128 个码点；历史未知或尚未领取为 None。
          */
         JobResponse: {
+            /** Artifacts */
+            artifacts: string[];
             /** Diagnostics */
             diagnostics: components["schemas"]["DiagnosticGroup"][];
             /** Display Name */
@@ -10390,6 +10468,118 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    get_conversion_destinations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversionDestinationsResponse"];
                 };
             };
             /** @description Bad Request */

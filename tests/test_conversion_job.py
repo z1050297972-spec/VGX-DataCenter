@@ -1,10 +1,13 @@
 """M4-03 转换作业关键验收，经真实执行器观察最终结果和暂存产物。"""
 
 import json
+import shutil
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
+import pytest
 from conversion_cleaning_support import seed_preview
 from conversion_support import fake_converter, no_sandbox, settings, storage_checker
 from datasets_execution_support import dataset_case
@@ -22,11 +25,16 @@ from rdp.jobs.progress import ExecutionSignals
 from rdp.jobs.types import JobClock, JobRecord
 
 
-def test_conversion_success(tmp_path: Path, fake_nav: FakeNavigation) -> None:
+def test_conversion_success(
+    tmp_path: Path, fake_nav: FakeNavigation, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """验收1：执行六阶段转换，最终帧数、产物及可复现回执一起保存。"""
     files = fake_converter(tmp_path / "tool")
     output = tmp_path / "output"
     output.mkdir()
+    unused = tmp_path / "other"
+    unused.mkdir()
+    capacity_paths = _observe_capacity(monkeypatch)
     with dataset_case(tmp_path / "index", fake_nav) as scan:
         scan.run()
         dependencies = ConversionDependencies(
@@ -34,6 +42,9 @@ def test_conversion_success(tmp_path: Path, fake_nav: FakeNavigation) -> None:
             settings(files),
             (
                 *fake_nav.storage_roots,
+                StorageRootConfig(
+                    name="other", path=unused, nfs_export="nas:/other", writable=True
+                ),
                 StorageRootConfig(
                     name="output", path=output, nfs_export="server:/output", writable=True
                 ),
@@ -46,6 +57,7 @@ def test_conversion_success(tmp_path: Path, fake_nav: FakeNavigation) -> None:
             source_ids=["src_01e0bc7e9cc8"],
             robot_model="Galaxea R1 Lite",
             output_format="v3.0",
+            output_root="output",
         )
 
         parameters = seed_preview(scan.engine, files, parameters)
@@ -90,20 +102,10 @@ def test_conversion_success(tmp_path: Path, fake_nav: FakeNavigation) -> None:
             stage = output / "暂存/转换/71"
             assert (stage / "out/meta/info.json").is_file()
             receipt = json.loads((stage / "转换回执.json").read_text())
-            assert receipt["tool"]["name"] == "mcap2lerobot"
-            assert receipt["tool"]["version"] == "0.1.0"
-            assert (
-                len(receipt["tool"]["binary_sha256"]) == 64
-                and receipt["tool"]["source_tree_sha256"] is None
-            )
-            assert receipt["configuration"]["filename"] == "configs/r1lite.toml"
-            assert len(receipt["configuration"]["sha256"]) == 64
-            assert receipt["commands"]["verify"][1] == "verify"
-            assert receipt["commands"]["convert"][1] == "convert"
-            assert receipt["inputs"][0]["source_id"] == "src_01e0bc7e9cc8"
-            assert receipt["started_at"].endswith("+00:00")
-            assert receipt["ended_at"].endswith("+00:00")
-            assert receipt["exit_code"] == 0
+            _assert_receipt(receipt)
+            assert receipt["output_root"] == {"name": "output", "path": str(output)}
+            assert capacity_paths == [output]
+            assert list(unused.iterdir()) == []
             assert all(not thread.is_alive() for thread in signals.monitor.threads)
 
 
@@ -191,3 +193,34 @@ def _observing_clock(
         return clock.now()
 
     return JobClock(observe_now, clock.monotonic)
+
+
+def _observe_capacity(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
+    """容量系统边界保留真实临时盘结果，只记录选中的根。"""
+    paths: list[Path] = []
+    original = shutil.disk_usage
+
+    def disk_usage(path: Path):
+        paths.append(path)
+        return original(path)
+
+    monkeypatch.setattr(shutil, "disk_usage", disk_usage)
+    return paths
+
+
+def _assert_receipt(receipt: dict[str, Any]) -> None:
+    """核对转换回执的原有可复现性字段。"""
+    assert receipt["tool"]["name"] == "mcap2lerobot"
+    assert receipt["tool"]["version"] == "0.1.0"
+    assert (
+        len(receipt["tool"]["binary_sha256"]) == 64
+        and receipt["tool"]["source_tree_sha256"] is None
+    )
+    assert receipt["configuration"]["filename"] == "configs/r1lite.toml"
+    assert len(receipt["configuration"]["sha256"]) == 64
+    assert receipt["commands"]["verify"][1] == "verify"
+    assert receipt["commands"]["convert"][1] == "convert"
+    assert receipt["inputs"][0]["source_id"] == "src_01e0bc7e9cc8"
+    assert receipt["started_at"].endswith("+00:00")
+    assert receipt["ended_at"].endswith("+00:00")
+    assert receipt["exit_code"] == 0

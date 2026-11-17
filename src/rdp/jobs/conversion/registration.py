@@ -10,7 +10,7 @@ from rdp.jobs.conversion.cleanup import (
 )
 from rdp.jobs.conversion.job import ConversionDependencies, ConversionExecutor
 from rdp.jobs.conversion.parameters import conversion_type_name, tool_parameters
-from rdp.jobs.registry import JobDefinition, JobRegistry, StorageUse
+from rdp.jobs.registry import JobDefinition, JobRegistry
 from rdp.jobs.types import RecoveryMode
 from rdp.tools.manifest import read_package_manifest
 
@@ -26,7 +26,7 @@ def register_conversion_jobs(
     Args:
         registry: 启动期尚未封闭的类型登记表。
         tools: 登记包位置，只读取registry_dir，不读取library_root。
-        roots: 全部已登记存储根；首个可写根作为产物位置，输入根在执行时按选择声明。
+        roots: 全部已登记存储根；提交时固化输出选择，输入根在执行时按选择声明。
         dependencies: worker执行能力；Web必须传None。
 
     Returns:
@@ -51,7 +51,6 @@ def register_conversion_jobs(
                 CleanupParameters,
                 RecoveryMode.RESTART,
                 ConversionCleanup(dependencies).execute,
-                storage=tuple(StorageUse(root.name, write=True) for root in roots if root.writable),
                 submission_role=Role.ADMINISTRATOR,
             )
         )
@@ -65,7 +64,7 @@ def register_conversion_jobs(
             JobDefinition(
                 conversion_type_name(manifest.tool.name),
                 "转换：" + manifest.tool.name,
-                tool_parameters(manifest),
+                tool_parameters(manifest, roots),
                 RecoveryMode.INTERRUPT,
                 ConversionExecutor(manifest.tool.name, dependencies).execute,
                 requires_gpu=manifest.runtime.needs_gpu,

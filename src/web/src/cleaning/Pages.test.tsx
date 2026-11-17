@@ -7,6 +7,7 @@ import { job } from "../jobs/testSupport";
 import type { CleaningPreview } from "../api/cleaning";
 import {
   preview,
+  destinations,
   cleaningTools,
   agibotPreview,
   agibotTools,
@@ -14,7 +15,11 @@ import {
   g2Tools,
 } from "./testSupport";
 
-function mountReport(member = false, snapshot: CleaningPreview = preview) {
+function mountReport(
+  member = false,
+  snapshot: CleaningPreview = preview,
+  destinationResponse = () => Response.json(destinations),
+) {
   const requests: Request[] = [];
   const fallback = pageFetch(undefined, undefined, () => ({
     ...account,
@@ -23,6 +28,8 @@ function mountReport(member = false, snapshot: CleaningPreview = preview) {
   const page = mountPage("/cleaning/42", (request) => {
     const path = new URL(request.url).pathname;
     if (path === "/api/cleaning-previews/42") return Promise.resolve(Response.json(snapshot));
+    if (path === "/api/cleaning-previews/42/destinations")
+      return Promise.resolve(destinationResponse());
     if (path === "/api/tools")
       return Promise.resolve(
         Response.json(
@@ -122,6 +129,7 @@ it("切换段后更新汇总，管理员确认才发送当前选择和空间参�
     });
     expect(page.requests).toHaveLength(1);
     expect(await page.requests[0]?.json()).toEqual({
+      output_root: "a",
       output_format: "v3.0",
       space_ratio_percent: 200,
       space_reserve_gib: 2.5,
@@ -257,6 +265,7 @@ it("AgiBot 报告按整集处理，体检失败固定剔除且转换只提交文
       expect(page.router.state.location.pathname).toBe(`/jobs/${job.job_id}`);
     });
     expect(await page.requests[0]?.json()).toEqual({
+      output_root: "a",
       output_format: "v3.0",
       space_ratio_percent: 137,
       space_reserve_gib: 1,
@@ -291,6 +300,59 @@ it("G2 致命集不能恢复，按归档和源集身份提交原生剔除", asyn
       excluded_episodes: [{ file_index: 1, segment_index: 0 }],
       space_ratio_percent: 130,
     });
+  } finally {
+    page.close();
+  }
+});
+
+it("选择 B 展示服务端预计位置并随转换提交", async () => {
+  // 不在浏览器重算命名；确认请求必须携带选中根名称。
+  const page = mountReport();
+  try {
+    fireEvent.mouseDown(await screen.findByRole("combobox", { name: "输出存储根" }));
+    fireEvent.click(await screen.findByText("b · /tmp/b"));
+    expect(screen.getByText(/预计入库位置.*未预留：\/tmp\/b\/转换\/sample_lerobot/)).toBeTruthy();
+    expect(screen.getByText(/暂存目录规则，作业编号提交后产生：\/tmp\/b/)).toBeTruthy();
+    expect(screen.getByText(/容量\/实际访问在执行前检查/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "进行转换" }));
+    fireEvent.click(await screen.findByRole("button", { name: "确认转换" }));
+    await waitFor(() => {
+      expect(page.requests).toHaveLength(1);
+    });
+    expect(await page.requests[0]?.json()).toMatchObject({ output_root: "b" });
+  } finally {
+    page.close();
+  }
+});
+
+it.each(["失效", "无可用根", "失败"])("挂载刷新%s时阻止提交且不自动换根", async (mode) => {
+  // 首次选择 a；刷新后即使 b 在线也不允许自动迁移当前选择。
+  let refreshed = false;
+  const page = mountReport(false, preview, () => {
+    if (!refreshed) return Response.json(destinations);
+    if (mode === "失败") return Response.json({}, { status: 502 });
+    return Response.json({
+      items: destinations.items.map((item) => ({
+        ...item,
+        online: mode === "失效" && item.name === "b",
+        reason: mode === "失效" && item.name === "b" ? null : "not_mounted",
+      })),
+    });
+  });
+  try {
+    await screen.findByRole("combobox", { name: "输出存储根" });
+    refreshed = true;
+    fireEvent.click(screen.getByRole("button", { name: "重新检查挂载" }));
+    await screen.findByText(
+      mode === "失效"
+        ? "已选存储根不可用，请重新选择输出存储根。"
+        : mode === "无可用根"
+          ? "没有在线且可写的输出存储根，无法转换。"
+          : "输出存储根获取失败，请重新检查。",
+    );
+    expect(screen.getByRole("button", { name: "进行转换" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText(/预计入库位置.*\/tmp\/a\//)).toBeTruthy();
+    expect(page.requests).toHaveLength(0);
   } finally {
     page.close();
   }

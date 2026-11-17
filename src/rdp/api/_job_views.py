@@ -24,6 +24,6 @@ def response(record: JobRecord, *, role: Role = Role.ADMINISTRATOR) -> JobRespon
         "name": record.submitted_by.name,
         "deleted": record.submitter_deleted,
     }
-    for field in ("submitter_deleted", "artifacts", "tool_exit_code"):
+    for field in ("submitter_deleted", "tool_exit_code"):
         data.pop(field)
     return JobResponse.model_validate(data)

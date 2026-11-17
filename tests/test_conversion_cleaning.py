@@ -291,7 +291,12 @@ def test_preview_convert_validates_final_selection(
         manifest.read_text().replace("[runtime]", "[runtime]\nspace_ratio_percent = 130")
     )
     registry = production_registry()
-    register_conversion_jobs(registry, settings(files), fake_nav.storage_roots, None)
+    register_conversion_jobs(
+        registry,
+        settings(files),
+        tuple(root.model_copy(update={"writable": True}) for root in fake_nav.storage_roots),
+        None,
+    )
     with browser_case(tmp_path / "state", fake_nav, registry=registry) as api:
         parameters = seed_preview(
             api.engine,
@@ -346,7 +351,12 @@ def test_member_cannot_convert_from_preview(tmp_path: Path, fake_nav: FakeNaviga
     """范围6：成员被全局鉴权拒绝，先于预览查找和参数校验。"""
     files = fake_converter(tmp_path / "tool")
     registry = production_registry()
-    register_conversion_jobs(registry, settings(files), fake_nav.storage_roots, None)
+    register_conversion_jobs(
+        registry,
+        settings(files),
+        tuple(root.model_copy(update={"writable": True}) for root in fake_nav.storage_roots),
+        None,
+    )
     with browser_case(tmp_path / "state", fake_nav, registry=registry) as api:
         add_actor(api)
         assert api.login("member", SecretStr("member-updated-value")).status_code == 200

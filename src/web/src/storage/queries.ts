@@ -6,6 +6,7 @@ import {
   STORAGE_GC_TIME_MS,
   type StorageRoots,
 } from "../api/storage";
+import { getConversionDestinations, type ConversionDestinations } from "../api/cleaning";
 import { useAccountClient, useCurrentAccount } from "../accounts/runtime";
 
 /**
@@ -22,6 +23,30 @@ export function useStorageRoots(): UseQueryResult<StorageRoots> {
     queryKey: ["storage-roots", identity.data?.account_id],
     enabled: !!identity.data && !identity.data.must_change_password,
     queryFn: ({ signal }) => getStorageRoots({ client, payload: undefined, signal }),
+    staleTime: STORAGE_STALE_TIME_MS,
+    gcTime: STORAGE_GC_TIME_MS,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+}
+
+/**
+ * 为清洗报告读取挂载快照和预计输出位置。
+ * @param jobId - 成功预览的正整数编号文本。
+ * @returns 查询结果及手动刷新入口；错误保留以阻止转换。
+ * @throws Error 账号 Provider 缺失；网络失败通过 error 返回。
+ * @sideEffects 请求 destinations；缓存按账号与预览隔离，卸载取消，不修改 URL。
+ * @timeSemantics 进入页面和手动刷新时核对，无轮询、重试或后台刷新，离页清除快照。
+ */
+export function useConversionDestinations(jobId: string): UseQueryResult<ConversionDestinations> {
+  const client = useAccountClient();
+  const identity = useCurrentAccount();
+  return useQuery({
+    queryKey: ["conversion-destinations", identity.data?.account_id, jobId],
+    enabled: !!identity.data && !identity.data.must_change_password,
+    queryFn: ({ signal }) => getConversionDestinations({ client, payload: jobId, signal }),
     staleTime: STORAGE_STALE_TIME_MS,
     gcTime: STORAGE_GC_TIME_MS,
     retry: false,

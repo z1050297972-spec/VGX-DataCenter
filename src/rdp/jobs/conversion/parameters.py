@@ -11,8 +11,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from rdp.infra.config import StorageRootConfig
 from rdp.infra.db.validation import invalid_field
 from rdp.jobs.cleaning._g2 import validate_paths
+from rdp.jobs.conversion._output_storage import select_root
 from rdp.jobs.datasets.models import DatasetRow, SourceRow
 from rdp.jobs.errors import JobInputError
 from rdp.tools.manifest import ToolManifest
@@ -57,6 +59,7 @@ class ConversionOptions(BaseModel):
     """从预览发起转换的最终选择；空剔除列表表示全部保留，不重新套默认。"""
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
+    output_root: str | None = Field(default=None, min_length=1)
     output_format: str | None = None
     # 25% 是 MCAP 历史默认；工具模型按清单补齐省略值，显式给出的 25 不能被覆盖。
     space_ratio_percent: int = Field(default=25, strict=True, ge=0, le=1000)
@@ -69,6 +72,8 @@ class ConversionParameters(InputSelection, ConversionOptions):
     """转换参数；输入规则复用 InputSelection，输出版本由工具模型补默认值。
 
     Attributes:
+        output_root: 已登记输出根的稳定名称；新提交时补齐并持久化。
+        output_roots: 登记时注入的根快照，不接受请求传入。
         cleaning_preview_job_id: 成功预览编号；None 仅用于读取历史记录，执行时拒绝。
         excluded_files: 最终剔除的 file_index 列表，空列表全部保留。
         excluded_episodes: 最终剔除段的稳定预览身份，空列表全部保留。
@@ -77,18 +82,24 @@ class ConversionParameters(InputSelection, ConversionOptions):
         space_reserve_gib: 空间预留偏置，0 至 1024 GiB，默认 1。
     """
 
+    output_roots: ClassVar[tuple[StorageRootConfig, ...] | None] = None
+
     # 历史作业没有预览编号仍可读；执行器拒绝这种参数启动新转换。
     cleaning_preview_job_id: int | None = Field(default=None, strict=True, gt=0)
 
 
-def tool_parameters(manifest: ToolManifest) -> type[ConversionParameters]:
+def tool_parameters(
+    manifest: ToolManifest, roots: tuple[StorageRootConfig, ...] | None = None
+) -> type[ConversionParameters]:
     """为一个工具建立带型号、默认输出版本和空间百分比的参数模型。
 
     Args:
         manifest: 启动时已校验的工具清单。
+        roots: 登记根快照；None 仅供独立工具参数读取，不提供提交选根能力。
 
     Returns:
-        独立模型类；输出版本省略时取清单首项，空间百分比省略时取 runtime 默认值。
+        独立模型类；输出版本省略时取清单首项，空间百分比省略时取 runtime 默认值；
+        提供 roots 时缺省输出根取首个可写根，显式不存在或只读根由 JobInputError 拒绝。
 
     Raises:
         无；调用返回模型时，非法型号或版本由Pydantic报告ValidationError。
@@ -104,6 +115,7 @@ def tool_parameters(manifest: ToolManifest) -> type[ConversionParameters]:
         """闭包保存单工具约束，不使用可变全局登记。"""
 
         input_format: ClassVar[str] = manifest.io.input_format
+        output_roots: ClassVar[tuple[StorageRootConfig, ...] | None] = roots
 
         @model_validator(mode="after")
         def _tool_choices(self) -> Self:
@@ -122,7 +134,14 @@ def tool_parameters(manifest: ToolManifest) -> type[ConversionParameters]:
                 if "space_ratio_percent" in self.model_fields_set
                 else manifest.runtime.space_ratio_percent
             )
-            return self.model_copy(update={"output_format": version, "space_ratio_percent": ratio})
+            root = select_root(roots, self.output_root) if roots is not None else None
+            return self.model_copy(
+                update={
+                    "output_format": version,
+                    "space_ratio_percent": ratio,
+                    "output_root": root.name if root is not None else self.output_root,
+                }
+            )
 
     return _ToolParameters
 

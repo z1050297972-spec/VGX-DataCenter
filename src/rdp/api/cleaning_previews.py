@@ -1,5 +1,6 @@
 """清洗报告与转换提交 HTTP 入口（M4.5）；报告所有登录账号可看，转换仅管理员，不读取数据盘。"""
 
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -13,14 +14,19 @@ from rdp.api.account_schemas import AccountId
 from rdp.api.database import get_read_session
 from rdp.api.job_schemas import JobResponse
 from rdp.api.jobs import JobContext
+from rdp.api.storage import StorageInspector, list_storage_roots
+from rdp.api.storage_schemas import StorageRootResponse
+from rdp.infra.db.validation import invalid_field
 from rdp.jobs.cleaning.models import CleaningReport
 from rdp.jobs.cleaning.records import read_preview
 from rdp.jobs.conversion._cleaning_selection import select
+from rdp.jobs.conversion._output_storage import default_dataset_name
 from rdp.jobs.conversion.parameters import (
     ConversionOptions,
     ConversionParameters,
     conversion_type_name,
 )
+from rdp.jobs.datasets.models import DatasetRow
 from rdp.jobs.errors import JobInputError, JobNotFoundError
 from rdp.jobs.records import find_job
 from rdp.jobs.service import JobRequest
@@ -76,6 +82,70 @@ def get_cleaning_preview(
     preview = read_preview(session, int(job_id))
     return CleaningPreviewResponse.model_validate(
         preview.model_dump() | {"job_id": str(preview.job_id)}
+    )
+
+
+class ConversionDestinationResponse(StorageRootResponse):
+    """挂载快照与预计位置；模板中的 {job_id} 是未来转换编号，不是预览编号。"""
+
+    staging_template: str
+    expected_output_path: str
+
+
+class ConversionDestinationsResponse(BaseModel):
+    """未预留、未检查占用的预计输出位置，顺序沿用登记根。"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    items: tuple[ConversionDestinationResponse, ...]
+
+
+@router.get(
+    "/{job_id}/destinations",
+    response_model=ConversionDestinationsResponse,
+    operation_id="get_conversion_destinations",
+)
+def get_conversion_destinations(
+    job_id: AccountId,
+    inspector: StorageInspector,
+    session: Annotated[Session, Depends(get_read_session, scope="function")],
+) -> ConversionDestinationsResponse:
+    """返回成功预览可选输出根的挂载快照及未预留的预计位置。
+
+    Args:
+        job_id: 成功清洗预览的正整数编号文本。
+        inspector: 已登录请求的挂载元信息检查器，不持有存储目录访问能力。
+        session: 当前只读数据库事务，读取预览与输入数据集名称。
+
+    Returns:
+        所有登记根及 UTC checked_at；暂存模板保留未来转换编号占位符。
+
+    Raises:
+        JobNotFoundError: 预览不存在或未成功，返回 404。
+        JobInputError: 输入数据集索引缺失，返回 422。
+        AuthenticationError: 未登录，返回 401。
+        ExternalError: 数据库或挂载元信息读取失败，返回 502。
+        DefectError: 挂载检查依赖或时钟非法，返回 500。
+
+    Side Effects:
+        无（只读数据库、挂载表和设备元信息）；不 stat/listdir 存储根，不读取容量或预留位置。
+
+    Time Semantics:
+        每次请求重新核对挂载；实际可达性和容量由 worker 执行前有界检查。
+    """
+    preview = read_preview(session, int(job_id))
+    dataset = session.get(DatasetRow, preview.dataset_id)
+    if dataset is None:
+        raise JobInputError(invalid_field("dataset_id", "仍存在的数据集索引").diagnostics)
+    name = default_dataset_name(dataset.name)
+    return ConversionDestinationsResponse(
+        items=tuple(
+            ConversionDestinationResponse(
+                **item.model_dump(),
+                staging_template=str(Path(item.path) / "暂存/转换/{job_id}/out"),
+                expected_output_path=str(Path(item.path) / "转换" / name),
+            )
+            for item in list_storage_roots(inspector).items
+        )
     )
 
 

@@ -124,6 +124,9 @@ def _apply_plan(
         raise DefectError()
     check_root(value.root, deps.rescan.storage, context.reporter.check_cancelled)
     stage, target = str(move["stage"]), str(move["target"])
+    expected_stage = f"暂存/转换/{value.record.job_id}/{_ingest_read.output_name(value)}"
+    if move["storage_root"] != value.root.name or stage != expected_stage:
+        raise nav_input_error("CONVERSION_INGEST", "预览位置与转换实际存储根不一致，请重新预览")
     facts = access("probe", value.root, stage, target, deps.paths.root)
     if facts["target_exists"] or (facts["dev"], facts["ino"]) != (move["dev"], move["ino"]):
         raise nav_input_error("CONVERSION_INGEST", "目标已占用或暂存目录被替换，请重新预览")

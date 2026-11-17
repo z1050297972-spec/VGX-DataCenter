@@ -1204,6 +1204,86 @@
         "title": "ConfirmCreationRequest",
         "type": "object"
       },
+      "ConversionDestinationResponse": {
+        "additionalProperties": false,
+        "description": "挂载快照与预计位置；模板中的 {job_id} 是未来转换编号，不是预览编号。",
+        "properties": {
+          "checked_at": {
+            "format": "date-time",
+            "title": "Checked At",
+            "type": "string"
+          },
+          "expected_output_path": {
+            "title": "Expected Output Path",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "online": {
+            "title": "Online",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfflineReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "x-display-labels": {
+              "not_mounted": "没挂载",
+              "source_mismatch": "挂错了盘",
+              "timeout": "超时"
+            }
+          },
+          "staging_template": {
+            "title": "Staging Template",
+            "type": "string"
+          },
+          "writable": {
+            "title": "Writable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "writable",
+          "online",
+          "reason",
+          "checked_at",
+          "staging_template",
+          "expected_output_path"
+        ],
+        "title": "ConversionDestinationResponse",
+        "type": "object"
+      },
+      "ConversionDestinationsResponse": {
+        "additionalProperties": false,
+        "description": "未预留、未检查占用的预计输出位置，顺序沿用登记根。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConversionDestinationResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ConversionDestinationsResponse",
+        "type": "object"
+      },
       "ConversionIngestParameters": {
         "additionalProperties": false,
         "description": "检查与预览参数；automatic 仅由 worker 的成功收尾触发器填写。",
@@ -1347,6 +1427,18 @@
               }
             ],
             "title": "Output Format"
+          },
+          "output_root": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Root"
           },
           "space_ratio_percent": {
             "default": 25,
@@ -4868,8 +4960,15 @@
       },
       "JobResponse": {
         "additionalProperties": false,
-        "description": "详情及列表中的永久记录，字段单位与 JobRecord 相同；时刻统一 UTC 微秒。\n\nAttributes:\n    job_id: 1 至 2^63-1 规范十进制文本。\n    type_name: 稳定类型键，1-64 字符。\n    display_name: 提交时显示名快照，1-40 码点。\n    parameters: 无秘密参数 JSON；历史原值，不按新版本静默改写。\n    submitted_by: 历史身份和 deleted 标记；系统的 account_id=None、name=“系统”、deleted=False。\n    submitted_at: UTC 提交时刻。\n    resubmitted_from: 原作业编号文本或 None。\n    state: 六种状态之一。\n    started_at: 首次开始 UTC 时刻或 None。\n    ended_at: 终态结束 UTC 时刻或 None。\n    progress: 最后进度或 None，未知 total 返回 null。\n    progress_at: 最后进度 UTC 时刻或 None。\n    elapsed_s: 有限非负秒数，存储的已运行时长；页面可据本地单调样本增量显示。\n    log_path: 状态目录相对路径或 None，浏览器不据此直接访问文件。\n    summary: 终态冻结摘要或 None，只有 completed 内 outcome 非空。\n    diagnostics: 有界诊断组，真实总数与前 N 样例分别展示。\n    recovery_mode: 提交时恢复方式快照，只作记录及interrupt保护。\n    recovery_count: 自动恢复资格累计次数，0至JOB_RECOVERY_LIMIT；不随重跑清零。\n    gpu_index: 物理卡号，未领过 None，终态保留历史。\n    wait_reason: gpu/navigation_lock/None，不新增 state；终态及恢复清空。\n    holds_navigation_lock: worker 保存的持锁展示副本，终态 False。\n    platform_version: 最近实际领取的平台版本文字，1-128 个码点；历史未知或尚未领取为 None。",
+        "description": "详情及列表中的永久记录，字段单位与 JobRecord 相同；时刻统一 UTC 微秒。\n\nAttributes:\n    job_id: 1 至 2^63-1 规范十进制文本。\n    type_name: 稳定类型键，1-64 字符。\n    display_name: 提交时显示名快照，1-40 码点。\n    parameters: 无秘密参数 JSON；历史原值，不按新版本静默改写。\n    submitted_by: 历史身份和 deleted 标记；系统的 account_id=None、name=“系统”、deleted=False。\n    submitted_at: UTC 提交时刻。\n    resubmitted_from: 原作业编号文本或 None。\n    state: 六种状态之一。\n    started_at: 首次开始 UTC 时刻或 None。\n    ended_at: 终态结束 UTC 时刻或 None。\n    progress: 最后进度或 None，未知 total 返回 null。\n    progress_at: 最后进度 UTC 时刻或 None。\n    elapsed_s: 有限非负秒数，存储的已运行时长；页面可据本地单调样本增量显示。\n    artifacts: 已记录暂存/产物路径，运行中也返回；不根据当前配置重算。\n    log_path: 状态目录相对路径或 None，浏览器不据此直接访问文件。\n    summary: 终态冻结摘要或 None，只有 completed 内 outcome 非空。\n    diagnostics: 有界诊断组，真实总数与前 N 样例分别展示。\n    recovery_mode: 提交时恢复方式快照，只作记录及interrupt保护。\n    recovery_count: 自动恢复资格累计次数，0至JOB_RECOVERY_LIMIT；不随重跑清零。\n    gpu_index: 物理卡号，未领过 None，终态保留历史。\n    wait_reason: gpu/navigation_lock/None，不新增 state；终态及恢复清空。\n    holds_navigation_lock: worker 保存的持锁展示副本，终态 False。\n    platform_version: 最近实际领取的平台版本文字，1-128 个码点；历史未知或尚未领取为 None。",
         "properties": {
+          "artifacts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Artifacts",
+            "type": "array"
+          },
           "diagnostics": {
             "items": {
               "$ref": "#/components/schemas/DiagnosticGroup"
@@ -5060,6 +5159,7 @@
           "progress",
           "progress_at",
           "elapsed_s",
+          "artifacts",
           "log_path",
           "summary",
           "diagnostics",
@@ -12055,6 +12155,146 @@
           }
         ],
         "summary": "Convert From Cleaning Preview",
+        "tags": [
+          "cleaning-previews"
+        ]
+      }
+    },
+    "/api/cleaning-previews/{job_id}/destinations": {
+      "get": {
+        "description": "返回成功预览可选输出根的挂载快照及未预留的预计位置。\n\nArgs:\n    job_id: 成功清洗预览的正整数编号文本。\n    inspector: 已登录请求的挂载元信息检查器，不持有存储目录访问能力。\n    session: 当前只读数据库事务，读取预览与输入数据集名称。\n\nReturns:\n    所有登记根及 UTC checked_at；暂存模板保留未来转换编号占位符。\n\nRaises:\n    JobNotFoundError: 预览不存在或未成功，返回 404。\n    JobInputError: 输入数据集索引缺失，返回 422。\n    AuthenticationError: 未登录，返回 401。\n    ExternalError: 数据库或挂载元信息读取失败，返回 502。\n    DefectError: 挂载检查依赖或时钟非法，返回 500。\n\nSide Effects:\n    无（只读数据库、挂载表和设备元信息）；不 stat/listdir 存储根，不读取容量或预留位置。\n\nTime Semantics:\n    每次请求重新核对挂载；实际可达性和容量由 worker 执行前有界检查。",
+        "operationId": "get_conversion_destinations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "maxLength": 19,
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionDestinationsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "summary": "Get Conversion Destinations",
         "tags": [
           "cleaning-previews"
         ]
